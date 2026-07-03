@@ -36,7 +36,10 @@ navigation library for M1 — the screen set is small and state-driven).
 
 - Routing is a `when` on state, not a nav graph. System back is handled per-screen
   with `BackHandler` (detail → list, status page → login).
-- Auto-reconnect: on start the VM connects to the last active server if a stored
-  JWT exists — the login screen may flash briefly before the list appears.
+- Routing uses `hasSession` (set once authenticated, and optimistically at startup
+  if a stored JWT exists) — NOT raw connection state — so reconnects keep the list
+  visible with a "Connection: …" banner. `logout()` clears it.
+- Login/status-page screens have a "Trust self-signed certificate" checkbox that
+  flows to `insecure` on the connection.
 - No app icon yet (system default); add before release. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.

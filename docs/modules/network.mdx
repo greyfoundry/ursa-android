@@ -43,4 +43,11 @@ here so the rest of the app sees clean domain models.
   parse paths (`heartbeat` vs `beatRow`). Covered by `KumaParseTest`.
 - `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) — safe,
   but the ack resolves only after the server replies.
-- Login sets `state = Authenticated`; the UI routes on that.
+- Reconnect: `KumaClient` keeps the JWT and silently re-emits `loginByToken` on
+  every `EVENT_CONNECT`, so a dropped socket re-authenticates itself. `disconnect()`
+  clears the JWT.
+- Self-signed TLS: `KumaClient(url, insecure=true)` sets Socket.IO's
+  `callFactory`/`webSocketFactory` to `TlsTrust.insecureClient()`;
+  `StatusPageClient` uses Ktor OkHttp `preconfigured`. Trust-all is opt-in only.
+- The UI routes on the ViewModel's `hasSession`, not raw `state`, so transient
+  disconnects don't bounce to login.

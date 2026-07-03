@@ -28,9 +28,13 @@ and the module docs under `docs/modules/`.
 **status**
 - M1 (core viewing) implemented: login incl. 2FA, live monitor list, monitor
   detail (heartbeat history + TLS cert), public status-page viewer, pause/resume.
-- Builds green (`assembleDebug`, `lintDebug`); parser is unit-tested. On-device UI
+- M2 done: Tink AES-256-GCM credential encryption (Keystore master key), resilient
+  reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
+- Builds green (`assembleDebug`, `lintDebug`); parser unit-tested. On-device UI
   smoke test still pending (no emulator/AVD provisioned). See `docs/sessions/log.mdx`.
-- Next: M2 (Tink credential encryption, reconnect/error polish), M3 (UnifiedPush).
+- Local reference for agents (gitignored): `docs/kuma-notes/`, `archive/uptime-kuma/`,
+  `MEMORY.md`.
+- Next: M3 (UnifiedPush push).
 
 **depends on**
 - a running Uptime Kuma server (the app is a client; it stores/creates nothing

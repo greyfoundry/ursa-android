@@ -9,6 +9,36 @@ status: stable
 The running change log across sessions — project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-03 — M2 (encryption, reconnect, TLS) + local kuma reference cache
+
+**changed**: (1) Set up local-only tooling for future agents: cloned upstream
+Kuma into `archive/uptime-kuma/` (v2.4.0, matches dev), wrote `docs/kuma-notes/`
+(full socket/REST/data-shape/source-map notes), and a root `MEMORY.md` handoff —
+all gitignored via `.git/info/exclude`. (2) Built M2: Tink AES-256-GCM at-rest
+encryption of credentials (Keystore master key); resilient reconnect (KumaClient
+re-auths with stored JWT on every reconnect; session flag keeps the list up
+across drops; sign-out added); opt-in self-signed TLS trust per connection.
+
+**files touched**: `core/storage/{Crypto,ConnectionStore}.kt`,
+`core/network/{KumaClient,TlsTrust,StatusPageClient}.kt`,
+`data/model/Models.kt` (ServerConnection.insecure), `data/repository/*`,
+`ui/{UrsaViewModel,UrsaApp}.kt`, `ui/connections/LoginScreen.kt`,
+`ui/monitors/MonitorListScreen.kt`, `ui/statuspage/StatusPageScreen.kt`,
+`gradle/libs.versions.toml` (tink 1.22.0).
+
+**decisions made**:
+- Encryption: Preferences DataStore value wrapped with a Tink `Aead` (not the
+  `AeadSerializer`/Proto path) — smallest change over the M1 store. Old plaintext
+  entries become undecryptable → treated as empty (re-login), fine pre-release.
+- Trust-all TLS is opt-in per connection, gated behind an explicit checkbox and a
+  loud comment in `TlsTrust`. Cert pinning is the future upgrade if wanted.
+- Kuma reference kept LOCAL (archive + kuma-notes + MEMORY.md) — large / not part
+  of the shipped app; a fresh agent reads them to avoid re-fetching.
+
+**next**: M3 — UnifiedPush push (endpoint registration UI, receiver, notification
+rendering). Note Kuma also has native web-push VAPID (`getWebpushVapidPublicKey`)
+as an alternative worth evaluating.
+
 ### 2026-07-03 — M1 core viewing + GitHub backup
 
 **changed**: Built all of M1. Wired networking/storage deps. Implemented the Kuma

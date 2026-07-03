@@ -28,8 +28,8 @@ distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──�
 **layers (M1 implemented unless noted)**
 - `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) —
   see `docs/modules/network.mdx`.
-- `core.storage` → `.../core/storage/ConnectionStore.kt` — DataStore (plaintext for
-  M1; Tink wrapping is M2).
+- `core.storage` → `.../core/storage/` (ConnectionStore + Crypto) — DataStore with
+  Tink AES-256-GCM at rest, master key in Android Keystore.
 - `core.push` → planned M3 — UnifiedPush connector + receiver (not yet created).
 - `data.model` → `.../data/model/` — Models.kt + StatusPageModels.kt.
 - `data.repository` → `.../data/repository/MonitorRepository.kt`.
