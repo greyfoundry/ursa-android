@@ -1,0 +1,39 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: stable
+---
+
+## what this is
+
+The running change log across sessions — project memory over time. Append a dated
+entry every session that changes structure. Newest at top.
+
+### 2026-07-03
+
+**changed**: Verified the build spec's 4 pre-build assumptions against a live
+Uptime Kuma 2.4.0 + ntfy (storage deprecation, toolchain versions, Socket.IO
+event shapes, push design). Scaffolded a minimal buildable Jetpack Compose app.
+Set up the documentary docs system and persisted API reference docs via Context7.
+
+**files touched**: `URSA_BUILD_SPEC.md` (created + corrected), full Gradle/Compose
+scaffold (`settings.gradle.kts`, `build.gradle.kts`, `app/build.gradle.kts`,
+`gradle/libs.versions.toml`, wrapper, `MainActivity.kt`, manifest, res), `.gitignore`,
+`local.properties`, all of `docs/**`, `CLAUDE.md`.
+
+**docs updated**: created overview, stack, style, architecture/index,
+modules/app-shell, infrastructure/env + deployment, references/{uptime-kuma-api,
+socketio-java, ktor-client, datastore-tink, unifiedpush}, this log, and the
+CLAUDE.md receptionist.
+
+**decisions made**:
+- compileSdk 36 (android-37 platform not installed locally).
+- AGP 9.2 built-in Kotlin: dropped `kotlin.android`, pinned Kotlin 2.4.0 via root
+  buildscript classpath, Gradle 9.4.1.
+- Initialized a dedicated git repo in this folder (parent `C:/Users/User` is an
+  unrelated repo — do not commit there). Undercover: no AI attribution.
+- Uptime Kuma event payload shapes corrected from live capture; wiki was wrong.
+- `cit-code` skill referenced in CLAUDE.md is not installed in this environment.
+
+**next**: M1 dependency wiring (Phase B) — socket.io-client, Ktor, DataStore+Tink,
+UnifiedPush into the version catalog, verifying each builds.

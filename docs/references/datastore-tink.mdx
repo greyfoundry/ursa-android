@@ -1,0 +1,66 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: stable
+source: Context7 /websites/developer_android (datastore + datastore-tink)
+---
+
+## what this is
+
+How URSA stores per-server credentials (server URL, username, and the JWT after
+login) encrypted at rest. `EncryptedSharedPreferences` is deprecated (as of
+security-crypto 1.1.0, July 2025). The current approach is **Jetpack DataStore**
+for persistence + **Tink** for encryption, with the master key in the Android
+Keystore. The cleanest path is the official `androidx.datastore:datastore-tink`
+artifact, which gives an `AeadSerializer` that encrypts a Proto/typed DataStore
+transparently.
+
+## technical map
+
+**gradle**
+```kotlin
+implementation("androidx.datastore:datastore:<1.3+>")        // typed DataStore
+implementation("androidx.datastore:datastore-tink:<1.3+>")   // AeadSerializer
+implementation("com.google.crypto.tink:tink-android:<1.14+>")
+```
+
+**keyset in Android Keystore**
+```kotlin
+val keysetHandle = AndroidKeysetManager.Builder()
+    .withSharedPref(appContext, "keyset", "keyset_prefs")
+    .withKeyTemplate(KeyTemplate.createFrom(PredefinedAeadParameters.AES256_GCM))
+    .withMasterKeyUri("android-keystore://master_key")   // key never leaves Keystore
+    .build()
+    .keysetHandle
+```
+
+**wrap a serializer with AEAD encryption**
+```kotlin
+val aeadSerializer = AeadSerializer(
+    aead = keysetHandle.getPrimitive(RegistryConfiguration.get(), Aead::class.java),
+    wrappedSerializer = CredentialsSerializer,      // your Serializer<T>
+    associatedData = "credentials.pb".encodeToByteArray(), // anti-swap tag
+)
+val dataStore = dataStore(
+    fileName = "credentials.pb",
+    serializer = aeadSerializer,
+    scope = scope,
+)
+```
+
+**exports (key symbols)**
+- `AndroidKeysetManager.Builder().withMasterKeyUri("android-keystore://...")`
+- `AeadSerializer(aead, wrappedSerializer, associatedData)`
+- `DataStore<T>` exposing `data: Flow<T>` and `updateData { }`
+
+## gotchas
+
+- Do **not** use `EncryptedSharedPreferences` / `security-crypto` — deprecated,
+  no more security patches, known OEM keyset-corruption issues.
+- Only persist the **JWT** after login, never the password. If "remember me" is
+  off, don't persist the JWT at all — prompt each session.
+- `associatedData` must be stable and unique per store (prevents ciphertext
+  swapping). Losing/rotating the keyset makes existing data unreadable — treat
+  keyset loss as "user must re-login," not a crash.
+- For simple key-value use, Preferences DataStore + a Tink `Aead` wrapper works
+  too, but the typed/Proto + `AeadSerializer` path above is the supported one.

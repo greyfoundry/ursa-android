@@ -1,0 +1,72 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: stable
+source: Context7 /websites/socket_io_v4_client-api (JS API; Java mapping added)
+---
+
+## what this is
+
+The `io.socket:socket.io-client` (Java) client API URSA uses to hold the live
+Kuma connection. The Java client mirrors the JS client one-to-one; the mapping is
+below. Data crosses the wire as `org.json.JSONObject` / `JSONArray`.
+
+## technical map
+
+**gradle** — exclude the bundled `org.json` (Android ships its own):
+```kotlin
+implementation("io.socket:socket.io-client:<ver>") {
+    exclude(group = "org.json", module = "json")
+}
+```
+
+**connect (Kotlin)**
+```kotlin
+val opts = IO.Options().apply {
+    transports = arrayOf("polling", "websocket") // polling first, then upgrade
+    reconnection = true
+}
+val socket: Socket = IO.socket("https://kuma.example.com", opts)
+socket.on(Socket.EVENT_CONNECT) { /* connected */ }
+socket.on(Socket.EVENT_CONNECT_ERROR) { args -> /* args[0] = error */ }
+socket.on(Socket.EVENT_DISCONNECT) { args -> /* reason */ }
+socket.connect()
+```
+
+**listen (positional args come through `args: Array<Any>`)**
+```kotlin
+socket.on("heartbeat") { args ->
+    val hb = args[0] as JSONObject           // object payload
+}
+socket.on("uptime") { args ->
+    val monitorId = args[0] as Int           // positional payload
+    val periodHours = args[1] as Int
+    val fraction = (args[2] as Number).toDouble()
+}
+```
+
+**emit with acknowledgement (`Ack`)**
+```kotlin
+val login = JSONObject().put("username", u).put("password", p).put("token", code)
+socket.emit("login", login, Ack { res ->
+    val cb = res[0] as JSONObject            // { ok, token, ... }
+})
+```
+
+**exports (key symbols)**
+- `IO.socket(url, IO.Options)` → `Socket`
+- `IO.Options { transports, reconnection, reconnectionDelayMax, auth, query }`
+- `socket.on(event) { args }`, `socket.once`, `socket.off`
+- `socket.emit(event, ...args, Ack)`, `socket.connect()`, `socket.disconnect()`
+- `Socket.EVENT_CONNECT / EVENT_DISCONNECT / EVENT_CONNECT_ERROR`
+
+## gotchas
+
+- Callbacks run off the main thread — marshal to a coroutine/`StateFlow` before
+  touching UI.
+- Wrap emit-with-ack in a `suspendCancellableCoroutine` to expose it as a
+  `suspend fun` returning the parsed callback.
+- Kuma auth is emitted as a `login` event (see uptime-kuma-api), **not** the
+  Socket.IO `auth` option.
+- Cast carefully: positional Kuma events give raw `Int`/`String`/`JSONObject` in
+  `args[]`; object events give a single `JSONObject` at `args[0]`.

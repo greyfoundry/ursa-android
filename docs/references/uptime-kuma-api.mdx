@@ -1,0 +1,67 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: stable
+source: verified live against Uptime Kuma 2.4.0 (not the wiki)
+---
+
+## what this is
+
+How URSA talks to an Uptime Kuma server. Kuma has no stable public API — it's a
+Socket.IO app plus a few unauthenticated REST endpoints for public status pages.
+Everything below was captured by connecting a real Socket.IO client to a live
+2.4.0 instance, so it reflects reality, not the upstream wiki (which is wrong in
+several places). Build a thin adapter around this; expect drift between versions.
+
+## technical map
+
+**transport**
+- Socket.IO v4 at server root (`/`). Open with **polling then upgrade**;
+  websocket-first can `connect_error` on some setups.
+
+**auth flow (all callbacks return `{ ok, msg?, msgi18n? }` + extras)**
+1. Server emits `loginRequired` on connect (and `setup` if no admin exists).
+2. `emit("login", { username, password, token })` → cb `{ ok, token }` (JWT).
+   `token` = 2FA code; if cb returns `{ tokenRequired: true }`, re-emit with it.
+3. Later sessions: `emit("loginByToken", <jwt>)` instead of credentials.
+
+**server → client events (⚠ several are POSITIONAL args, not objects)**
+- `info` → `{ version, latestVersion, serverTimezone, dbType, isContainer, ... }`
+- `monitorList` → `{ [id]: MonitorObject }` (id-keyed object, not array)
+- `heartbeat` → `{ monitorID, status, time, msg, ping, important, retries }` (camelCase)
+- `avgPing` → **positional** `(monitorID, avgPingMs)`
+- `uptime` → **positional** `(monitorID, periodHours:Number, fraction:0..1)`
+- `certInfo` → **positional** `(monitorID, tlsInfoJSON)`
+- also pushed on login: `monitorTypeList, maintenanceList, notificationList,
+  proxyList, dockerHostList, apiKeyList, remoteBrowserList, statusPageList,
+  initServerTimezone`
+
+**client → server events (with ack callback)**
+- `getMonitorBeats(id, periodHours)` → `{ ok, data: HeartbeatRow[] }`
+  rows are **snake_case**: `{ id, monitor_id, status, msg, time, ping, duration,
+  down_count, end_time, retries }`
+- `getMonitorChartData(id, periodHours)` → `{ ok, data: [{ up, down, avgPing,
+  minPing, maxPing, timestamp }] }` (⚠ NOT `ping/pingMin/pingMax`)
+- `pauseMonitor(id)` / `resumeMonitor(id)` → `{ ok, msg, msgi18n }`
+- `getMonitor(id)` → full MonitorObject
+
+**status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
+**time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
+
+**REST (no auth — public status pages)**
+- `GET /api/status-page/<slug>` — page config, groups, monitors, incident
+- `GET /api/status-page/heartbeat/<slug>` — heartbeats + uptime
+- `GET /api/entry-page` — detect setup state / vanity domains
+
+## gotchas
+
+- **Case split**: live `heartbeat` event is camelCase; `getMonitorBeats` rows are
+  snake_case. The data model must map both to one domain type.
+- **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
+  JSON string *inside* the JSON — parse twice.
+- Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON
+  array) on Kuma 2.x — absent from the wiki.
+- Kuma 2.x boots into a separate "setup-database" mode; the app socket isn't
+  mounted until a DB is chosen. Only relevant for spinning up dev instances
+  (seed `data/db-config.json = {"type":"sqlite"}`), never for the app itself.
+- Self-signed certs are common in this userbase — handle TLS trust explicitly.

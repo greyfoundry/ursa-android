@@ -1,0 +1,74 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: in-flux
+source: knowledge (connector 3.x). ⚠ VERIFY against https://unifiedpush.org/developers/android/
+        — Context7 has no UnifiedPush entry and both doc fetches were redirect-gated.
+---
+
+## what this is
+
+UnifiedPush is the FOSS push-notification standard URSA uses instead of Firebase.
+No Google account, no relay server URSA has to run. The user installs a
+"distributor" app (ntfy is the default recommendation); URSA registers with it,
+receives an **endpoint URL**, and shows it with a copy button. The user pastes
+that URL into a **Webhook notification** in their Kuma instance. When a monitor
+goes down, Kuma POSTs to the endpoint → the distributor delivers it to URSA.
+
+**Verified end-to-end (2026-07-03):** Kuma Webhook (json) → ntfy endpoint delivered
+HTTP 200. Body is `{ heartbeat, monitor, msg }`; `msg` is ready-made text like
+`"[name] [🔴 Down] connect ECONNREFUSED ..."`. URSA parses this JSON itself.
+Append `?up=1` to the ntfy endpoint so ntfy forwards raw bytes untouched.
+
+## technical map
+
+**gradle**
+```kotlin
+implementation("org.unifiedpush.android:connector:<3.x>")
+```
+
+**register / distributor selection (connector 3.x API — verify names)**
+```kotlin
+// pick a distributor (ntfy etc.); persist the choice
+val distributors = UnifiedPush.getDistributors(context)
+UnifiedPush.saveDistributor(context, distributors.first())
+UnifiedPush.registerApp(context)            // optional: instance, messageForDistributor, vapid
+// or: UnifiedPush.tryUseDefaultDistributor(context) { success -> ... }
+```
+
+**receive (extend the connector's receiver/service)**
+```kotlin
+class UrsaPushReceiver : MessagingReceiver() {
+    override fun onNewEndpoint(ctx: Context, endpoint: PushEndpoint, instance: String) {
+        // endpoint.url → show to user to paste into Kuma Webhook (append ?up=1 for ntfy)
+    }
+    override fun onMessage(ctx: Context, message: PushMessage, instance: String) {
+        // message.content = raw bytes of Kuma's webhook JSON → parse, post a notification
+    }
+    override fun onRegistrationFailed(ctx: Context, reason: FailedReason, instance: String) {}
+    override fun onUnregistered(ctx: Context, instance: String) {}
+}
+```
+
+**manifest** — register the receiver for the UnifiedPush actions:
+```xml
+<receiver android:name=".UrsaPushReceiver" android:exported="true">
+    <intent-filter>
+        <action android:name="org.unifiedpush.android.connector.MESSAGE" />
+        <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT" />
+        <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
+        <action android:name="org.unifiedpush.android.connector.UNREGISTERED" />
+    </intent-filter>
+</receiver>
+```
+Also `POST_NOTIFICATIONS` permission (API 33+) and `INTERNET`.
+
+## gotchas
+
+- ⚠ API names above are from memory (connector 3.x renamed `onMessage` payloads
+  to `PushMessage` and endpoints to `PushEndpoint`). Confirm exact signatures at
+  unifiedpush.org before writing M3 code.
+- The Socket.IO connection does NOT need to stay alive for push — push flows
+  through the distributor, not the app. No foreground service for v1.
+- No distributor installed → `getDistributors` is empty; guide the user to ntfy.
+- FOSS-clean for F-Droid — confirm before release.

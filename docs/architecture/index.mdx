@@ -1,0 +1,48 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: in-flux
+---
+
+## what this is
+
+How URSA is wired together and how data flows from a Kuma server to the screen.
+The app is a thin, reactive client: a socket/REST layer feeds repositories,
+repositories expose Flows, Compose renders them. Nothing is stored server-side.
+
+## technical map
+
+**data flow**
+```
+Kuma server ──Socket.IO──▶ core.network (adapter: parse/normalize wire → domain)
+            ──REST(Ktor)─▶        │
+                                  ▼
+                          data.repository (StateFlow<DomainModel>, single source of truth)
+                                  ▼
+                          ui.* (Compose, collectAsStateWithLifecycle)
+
+core.storage (DataStore+Tink)  ── credentials/JWT ──▶ core.network (login/loginByToken)
+distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──▶ system notification
+```
+
+**layers → planned paths (created as code lands)**
+- `core.network` → `app/src/main/java/dev/astoris/ursa/core/network/`
+  Socket.IO wrapper + Kuma adapter + Ktor REST client.
+- `core.storage` → `.../core/storage/` — DataStore + Tink credential store.
+- `core.push` → `.../core/push/` — UnifiedPush connector + receiver.
+- `data.model` → `.../data/model/` — `Monitor, Heartbeat, StatusPage, ...`
+- `data.repository` → `.../data/repository/` — one repo per domain.
+- `ui.connections | ui.monitors | ui.statuspage | ui.settings` → `.../ui/*`
+- app shell → `.../MainActivity.kt` (exists). See `docs/modules/app-shell.mdx`.
+
+**depends on**
+- `docs/references/*` — the external API contracts each layer implements against.
+
+## gotchas
+
+- The adapter in `core.network` is the ONLY place that knows Kuma's wire quirks
+  (positional events, snake/camel split, double-encoded JSON). Keep it there.
+- One `Socket` per active server; multi-server = switch the active repository, not
+  multiple live sockets in v1.
+- Push is independent of the socket — it works while the app is closed, via the
+  distributor. Don't couple them.

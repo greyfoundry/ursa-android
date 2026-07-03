@@ -1,0 +1,44 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: in-flux
+---
+
+## what this is
+
+URSA is a native Android app for **Uptime Kuma** — a popular self-hosted uptime
+monitor. It lets someone watch their servers/websites from their phone: see which
+monitors are up or down in real time, read history and TLS-cert info, pause or
+resume checks, and receive a push notification the moment something goes down.
+Android has lacked a solid Uptime Kuma client for years; URSA fills that gap, and
+its headline feature is push notifications that need no paid relay server.
+
+Read this file first every session. It is the map. Do not scan the repo — go
+straight to the room you need via the receptionist in `CLAUDE.md` and the module
+docs under `docs/modules/`.
+
+## technical map
+
+**file paths**
+- receptionist / room index: `CLAUDE.md`
+- full build spec (why + scope + verified API): `URSA_BUILD_SPEC.md`
+- app entry: `app/src/main/java/dev/astoris/ursa/MainActivity.kt`
+- version catalog: `gradle/libs.versions.toml`
+
+**status**
+- M1 (core viewing) not started. Scaffold builds green (`assembleDebug`,
+  `lintDebug`). See `docs/sessions/log.mdx`.
+
+**depends on**
+- a running Uptime Kuma server (the app is a client; it stores/creates nothing
+  server-side). Dev instance: `docker` container `uptime-kuma-dev` on `:3001`.
+
+## gotchas
+
+- The Uptime Kuma socket API is **internal/unstable**. Several event payloads are
+  positional multi-arg emits, not objects — see `docs/references/uptime-kuma-api.mdx`
+  (verified live, do not trust the upstream wiki blindly).
+- Undercover project: **no AI-provider references** anywhere (commits, code,
+  docs, README). No co-author trailers.
+- The git repo is rooted in this folder. The parent `C:/Users/User` is a
+  separate (unrelated) git repo — never commit there.

@@ -1,0 +1,49 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: stable
+---
+
+## what this is
+
+The conventions that would otherwise get re-explained every session: naming,
+architecture patterns, commit rules, and the hard "never do X" rules for this
+project.
+
+## technical map
+
+**language / UI**
+- Kotlin + Jetpack Compose only. No XML layouts (themes.xml stays for the app
+  theme). Material 3.
+- Package root `dev.astoris.ursa`. Feature packages: `connections`, `monitors`,
+  `statuspage`, `settings`; infra packages: `core.network`, `core.storage`,
+  `core.push`, `data.model`, `data.repository`.
+
+**architecture**
+- Repository pattern: one repository per domain, exposes `StateFlow`/`Flow`.
+  Compose collects via `collectAsStateWithLifecycle`.
+- A thin **adapter layer** wraps the Kuma socket — parse/normalize there so
+  protocol drift never leaks into UI or models.
+- One `Socket` per active server, held in a service-scoped repository (no
+  background service in v1).
+
+**naming**
+- Data classes = domain nouns (`Monitor`, `Heartbeat`, `StatusPage`).
+- Kuma wire DTOs kept separate from domain models; mappers live in the adapter.
+
+**commits**
+- Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`).
+- **Undercover**: no AI-provider references, no co-author trailers, no AI hints
+  anywhere in commits/code/docs/README.
+
+**tests**
+- Ponytail rule: non-trivial logic (parsers, the socket adapter, money/security
+  paths) leaves one runnable check — a small `test_*` or an `assert` self-check.
+  No framework ceremony unless asked.
+
+## gotchas
+
+- Do not change existing UI design/layout/styling unless explicitly asked.
+- Work in small phases: summarize, run lint/tests, commit per phase.
+- Never apply `org.jetbrains.kotlin.android` (AGP 9 built-in Kotlin) — see
+  `docs/stack.mdx`.

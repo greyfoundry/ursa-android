@@ -1,0 +1,56 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: stable
+source: Context7 /ktorio/ktor-documentation (Ktor 3.x)
+---
+
+## what this is
+
+Ktor client is URSA's HTTP client for the unauthenticated status-page REST
+endpoints (`/api/status-page/*`). Small surface: create one client, GET JSON,
+deserialize with kotlinx.serialization.
+
+## technical map
+
+**gradle** — client core + an engine + content negotiation + json:
+```kotlin
+implementation("io.ktor:ktor-client-core:<3.x>")
+implementation("io.ktor:ktor-client-okhttp:<3.x>")   // Android-friendly engine
+implementation("io.ktor:ktor-client-content-negotiation:<3.x>")
+implementation("io.ktor:ktor-serialization-kotlinx-json:<3.x>")
+```
+Also apply the `org.jetbrains.kotlin.plugin.serialization` plugin and add
+`kotlinx-serialization-json`.
+
+**client + JSON**
+```kotlin
+val client = HttpClient(OkHttp) {
+    install(ContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true })   // Kuma sends extra fields
+    }
+    install(HttpTimeout) { requestTimeoutMillis = 15_000 }
+}
+```
+
+**GET + deserialize**
+```kotlin
+@Serializable data class StatusPage(/* ... */)
+val page: StatusPage = client.get("$base/api/status-page/$slug").body()
+```
+
+**exports (key symbols)**
+- `HttpClient(engine) { install(...) }`
+- `ContentNegotiation` + `json(Json { })`
+- `HttpTimeout { requestTimeoutMillis }`
+- `client.get(url).body<T>()` (suspend)
+
+## gotchas
+
+- Always `ignoreUnknownKeys = true` — Kuma payloads carry many fields URSA
+  ignores.
+- Self-signed certs: configure trust on the engine (OkHttp) config, don't blanket
+  disable verification. Surface a "trust this cert?" decision to the user.
+- Reuse ONE `HttpClient` (it owns a thread pool); close on app teardown.
+- This is only for public status pages. Everything authenticated goes over
+  Socket.IO, not REST — see `docs/references/uptime-kuma-api.mdx`.

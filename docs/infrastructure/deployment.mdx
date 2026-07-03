@@ -1,0 +1,36 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: in-flux
+---
+
+## what this is
+
+How to build, run, and (eventually) release URSA.
+
+## technical map
+
+**build (from project root)**
+```bash
+export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
+./gradlew.bat assembleDebug --no-daemon     # -> app/build/outputs/apk/debug/app-debug.apk
+./gradlew.bat :app:lintDebug --no-daemon    # must pass before commit
+```
+No unit tests yet; add under `app/src/test/` as logic lands.
+
+**run**
+- Install the debug APK on a device/emulator, or Run from Android Studio.
+- Point it at the dev Kuma at `http://10.0.2.2:3001` (emulator) or the LAN IP.
+
+**release (M3, not yet)**
+- MIT license (match upstream Kuma), F-Droid metadata via `fdroiddata`
+  (FOSS-only deps — verify connector + socket.io-client are clean).
+- Add a signing config + app icon before release.
+
+## gotchas
+
+- First build downloads Gradle 9.4.1 (~130 MB) + AGP/deps — slow once, cached
+  after.
+- Use `--no-daemon` in CI/headless to avoid lingering daemons on Windows.
+- lint caches results; if a `local.properties`-style fix seems ignored, rerun
+  with `--rerun-tasks`.
