@@ -3,6 +3,8 @@ package dev.astoris.ursa.data.repository
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.data.model.CertInfo
+import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.ServerConnection
@@ -40,6 +42,12 @@ class MonitorRepository(
     val state: StateFlow<ConnectionState> = activeClient
         .flatMapLatest { client -> client?.state ?: flowOf(ConnectionState.Disconnected) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
+
+    val certs: StateFlow<Map<Int, CertInfo>> = activeClient
+        .flatMapLatest { client -> client?.certs ?: flowOf(emptyMap()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    suspend fun beats(id: Int): List<Heartbeat> = activeClient.value?.getBeats(id) ?: emptyList()
 
     /** Connect to a new server and log in; on success the JWT is persisted. */
     suspend fun addServerAndLogin(

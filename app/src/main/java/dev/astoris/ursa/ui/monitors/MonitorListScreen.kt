@@ -1,6 +1,7 @@
 package dev.astoris.ursa.ui.monitors
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +61,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     items(monitors, key = { it.id }) { monitor ->
                         MonitorRow(
                             monitor = monitor,
+                            onClick = { vm.select(monitor.id) },
                             onPause = { vm.pause(monitor.id) },
                             onResume = { vm.resume(monitor.id) },
                         )
@@ -72,10 +74,11 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MonitorRow(monitor: Monitor, onPause: () -> Unit, onResume: () -> Unit) {
+private fun MonitorRow(monitor: Monitor, onClick: () -> Unit, onPause: () -> Unit, onResume: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

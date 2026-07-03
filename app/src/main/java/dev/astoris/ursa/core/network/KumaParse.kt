@@ -1,8 +1,10 @@
 package dev.astoris.ursa.core.network
 
+import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -52,6 +54,32 @@ object KumaParse {
             msg = obj["msg"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null },
             ping = obj["ping"]?.jsonPrimitive?.intOrNull,
             important = obj["important"]?.jsonPrimitive?.booleanOrNull ?: false,
+        )
+    }
+
+    /** `getMonitorBeats` rows — SNAKE_CASE, `important` is 1/0 not a boolean. */
+    fun beatRow(obj: JsonObject): Heartbeat? {
+        val id = obj["monitor_id"]?.jsonPrimitive?.intOrNull ?: return null
+        return Heartbeat(
+            monitorId = id,
+            status = MonitorStatus.from(obj["status"]?.jsonPrimitive?.intOrNull ?: 2),
+            time = obj["time"]?.jsonPrimitive?.contentOrNull ?: "",
+            msg = obj["msg"]?.jsonPrimitive?.contentOrNull?.ifEmpty { null },
+            ping = obj["ping"]?.jsonPrimitive?.intOrNull,
+            important = (obj["important"]?.jsonPrimitive?.intOrNull ?: 0) != 0,
+        )
+    }
+
+    fun beatRows(arr: JsonArray): List<Heartbeat> =
+        arr.mapNotNull { (it as? JsonObject)?.let(::beatRow) }
+
+    /** `certInfo` payload: `{ valid, certInfo: { subject:{CN}, issuer:{CN} } }`. */
+    fun cert(obj: JsonObject): CertInfo {
+        val info = obj["certInfo"] as? JsonObject
+        return CertInfo(
+            valid = obj["valid"]?.jsonPrimitive?.booleanOrNull ?: false,
+            subject = (info?.get("subject") as? JsonObject)?.get("CN")?.jsonPrimitive?.contentOrNull,
+            issuer = (info?.get("issuer") as? JsonObject)?.get("CN")?.jsonPrimitive?.contentOrNull,
         )
     }
 }

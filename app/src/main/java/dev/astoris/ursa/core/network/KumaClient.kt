@@ -1,5 +1,6 @@
 package dev.astoris.ursa.core.network
 
+import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
 import kotlin.coroutines.resume
@@ -38,6 +40,9 @@ class KumaClient(private val baseUrl: String) {
 
     private val _heartbeats = MutableSharedFlow<Heartbeat>(extraBufferCapacity = 64)
     val heartbeats: SharedFlow<Heartbeat> = _heartbeats.asSharedFlow()
+
+    private val _certs = MutableStateFlow<Map<Int, CertInfo>>(emptyMap())
+    val certs: StateFlow<Map<Int, CertInfo>> = _certs.asStateFlow()
 
     fun connect() {
         if (socket != null) return
@@ -96,6 +101,17 @@ class KumaClient(private val baseUrl: String) {
             val fraction = (args.getOrNull(2) as? Number)?.toDouble()
             if (period == 24 && fraction != null) updateMonitor(id) { it.copy(uptime24h = fraction) }
         }
+        s.on("certInfo") { args ->
+            val id = (args.getOrNull(0) as? Number)?.toInt() ?: return@on
+            val text = when (val raw = args.getOrNull(1)) {
+                is JSONObject -> raw.toString()
+                is String -> raw
+                else -> null
+            } ?: return@on
+            runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull()?.let { obj ->
+                _certs.update { it + (id to KumaParse.cert(obj)) }
+            }
+        }
     }
 
     /** Create the first admin (fresh instance). */
@@ -127,6 +143,15 @@ class KumaClient(private val baseUrl: String) {
 
     suspend fun pauseMonitor(id: Int): Boolean = emitAck("pauseMonitor", id)?.optBoolean("ok") == true
     suspend fun resumeMonitor(id: Int): Boolean = emitAck("resumeMonitor", id)?.optBoolean("ok") == true
+
+    /** Recent heartbeat history for the detail view. Rows are snake_case (see KumaParse). */
+    suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> {
+        val res = emitAck("getMonitorBeats", id, hours) ?: return emptyList()
+        if (!res.optBoolean("ok")) return emptyList()
+        val data = res.optJSONArray("data") ?: return emptyList()
+        val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull() ?: return emptyList()
+        return KumaParse.beatRows(arr)
+    }
 
     fun disconnect() {
         socket?.disconnect()

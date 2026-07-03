@@ -71,6 +71,26 @@ class KumaParseTest {
         assertEquals(MonitorStatus.DOWN, hb.status)
     }
 
+    @Test fun beatRow_snakecase_with_int_important() {
+        // getMonitorBeats rows are snake_case; important is 1/0, not a boolean
+        val hb = KumaParse.beatRow(
+            obj("""{"id":1,"important":1,"monitor_id":1,"status":1,"msg":"200 - OK","time":"2026-07-03 19:05:12.296","ping":167}""")
+        )!!
+        assertEquals(1, hb.monitorId)
+        assertEquals(MonitorStatus.UP, hb.status)
+        assertEquals(167, hb.ping)
+        assertTrue(hb.important)
+    }
+
+    @Test fun cert_extracts_validity_and_cns() {
+        val c = KumaParse.cert(
+            obj("""{"valid":true,"certInfo":{"subject":{"CN":"example.com"},"issuer":{"CN":"Cloudflare TLS Issuing ECC CA 3"}}}""")
+        )
+        assertTrue(c.valid)
+        assertEquals("example.com", c.subject)
+        assertEquals("Cloudflare TLS Issuing ECC CA 3", c.issuer)
+    }
+
     @Test fun status_code_mapping() {
         assertEquals(MonitorStatus.DOWN, MonitorStatus.from(0))
         assertEquals(MonitorStatus.UP, MonitorStatus.from(1))

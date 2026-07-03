@@ -6,13 +6,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.ui.connections.LoginScreen
+import dev.astoris.ursa.ui.monitors.MonitorDetailScreen
 import dev.astoris.ursa.ui.monitors.MonitorListScreen
 
 @Composable
 fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
-    when (state) {
-        ConnectionState.Authenticated -> MonitorListScreen(vm)
-        else -> LoginScreen(vm)
+    val selected by vm.selectedMonitor.collectAsStateWithLifecycle()
+
+    when {
+        state != ConnectionState.Authenticated -> LoginScreen(vm)
+        selected != null -> MonitorDetailScreen(vm, selected!!)
+        else -> MonitorListScreen(vm)
     }
 }

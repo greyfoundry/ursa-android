@@ -39,6 +39,13 @@ data class Heartbeat(
     val important: Boolean,
 )
 
+/** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
+data class CertInfo(
+    val valid: Boolean,
+    val subject: String?,
+    val issuer: String?,
+)
+
 /** A configured Kuma server. JWT is only present after a successful login. */
 @Serializable
 data class ServerConnection(
