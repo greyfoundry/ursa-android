@@ -32,8 +32,9 @@ this log updated.
 - No navigation library for M1 — state-driven `when` routing + per-screen BackHandler.
 - Storage plaintext for M1; Tink AEAD deferred to M2 (documented ceiling).
 - `usesCleartextTraffic=true` — self-hosted Kuma is commonly plain http.
-- Backup: private repo `AstorisTheBrave/ursa-android`, undercover (CLAUDE.md/local
-  files not tracked). Restore = `git clone` + add `local.properties` (sdk.dir).
+- Backup: private repo `AstorisTheBrave/ursa-android`, undercover (local-only
+  project-map / config files not tracked). Restore = `git clone` + add
+  `local.properties` (sdk.dir).
 
 **pending**: on-device UI smoke test (no emulator/AVD/system-image provisioned;
 no sdkmanager to add one). Parser is unit-tested and the live socket protocol was
