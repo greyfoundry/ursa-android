@@ -52,6 +52,8 @@ data class ServerConnection(
     val url: String,
     val username: String,
     val jwt: String? = null,
+    /** User opted into trusting a self-signed / internal-CA certificate. */
+    val insecure: Boolean = false,
 )
 
 /** Result of a login attempt. */

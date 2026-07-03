@@ -88,11 +88,11 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun login(url: String, username: String, password: String, token: String = "") {
+    fun login(url: String, username: String, password: String, token: String = "", insecure: Boolean = false) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
-            _login.value = when (val r = repo.addServerAndLogin(normalized, username, password, token)) {
+            _login.value = when (val r = repo.addServerAndLogin(normalized, username, password, token, insecure)) {
                 is LoginResult.Success -> LoginUiState.Idle
                 LoginResult.TwoFactorRequired -> LoginUiState.NeedsTwoFactor
                 is LoginResult.Failure -> LoginUiState.Error(r.message)
@@ -130,12 +130,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _statusPage.value = StatusPageUiState.Idle
     }
 
-    fun loadStatusPage(url: String, slug: String) {
+    fun loadStatusPage(url: String, slug: String, insecure: Boolean = false) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _statusPage.value = StatusPageUiState.Loading
             _statusPage.value = try {
-                StatusPageUiState.Loaded(statusClient.fetch(normalized, slug.trim()))
+                StatusPageUiState.Loaded(statusClient.fetch(normalized, slug.trim(), insecure))
             } catch (e: Exception) {
                 StatusPageUiState.Error(e.message ?: "Failed to load status page")
             }

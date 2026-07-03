@@ -22,15 +22,22 @@ import kotlinx.serialization.json.Json
  */
 class StatusPageClient {
 
-    private val client = HttpClient(OkHttp) {
-        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-        install(HttpTimeout) { requestTimeoutMillis = 15_000 }
+    // One client per TLS mode, created on demand.
+    private val clients = HashMap<Boolean, HttpClient>()
+
+    private fun client(insecure: Boolean): HttpClient = clients.getOrPut(insecure) {
+        HttpClient(OkHttp) {
+            engine { if (insecure) preconfigured = TlsTrust.insecureClient() }
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+            install(HttpTimeout) { requestTimeoutMillis = 15_000 }
+        }
     }
 
-    suspend fun fetch(baseUrl: String, slug: String): StatusPageView {
+    suspend fun fetch(baseUrl: String, slug: String, insecure: Boolean = false): StatusPageView {
         val base = baseUrl.trim().removeSuffix("/")
-        val page: StatusPageResponse = client.get("$base/api/status-page/$slug").body()
-        val hb: StatusHeartbeatResponse = client.get("$base/api/status-page/heartbeat/$slug").body()
+        val http = client(insecure)
+        val page: StatusPageResponse = http.get("$base/api/status-page/$slug").body()
+        val hb: StatusHeartbeatResponse = http.get("$base/api/status-page/heartbeat/$slug").body()
 
         val groups = page.publicGroupList.map { group ->
             StatusGroupView(
@@ -49,5 +56,8 @@ class StatusPageClient {
         return StatusPageView(page.config.title, page.config.description, groups)
     }
 
-    fun close() = client.close()
+    fun close() {
+        clients.values.forEach { runCatching { it.close() } }
+        clients.clear()
+    }
 }

@@ -55,18 +55,19 @@ class MonitorRepository(
         username: String,
         password: String,
         token: String = "",
+        insecure: Boolean = false,
     ): LoginResult {
-        val client = connectFresh(url)
+        val client = connectFresh(url, insecure)
         val result = client.login(username, password, token)
         if (result is LoginResult.Success) {
-            store.upsert(ServerConnection(url, username, result.jwt))
+            store.upsert(ServerConnection(url, username, result.jwt, insecure))
         }
         return result
     }
 
     /** Switch to an already-configured server, reusing its stored JWT. */
     suspend fun switchTo(conn: ServerConnection) {
-        val client = connectFresh(conn.url)
+        val client = connectFresh(conn.url, conn.insecure)
         conn.jwt?.let { client.loginByToken(it) }
         store.setActive(conn.url)
     }
@@ -79,9 +80,9 @@ class MonitorRepository(
         activeClient.value = null
     }
 
-    private fun connectFresh(url: String): KumaClient {
+    private fun connectFresh(url: String, insecure: Boolean): KumaClient {
         activeClient.value?.disconnect()
-        val client = KumaClient(url)
+        val client = KumaClient(url, insecure)
         activeClient.value = client
         client.connect()
         return client

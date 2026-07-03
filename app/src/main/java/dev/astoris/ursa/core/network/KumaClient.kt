@@ -28,7 +28,7 @@ enum class ConnectionState { Disconnected, Connecting, Connected, Authenticated,
  * (internal, unstable) wire protocol lives in [KumaParse]; this class handles the
  * transport, auth, and flow plumbing only.
  */
-class KumaClient(private val baseUrl: String) {
+class KumaClient(private val baseUrl: String, private val insecure: Boolean = false) {
 
     private var socket: Socket? = null
 
@@ -53,6 +53,11 @@ class KumaClient(private val baseUrl: String) {
         val opts = IO.Options().apply {
             transports = arrayOf("polling", "websocket") // polling first, then upgrade
             reconnection = true
+        }
+        if (insecure) {
+            val ok = TlsTrust.insecureClient()
+            opts.callFactory = ok
+            opts.webSocketFactory = ok
         }
         val s = try {
             IO.socket(baseUrl, opts)

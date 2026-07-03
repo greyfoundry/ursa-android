@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -42,6 +43,7 @@ fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val ui by vm.statusPage.collectAsStateWithLifecycle()
     var url by remember { mutableStateOf("") }
     var slug by remember { mutableStateOf("") }
+    var insecure by remember { mutableStateOf(false) }
 
     BackHandler { vm.exitStatusPage() }
 
@@ -71,8 +73,12 @@ fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 label = { Text("Status page slug") }, placeholder = { Text("my-status") },
                 modifier = Modifier.fillMaxWidth(),
             )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = insecure, onCheckedChange = { insecure = it })
+                Text("Trust self-signed certificate", style = MaterialTheme.typography.bodyMedium)
+            }
             Button(
-                onClick = { vm.loadStatusPage(url, slug) },
+                onClick = { vm.loadStatusPage(url, slug, insecure) },
                 enabled = url.isNotBlank() && slug.isNotBlank() && ui !is StatusPageUiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Load") }
