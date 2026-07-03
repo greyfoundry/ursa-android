@@ -19,12 +19,12 @@ Set up the documentary docs system and persisted API reference docs via Context7
 **files touched**: `URSA_BUILD_SPEC.md` (created + corrected), full Gradle/Compose
 scaffold (`settings.gradle.kts`, `build.gradle.kts`, `app/build.gradle.kts`,
 `gradle/libs.versions.toml`, wrapper, `MainActivity.kt`, manifest, res), `.gitignore`,
-`local.properties`, all of `docs/**`, `CLAUDE.md`.
+`local.properties`, all of `docs/**`, and a local (untracked) project-map file.
 
 **docs updated**: created overview, stack, style, architecture/index,
 modules/app-shell, infrastructure/env + deployment, references/{uptime-kuma-api,
 socketio-java, ktor-client, datastore-tink, unifiedpush}, this log, and the
-CLAUDE.md receptionist.
+local project-map receptionist.
 
 **decisions made**:
 - compileSdk 36 (android-37 platform not installed locally).
@@ -33,7 +33,9 @@ CLAUDE.md receptionist.
 - Initialized a dedicated git repo in this folder (parent `C:/Users/User` is an
   unrelated repo — do not commit there). Undercover: no AI attribution.
 - Uptime Kuma event payload shapes corrected from live capture; wiki was wrong.
-- `cit-code` skill referenced in CLAUDE.md is not installed in this environment.
+- `cit-code` referenced in the global working rules is not installed in this environment.
+- Project-map receptionist kept local (untracked, via `.git/info/exclude`) to
+  honor undercover mode — no assistant-instruction file in the tracked tree.
 
 **next**: M1 dependency wiring (Phase B) — socket.io-client, Ktor, DataStore+Tink,
 UnifiedPush into the version catalog, verifying each builds.
