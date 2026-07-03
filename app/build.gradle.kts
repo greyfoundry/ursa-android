@@ -47,6 +47,7 @@ dependencies {
 
     // storage
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.tink.android)
 
     // networking: Socket.IO (live monitors) + Ktor (public status-page REST)
     implementation(libs.socket.io.client) {

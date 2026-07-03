@@ -13,14 +13,14 @@ import kotlinx.serialization.json.Json
 private val Context.dataStore by preferencesDataStore(name = "ursa")
 
 /**
- * Persists configured servers and which one is active.
- *
- * ponytail: values are stored as plaintext JSON for M1. M2 hardening wraps this
- * with Tink AEAD (android-keystore master key) — see docs/references/datastore-tink.mdx.
- * Only the JWT is persisted, never the password.
+ * Persists configured servers and which one is active. The connections blob (which
+ * holds the JWT) is encrypted at rest with Tink AES-256-GCM, master key in the
+ * Android Keystore. Only the JWT is persisted, never the password.
  */
-class ConnectionStore(private val context: Context) {
+class ConnectionStore(context: Context) {
 
+    private val context = context.applicationContext
+    private val crypto = Crypto(context)
     private val json = Json { ignoreUnknownKeys = true }
     private val connectionsKey = stringPreferencesKey("connections")
     private val activeUrlKey = stringPreferencesKey("active_url")
@@ -35,7 +35,7 @@ class ConnectionStore(private val context: Context) {
     suspend fun upsert(conn: ServerConnection) {
         context.dataStore.edit { prefs ->
             val next = decode(prefs).filterNot { it.url == conn.url } + conn
-            prefs[connectionsKey] = json.encodeToString(next)
+            prefs[connectionsKey] = encode(next)
             prefs[activeUrlKey] = conn.url
         }
     }
@@ -43,7 +43,7 @@ class ConnectionStore(private val context: Context) {
     suspend fun remove(url: String) {
         context.dataStore.edit { prefs ->
             val next = decode(prefs).filterNot { it.url == url }
-            prefs[connectionsKey] = json.encodeToString(next)
+            prefs[connectionsKey] = encode(next)
             if (prefs[activeUrlKey] == url) {
                 val fallback = next.firstOrNull()?.url
                 if (fallback != null) prefs[activeUrlKey] = fallback else prefs.remove(activeUrlKey)
@@ -55,8 +55,12 @@ class ConnectionStore(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[activeUrlKey] = url }
     }
 
-    private fun decode(prefs: Preferences): List<ServerConnection> =
-        prefs[connectionsKey]?.let {
-            runCatching { json.decodeFromString<List<ServerConnection>>(it) }.getOrDefault(emptyList())
-        } ?: emptyList()
+    private fun encode(list: List<ServerConnection>): String =
+        crypto.encrypt(json.encodeToString(list))
+
+    private fun decode(prefs: Preferences): List<ServerConnection> {
+        val cipher = prefs[connectionsKey] ?: return emptyList()
+        val plain = crypto.decrypt(cipher) ?: return emptyList() // undecryptable -> treat as empty
+        return runCatching { json.decodeFromString<List<ServerConnection>>(plain) }.getOrDefault(emptyList())
+    }
 }

@@ -32,6 +32,9 @@ class KumaClient(private val baseUrl: String) {
 
     private var socket: Socket? = null
 
+    /** Last known JWT, kept so we can silently re-authenticate after a reconnect. */
+    @Volatile private var jwt: String? = null
+
     private val _state = MutableStateFlow(ConnectionState.Disconnected)
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
 
@@ -63,7 +66,18 @@ class KumaClient(private val baseUrl: String) {
     }
 
     private fun wireEvents(s: Socket) {
-        s.on(Socket.EVENT_CONNECT) { _ -> _state.value = ConnectionState.Connected }
+        s.on(Socket.EVENT_CONNECT) { _ ->
+            _state.value = ConnectionState.Connected
+            // On (re)connect, silently re-authenticate if we already have a token so a
+            // dropped socket doesn't kick the user back to the login screen.
+            jwt?.let { token ->
+                s.emit("loginByToken", token, Ack { args ->
+                    if ((args.getOrNull(0) as? JSONObject)?.optBoolean("ok") == true) {
+                        _state.value = ConnectionState.Authenticated
+                    }
+                })
+            }
+        }
         s.on(Socket.EVENT_CONNECT_ERROR) { _ -> _state.value = ConnectionState.Error }
         s.on(Socket.EVENT_DISCONNECT) { _ -> _state.value = ConnectionState.Disconnected }
 
@@ -127,17 +141,21 @@ class KumaClient(private val baseUrl: String) {
         return when {
             res.optBoolean("tokenRequired") -> LoginResult.TwoFactorRequired
             res.optBoolean("ok") -> {
+                jwt = res.optString("token").ifEmpty { null }
                 _state.value = ConnectionState.Authenticated
-                LoginResult.Success(res.optString("token").ifEmpty { null })
+                LoginResult.Success(jwt)
             }
             else -> LoginResult.Failure(res.optString("msg").ifEmpty { "Login failed" })
         }
     }
 
-    suspend fun loginByToken(jwt: String): Boolean {
-        val res = emitAck("loginByToken", jwt) ?: return false
+    suspend fun loginByToken(token: String): Boolean {
+        val res = emitAck("loginByToken", token) ?: return false
         val ok = res.optBoolean("ok")
-        if (ok) _state.value = ConnectionState.Authenticated
+        if (ok) {
+            jwt = token
+            _state.value = ConnectionState.Authenticated
+        }
         return ok
     }
 
@@ -157,6 +175,7 @@ class KumaClient(private val baseUrl: String) {
         socket?.disconnect()
         socket?.off()
         socket = null
+        jwt = null
         _state.value = ConnectionState.Disconnected
     }
 

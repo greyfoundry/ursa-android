@@ -49,6 +49,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _login = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val login: StateFlow<LoginUiState> = _login.asStateFlow()
 
+    /** True once a server session exists; keeps the list visible across reconnects. */
+    private val _hasSession = MutableStateFlow(false)
+    val hasSession: StateFlow<Boolean> = _hasSession.asStateFlow()
+
     private val _selectedId = MutableStateFlow<Int?>(null)
     val selectedId: StateFlow<Int?> = _selectedId.asStateFlow()
 
@@ -68,12 +72,19 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val statusPage: StateFlow<StatusPageUiState> = _statusPage.asStateFlow()
 
     init {
+        // Keep hasSession true whenever we reach an authenticated state.
+        viewModelScope.launch {
+            state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
+        }
         // Auto-reconnect to the last active server if we have a stored session.
         viewModelScope.launch {
             val conns = store.connections.first()
             val active = store.activeUrl.first()
             val conn = conns.firstOrNull { it.url == active } ?: conns.firstOrNull()
-            if (conn?.jwt != null) repo.switchTo(conn)
+            if (conn?.jwt != null) {
+                _hasSession.value = true // show the list immediately, reconnect in background
+                repo.switchTo(conn)
+            }
         }
     }
 
@@ -104,6 +115,14 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun resetLogin() { _login.value = LoginUiState.Idle }
+
+    fun logout() {
+        repo.disconnect()
+        _hasSession.value = false
+        _selectedId.value = null
+        _beats.value = emptyList()
+        _login.value = LoginUiState.Idle
+    }
 
     fun enterStatusPage() { _statusPageMode.value = true }
     fun exitStatusPage() {

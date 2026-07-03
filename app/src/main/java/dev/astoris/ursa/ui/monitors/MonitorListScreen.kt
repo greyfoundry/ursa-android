@@ -41,7 +41,12 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = { TopAppBar(title = { Text("Monitors") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Monitors") },
+                actions = { TextButton(onClick = { vm.logout() }) { Text("Sign out") } },
+            )
+        },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (state != ConnectionState.Authenticated) {
