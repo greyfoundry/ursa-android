@@ -13,6 +13,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,6 +84,9 @@ fun LoginScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         ) {
             if (loading) CircularProgressIndicator(modifier = Modifier.padding(2.dp))
             else Text(if (needs2fa) "Verify" else "Connect")
+        }
+        TextButton(onClick = { vm.enterStatusPage() }, modifier = Modifier.fillMaxWidth()) {
+            Text("View a public status page")
         }
     }
 }

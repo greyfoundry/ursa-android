@@ -4,12 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.ServerConnection
+import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.repository.MonitorRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,6 +27,13 @@ sealed interface LoginUiState {
     data object Loading : LoginUiState
     data object NeedsTwoFactor : LoginUiState
     data class Error(val message: String) : LoginUiState
+}
+
+sealed interface StatusPageUiState {
+    data object Idle : StatusPageUiState
+    data object Loading : StatusPageUiState
+    data class Loaded(val view: StatusPageView) : StatusPageUiState
+    data class Error(val message: String) : StatusPageUiState
 }
 
 class UrsaViewModel(app: Application) : AndroidViewModel(app) {
@@ -51,6 +60,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val beats: StateFlow<List<Heartbeat>> = _beats.asStateFlow()
 
     val certs: StateFlow<Map<Int, CertInfo>> = repo.certs
+
+    private val statusClient = StatusPageClient()
+    private val _statusPageMode = MutableStateFlow(false)
+    val statusPageMode: StateFlow<Boolean> = _statusPageMode.asStateFlow()
+    private val _statusPage = MutableStateFlow<StatusPageUiState>(StatusPageUiState.Idle)
+    val statusPage: StateFlow<StatusPageUiState> = _statusPage.asStateFlow()
 
     init {
         // Auto-reconnect to the last active server if we have a stored session.
@@ -90,8 +105,27 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetLogin() { _login.value = LoginUiState.Idle }
 
+    fun enterStatusPage() { _statusPageMode.value = true }
+    fun exitStatusPage() {
+        _statusPageMode.value = false
+        _statusPage.value = StatusPageUiState.Idle
+    }
+
+    fun loadStatusPage(url: String, slug: String) {
+        val normalized = normalizeUrl(url)
+        viewModelScope.launch {
+            _statusPage.value = StatusPageUiState.Loading
+            _statusPage.value = try {
+                StatusPageUiState.Loaded(statusClient.fetch(normalized, slug.trim()))
+            } catch (e: Exception) {
+                StatusPageUiState.Error(e.message ?: "Failed to load status page")
+            }
+        }
+    }
+
     override fun onCleared() {
         repo.disconnect()
+        statusClient.close()
     }
 
     private fun normalizeUrl(raw: String): String {
