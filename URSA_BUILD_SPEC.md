@@ -272,9 +272,17 @@ Toolchain (verified current stable):
 | Kotlin | **2.4.0** | Jun 3 2026 |
 | Compose BOM | **2026.06.01** | core 1.11.4, material3 1.4.0 |
 | AGP | **9.2.0** | requires Gradle 9.4.1, JDK 17, Build-Tools 36 |
-| compileSdk | **37** | now stable-supported by AGP 9.2 (earlier "stay on 36" caution is obsolete) |
+| compileSdk | **36** | build target. 37 is ecosystem-stable but the android-37 platform isn't installed on this machine (only android-36.1); bump to 37 once `sdkmanager "platforms;android-37"` is run |
 | minSdk | 26 | Android 8.0, ~98%+ of active devices |
-| JDK | 17 | AGP 9.x minimum |
+| JDK | 17 | AGP 9.x minimum (JBR 21 used to build, targets 17) |
+
+**AGP 9 built-in Kotlin (gotcha, learned during scaffold):** AGP 9.0+ compiles
+Kotlin itself — do **NOT** apply `org.jetbrains.kotlin.android` (it errors). Still
+apply `org.jetbrains.kotlin.plugin.compose`. AGP bundles an older KGP, so to run
+Kotlin 2.4.0 (matching the Compose compiler) pin it in the **root** build via
+`buildscript { dependencies { classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.0") } }`.
+The `android { compilerOptions { } }` DSL from the AGP 9.0 notes is not resolvable
+on 9.2 — omit explicit Kotlin `jvmTarget`; AGP aligns it to `compileOptions`.
 
 `gradle/libs.versions.toml` — key deps beyond the Compose template:
 
