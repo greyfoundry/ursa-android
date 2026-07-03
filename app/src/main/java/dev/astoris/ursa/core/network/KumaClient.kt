@@ -3,7 +3,6 @@ package dev.astoris.ursa.core.network
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
-import dev.astoris.ursa.data.model.MonitorStatus
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -15,18 +14,17 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
 import kotlin.coroutines.resume
 
 enum class ConnectionState { Disconnected, Connecting, Connected, Authenticated, Error }
 
 /**
- * Wraps a single Socket.IO connection to one Uptime Kuma server and normalizes the
- * (internal, unstable) wire protocol into domain models. This is the ONLY place that
- * knows Kuma's quirks — see docs/references/uptime-kuma-api.mdx.
- *
- * Kuma sends several events as positional args rather than objects; that is handled
- * explicitly below.
+ * Wraps a single Socket.IO connection to one Uptime Kuma server. Parsing of the
+ * (internal, unstable) wire protocol lives in [KumaParse]; this class handles the
+ * transport, auth, and flow plumbing only.
  */
 class KumaClient(private val baseUrl: String) {
 
@@ -64,21 +62,13 @@ class KumaClient(private val baseUrl: String) {
         s.on(Socket.EVENT_CONNECT_ERROR) { _ -> _state.value = ConnectionState.Error }
         s.on(Socket.EVENT_DISCONNECT) { _ -> _state.value = ConnectionState.Disconnected }
 
-        // Full snapshot: { "<id>": {monitor}, ... }
         s.on("monitorList") { args ->
-            (args.getOrNull(0) as? JSONObject)?.let { obj ->
-                _monitors.value = buildMap {
-                    obj.keys().forEach { key ->
-                        obj.optJSONObject(key)?.let { m -> parseMonitor(m)?.let { put(it.id, it) } }
-                    }
-                }
-            }
+            args.jsonAt(0)?.let { _monitors.value = KumaParse.monitorList(it) }
         }
         s.on("updateMonitorIntoList") { args ->
-            (args.getOrNull(0) as? JSONObject)?.let { obj ->
-                obj.keys().forEach { key ->
-                    obj.optJSONObject(key)?.let { m -> parseMonitor(m)?.let { mon -> updateMonitor(mon.id) { mon } } }
-                }
+            args.jsonAt(0)?.let { obj ->
+                val updates = KumaParse.monitorList(obj)
+                _monitors.update { it + updates }
             }
         }
         s.on("deleteMonitorFromList") { args ->
@@ -87,8 +77,8 @@ class KumaClient(private val baseUrl: String) {
 
         // heartbeat is an OBJECT (camelCase)
         s.on("heartbeat") { args ->
-            (args.getOrNull(0) as? JSONObject)?.let { hb ->
-                val beat = parseHeartbeat(hb) ?: return@let
+            args.jsonAt(0)?.let { obj ->
+                val beat = KumaParse.heartbeat(obj) ?: return@let
                 _heartbeats.tryEmit(beat)
                 updateMonitor(beat.monitorId) { it.copy(status = beat.status, ping = beat.ping) }
             }
@@ -161,34 +151,9 @@ class KumaClient(private val baseUrl: String) {
         _monitors.update { current -> current[id]?.let { current + (id to transform(it)) } ?: current }
     }
 
-    private fun parseMonitor(m: JSONObject): Monitor? {
-        val id = m.optInt("id", -1).takeIf { it >= 0 } ?: return null
-        return Monitor(
-            id = id,
-            name = m.optString("name"),
-            url = m.optString("url").ifEmpty { null },
-            type = m.optString("type"),
-            active = m.optBoolean("active", true),
-            tags = parseTags(m),
-        )
-    }
-
-    private fun parseTags(m: JSONObject): List<String> {
-        val arr = m.optJSONArray("tags") ?: return emptyList()
-        return (0 until arr.length()).mapNotNull { i ->
-            arr.optJSONObject(i)?.optString("name")?.ifEmpty { null }
-        }
-    }
-
-    private fun parseHeartbeat(hb: JSONObject): Heartbeat? {
-        val id = hb.optInt("monitorID", -1).takeIf { it >= 0 } ?: return null
-        return Heartbeat(
-            monitorId = id,
-            status = MonitorStatus.from(hb.optInt("status", 2)),
-            time = hb.optString("time"),
-            msg = hb.optString("msg").ifEmpty { null },
-            ping = if (hb.isNull("ping")) null else hb.optInt("ping"),
-            important = hb.optBoolean("important", false),
-        )
+    /** Convert a Socket.IO org.json payload at [index] into a kotlinx JsonObject for [KumaParse]. */
+    private fun Array<Any?>.jsonAt(index: Int): kotlinx.serialization.json.JsonObject? {
+        val raw = getOrNull(index) as? JSONObject ?: return null
+        return runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
     }
 }
