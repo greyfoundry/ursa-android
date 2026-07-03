@@ -1,0 +1,42 @@
+---
+last-updated: 2026-07-03
+owner: astoris
+status: stable
+---
+
+## what this is
+
+The screens and the single ViewModel behind them. One `UrsaViewModel` holds all
+app state; a top-level `when` in `UrsaApp` picks the screen from that state (no
+navigation library for M1 — the screen set is small and state-driven).
+
+## technical map
+
+**file paths**
+- `.../ui/UrsaViewModel.kt` — AndroidViewModel; owns `MonitorRepository` +
+  `StatusPageClient`; login flow, selection, status-page state, pause/resume.
+- `.../ui/UrsaApp.kt` — root; routes status-page / login / detail / list.
+- `.../ui/connections/LoginScreen.kt` — server URL + creds + conditional 2FA.
+- `.../ui/monitors/MonitorListScreen.kt` — live list, tappable rows.
+- `.../ui/monitors/MonitorDetailScreen.kt` — heartbeat bar strip, cert, pause/resume.
+- `.../ui/statuspage/StatusPageScreen.kt` — public page by URL+slug.
+- `.../ui/StatusUi.kt` — status → color/label.
+
+**exports**
+- `UrsaApp()` (Compose entry, hosted by `MainActivity`).
+- `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
+  `login`, `statusPage`; actions `login`, `select`/`back`, `pause`/`resume`,
+  `enterStatusPage`/`loadStatusPage`/`exitStatusPage`.
+
+**depends on**
+- `data/repository`, `core/network` (StatusPageClient), Compose Material 3,
+  lifecycle-viewmodel-compose, lifecycle-runtime-compose.
+
+## gotchas
+
+- Routing is a `when` on state, not a nav graph. System back is handled per-screen
+  with `BackHandler` (detail → list, status page → login).
+- Auto-reconnect: on start the VM connects to the last active server if a stored
+  JWT exists — the login screen may flash briefly before the list appears.
+- No app icon yet (system default); add before release. Cleartext HTTP is enabled
+  in the manifest for self-hosted http instances.

@@ -26,8 +26,11 @@ and the module docs under `docs/modules/`.
 - version catalog: `gradle/libs.versions.toml`
 
 **status**
-- M1 (core viewing) not started. Scaffold builds green (`assembleDebug`,
-  `lintDebug`). See `docs/sessions/log.mdx`.
+- M1 (core viewing) implemented: login incl. 2FA, live monitor list, monitor
+  detail (heartbeat history + TLS cert), public status-page viewer, pause/resume.
+- Builds green (`assembleDebug`, `lintDebug`); parser is unit-tested. On-device UI
+  smoke test still pending (no emulator/AVD provisioned). See `docs/sessions/log.mdx`.
+- Next: M2 (Tink credential encryption, reconnect/error polish), M3 (UnifiedPush).
 
 **depends on**
 - a running Uptime Kuma server (the app is a client; it stores/creates nothing

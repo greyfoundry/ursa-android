@@ -25,15 +25,17 @@ core.storage (DataStore+Tink)  ── credentials/JWT ──▶ core.network (lo
 distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──▶ system notification
 ```
 
-**layers → planned paths (created as code lands)**
-- `core.network` → `app/src/main/java/dev/astoris/ursa/core/network/`
-  Socket.IO wrapper + Kuma adapter + Ktor REST client.
-- `core.storage` → `.../core/storage/` — DataStore + Tink credential store.
-- `core.push` → `.../core/push/` — UnifiedPush connector + receiver.
-- `data.model` → `.../data/model/` — `Monitor, Heartbeat, StatusPage, ...`
-- `data.repository` → `.../data/repository/` — one repo per domain.
-- `ui.connections | ui.monitors | ui.statuspage | ui.settings` → `.../ui/*`
-- app shell → `.../MainActivity.kt` (exists). See `docs/modules/app-shell.mdx`.
+**layers (M1 implemented unless noted)**
+- `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) —
+  see `docs/modules/network.mdx`.
+- `core.storage` → `.../core/storage/ConnectionStore.kt` — DataStore (plaintext for
+  M1; Tink wrapping is M2).
+- `core.push` → planned M3 — UnifiedPush connector + receiver (not yet created).
+- `data.model` → `.../data/model/` — Models.kt + StatusPageModels.kt.
+- `data.repository` → `.../data/repository/MonitorRepository.kt`.
+- `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) —
+  see `docs/modules/ui.mdx`.
+- app shell → `.../MainActivity.kt` — see `docs/modules/app-shell.mdx`.
 
 **depends on**
 - `docs/references/*` — the external API contracts each layer implements against.
