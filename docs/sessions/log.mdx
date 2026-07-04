@@ -9,6 +9,35 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - go public + CI/community infrastructure
+
+**changed**: Repo made public (`AstorisTheBrave/ursa-android`) with description +
+16 topics; Issues, Discussions, Wiki enabled; Dependabot alerts + automated security
+fixes enabled. Added community health files (CODE_OF_CONDUCT, CONTRIBUTING, SECURITY,
+issue forms + PR template) - Kuma-informed, not copied, Android-tailored. CI added:
+`ci.yml` (ASCII-punctuation guard + build/test/lint, green on first cloud run),
+`codeql.yml`, `actions-security.yml` (zizmor, advisory), `dependabot.yml` (gradle
+catalog + actions), release-please (`release-please-config.json` +
+`.release-please-manifest.json`, versionName annotated). Added public `docs/roadmap.mdx`
+(Android-native advantages over Kuma web) + README badges/roadmap/contributing links.
+
+**punctuation invariant**: scrubbed all em/en dashes from tracked files (193 across
+28) to ASCII '-'. Enforced by a shared hook `scripts/hooks/` (activate:
+`git config core.hooksPath scripts/hooks`) and mirrored in CI. A LOCAL-only
+`.git/hooks/` layer adds the undercover fingerprint guard (kept out of the public
+tree on purpose).
+
+**known gaps (need action)**:
+- **release-please fails**: repo setting "Allow GitHub Actions to create and approve
+  pull requests" is off. Enable it (Settings > Actions > General > Workflow
+  permissions) or via `gh api -X PUT repos/.../actions/permissions/workflow
+  -F can_approve_pull_request_reviews=true -f default_workflow_permissions=write`.
+  Needs the user's authorization (repo-wide setting).
+- **CodeQL cannot extract yet**: `KotlinVersionTooRecentError` - CodeQL supports
+  Kotlin < 2.3.30, we build 2.4.0. Workflow is configured, scheduled, and
+  non-blocking; it auto-starts when CodeQL adds 2.4.x support (then restore push/PR
+  triggers + drop continue-on-error).
+
 ### 2026-07-04 - M3 phases 2-3: registration UI + parser tests + docs
 
 **changed**: (2) `ui/push/PushScreen.kt` + ViewModel push section: pick a distributor

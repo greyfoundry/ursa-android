@@ -1,0 +1,75 @@
+---
+last-updated: 2026-07-04
+owner: astoris
+status: in-flux
+---
+
+## what this is
+
+Where URSA goes after the core milestones, and why a native Android client can do
+things the Uptime Kuma web app cannot. This is a direction document, not a promise
+of dates. Current milestone status lives in `docs/overview.mdx`; scope guardrails
+live in the README.
+
+## the gap we fill
+
+Uptime Kuma is web-first. A real native Android client has been requested for years
+(upstream issues #1943 and #2351, open since 2022) with no official answer, and the
+community options are abandoned or read-only. Being native is not just packaging: it
+unlocks operating-system integrations a browser tab or PWA cannot reach. That is the
+strategy behind the post-core roadmap.
+
+## post-core roadmap (prioritized)
+
+Ordered by value for a homelab user vs. effort. Nothing here is in the current
+milestones; it follows viewer -> actions -> push.
+
+### Android-native capabilities (things Kuma web cannot offer)
+
+1. **Home-screen widgets** (Jetpack Glance) - at-a-glance up/down counts and the
+   monitors that matter, without opening the app.
+2. **Rich notification actions** - pause, resume, or acknowledge a monitor straight
+   from the push notification (builds directly on M3).
+3. **Quick Settings tile** - a one-tap "is everything up?" glance from the shade.
+4. **App shortcuts** (long-press the launcher icon) - jump to a server, or pause a
+   specific monitor.
+5. **Biometric / device-credential app lock** - optional gate before sessions are
+   shown (also security backlog item AUTH-2 in `docs/security.mdx`).
+6. **Material You** dynamic color and a themed adaptive icon.
+7. **Offline last-known status** - cache the latest state so the app is useful with
+   no connectivity, and reconcile on reconnect.
+8. **Local TLS-expiry reminders** - URSA already reads certificate info; surface a
+   local notification before a monitored certificate expires.
+9. **Wear OS companion** - a watch tile and complication for glanceable status.
+
+### Parity and polish
+
+- **Internationalization**: move user-facing strings into resources and open the app
+  to translations.
+- **F-Droid release** with reproducible builds (the dependency set is already FOSS,
+  no Firebase).
+- **Screenshots and a short demo** in the README once the UI is on-device stable.
+- **Branded notification icon** to replace the current system placeholder.
+
+## project infrastructure (borrowed from mature FOSS practice)
+
+Already in place, so contributions and releases scale cleanly:
+
+- Structured issue forms, pull-request template, Code of Conduct, security policy.
+- Dependabot version updates (Gradle catalog + Actions) and dependency alerts.
+- CI (build, unit tests, lint) on every push and pull request.
+- CodeQL code scanning (configured; activates once CodeQL supports the Kotlin
+  toolchain we build with) and workflow static analysis.
+- Conventional Commits with an automated changelog and releases.
+
+## deliberately out of scope (for now)
+
+URSA stays a focused client. The Uptime Kuma web UI remains the place to *configure*
+things; URSA is the place to *watch and react* on your phone. Out of scope until the
+native experience is excellent:
+
+- Creating or editing monitors, notifications, or status pages.
+- Multi-user administration and server configuration.
+
+If a homelab workflow genuinely needs one of these on mobile, open a discussion and
+make the case.

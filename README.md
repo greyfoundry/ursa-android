@@ -1,5 +1,10 @@
 # URSA
 
+[![CI](https://github.com/AstorisTheBrave/ursa-android/actions/workflows/ci.yml/badge.svg)](https://github.com/AstorisTheBrave/ursa-android/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform: Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
+![Made with Kotlin](https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white)
+
 **Native Android client for Uptime Kuma - real-time monitoring, multi-server
 support, and FOSS push notifications.**
 
@@ -82,6 +87,17 @@ emulator). Local dev instance:
 ```bash
 docker run -d -p 3001:3001 -v uptime-kuma:/app/data --name uptime-kuma louislam/uptime-kuma:2
 ```
+
+## Roadmap
+
+URSA follows **viewer -> actions -> push**. Beyond that, being native unlocks
+things the Kuma web app cannot do: home-screen widgets, notification actions, a
+Quick Settings tile, Wear OS, and more. See [docs/roadmap.mdx](docs/roadmap.mdx).
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), the
+[Code of Conduct](CODE_OF_CONDUCT.md), and the [Security Policy](SECURITY.md).
 
 ## License
 
