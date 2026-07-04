@@ -16,7 +16,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * Pure normalization of Uptime Kuma wire payloads into domain models. Kept free of
  * Android/Socket.IO types (operates on kotlinx JsonObject) so it is unit-testable on
- * the JVM. Shapes verified live against Kuma 2.4.0 — see docs/references/uptime-kuma-api.mdx.
+ * the JVM. Shapes verified live against Kuma 2.4.0 - see docs/references/uptime-kuma-api.mdx.
  */
 object KumaParse {
 
@@ -57,7 +57,7 @@ object KumaParse {
         )
     }
 
-    /** `getMonitorBeats` rows — SNAKE_CASE, `important` is 1/0 not a boolean. */
+    /** `getMonitorBeats` rows - SNAKE_CASE, `important` is 1/0 not a boolean. */
     fun beatRow(obj: JsonObject): Heartbeat? {
         val id = obj["monitor_id"]?.jsonPrimitive?.intOrNull ?: return null
         return Heartbeat(

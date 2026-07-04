@@ -22,7 +22,7 @@ data class PushNotice(
  * "[name] [🔴 Down] connect ECONNREFUSED ...".
  *
  * Kept free of Android types so it is unit-testable on the JVM. The push payload is
- * untrusted input (MASVS-PLATFORM-1) — parsing is tolerant and never throws; a body
+ * untrusted input (MASVS-PLATFORM-1) - parsing is tolerant and never throws; a body
  * that isn't the expected JSON yields null so the caller can fall back to raw text.
  */
 object PushParse {

@@ -6,7 +6,7 @@ status: in-flux
 
 ## what this is
 
-Push notifications via **UnifiedPush** — a monitor goes down, Kuma POSTs to a push
+Push notifications via **UnifiedPush** - a monitor goes down, Kuma POSTs to a push
 endpoint, the distributor (e.g. ntfy) delivers it to the app, and URSA renders a
 system notification. No relay server, no Firebase. Independent of the Socket.IO
 connection: push works while the app is closed.
@@ -14,14 +14,14 @@ connection: push works while the app is closed.
 ## technical map
 
 **file paths**
-- `.../core/push/UrsaPushService.kt` — extends the connector's `PushService`
+- `.../core/push/UrsaPushService.kt` - extends the connector's `PushService`
   (a Service, NOT exported). Captures the endpoint (`onNewEndpoint`), renders a
   notification from the webhook body (`onMessage`), handles failure/unregister.
-- `.../core/push/PushParse.kt` — pure, tolerant parser of Kuma's webhook JSON
+- `.../core/push/PushParse.kt` - pure, tolerant parser of Kuma's webhook JSON
   (`{heartbeat, monitor, msg}`) → `PushNotice`. JVM-unit-tested (`PushParseTest`).
-- `.../core/push/PushStore.kt` — process-wide holder of the endpoint URL + chosen
+- `.../core/push/PushStore.kt` - process-wide holder of the endpoint URL + chosen
   distributor (SharedPreferences mirrored into StateFlows).
-- `.../ui/push/PushScreen.kt` — pick a distributor, request `POST_NOTIFICATIONS`,
+- `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show the endpoint with a copy button, disconnect.
 
 **exports**
@@ -40,15 +40,15 @@ connection: push works while the app is closed.
 ## gotchas
 
 - **`PushService`, not `MessagingReceiver`** (the latter is deprecated). The service
-  is `exported="false"` — the connector's own internal receiver forwards to it — so
+  is `exported="false"` - the connector's own internal receiver forwards to it - so
   there is no exported push surface to harden.
 - No VAPID / web-push encryption: Kuma sends plain JSON, so `PushMessage.decrypted`
-  is false and `content` is the raw body. The body is untrusted input — parsed
+  is false and `content` is the raw body. The body is untrusted input - parsed
   tolerantly, render-only, never acted upon.
 - `POST_NOTIFICATIONS` is a runtime permission on API 33+; the service drops the
   notification (logs a warning) if it isn't granted. `PushScreen` requests it.
-- ntfy endpoints need `?up=1` appended so ntfy forwards Kuma's raw bytes — surfaced
+- ntfy endpoints need `?up=1` appended so ntfy forwards Kuma's raw bytes - surfaced
   as a hint on the endpoint screen.
 - Same monitor id reuses its notification id, so a new status replaces the old one.
-- No app notification icon yet — uses a system placeholder (`stat_notify_sync`).
+- No app notification icon yet - uses a system placeholder (`stat_notify_sync`).
   Replace with a branded monochrome icon before release.

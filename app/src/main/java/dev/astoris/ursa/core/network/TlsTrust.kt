@@ -10,7 +10,7 @@ import javax.net.ssl.X509TrustManager
  * Builds an OkHttpClient that accepts ANY TLS certificate and hostname.
  *
  * This is a deliberate security downgrade. It is used ONLY for a connection the
- * user has explicitly opted into "trust self-signed" — the common case for a
+ * user has explicitly opted into "trust self-signed" - the common case for a
  * homelab Uptime Kuma instance behind a self-signed or internal-CA cert. Never
  * the default. Certificate pinning would be the stronger upgrade if needed.
  */

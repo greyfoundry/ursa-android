@@ -22,7 +22,7 @@ project.
 **architecture**
 - Repository pattern: one repository per domain, exposes `StateFlow`/`Flow`.
   Compose collects via `collectAsStateWithLifecycle`.
-- A thin **adapter layer** wraps the Kuma socket — parse/normalize there so
+- A thin **adapter layer** wraps the Kuma socket - parse/normalize there so
   protocol drift never leaks into UI or models.
 - One `Socket` per active server, held in a service-scoped repository (no
   background service in v1).
@@ -38,12 +38,12 @@ project.
 
 **tests**
 - Ponytail rule: non-trivial logic (parsers, the socket adapter, money/security
-  paths) leaves one runnable check — a small `test_*` or an `assert` self-check.
+  paths) leaves one runnable check - a small `test_*` or an `assert` self-check.
   No framework ceremony unless asked.
 
 ## gotchas
 
 - Do not change existing UI design/layout/styling unless explicitly asked.
 - Work in small phases: summarize, run lint/tests, commit per phase.
-- Never apply `org.jetbrains.kotlin.android` (AGP 9 built-in Kotlin) — see
+- Never apply `org.jetbrains.kotlin.android` (AGP 9 built-in Kotlin) - see
   `docs/stack.mdx`.

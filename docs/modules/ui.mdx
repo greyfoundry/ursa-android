@@ -8,19 +8,19 @@ status: stable
 
 The screens and the single ViewModel behind them. One `UrsaViewModel` holds all
 app state; a top-level `when` in `UrsaApp` picks the screen from that state (no
-navigation library for M1 — the screen set is small and state-driven).
+navigation library for M1 - the screen set is small and state-driven).
 
 ## technical map
 
 **file paths**
-- `.../ui/UrsaViewModel.kt` — AndroidViewModel; owns `MonitorRepository` +
+- `.../ui/UrsaViewModel.kt` - AndroidViewModel; owns `MonitorRepository` +
   `StatusPageClient`; login flow, selection, status-page state, pause/resume.
-- `.../ui/UrsaApp.kt` — root; routes status-page / login / detail / list.
-- `.../ui/connections/LoginScreen.kt` — server URL + creds + conditional 2FA.
-- `.../ui/monitors/MonitorListScreen.kt` — live list, tappable rows.
-- `.../ui/monitors/MonitorDetailScreen.kt` — heartbeat bar strip, cert, pause/resume.
-- `.../ui/statuspage/StatusPageScreen.kt` — public page by URL+slug.
-- `.../ui/StatusUi.kt` — status → color/label.
+- `.../ui/UrsaApp.kt` - root; routes status-page / login / detail / list.
+- `.../ui/connections/LoginScreen.kt` - server URL + creds + conditional 2FA.
+- `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows.
+- `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, cert, pause/resume.
+- `.../ui/statuspage/StatusPageScreen.kt` - public page by URL+slug.
+- `.../ui/StatusUi.kt` - status → color/label.
 
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
@@ -37,7 +37,7 @@ navigation library for M1 — the screen set is small and state-driven).
 - Routing is a `when` on state, not a nav graph. System back is handled per-screen
   with `BackHandler` (detail → list, status page → login).
 - Routing uses `hasSession` (set once authenticated, and optimistically at startup
-  if a stored JWT exists) — NOT raw connection state — so reconnects keep the list
+  if a stored JWT exists) - NOT raw connection state - so reconnects keep the list
   visible with a "Connection: …" banner. `logout()` clears it.
 - Login/status-page screens have a "Trust self-signed certificate" checkbox that
   flows to `insecure` on the connection.

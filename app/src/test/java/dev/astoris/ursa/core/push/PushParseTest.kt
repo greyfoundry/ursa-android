@@ -8,7 +8,7 @@ import org.junit.Test
 
 /**
  * The bodies below mirror what Uptime Kuma's Webhook notification POSTs
- * (`{heartbeat, monitor, msg}` — see notification-providers/webhook.js). The push
+ * (`{heartbeat, monitor, msg}` - see notification-providers/webhook.js). The push
  * payload is untrusted input, so the parser must be tolerant and never throw.
  */
 class PushParseTest {

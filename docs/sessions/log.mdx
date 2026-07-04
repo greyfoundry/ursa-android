@@ -6,13 +6,13 @@ status: stable
 
 ## what this is
 
-The running change log across sessions — project memory over time. Append a dated
+The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
-### 2026-07-04 — M3 phases 2-3: registration UI + parser tests + docs
+### 2026-07-04 - M3 phases 2-3: registration UI + parser tests + docs
 
 **changed**: (2) `ui/push/PushScreen.kt` + ViewModel push section: pick a distributor
-(`getDistributors`/`saveDistributor`/`register`, app-context only — no Activity),
+(`getDistributors`/`saveDistributor`/`register`, app-context only - no Activity),
 request `POST_NOTIFICATIONS`, show the endpoint with a copy button + ntfy `?up=1`
 hint, disconnect. `UrsaApp` routes `pushMode`; a "Push" action added to the monitor
 list top bar. (3) `PushParseTest` (7 cases: down/up/maintenance, important int vs
@@ -24,7 +24,7 @@ closed), project map.
 path complete; still needs on-device verification (emulator deferred to the end) and
 a branded notification icon (currently a system placeholder).
 
-### 2026-07-04 — M3 phase 1: UnifiedPush receive path (PushService + notifications)
+### 2026-07-04 - M3 phase 1: UnifiedPush receive path (PushService + notifications)
 
 **changed**: New `core/push` module. Added connector 3.3.3 dependency (excluding its
 JVM `tink` to avoid a duplicate-class clash with our `tink-android`). Manifest:
@@ -36,7 +36,7 @@ tolerant parser of `{heartbeat, monitor, msg}` → `PushNotice`. `PushStore` =
 process-wide endpoint/distributor holder (SharedPreferences + StateFlow).
 
 **decisions made**:
-- **`PushService`, not the deprecated `MessagingReceiver`** — verified against
+- **`PushService`, not the deprecated `MessagingReceiver`** - verified against
   connector 3.3.3 source. Bonus: it's `exported="false"`, so the M3 security gate
   (no exported push surface) is satisfied by construction.
 - No VAPID/web-push encryption: Kuma POSTs plain JSON, so messages arrive
@@ -46,10 +46,10 @@ process-wide endpoint/distributor holder (SharedPreferences + StateFlow).
 **next**: phase 2 = registration UI (pick distributor, show endpoint + copy, request
 POST_NOTIFICATIONS); phase 3 = PushParse unit tests + module/security doc updates.
 
-### 2026-07-04 — README as product + compatibility matrix (review feedback)
+### 2026-07-04 - README as product + compatibility matrix (review feedback)
 
 **changed**: Rewrote `README.md` to read like a product per senior review. Leads with
-"Native Android client for Uptime Kuma — real-time monitoring, multi-server support,
+"Native Android client for Uptime Kuma - real-time monitoring, multi-server support,
 and FOSS push notifications" and surfaces the three memorable differentiators (native
 Android, no relay server, no Firebase). Added a **Compatibility** matrix (Kuma 2.4.x,
 user/pass, 2FA, multi-server, self-signed, plain-http, reverse proxies, Cloudflare
@@ -58,23 +58,23 @@ protocol-level and the on-device pass is in progress. Updated status to M1+M2 do
 
 **decisions made**:
 - Scope stays as planned (viewer → actions → push). User: the anti-scope-creep advice
-  doesn't apply — the planned features are required, not creep. Native-only
+  doesn't apply - the planned features are required, not creep. Native-only
   differentiators (quick-settings tiles, app shortcuts, widgets, Wear OS, rich
   notifications) noted as *post-core* opportunities, not pulled forward.
 - Matrix is honest: only push is unbuilt; reverse-proxy/tunnel rows claim protocol
   support (standard HTTPS+WebSocket), not device-verified rows.
 
-### 2026-07-04 — harden: FLAG_SECURE app-wide (backlog R1)
+### 2026-07-04 - harden: FLAG_SECURE app-wide (backlog R1)
 
 **changed**: `MainActivity.onCreate` now sets `WindowManager.LayoutParams.FLAG_SECURE`
-app-wide — blocks screenshots/screen recording and blanks the recents thumbnail so
+app-wide - blocks screenshots/screen recording and blanks the recents thumbnail so
 monitor data and server URLs don't leak there. Closes backlog item R1 / threat T3
 (OWASP MASVS-PLATFORM-3). Updated `docs/security.mdx` + `docs/security-notes/`
 status. Build + lint + unit tests green.
 
-### 2026-07-04 — security posture doc + internal threat model
+### 2026-07-04 - security posture doc + internal threat model
 
-**changed**: Added `docs/security.mdx` (tracked) — URSA's posture mapped to OWASP
+**changed**: Added `docs/security.mdx` (tracked) - URSA's posture mapped to OWASP
 MASVS v2.1, per-category status, and a prioritized remediation backlog. Added
 gitignored `docs/security-notes/` (`threat-model.md` = assets/boundaries/STRIDE-lite
 + residual-risk register; `checklist.md` = per-commit + milestone security gates
@@ -83,7 +83,7 @@ incl. the undercover leak scan) via `.git/info/exclude`. Wired pointers into
 
 **decisions made**:
 - Target **MASVS-L1**; **RESILIENCE out of scope** (no third-party secrets / fraud
-  surface — obfuscation/anti-debug not worth the cost). Recorded as a deliberate
+  surface - obfuscation/anti-debug not worth the cost). Recorded as a deliberate
   scope call, not a gap.
 - Verified against the live manifest before asserting posture: `allowBackup=true`,
   global `usesCleartextTraffic=true`, only the launcher activity exported, no
@@ -92,11 +92,11 @@ incl. the undercover leak scan) via `.git/info/exclude`. Wired pointers into
 - Checklist lives gitignored because it spells out the leak-scan fingerprint
   patterns, which would themselves be a leak if tracked.
 
-### 2026-07-03 — M2 (encryption, reconnect, TLS) + local kuma reference cache
+### 2026-07-03 - M2 (encryption, reconnect, TLS) + local kuma reference cache
 
 **changed**: (1) Set up local-only tooling for future agents: cloned upstream
 Kuma into `archive/uptime-kuma/` (v2.4.0, matches dev), wrote `docs/kuma-notes/`
-(full socket/REST/data-shape/source-map notes), and a root `MEMORY.md` handoff —
+(full socket/REST/data-shape/source-map notes), and a root `MEMORY.md` handoff -
 all gitignored via `.git/info/exclude`. (2) Built M2: Tink AES-256-GCM at-rest
 encryption of credentials (Keystore master key); resilient reconnect (KumaClient
 re-auths with stored JWT on every reconnect; session flag keeps the list up
@@ -111,18 +111,18 @@ across drops; sign-out added); opt-in self-signed TLS trust per connection.
 
 **decisions made**:
 - Encryption: Preferences DataStore value wrapped with a Tink `Aead` (not the
-  `AeadSerializer`/Proto path) — smallest change over the M1 store. Old plaintext
+  `AeadSerializer`/Proto path) - smallest change over the M1 store. Old plaintext
   entries become undecryptable → treated as empty (re-login), fine pre-release.
 - Trust-all TLS is opt-in per connection, gated behind an explicit checkbox and a
   loud comment in `TlsTrust`. Cert pinning is the future upgrade if wanted.
-- Kuma reference kept LOCAL (archive + kuma-notes + MEMORY.md) — large / not part
+- Kuma reference kept LOCAL (archive + kuma-notes + MEMORY.md) - large / not part
   of the shipped app; a fresh agent reads them to avoid re-fetching.
 
-**next**: M3 — UnifiedPush push (endpoint registration UI, receiver, notification
+**next**: M3 - UnifiedPush push (endpoint registration UI, receiver, notification
 rendering). Note Kuma also has native web-push VAPID (`getWebpushVapidPublicKey`)
 as an alternative worth evaluating.
 
-### 2026-07-03 — M1 core viewing + GitHub backup
+### 2026-07-03 - M1 core viewing + GitHub backup
 
 **changed**: Built all of M1. Wired networking/storage deps. Implemented the Kuma
 Socket.IO client + pure parser (unit-tested), DataStore connection storage, the
@@ -142,9 +142,9 @@ this log updated.
 
 **decisions made**:
 - lifecycle pinned 2.9.4 (2.11 forces compileSdk 37, not installed here).
-- No navigation library for M1 — state-driven `when` routing + per-screen BackHandler.
+- No navigation library for M1 - state-driven `when` routing + per-screen BackHandler.
 - Storage plaintext for M1; Tink AEAD deferred to M2 (documented ceiling).
-- `usesCleartextTraffic=true` — self-hosted Kuma is commonly plain http.
+- `usesCleartextTraffic=true` - self-hosted Kuma is commonly plain http.
 - Backup: private repo `AstorisTheBrave/ursa-android`, undercover (local-only
   project-map / config files not tracked). Restore = `git clone` + add
   `local.properties` (sdk.dir).
@@ -175,11 +175,11 @@ local project-map receptionist.
 - AGP 9.2 built-in Kotlin: dropped `kotlin.android`, pinned Kotlin 2.4.0 via root
   buildscript classpath, Gradle 9.4.1.
 - Initialized a dedicated git repo in this folder (parent `C:/Users/User` is an
-  unrelated repo — do not commit there). Undercover: no AI attribution.
+  unrelated repo - do not commit there). Undercover: no AI attribution.
 - Uptime Kuma event payload shapes corrected from live capture; wiki was wrong.
 - `cit-code` referenced in the global working rules is not installed in this environment.
 - Project-map receptionist kept local (untracked, via `.git/info/exclude`) to
-  honor undercover mode — no assistant-instruction file in the tracked tree.
+  honor undercover mode - no assistant-instruction file in the tracked tree.
 
-**next**: M1 dependency wiring (Phase B) — socket.io-client, Ktor, DataStore+Tink,
+**next**: M1 dependency wiring (Phase B) - socket.io-client, Ktor, DataStore+Tink,
 UnifiedPush into the version catalog, verifying each builds.

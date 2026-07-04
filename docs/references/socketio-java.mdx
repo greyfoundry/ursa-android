@@ -13,7 +13,7 @@ below. Data crosses the wire as `org.json.JSONObject` / `JSONArray`.
 
 ## technical map
 
-**gradle** — exclude the bundled `org.json` (Android ships its own):
+**gradle** - exclude the bundled `org.json` (Android ships its own):
 ```kotlin
 implementation("io.socket:socket.io-client:<ver>") {
     exclude(group = "org.json", module = "json")
@@ -62,7 +62,7 @@ socket.emit("login", login, Ack { res ->
 
 ## gotchas
 
-- Callbacks run off the main thread — marshal to a coroutine/`StateFlow` before
+- Callbacks run off the main thread - marshal to a coroutine/`StateFlow` before
   touching UI.
 - Wrap emit-with-ack in a `suspendCancellableCoroutine` to expose it as a
   `suspend fun` returning the parsed callback.

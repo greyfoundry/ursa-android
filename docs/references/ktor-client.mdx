@@ -13,7 +13,7 @@ deserialize with kotlinx.serialization.
 
 ## technical map
 
-**gradle** — client core + an engine + content negotiation + json:
+**gradle** - client core + an engine + content negotiation + json:
 ```kotlin
 implementation("io.ktor:ktor-client-core:<3.x>")
 implementation("io.ktor:ktor-client-okhttp:<3.x>")   // Android-friendly engine
@@ -47,10 +47,10 @@ val page: StatusPage = client.get("$base/api/status-page/$slug").body()
 
 ## gotchas
 
-- Always `ignoreUnknownKeys = true` — Kuma payloads carry many fields URSA
+- Always `ignoreUnknownKeys = true` - Kuma payloads carry many fields URSA
   ignores.
 - Self-signed certs: configure trust on the engine (OkHttp) config, don't blanket
   disable verification. Surface a "trust this cert?" decision to the user.
 - Reuse ONE `HttpClient` (it owns a thread pool); close on app teardown.
 - This is only for public status pages. Everything authenticated goes over
-  Socket.IO, not REST — see `docs/references/uptime-kuma-api.mdx`.
+  Socket.IO, not REST - see `docs/references/uptime-kuma-api.mdx`.

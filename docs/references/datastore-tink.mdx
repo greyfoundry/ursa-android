@@ -55,12 +55,12 @@ val dataStore = dataStore(
 
 ## gotchas
 
-- Do **not** use `EncryptedSharedPreferences` / `security-crypto` — deprecated,
+- Do **not** use `EncryptedSharedPreferences` / `security-crypto` - deprecated,
   no more security patches, known OEM keyset-corruption issues.
 - Only persist the **JWT** after login, never the password. If "remember me" is
-  off, don't persist the JWT at all — prompt each session.
+  off, don't persist the JWT at all - prompt each session.
 - `associatedData` must be stable and unique per store (prevents ciphertext
-  swapping). Losing/rotating the keyset makes existing data unreadable — treat
+  swapping). Losing/rotating the keyset makes existing data unreadable - treat
   keyset loss as "user must re-login," not a crash.
 - For simple key-value use, Preferences DataStore + a Tink `Aead` wrapper works
   too, but the typed/Proto + `AeadSerializer` path above is the supported one.

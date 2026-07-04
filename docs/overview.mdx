@@ -6,14 +6,14 @@ status: in-flux
 
 ## what this is
 
-URSA is a native Android app for **Uptime Kuma** — a popular self-hosted uptime
+URSA is a native Android app for **Uptime Kuma** - a popular self-hosted uptime
 monitor. It lets someone watch their servers/websites from their phone: see which
 monitors are up or down in real time, read history and TLS-cert info, pause or
 resume checks, and receive a push notification the moment something goes down.
 Android has lacked a solid Uptime Kuma client for years; URSA fills that gap, and
 its headline feature is push notifications that need no paid relay server.
 
-Read this file first every session. It is the map. Do not scan the repo — go
+Read this file first every session. It is the map. Do not scan the repo - go
 straight to the room you need via the layer map in `docs/architecture/index.mdx`
 and the module docs under `docs/modules/`.
 
@@ -31,7 +31,7 @@ and the module docs under `docs/modules/`.
   detail (heartbeat history + TLS cert), public status-page viewer, pause/resume.
 - M2 done: Tink AES-256-GCM credential encryption (Keystore master key), resilient
   reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
-- M3 in progress: UnifiedPush push — receive path (non-exported `PushService`,
+- M3 in progress: UnifiedPush push - receive path (non-exported `PushService`,
   webhook parser, notifications) + registration UI (distributor picker, endpoint,
   permission) built. See `docs/modules/push.mdx`.
 - Builds green (`assembleDebug`, `lintDebug`); parsers unit-tested. On-device UI
@@ -49,9 +49,9 @@ and the module docs under `docs/modules/`.
 ## gotchas
 
 - The Uptime Kuma socket API is **internal/unstable**. Several event payloads are
-  positional multi-arg emits, not objects — see `docs/references/uptime-kuma-api.mdx`
+  positional multi-arg emits, not objects - see `docs/references/uptime-kuma-api.mdx`
   (verified live, do not trust the upstream wiki blindly).
 - Undercover project: **no AI-provider references** anywhere (commits, code,
   docs, README). No co-author trailers.
 - The git repo is rooted in this folder. The parent `C:/Users/User` is a
-  separate (unrelated) git repo — never commit there.
+  separate (unrelated) git repo - never commit there.

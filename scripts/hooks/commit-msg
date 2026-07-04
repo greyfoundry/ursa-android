@@ -1,0 +1,12 @@
+#!/bin/sh
+# URSA punctuation invariant: commit messages use ASCII punctuation only.
+# Blocks an em-dash or en-dash in the message; use a plain ASCII hyphen '-'.
+# Activate with: git config core.hooksPath scripts/hooks
+
+msg=$(cat "$1")
+EM=$(printf '\xe2\x80\x94'); EN=$(printf '\xe2\x80\x93')
+if printf '%s' "$msg" | LC_ALL=C grep -qF -e "$EM" -e "$EN"; then
+    echo "BLOCKED: em/en dash in commit message. Use ASCII '-'."
+    exit 1
+fi
+exit 0

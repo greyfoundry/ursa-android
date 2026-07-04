@@ -28,32 +28,32 @@ Append `?up=1` to the ntfy endpoint so ntfy forwards raw bytes untouched.
 implementation("org.unifiedpush.android:connector:3.3.3")
 ```
 
-**register / distributor selection** — `UnifiedPush` is an object with `@JvmStatic`
+**register / distributor selection** - `UnifiedPush` is an object with `@JvmStatic`
 functions. `register(...)` (not `registerApp`, which is deprecated) has optional
 `instance`, `messageForDistributor`, `vapid`:
 ```kotlin
 import org.unifiedpush.android.connector.UnifiedPush
 
-// Option A — let the user pick from installed distributors:
+// Option A - let the user pick from installed distributors:
 val distributors = UnifiedPush.getDistributors(context)   // List<String> package names
 UnifiedPush.saveDistributor(context, chosen)              // must precede register()
 UnifiedPush.register(context)                             // instance defaults to INSTANCE_DEFAULT
 
-// Option B — use the saved-or-default distributor (call on startup; context must be an Activity):
+// Option B - use the saved-or-default distributor (call on startup; context must be an Activity):
 UnifiedPush.tryUseCurrentOrDefaultDistributor(context) { success ->
     if (success) UnifiedPush.register(context)
 }
 
 // Teardown: UnifiedPush.unregister(context) / UnifiedPush.removeDistributor(context)
 ```
-For the Kuma-webhook flow **do not pass a `vapid` key** — Kuma POSTs plain JSON, it
+For the Kuma-webhook flow **do not pass a `vapid` key** - Kuma POSTs plain JSON, it
 does not do RFC8291 web-push encryption, so messages arrive unencrypted
 (`PushMessage.decrypted == false`) and `content` is the raw webhook body.
 
-**receive — extend `PushService` (a Service, NOT a BroadcastReceiver).**
+**receive - extend `PushService` (a Service, NOT a BroadcastReceiver).**
 `MessagingReceiver` still exists but is **deprecated**; `PushService` is the current
 API and, crucially, is **not exported** (the library ships its own internal receiver
-that forwards to it). Overrides take no `Context` — the service *is* one:
+that forwards to it). Overrides take no `Context` - the service *is* one:
 ```kotlin
 class UrsaPushService : PushService() {
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
@@ -72,7 +72,7 @@ Payloads: `PushEndpoint(url: String, pubKeySet: PublicKeySet?)`,
 `PushMessage(content: ByteArray, decrypted: Boolean)`.
 `FailedReason`: `INTERNAL_ERROR | NETWORK | ACTION_REQUIRED | VAPID_REQUIRED`.
 
-**manifest** — declare the service, **not exported**, handling `PUSH_EVENT`:
+**manifest** - declare the service, **not exported**, handling `PUSH_EVENT`:
 ```xml
 <service android:name=".core.push.UrsaPushService" android:exported="false">
     <intent-filter>
@@ -85,12 +85,12 @@ Also `POST_NOTIFICATIONS` permission (API 33+) and `INTERNET` (already present).
 ## gotchas
 
 - **Use `PushService`, not `MessagingReceiver`** (the latter is deprecated). This
-  also satisfies the M3 security gate: the service is `exported="false"` — no
+  also satisfies the M3 security gate: the service is `exported="false"` - no
   exported push surface to harden. See `docs/security.mdx` / `security-notes`.
-- The Socket.IO connection does NOT need to stay alive for push — push flows
+- The Socket.IO connection does NOT need to stay alive for push - push flows
   through the distributor, not the app. No foreground service for v1.
 - No distributor installed → `getDistributors` returns empty; guide the user to ntfy.
 - `saveDistributor` must be called before `register`. `register` throws
-  `VapidNotValidException` only if you pass a malformed `vapid` — we pass none.
-- FOSS-clean for F-Droid — the connector is FOSS; confirm the final dependency set
+  `VapidNotValidException` only if you pass a malformed `vapid` - we pass none.
+- FOSS-clean for F-Droid - the connector is FOSS; confirm the final dependency set
   before release.

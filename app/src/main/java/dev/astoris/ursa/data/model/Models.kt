@@ -13,7 +13,7 @@ enum class MonitorStatus(val code: Int) {
 
 /**
  * A monitor as shown in the list. Status/ping/uptime are not in the `monitorList`
- * snapshot — they arrive via separate `heartbeat` / `avgPing` / `uptime` events and
+ * snapshot - they arrive via separate `heartbeat` / `avgPing` / `uptime` events and
  * are merged in by the client adapter.
  */
 data class Monitor(

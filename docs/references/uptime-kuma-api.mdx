@@ -7,7 +7,7 @@ source: verified live against Uptime Kuma 2.4.0 (not the wiki)
 
 ## what this is
 
-How URSA talks to an Uptime Kuma server. Kuma has no stable public API — it's a
+How URSA talks to an Uptime Kuma server. Kuma has no stable public API - it's a
 Socket.IO app plus a few unauthenticated REST endpoints for public status pages.
 Everything below was captured by connecting a real Socket.IO client to a live
 2.4.0 instance, so it reflects reality, not the upstream wiki (which is wrong in
@@ -48,20 +48,20 @@ several places). Build a thin adapter around this; expect drift between versions
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
 
-**REST (no auth — public status pages)**
-- `GET /api/status-page/<slug>` — page config, groups, monitors, incident
-- `GET /api/status-page/heartbeat/<slug>` — heartbeats + uptime
-- `GET /api/entry-page` — detect setup state / vanity domains
+**REST (no auth - public status pages)**
+- `GET /api/status-page/<slug>` - page config, groups, monitors, incident
+- `GET /api/status-page/heartbeat/<slug>` - heartbeats + uptime
+- `GET /api/entry-page` - detect setup state / vanity domains
 
 ## gotchas
 
 - **Case split**: live `heartbeat` event is camelCase; `getMonitorBeats` rows are
   snake_case. The data model must map both to one domain type.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
-  JSON string *inside* the JSON — parse twice.
+  JSON string *inside* the JSON - parse twice.
 - Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON
-  array) on Kuma 2.x — absent from the wiki.
+  array) on Kuma 2.x - absent from the wiki.
 - Kuma 2.x boots into a separate "setup-database" mode; the app socket isn't
   mounted until a DB is chosen. Only relevant for spinning up dev instances
   (seed `data/db-config.json = {"type":"sqlite"}`), never for the app itself.
-- Self-signed certs are common in this userbase — handle TLS trust explicitly.
+- Self-signed certs are common in this userbase - handle TLS trust explicitly.

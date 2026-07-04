@@ -24,12 +24,12 @@ No unit tests yet; add under `app/src/test/` as logic lands.
 
 **release (M3, not yet)**
 - MIT license (match upstream Kuma), F-Droid metadata via `fdroiddata`
-  (FOSS-only deps — verify connector + socket.io-client are clean).
+  (FOSS-only deps - verify connector + socket.io-client are clean).
 - Add a signing config + app icon before release.
 
 ## gotchas
 
-- First build downloads Gradle 9.4.1 (~130 MB) + AGP/deps — slow once, cached
+- First build downloads Gradle 9.4.1 (~130 MB) + AGP/deps - slow once, cached
   after.
 - Use `--no-daemon` in CI/headless to avoid lingering daemons on Windows.
 - lint caches results; if a `local.properties`-style fix seems ignored, rerun

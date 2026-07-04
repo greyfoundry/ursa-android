@@ -14,22 +14,22 @@ here so the rest of the app sees clean domain models.
 ## technical map
 
 **file paths**
-- `app/src/main/java/dev/astoris/ursa/core/network/KumaClient.kt` — one Socket.IO
+- `app/src/main/java/dev/astoris/ursa/core/network/KumaClient.kt` - one Socket.IO
   connection per server; auth, event wiring, pause/resume, getBeats.
-- `.../core/network/KumaParse.kt` — pure wire→domain parsing (kotlinx, no Android
+- `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
-- `.../core/network/StatusPageClient.kt` — Ktor client for public status pages.
+- `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
 
 **exports**
-- `KumaClient(baseUrl)` — `connect()`, `login(u,p,token)`, `loginByToken(jwt)`,
+- `KumaClient(baseUrl)` - `connect()`, `login(u,p,token)`, `loginByToken(jwt)`,
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `disconnect()`. Flows: `state`, `monitors`, `heartbeats`, `certs`.
-- `KumaParse` — `monitorList`, `monitor`, `heartbeat`, `beatRow(s)`, `cert`, `tags`.
+- `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `beatRow(s)`, `cert`, `tags`.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
-- `data/model` — the domain types it produces.
+- `data/model` - the domain types it produces.
 
 **imported by**
 - `data/repository/MonitorRepository` (live client) and `ui/UrsaViewModel`
@@ -39,9 +39,9 @@ here so the rest of the app sees clean domain models.
 
 - Positional events (`avgPing`, `uptime`, `certInfo`) are read from `args[]`
   directly; object events go through `jsonAt()` → kotlinx → `KumaParse`.
-- `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case — two
+- `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case - two
   parse paths (`heartbeat` vs `beatRow`). Covered by `KumaParseTest`.
-- `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) — safe,
+- `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) - safe,
   but the ack resolves only after the server replies.
 - Reconnect: `KumaClient` keeps the JWT and silently re-emits `loginByToken` on
   every `EVENT_CONNECT`, so a dropped socket re-authenticates itself. `disconnect()`

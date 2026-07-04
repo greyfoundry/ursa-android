@@ -26,20 +26,20 @@ distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──�
 ```
 
 **layers (M1 implemented unless noted)**
-- `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) —
+- `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) -
   see `docs/modules/network.mdx`.
-- `core.storage` → `.../core/storage/` (ConnectionStore + Crypto) — DataStore with
+- `core.storage` → `.../core/storage/` (ConnectionStore + Crypto) - DataStore with
   Tink AES-256-GCM at rest, master key in Android Keystore.
-- `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore) —
+- `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore) -
   UnifiedPush receive path + notification rendering. See `docs/modules/push.mdx`.
-- `data.model` → `.../data/model/` — Models.kt + StatusPageModels.kt.
+- `data.model` → `.../data/model/` - Models.kt + StatusPageModels.kt.
 - `data.repository` → `.../data/repository/MonitorRepository.kt`.
-- `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) —
+- `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) -
   see `docs/modules/ui.mdx`.
-- app shell → `.../MainActivity.kt` — see `docs/modules/app-shell.mdx`.
+- app shell → `.../MainActivity.kt` - see `docs/modules/app-shell.mdx`.
 
 **depends on**
-- `docs/references/*` — the external API contracts each layer implements against.
+- `docs/references/*` - the external API contracts each layer implements against.
 
 ## gotchas
 
@@ -47,5 +47,5 @@ distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──�
   (positional events, snake/camel split, double-encoded JSON). Keep it there.
 - One `Socket` per active server; multi-server = switch the active repository, not
   multiple live sockets in v1.
-- Push is independent of the socket — it works while the app is closed, via the
+- Push is independent of the socket - it works while the app is closed, via the
   distributor. Don't couple them.

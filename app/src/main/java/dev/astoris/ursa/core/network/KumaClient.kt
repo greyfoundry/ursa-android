@@ -108,7 +108,7 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
             }
         }
 
-        // POSITIONAL events: (monitorID, value...) — NOT objects
+        // POSITIONAL events: (monitorID, value...) - NOT objects
         s.on("avgPing") { args ->
             val id = (args.getOrNull(0) as? Number)?.toInt() ?: return@on
             val avg = (args.getOrNull(1) as? Number)?.toInt()

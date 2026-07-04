@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * Backed by plain SharedPreferences and mirrored in a process-wide StateFlow so the
  * push service (which produces the endpoint) and the UI (which displays it) stay in
- * sync within the single app process. Only the public endpoint URL is stored — it is
+ * sync within the single app process. Only the public endpoint URL is stored - it is
  * a delivery address, not a credential, so it does not need the encrypted store.
  */
 object PushStore {

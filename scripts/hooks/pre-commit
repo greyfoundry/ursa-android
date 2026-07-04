@@ -1,0 +1,21 @@
+#!/bin/sh
+# URSA punctuation invariant (also enforced in CI): committed files use ASCII
+# punctuation only. Blocks a commit whose newly added lines contain an em-dash or
+# en-dash; use a plain ASCII hyphen '-' instead.
+#
+# Source of truth: scripts/hooks/. Activate locally with:
+#   git config core.hooksPath scripts/hooks
+# (URSA's own working copy layers an extra local check on top; see CONTRIBUTING.)
+
+added=$(git diff --cached --diff-filter=ACM --unified=0 | grep '^+' | grep -v '^+++' || true)
+[ -z "$added" ] && exit 0
+
+# Literal UTF-8 bytes for em-dash (E2 80 94) / en-dash (E2 80 93); fixed-string
+# match is locale-proof (avoids grep -P locale restrictions).
+EM=$(printf '\xe2\x80\x94'); EN=$(printf '\xe2\x80\x93')
+if printf '%s' "$added" | LC_ALL=C grep -qF -e "$EM" -e "$EN"; then
+    echo "BLOCKED: em/en dash in staged changes. Use ASCII '-'."
+    echo "pre-commit: fix the lines above, then re-stage."
+    exit 1
+fi
+exit 0

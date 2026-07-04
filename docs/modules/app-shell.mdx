@@ -6,7 +6,7 @@ status: stable
 
 ## what this is
 
-The app's single entry point and Compose host. Right now it's the scaffold — a
+The app's single entry point and Compose host. Right now it's the scaffold - a
 Material 3 `Scaffold` showing a placeholder. As M1 lands, this becomes the
 navigation host that swaps between the connections, monitors, and status-page
 screens.
@@ -20,7 +20,7 @@ screens.
 - strings: `app/src/main/res/values/strings.xml`
 
 **exports**
-- `MainActivity : ComponentActivity` — `enableEdgeToEdge()` + `setContent { }`.
+- `MainActivity : ComponentActivity` - `enableEdgeToEdge()` + `setContent { }`.
 
 **depends on**
 - Compose BOM (activity-compose, material3, ui). Nothing app-internal yet.
@@ -31,7 +31,7 @@ screens.
 ## gotchas
 
 - `Theme.URSA` extends a platform `Material.Light.NoActionBar` parent to avoid
-  pulling in the Material Components XML dependency — keep it that way unless a
+  pulling in the Material Components XML dependency - keep it that way unless a
   real need appears.
 - No app icon is declared yet (uses the system default); add one before release.
-- Navigation not wired — M1 will introduce a nav host here.
+- Navigation not wired - M1 will introduce a nav host here.

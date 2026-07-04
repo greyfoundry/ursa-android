@@ -79,7 +79,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                "Get a notification the moment a monitor goes down — over UnifiedPush, " +
+                "Get a notification the moment a monitor goes down - over UnifiedPush, " +
                     "with no relay server and no Google services.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

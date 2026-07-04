@@ -19,7 +19,7 @@ import org.unifiedpush.android.connector.data.PushMessage
 
 /**
  * Receives UnifiedPush events from the distributor. Declared NON-exported in the
- * manifest — the connector ships its own internal receiver that forwards events here,
+ * manifest - the connector ships its own internal receiver that forwards events here,
  * so there is no exported push surface to harden (MASVS-PLATFORM-1).
  *
  * The push body is Kuma's Webhook JSON; it is untrusted input, parsed tolerantly by
