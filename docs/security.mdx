@@ -40,7 +40,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | AUTH-3 step-up auth | n/a (read-heavy client) | — |
 | NETWORK-1 secure transport | partial | TLS default; opt-in trust-all + global cleartext |
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
-| PLATFORM-1 IPC | met | only the launcher activity is exported |
+| PLATFORM-1 IPC | met | launcher activity + non-exported push service only |
 | PLATFORM-2 WebViews | n/a | app uses none |
 | PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide, `MainActivity` |
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 36 |
@@ -81,8 +81,10 @@ arbitrary servers the user names, not a fixed backend.
 
 **PLATFORM.** The only exported component is the launcher activity. No WebViews.
 `FLAG_SECURE` is applied app-wide so no screen can be captured or previewed in
-recents. The M3 push receiver will need to be exported for UnifiedPush and must
-treat its payload as untrusted.
+recents. The push service (`UrsaPushService`) is `exported="false"` — the
+UnifiedPush connector ships its own internal receiver that forwards to it — so there
+is no exported push surface. The push body is treated as untrusted input: parsed
+tolerantly by `PushParse` and only rendered into a notification, never acted upon.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; automated CVE
@@ -111,7 +113,10 @@ Prioritized by value/effort. Tracked items — none are silently dropped.
 4. **Trust-on-first-use** — prefer pinning the certificate the user accepted over
    blanket trust-all, with a louder warning at the toggle (NETWORK-1).
 5. **Dependency vulnerability check** in the build (CODE-3).
-6. **M3 push receiver** — minimal export surface, validate payload origin, keep
-   notifications to what Kuma already emits (PLATFORM-1).
+6. ~~**M3 push receiver** — minimal export surface, treat payload as untrusted.~~
+   **Done (2026-07-04)** — `PushService` is `exported="false"`; body is parsed
+   tolerantly and render-only. Endpoint origin is not cryptographically validated
+   (Kuma sends plain JSON, not web-push-encrypted) — acceptable: render-only, and
+   the endpoint is a user-held secret.
 7. **Optional local-auth gate** (biometric/device credential) before revealing
    sessions (AUTH-2).

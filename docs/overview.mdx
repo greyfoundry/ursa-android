@@ -31,11 +31,16 @@ and the module docs under `docs/modules/`.
   detail (heartbeat history + TLS cert), public status-page viewer, pause/resume.
 - M2 done: Tink AES-256-GCM credential encryption (Keystore master key), resilient
   reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
-- Builds green (`assembleDebug`, `lintDebug`); parser unit-tested. On-device UI
+- M3 in progress: UnifiedPush push — receive path (non-exported `PushService`,
+  webhook parser, notifications) + registration UI (distributor picker, endpoint,
+  permission) built. See `docs/modules/push.mdx`.
+- Builds green (`assembleDebug`, `lintDebug`); parsers unit-tested. On-device UI
   smoke test still pending (no emulator/AVD provisioned). See `docs/sessions/log.mdx`.
+- Security posture mapped to OWASP MASVS: `docs/security.mdx`.
 - Local reference for agents (gitignored): `docs/kuma-notes/`, `archive/uptime-kuma/`,
   `MEMORY.md`.
-- Next: M3 (UnifiedPush push).
+- Next: M3 on-device verification (emulator, deferred to the end) + a branded
+  notification icon.
 
 **depends on**
 - a running Uptime Kuma server (the app is a client; it stores/creates nothing

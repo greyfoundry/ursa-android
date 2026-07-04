@@ -9,6 +9,21 @@ status: stable
 The running change log across sessions — project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 — M3 phases 2-3: registration UI + parser tests + docs
+
+**changed**: (2) `ui/push/PushScreen.kt` + ViewModel push section: pick a distributor
+(`getDistributors`/`saveDistributor`/`register`, app-context only — no Activity),
+request `POST_NOTIFICATIONS`, show the endpoint with a copy button + ntfy `?up=1`
+hint, disconnect. `UrsaApp` routes `pushMode`; a "Push" action added to the monitor
+list top bar. (3) `PushParseTest` (7 cases: down/up/maintenance, important int vs
+bool, msg fallback, non-JSON→null, unknown keys). Docs: new `docs/modules/push.mdx`;
+updated architecture, overview, security (backlog R6 closed), threat-model (T5/T6
+closed), project map.
+
+**notes**: All green (`assembleDebug`, `lintDebug`, `testDebugUnitTest`). M3 code
+path complete; still needs on-device verification (emulator deferred to the end) and
+a branded notification icon (currently a system placeholder).
+
 ### 2026-07-04 — M3 phase 1: UnifiedPush receive path (PushService + notifications)
 
 **changed**: New `core/push` module. Added connector 3.3.3 dependency (excluding its

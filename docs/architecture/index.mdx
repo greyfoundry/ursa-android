@@ -30,7 +30,8 @@ distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──�
   see `docs/modules/network.mdx`.
 - `core.storage` → `.../core/storage/` (ConnectionStore + Crypto) — DataStore with
   Tink AES-256-GCM at rest, master key in Android Keystore.
-- `core.push` → planned M3 — UnifiedPush connector + receiver (not yet created).
+- `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore) —
+  UnifiedPush receive path + notification rendering. See `docs/modules/push.mdx`.
 - `data.model` → `.../data/model/` — Models.kt + StatusPageModels.kt.
 - `data.repository` → `.../data/repository/MonitorRepository.kt`.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) —
