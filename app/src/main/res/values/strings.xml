@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">URSA</string>
+
+    <!-- App shortcuts (long-press launcher icon) -->
+    <string name="shortcut_push_short">Push</string>
+    <string name="shortcut_push_long">Push notifications</string>
+    <string name="shortcut_settings_short">Settings</string>
+    <string name="shortcut_settings_long">Open settings</string>
 </resources>
