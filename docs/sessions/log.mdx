@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - first on-device run (Pixel 8): 3 bugs found + fixed, theme verified
+
+**environment**: A Pixel_8 AVD (system image android-37) is now available. Verified via
+`adb` install/launch/screencap against a live dev Kuma (seeded 3 monitors). Emulator
+and android-37 are now provisioned (previously blocked).
+
+**bugs found on device (none caught by unit tests) and fixed**:
+1. **Startup crash** - `MonitorRepository` init block collected `certs` before that
+   property was initialized (declared after `init`), NPE on launch. Moved `state` +
+   `certs` above `init`. This crashed the app on every launch since M4 #4.
+2. **Dark mode broken** - `Theme.URSA` was a light-only framework theme; added a
+   `values-night/` theme + day/night `window_bg` color so the app follows the system
+   dark setting.
+3. **Invisible dark-mode text** - login/status-page screens are not wrapped in a
+   Scaffold/Surface, so default content color was black on the dark background.
+   `UrsaTheme` now wraps content in a `Surface(color = background)`.
+Also gated `FLAG_SECURE` to release builds only (skipped when debuggable) so
+screenshots work in development.
+
+**verified working end-to-end**: login over Socket.IO, live monitor list with Kuma
+status pills (Up green / Down red / Pending orange) in rounded cards, monitor detail
+with the Kuma heartbeat bar and TLS certificate parsing, in both light and dark mode.
+Colors match Uptime Kuma exactly.
+
 ### 2026-07-04 - Kuma-matched theme: light/dark mode + status conventions
 
 **changed**: New `ui/theme/` (`Color.kt` + `Theme.kt`, `UrsaTheme`) applying Uptime

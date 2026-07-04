@@ -42,7 +42,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
 | PLATFORM-1 IPC | met | launcher activity + non-exported push service only |
 | PLATFORM-2 WebViews | n/a | app uses none |
-| PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide, `MainActivity` |
+| PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide (release; skipped in debug) |
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 36 |
 | CODE-2 enforced updates | n/a | side-loaded, no store channel yet |
 | CODE-3 no vulnerable deps | partial | versions pinned, no automated scan |
@@ -79,9 +79,13 @@ default) and a global `usesCleartextTraffic=true` for plain-http instances. Both
 tracked risks (see backlog). Certificate pinning is not applicable - URSA connects to
 arbitrary servers the user names, not a fixed backend.
 
-**PLATFORM.** The only exported component is the launcher activity. No WebViews.
-`FLAG_SECURE` is applied app-wide so no screen can be captured or previewed in
-recents. The push service (`UrsaPushService`) is `exported="false"` - the
+**PLATFORM.** The only exported component is the launcher activity (plus the
+AppWidget receiver and Quick Settings tile, which the platform requires to be
+exported and which only expose cached counts). No WebViews. `FLAG_SECURE` is applied
+app-wide in **release** builds so no screen can be captured or previewed in recents;
+it is intentionally skipped in **debuggable** builds so developers can take
+screenshots (release security is unaffected). The push service (`UrsaPushService`)
+is `exported="false"` - the
 UnifiedPush connector ships its own internal receiver that forwards to it - so there
 is no exported push surface. The push body is treated as untrusted input: parsed
 tolerantly by `PushParse` and only rendered into a notification, never acted upon.
