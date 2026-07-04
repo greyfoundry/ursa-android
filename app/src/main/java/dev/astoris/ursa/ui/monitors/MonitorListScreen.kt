@@ -16,16 +16,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,6 +45,7 @@ import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.Sparkline
 import dev.astoris.ursa.ui.StatusCircle
 import dev.astoris.ursa.ui.StatusPill
@@ -50,19 +61,79 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
 
+    var searchActive by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var statusFilter by remember { mutableStateOf<MonitorStatus?>(null) }
+    var filterOpen by remember { mutableStateOf(false) }
+
+    val shown = monitors.filter { m ->
+        (query.isBlank() || m.name.contains(query, ignoreCase = true)) &&
+            (statusFilter == null || m.status == statusFilter)
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(
-                            painter = painterResource(R.mipmap.ic_launcher_monochrome),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp),
+                    if (searchActive) {
+                        TextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = { Text(stringResource(R.string.search_hint)) },
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        Text(stringResource(R.string.monitors_title))
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(
+                                painter = painterResource(R.mipmap.ic_launcher_monochrome),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp),
+                            )
+                            Text(stringResource(R.string.monitors_title))
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        if (searchActive) { searchActive = false; query = "" } else searchActive = true
+                    }) {
+                        Icon(
+                            painter = painterResource(if (searchActive) R.drawable.ic_close else R.drawable.ic_search),
+                            contentDescription = stringResource(R.string.action_search),
+                        )
+                    }
+                    Box {
+                        IconButton(onClick = { filterOpen = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_filter),
+                                contentDescription = stringResource(R.string.action_filter),
+                                tint = if (statusFilter != null) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                            )
+                        }
+                        DropdownMenu(expanded = filterOpen, onDismissRequest = { filterOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.filter_all)) },
+                                onClick = { statusFilter = null; filterOpen = false },
+                            )
+                            listOf(
+                                MonitorStatus.UP, MonitorStatus.DOWN,
+                                MonitorStatus.PENDING, MonitorStatus.MAINTENANCE,
+                            ).forEach { s ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(StatusUi.labelRes(s))) },
+                                    onClick = { statusFilter = s; filterOpen = false },
+                                )
+                            }
+                        }
                     }
                 },
             )
@@ -95,13 +166,17 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            } else if (shown.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.monitors_none_match), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(monitors, key = { it.id }) { monitor ->
+                    items(shown, key = { it.id }) { monitor ->
                         MonitorRow(
                             monitor = monitor,
                             beats = history[monitor.id].orEmpty(),

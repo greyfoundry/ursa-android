@@ -32,6 +32,11 @@
     <string name="cache_banner_updated">Showing last-known data, updated %1$s</string>
     <string name="cache_banner">Showing last-known data</string>
     <string name="monitors_empty">No monitors yet</string>
+    <string name="monitors_none_match">No monitors match</string>
+    <string name="search_hint">Search monitors</string>
+    <string name="action_search">Search</string>
+    <string name="action_filter">Filter</string>
+    <string name="filter_all">All</string>
 
     <!-- Login -->
     <string name="login_subtitle">Connect to an Uptime Kuma server</string>
