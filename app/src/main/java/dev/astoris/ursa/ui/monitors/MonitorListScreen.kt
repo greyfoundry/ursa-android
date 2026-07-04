@@ -1,5 +1,6 @@
 package dev.astoris.ursa.ui.monitors
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +39,8 @@ import dev.astoris.ursa.ui.UrsaViewModel
 fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
+    val showingCache by vm.showingCache.collectAsStateWithLifecycle()
+    val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -55,6 +58,20 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             if (state != ConnectionState.Authenticated) {
                 Text(
                     text = "Connection: $state",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+            if (showingCache) {
+                val whenText = lastUpdated?.let {
+                    DateUtils.getRelativeTimeSpanString(
+                        it, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
+                    )
+                }
+                Text(
+                    text = whenText?.let { "Showing last-known data, updated $it" }
+                        ?: "Showing last-known data",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

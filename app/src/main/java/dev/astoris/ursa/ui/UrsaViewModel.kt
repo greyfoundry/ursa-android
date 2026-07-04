@@ -8,6 +8,7 @@ import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -42,10 +43,13 @@ sealed interface StatusPageUiState {
 class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = ConnectionStore(app)
-    private val repo = MonitorRepository(store, viewModelScope)
+    private val cacheStore = MonitorCacheStore(app)
+    private val repo = MonitorRepository(store, cacheStore, viewModelScope)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
     val state: StateFlow<ConnectionState> = repo.state
+    val lastUpdated: StateFlow<Long?> = repo.lastUpdated
+    val showingCache: StateFlow<Boolean> = repo.showingCache
     val connections: StateFlow<List<ServerConnection>> =
         repo.connections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
