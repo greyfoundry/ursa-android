@@ -9,6 +9,24 @@ status: stable
 The running change log across sessions — project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 — README as product + compatibility matrix (review feedback)
+
+**changed**: Rewrote `README.md` to read like a product per senior review. Leads with
+"Native Android client for Uptime Kuma — real-time monitoring, multi-server support,
+and FOSS push notifications" and surfaces the three memorable differentiators (native
+Android, no relay server, no Firebase). Added a **Compatibility** matrix (Kuma 2.4.x,
+user/pass, 2FA, multi-server, self-signed, plain-http, reverse proxies, Cloudflare
+Tunnel; push marked planned/M3) with an honesty footnote that transport support is
+protocol-level and the on-device pass is in progress. Updated status to M1+M2 done.
+
+**decisions made**:
+- Scope stays as planned (viewer → actions → push). User: the anti-scope-creep advice
+  doesn't apply — the planned features are required, not creep. Native-only
+  differentiators (quick-settings tiles, app shortcuts, widgets, Wear OS, rich
+  notifications) noted as *post-core* opportunities, not pulled forward.
+- Matrix is honest: only push is unbuilt; reverse-proxy/tunnel rows claim protocol
+  support (standard HTTPS+WebSocket), not device-verified rows.
+
 ### 2026-07-04 — harden: FLAG_SECURE app-wide (backlog R1)
 
 **changed**: `MainActivity.onCreate` now sets `WindowManager.LayoutParams.FLAG_SECURE`

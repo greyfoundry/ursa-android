@@ -1,37 +1,70 @@
 # URSA
 
-A native Android client for [Uptime Kuma](https://github.com/louislam/uptime-kuma) —
-watch your self-hosted monitors from your phone, in real time.
+**Native Android client for Uptime Kuma — real-time monitoring, multi-server
+support, and FOSS push notifications.**
 
-> Status: early development. The app scaffold builds; core viewing (M1) is in progress.
+Watch every self-hosted monitor from your phone: live up/down status, heartbeat
+history, TLS certificate details, and pause/resume — across all your servers, with
+push that needs no paid relay and no Google services.
+
+- **Native Android** — Kotlin + Jetpack Compose, not another abandoned React Native
+  wrapper.
+- **No relay server** — push goes straight from your Kuma instance to your device.
+- **No Firebase** — notifications ride [UnifiedPush](https://unifiedpush.org), so you
+  choose the distributor (e.g. ntfy) and nothing routes through Google.
+
+> Status: **M1 (core viewing)** and **M2 (encryption, resilient reconnect, TLS
+> options)** are built. **M3 (push)** is next. On-device polish is ongoing.
 
 ## Why
 
-Uptime Kuma has a huge homelab userbase but no solid Android app — the community
-options are abandoned or broken. URSA aims to be the one that isn't, with a clean
-real-time view and push notifications that need **no paid relay server**.
+Uptime Kuma is one of the largest self-hosted monitoring projects, yet after years
+there's still no solid, actively maintained Android client — the existing options are
+abandoned, broken, or read-only status-page viewers. URSA is built to be the one
+homelab users can actually rely on: real-time, multi-server, and secure by default.
 
 ## Features
 
-**In progress (M1 — core viewing)**
-- Connect to one or more Uptime Kuma servers
-- Login with username/password + 2FA, persistent session
-- Live monitor list — real-time status, ping, uptime
-- Monitor detail — heartbeat history, TLS certificate info
+**Available now (M1 + M2)**
+- Connect to one or more Uptime Kuma servers, switch between them
+- Login with username/password and two-factor (TOTP); persistent, self-healing session
+- Live monitor list — real-time status, ping, and uptime
+- Monitor detail — heartbeat history and TLS certificate info
 - Pause / resume a monitor
 - Public status-page viewer (no login required)
+- Credentials encrypted at rest (AES-256-GCM, key in the Android Keystore); only the
+  session token is stored, never your password
+- Optional trust for self-signed certificates, per connection
+- Screenshots and recents previews blocked (`FLAG_SECURE`) so monitor data doesn't leak
 
-**Planned**
-- Push notifications via [UnifiedPush](https://unifiedpush.org) (FOSS, self-hostable,
-  no Firebase) — the app registers an endpoint you paste into a Kuma Webhook
-  notification; no server to run
+**Next (M3)**
+- Push notifications via UnifiedPush — the app registers an endpoint you paste into a
+  Kuma Webhook notification; no server to run, no Firebase
 - F-Droid release
+
+## Compatibility
+
+| Capability | Supported |
+|---|---|
+| Uptime Kuma 2.4.x | ✔ (verified against a live instance) |
+| Username / password login | ✔ |
+| Two-factor authentication (TOTP) | ✔ |
+| Multiple servers | ✔ |
+| Self-signed certificates | ✔ (opt-in per connection) |
+| Plain-HTTP instances | ✔ |
+| Reverse proxies (nginx, Caddy, Traefik) | ✔ |
+| Cloudflare Tunnel | ✔ |
+| UnifiedPush notifications | 🚧 planned (M3) |
+
+URSA talks to Kuma over standard HTTPS + WebSocket, so any transport your instance
+sits behind — reverse proxy or tunnel — works the same way. The protocol is verified
+against a live Uptime Kuma 2.4.0; a full on-device compatibility pass is in progress.
 
 ## Tech
 
 - Kotlin + Jetpack Compose (Material 3)
 - Socket.IO for the live connection, Ktor for status-page REST
-- DataStore for encrypted-at-rest credentials
+- DataStore + Tink + Android Keystore for encrypted-at-rest credentials
 - AGP 9 / Gradle 9.4.1 · compileSdk 36 · minSdk 26 (Android 8.0+)
 
 ## Build
