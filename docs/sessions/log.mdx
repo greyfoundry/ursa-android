@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - M4 begins: offline last-known cache + Dependabot triage
+
+**changed**: Started M4 (native-depth track, plan in `docs/planning/m4-native-depth.mdx`,
+approved). Sub-milestone 1 (offline cache) done: `Monitor`/`MonitorStatus` made
+`@Serializable`; new `core/storage/MonitorSnapshot` + pure `SnapshotCodec` (unit
+tested); `core/storage/MonitorCacheStore` (separate `ursa_cache` DataStore, encrypted
+via existing `Crypto`, keyed per server URL); `MonitorRepository` now exposes a shared
+`liveMonitors`, seeds `monitors` from the cache on connect, persists each live update,
+and exposes `lastUpdated` + `showingCache`; `MonitorListScreen` shows a last-known-data
+banner. Build + lint + tests green.
+
+**Dependabot triage**: PR #1 (github-actions group, bumps checkout v7 / setup-java v5
+/ setup-gradle v6 / codeql-action v4 / upload-artifact v7 / zizmor) merged. PR #2
+(gradle group) required compileSdk 37 (androidx.core/lifecycle/activity) which we do
+not adopt yet; capped those in `dependabot.yml` (spaced version ranges) and closed #2.
+The fresh re-evaluation opened PR #4 with only the safe bumps (AGP 9.2.1, Gradle
+wrapper 9.6.1), which was merged. Note: `@dependabot recreate` rebases but does NOT
+re-evaluate ignore rules; a fresh update run does.
+
+**note**: build now on Gradle 9.6.1; a Gradle-10 deprecation warning is present
+(non-blocking, address before Gradle 10).
+
 ### 2026-07-04 - go public + CI/community infrastructure
 
 **changed**: Repo made public (`AstorisTheBrave/ursa-android`) with description +

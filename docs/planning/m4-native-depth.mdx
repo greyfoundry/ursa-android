@@ -14,9 +14,11 @@ code-only and verifiable by logic/unit tests until a device is available.
 
 ## sequence
 
-1. **Offline last-known status** - cache the monitor list and statuses so the app is
-   useful with no connectivity; show them instantly on launch with a "last updated"
-   stamp, and reconcile when live data arrives.
+1. ~~**Offline last-known status**~~ **DONE (2026-07-04)** - encrypted per-server
+   `MonitorSnapshot` cache (`core/storage/MonitorCacheStore`, pure `SnapshotCodec` +
+   tests); repository seeds `monitors` from cache on connect and persists every live
+   update; the list shows a "last-known data, updated <time>" banner until live
+   arrives.
 2. **Biometric / device-credential app lock** - optional gate before sessions are
    shown. Closes security backlog AUTH-2 (`docs/security.mdx`).
 3. **Notification actions** - Pause / Resume a monitor directly from the alert;
