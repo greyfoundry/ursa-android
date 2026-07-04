@@ -63,6 +63,9 @@ dependencies {
     // background TLS-expiry reminder
     implementation(libs.androidx.work.runtime)
 
+    // home-screen widget (Jetpack Glance)
+    implementation(libs.androidx.glance.appwidget)
+
     // networking: Socket.IO (live monitors) + Ktor (public status-page REST)
     implementation(libs.socket.io.client) {
         exclude(group = "org.json", module = "json") // Android ships its own org.json

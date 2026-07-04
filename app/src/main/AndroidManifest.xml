@@ -26,6 +26,19 @@
             android:name=".core.push.MonitorActionReceiver"
             android:exported="false" />
 
+        <!-- Home-screen widget. Exported as required by the AppWidget framework;
+             it only receives system APPWIDGET broadcasts and shows cached counts. -->
+        <receiver
+            android:name=".ui.widget.MonitorWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/monitor_widget_info" />
+        </receiver>
+
         <!-- UnifiedPush delivery target. NOT exported: the connector ships its own
              internal receiver that forwards push events to this service. -->
         <service
