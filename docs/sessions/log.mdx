@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions — project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 — M3 phase 1: UnifiedPush receive path (PushService + notifications)
+
+**changed**: New `core/push` module. Added connector 3.3.3 dependency (excluding its
+JVM `tink` to avoid a duplicate-class clash with our `tink-android`). Manifest:
+`POST_NOTIFICATIONS` permission + a NON-exported `UrsaPushService` handling
+`PUSH_EVENT`. `UrsaPushService` (extends `PushService`) captures the endpoint on
+`onNewEndpoint`, and on `onMessage` parses Kuma's webhook JSON and posts a system
+notification (permission-guarded, channel `ursa_monitors`). `PushParse` = pure,
+tolerant parser of `{heartbeat, monitor, msg}` → `PushNotice`. `PushStore` =
+process-wide endpoint/distributor holder (SharedPreferences + StateFlow).
+
+**decisions made**:
+- **`PushService`, not the deprecated `MessagingReceiver`** — verified against
+  connector 3.3.3 source. Bonus: it's `exported="false"`, so the M3 security gate
+  (no exported push surface) is satisfied by construction.
+- No VAPID/web-push encryption: Kuma POSTs plain JSON, so messages arrive
+  unencrypted (`decrypted=false`); push body treated as untrusted, render-only.
+- Endpoint URL kept in plain SharedPreferences (delivery address, not a credential).
+
+**next**: phase 2 = registration UI (pick distributor, show endpoint + copy, request
+POST_NOTIFICATIONS); phase 3 = PushParse unit tests + module/security doc updates.
+
 ### 2026-07-04 — README as product + compatibility matrix (review feedback)
 
 **changed**: Rewrote `README.md` to read like a product per senior review. Leads with

@@ -49,6 +49,13 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.tink.android)
 
+    // push: UnifiedPush connector (FOSS, no Firebase). It pulls the JVM `tink`
+    // for web-push crypto; we already ship `tink-android` (same classes), so drop
+    // the JVM variant to avoid duplicate-class build failures.
+    implementation(libs.unifiedpush.connector) {
+        exclude(group = "com.google.crypto.tink", module = "tink")
+    }
+
     // networking: Socket.IO (live monitors) + Ktor (public status-page REST)
     implementation(libs.socket.io.client) {
         exclude(group = "org.json", module = "json") // Android ships its own org.json
