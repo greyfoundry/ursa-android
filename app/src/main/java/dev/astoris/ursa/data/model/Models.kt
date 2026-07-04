@@ -3,6 +3,7 @@ package dev.astoris.ursa.data.model
 import kotlinx.serialization.Serializable
 
 /** Kuma heartbeat status codes (verified against Uptime Kuma 2.4.0). */
+@Serializable
 enum class MonitorStatus(val code: Int) {
     DOWN(0), UP(1), PENDING(2), MAINTENANCE(3);
 
@@ -14,8 +15,10 @@ enum class MonitorStatus(val code: Int) {
 /**
  * A monitor as shown in the list. Status/ping/uptime are not in the `monitorList`
  * snapshot - they arrive via separate `heartbeat` / `avgPing` / `uptime` events and
- * are merged in by the client adapter.
+ * are merged in by the client adapter. Serializable so the last-known list can be
+ * cached for offline display (see core/storage/MonitorSnapshot).
  */
+@Serializable
 data class Monitor(
     val id: Int,
     val name: String,
