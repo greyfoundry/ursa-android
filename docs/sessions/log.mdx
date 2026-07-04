@@ -9,6 +9,25 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - brand assets: bear app icon + notification icon + showcase
+
+**changed**: User supplied a bear+heartbeat app icon (green on dark), a feature
+graphic, and a GitHub social preview. Derived the rest from the icon with ImageMagick
+(script in scratchpad `icons/gen.sh`): extracted the green bear to transparency
+(luminance threshold), then generated the **adaptive launcher** (foreground green bear
++ `@color/ic_launcher_background` #0D1117 + **monochrome** white bear for themed
+icons) at all densities in `mipmap-*` + `mipmap-anydpi-v26/ic_launcher{,_round}.xml`;
+a **notification icon** (`drawable-*/ic_stat_ursa.png`, white silhouette) now used by
+`UrsaPushService` + `CertExpiryWorker`; a 512 store icon. Manifest gained
+`android:icon`/`roundIcon`. Resized the feature graphic to 1024x500 and the social
+preview to 1280x640; copied real Pixel 8 screenshots into `docs/assets/`. README now
+opens with the banner and has a Screenshots section using the real screenshots.
+Verified on device: the bear icon renders in the launcher (themed-icon layer works).
+
+**user action left**: upload `docs/assets/social-preview.png` at GitHub repo Settings
+-> Social preview (no API for this). Note the feature-graphic phone mockup is
+stylized; the README showcase uses the real screenshots.
+
 ### 2026-07-04 - first on-device run (Pixel 8): 3 bugs found + fixed, theme verified
 
 **environment**: A Pixel_8 AVD (system image android-37) is now available. Verified via
