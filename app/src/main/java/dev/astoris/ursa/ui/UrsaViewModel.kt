@@ -7,9 +7,11 @@ import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.UrsaPushService
+import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
+import dev.astoris.ursa.core.work.CertExpiryWorker
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -45,7 +47,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = ConnectionStore(app)
     private val cacheStore = MonitorCacheStore(app)
-    private val repo = MonitorRepository(store, cacheStore, viewModelScope)
+    private val certExpiryStore = CertExpiryStore(app)
+    private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
     val state: StateFlow<ConnectionState> = repo.state
@@ -99,6 +102,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         UrsaPushService.ensureChannel(getApplication())
         LockStore.load(getApplication())
         if (LockStore.enabled.value) _locked.value = true // start locked if enabled
+        CertExpiryWorker.schedule(getApplication()) // daily TLS-expiry reminder
         // Keep hasSession true whenever we reach an authenticated state.
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }

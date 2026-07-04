@@ -47,6 +47,10 @@ data class CertInfo(
     val valid: Boolean,
     val subject: String?,
     val issuer: String?,
+    /** ISO-8601 "valid to" timestamp, if the server reported one. */
+    val validTo: String? = null,
+    /** Days until expiry as reported at capture time. */
+    val daysRemaining: Int? = null,
 )
 
 /** A configured Kuma server. JWT is only present after a successful login. */

@@ -91,6 +91,20 @@ class KumaParseTest {
         assertEquals("Cloudflare TLS Issuing ECC CA 3", c.issuer)
     }
 
+    @Test fun cert_extracts_expiry_fields() {
+        val c = KumaParse.cert(
+            obj("""{"valid":true,"certInfo":{"subject":{"CN":"api.example.com"},"issuer":{"CN":"R3"},"validTo":"2026-09-01T12:00:00.000Z","daysRemaining":12}}""")
+        )
+        assertEquals("2026-09-01T12:00:00.000Z", c.validTo)
+        assertEquals(12, c.daysRemaining)
+    }
+
+    @Test fun cert_without_expiry_is_null() {
+        val c = KumaParse.cert(obj("""{"valid":true,"certInfo":{"subject":{"CN":"x"},"issuer":{"CN":"y"}}}"""))
+        assertNull(c.validTo)
+        assertNull(c.daysRemaining)
+    }
+
     @Test fun status_code_mapping() {
         assertEquals(MonitorStatus.DOWN, MonitorStatus.from(0))
         assertEquals(MonitorStatus.UP, MonitorStatus.from(1))

@@ -73,13 +73,18 @@ object KumaParse {
     fun beatRows(arr: JsonArray): List<Heartbeat> =
         arr.mapNotNull { (it as? JsonObject)?.let(::beatRow) }
 
-    /** `certInfo` payload: `{ valid, certInfo: { subject:{CN}, issuer:{CN} } }`. */
+    /**
+     * `certInfo` payload: `{ valid, certInfo: { subject:{CN}, issuer:{CN}, validTo,
+     * daysRemaining } }`. `validTo`/`daysRemaining` drive the local expiry reminder.
+     */
     fun cert(obj: JsonObject): CertInfo {
         val info = obj["certInfo"] as? JsonObject
         return CertInfo(
             valid = obj["valid"]?.jsonPrimitive?.booleanOrNull ?: false,
             subject = (info?.get("subject") as? JsonObject)?.get("CN")?.jsonPrimitive?.contentOrNull,
             issuer = (info?.get("issuer") as? JsonObject)?.get("CN")?.jsonPrimitive?.contentOrNull,
+            validTo = info?.get("validTo")?.jsonPrimitive?.contentOrNull?.ifEmpty { null },
+            daysRemaining = info?.get("daysRemaining")?.jsonPrimitive?.intOrNull,
         )
     }
 }

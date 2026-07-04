@@ -2,6 +2,9 @@ package dev.astoris.ursa.data.repository
 
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.KumaClient
+import dev.astoris.ursa.core.storage.CertExpiry
+import dev.astoris.ursa.core.storage.CertExpiryStore
+import dev.astoris.ursa.core.storage.CertExpiryUtil
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorSnapshot
@@ -32,6 +35,7 @@ import kotlinx.coroutines.launch
 class MonitorRepository(
     private val store: ConnectionStore,
     private val cache: MonitorCacheStore,
+    private val certExpiry: CertExpiryStore,
     private val scope: CoroutineScope,
 ) {
     private val activeClient = MutableStateFlow<KumaClient?>(null)
@@ -75,6 +79,23 @@ class MonitorRepository(
                     cachedMonitors.value = live
                     lastUpdatedMs.value = now
                 }
+            }
+        }
+        // Capture certificate expiry for the active server whenever cert info arrives,
+        // so the background reminder has fresh data without reconnecting.
+        scope.launch {
+            certs.collect { certMap ->
+                val url = activeUrlValue
+                if (certMap.isEmpty() || url == null) return@collect
+                val now = System.currentTimeMillis()
+                val names = liveMonitors.value
+                val entries = certMap.mapNotNull { (id, cert) ->
+                    val ms = CertExpiryUtil.resolveValidToMillis(cert.validTo, cert.daysRemaining, now)
+                        ?: return@mapNotNull null
+                    val name = names.firstOrNull { it.id == id }?.name ?: "Monitor $id"
+                    CertExpiry(url, id, name, ms)
+                }
+                if (entries.isNotEmpty()) certExpiry.saveForServer(url, entries)
             }
         }
     }

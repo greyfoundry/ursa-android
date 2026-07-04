@@ -60,6 +60,9 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.fragment)
 
+    // background TLS-expiry reminder
+    implementation(libs.androidx.work.runtime)
+
     // networking: Socket.IO (live monitors) + Ktor (public status-page REST)
     implementation(libs.socket.io.client) {
         exclude(group = "org.json", module = "json") // Android ships its own org.json
