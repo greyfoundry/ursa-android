@@ -1,21 +1,19 @@
 package dev.astoris.ursa.ui.monitors
 
 import android.text.format.DateUtils
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -25,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,7 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.data.model.Monitor
-import dev.astoris.ursa.ui.StatusUi
+import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.UrsaViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,7 +82,11 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                LazyColumn(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     items(monitors, key = { it.id }) { monitor ->
                         MonitorRow(
                             monitor = monitor,
@@ -93,7 +94,6 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             onPause = { vm.pause(monitor.id) },
                             onResume = { vm.resume(monitor.id) },
                         )
-                        HorizontalDivider()
                     }
                 }
             }
@@ -103,31 +103,34 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
 @Composable
 private fun MonitorRow(monitor: Monitor, onClick: () -> Unit, onPause: () -> Unit, onResume: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        Box(
-            Modifier
-                .size(12.dp)
-                .clip(CircleShape)
-                .background(StatusUi.color(monitor.status)),
-        )
-        Column(Modifier.weight(1f)) {
-            Text(monitor.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val statusLabel = stringResource(StatusUi.labelRes(monitor.status))
-            val sub = buildString {
-                append(statusLabel)
-                monitor.ping?.let { append(" · ${it}ms") }
-                monitor.uptime24h?.let { append(" · ${(it * 100).toInt()}% 24h") }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(monitor.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val sub = buildString {
+                    monitor.ping?.let { append("${it}ms") }
+                    monitor.uptime24h?.let {
+                        if (isNotEmpty()) append(" · ")
+                        append("${(it * 100).toInt()}% 24h")
+                    }
+                }
+                if (sub.isNotEmpty()) {
+                    Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            StatusPill(monitor.status)
+            if (monitor.active) TextButton(onClick = onPause) { Text(stringResource(R.string.action_pause)) }
+            else TextButton(onClick = onResume) { Text(stringResource(R.string.action_resume)) }
         }
-        if (monitor.active) TextButton(onClick = onPause) { Text(stringResource(R.string.action_pause)) }
-        else TextButton(onClick = onResume) { Text(stringResource(R.string.action_resume)) }
     }
 }
