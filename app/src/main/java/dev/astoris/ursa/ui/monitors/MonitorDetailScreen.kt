@@ -69,20 +69,23 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
             }
 
             monitor.url?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            Text("Type: ${monitor.type}", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.detail_type, monitor.type), style = MaterialTheme.typography.bodySmall)
 
-            Text("Recent heartbeats", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.detail_recent_heartbeats), style = MaterialTheme.typography.titleSmall)
             HeartbeatBar(beats)
 
             if (cert != null) {
-                Text("TLS certificate", style = MaterialTheme.typography.titleSmall)
-                Text(if (cert.valid) "Valid" else "Invalid", color = if (cert.valid) StatusUi.color(dev.astoris.ursa.data.model.MonitorStatus.UP) else MaterialTheme.colorScheme.error)
-                cert.issuer?.let { Text("Issuer: $it", style = MaterialTheme.typography.bodySmall) }
-                cert.subject?.let { Text("Subject: $it", style = MaterialTheme.typography.bodySmall) }
+                Text(stringResource(R.string.detail_tls_certificate), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stringResource(if (cert.valid) R.string.cert_valid else R.string.cert_invalid),
+                    color = if (cert.valid) StatusUi.color(dev.astoris.ursa.data.model.MonitorStatus.UP) else MaterialTheme.colorScheme.error,
+                )
+                cert.issuer?.let { Text(stringResource(R.string.detail_issuer, it), style = MaterialTheme.typography.bodySmall) }
+                cert.subject?.let { Text(stringResource(R.string.detail_subject, it), style = MaterialTheme.typography.bodySmall) }
             }
 
-            if (monitor.active) Button(onClick = { vm.pause(monitor.id) }) { Text("Pause") }
-            else Button(onClick = { vm.resume(monitor.id) }) { Text("Resume") }
+            if (monitor.active) Button(onClick = { vm.pause(monitor.id) }) { Text(stringResource(R.string.action_pause)) }
+            else Button(onClick = { vm.resume(monitor.id) }) { Text(stringResource(R.string.action_resume)) }
         }
     }
 }
@@ -90,7 +93,7 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
 @Composable
 private fun HeartbeatBar(beats: List<Heartbeat>) {
     if (beats.isEmpty()) {
-        Text("No history yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.detail_no_history), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         return
     }
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {

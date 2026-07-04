@@ -31,11 +31,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.astoris.ursa.R
 import dev.astoris.ursa.ui.UrsaViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,9 +66,9 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Push notifications") },
-                navigationIcon = { TextButton(onClick = { vm.exitPush() }) { Text("Back") } },
-                actions = { TextButton(onClick = { vm.refreshDistributors() }) { Text("Refresh") } },
+                title = { Text(stringResource(R.string.push_title)) },
+                navigationIcon = { TextButton(onClick = { vm.exitPush() }) { Text(stringResource(R.string.action_back)) } },
+                actions = { TextButton(onClick = { vm.refreshDistributors() }) { Text(stringResource(R.string.push_refresh)) } },
             )
         },
     ) { padding ->
@@ -79,30 +81,28 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                "Get a notification the moment a monitor goes down - over UnifiedPush, " +
-                    "with no relay server and no Google services.",
+                stringResource(R.string.push_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             if (!granted) {
-                Section("1. Allow notifications") {
+                Section(stringResource(R.string.push_section_allow)) {
                     Text(
-                        "Android needs permission to show monitor alerts.",
+                        stringResource(R.string.push_allow_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Button(onClick = { permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }) {
-                        Text("Allow notifications")
+                        Text(stringResource(R.string.push_allow_button))
                     }
                 }
             }
 
-            Section("Distributor") {
+            Section(stringResource(R.string.push_section_distributor)) {
                 if (distributors.isEmpty()) {
                     Text(
-                        "No UnifiedPush distributor found. Install one (ntfy is recommended: " +
-                            "free, open-source, self-hostable), then tap Refresh.",
+                        stringResource(R.string.push_no_distributor),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -114,9 +114,9 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         ) {
                             Text(d, style = MaterialTheme.typography.bodyMedium)
                             if (d == distributor) {
-                                Text("Selected", color = MaterialTheme.colorScheme.primary)
+                                Text(stringResource(R.string.push_selected), color = MaterialTheme.colorScheme.primary)
                             } else {
-                                TextButton(onClick = { vm.registerPush(d) }) { Text("Use") }
+                                TextButton(onClick = { vm.registerPush(d) }) { Text(stringResource(R.string.push_use)) }
                             }
                         }
                         HorizontalDivider()
@@ -126,10 +126,9 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
             val ep = endpoint
             if (ep != null) {
-                Section("Your endpoint") {
+                Section(stringResource(R.string.push_section_endpoint)) {
                     Text(
-                        "Paste this URL into a Webhook notification in Uptime Kuma " +
-                            "(Settings -> Notifications -> Webhook), then attach it to your monitors.",
+                        stringResource(R.string.push_endpoint_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -141,13 +140,13 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         )
                     }
                     Text(
-                        "ntfy users: append ?up=1 to the URL so ntfy forwards Kuma's raw body.",
+                        stringResource(R.string.push_ntfy_hint),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { clipboard.setText(AnnotatedString(ep)) }) { Text("Copy") }
-                        OutlinedButton(onClick = { vm.unregisterPush() }) { Text("Disconnect") }
+                        Button(onClick = { clipboard.setText(AnnotatedString(ep)) }) { Text(stringResource(R.string.push_copy)) }
+                        OutlinedButton(onClick = { vm.unregisterPush() }) { Text(stringResource(R.string.push_disconnect)) }
                     }
                 }
             }

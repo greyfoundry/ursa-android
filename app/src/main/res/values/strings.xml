@@ -53,4 +53,39 @@
     <string name="lock_prompt_title">Unlock URSA</string>
     <string name="lock_prompt_subtitle">Confirm it\'s you to view your monitors</string>
     <string name="lock_prompt_cancel">Cancel</string>
+
+    <!-- Monitor detail -->
+    <string name="detail_type">Type: %1$s</string>
+    <string name="detail_recent_heartbeats">Recent heartbeats</string>
+    <string name="detail_no_history">No history yet</string>
+    <string name="detail_tls_certificate">TLS certificate</string>
+    <string name="cert_valid">Valid</string>
+    <string name="cert_invalid">Invalid</string>
+    <string name="detail_issuer">Issuer: %1$s</string>
+    <string name="detail_subject">Subject: %1$s</string>
+
+    <!-- Status page viewer -->
+    <string name="statuspage_title">Status page</string>
+    <string name="statuspage_slug">Status page slug</string>
+    <string name="statuspage_slug_placeholder">my-status</string>
+    <string name="statuspage_load">Load</string>
+    <string name="statuspage_untitled">(untitled)</string>
+    <string name="statuspage_empty">No public monitors on this page</string>
+
+    <!-- Push notifications screen -->
+    <string name="push_title">Push notifications</string>
+    <string name="push_refresh">Refresh</string>
+    <string name="push_intro">Get a notification the moment a monitor goes down, over UnifiedPush, with no relay server and no Google services.</string>
+    <string name="push_section_allow">1. Allow notifications</string>
+    <string name="push_allow_desc">Android needs permission to show monitor alerts.</string>
+    <string name="push_allow_button">Allow notifications</string>
+    <string name="push_section_distributor">Distributor</string>
+    <string name="push_no_distributor">No UnifiedPush distributor found. Install one (ntfy is recommended: free, open-source, self-hostable), then tap Refresh.</string>
+    <string name="push_selected">Selected</string>
+    <string name="push_use">Use</string>
+    <string name="push_section_endpoint">Your endpoint</string>
+    <string name="push_endpoint_desc">Paste this URL into a Webhook notification in Uptime Kuma (Settings -&gt; Notifications -&gt; Webhook), then attach it to your monitors.</string>
+    <string name="push_ntfy_hint">ntfy users: append ?up=1 to the URL so ntfy forwards Kuma\'s raw body.</string>
+    <string name="push_copy">Copy</string>
+    <string name="push_disconnect">Disconnect</string>
 </resources>

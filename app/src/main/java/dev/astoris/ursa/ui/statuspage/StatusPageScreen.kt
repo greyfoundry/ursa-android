@@ -30,8 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.StatusPageUiState
@@ -51,7 +53,7 @@ fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxWidth(),
         topBar = {
             TopAppBar(
-                title = { Text("Status page") },
+                title = { Text(stringResource(R.string.statuspage_title)) },
                 navigationIcon = { IconButton(onClick = { vm.exitStatusPage() }) { Text("‹", style = MaterialTheme.typography.headlineSmall) } },
             )
         },
@@ -65,23 +67,23 @@ fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         ) {
             OutlinedTextField(
                 value = url, onValueChange = { url = it }, singleLine = true,
-                label = { Text("Server URL") }, placeholder = { Text("https://kuma.example.com") },
+                label = { Text(stringResource(R.string.login_server_url)) }, placeholder = { Text(stringResource(R.string.login_server_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = slug, onValueChange = { slug = it }, singleLine = true,
-                label = { Text("Status page slug") }, placeholder = { Text("my-status") },
+                label = { Text(stringResource(R.string.statuspage_slug)) }, placeholder = { Text(stringResource(R.string.statuspage_slug_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = insecure, onCheckedChange = { insecure = it })
-                Text("Trust self-signed certificate", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.login_trust_self_signed), style = MaterialTheme.typography.bodyMedium)
             }
             Button(
                 onClick = { vm.loadStatusPage(url, slug, insecure) },
                 enabled = url.isNotBlank() && slug.isNotBlank() && ui !is StatusPageUiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Load") }
+            ) { Text(stringResource(R.string.statuspage_load)) }
 
             when (val s = ui) {
                 StatusPageUiState.Loading -> CircularProgressIndicator()
@@ -95,11 +97,11 @@ fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
 @Composable
 private fun StatusPageContent(view: StatusPageView) {
-    Text(view.title.ifEmpty { "(untitled)" }, style = MaterialTheme.typography.headlineSmall)
+    Text(view.title.ifEmpty { stringResource(R.string.statuspage_untitled) }, style = MaterialTheme.typography.headlineSmall)
     view.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
 
     if (view.groups.isEmpty()) {
-        Text("No public monitors on this page", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.statuspage_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         return
     }
     view.groups.forEach { group ->
