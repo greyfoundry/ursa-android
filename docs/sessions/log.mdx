@@ -9,6 +9,15 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - M4 #4: local TLS-expiry reminders
+
+**changed**: `CertInfo` gained `validTo` + `daysRemaining` (parsed in `KumaParse.cert`,
+tested). New pure `core/storage/CertExpiry` (`CertExpiryUtil.resolveValidToMillis` /
+`daysUntil` / codec, unit-tested), encrypted `CertExpiryStore` (per-server merge), and
+`core/work/CertExpiryWorker` (daily WorkManager, no network, notifies within 14 days).
+Repository captures cert expiry when cert info arrives; VM schedules the worker. Added
+`androidx.work`. Build/lint/tests green.
+
 ### 2026-07-04 - M4 #3: notification actions (Pause/Resume)
 
 **changed**: Monitor notifications now carry Pause and Resume actions. New non-exported

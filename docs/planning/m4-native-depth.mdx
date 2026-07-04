@@ -27,8 +27,11 @@ code-only and verifiable by logic/unit tests until a device is available.
    notifications; a non-exported `MonitorActionReceiver` opens a short-lived
    connection to the active server (loginByToken, then pause/resume, bounded by
    timeouts) and dismisses the notification. On-device verification pending.
-4. **Local TLS-expiry reminders** - a periodic check over the certificate info URSA
-   already reads; a local notification N days before a monitored cert expires.
+4. ~~**Local TLS-expiry reminders**~~ **DONE (2026-07-04)** - `CertInfo` extended with
+   `validTo`/`daysRemaining`; repository captures cert expiry per server into an
+   encrypted `CertExpiryStore`; a daily `CertExpiryWorker` (WorkManager, no network)
+   notifies when a cert is within 14 days of expiry. Pure `CertExpiryUtil`
+   (resolve/daysUntil/codec) unit-tested.
 5. **Home-screen widget** (Jetpack Glance) - at-a-glance up/down counts. Code now; a
    polished preview image is a deferred asset.
 6. **Quick Settings tile** - a shade glance ("is everything up?"). Inline vector icon.
