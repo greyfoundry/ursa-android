@@ -9,6 +9,21 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - M4 #5-#8: widget, QS tile, shortcuts, i18n (M4 code complete)
+
+**changed**: (#5) `ui/widget/MonitorWidget` (Jetpack Glance) + receiver + provider XML
+showing cached up/down counts, taps to open. (#6) `ui/tile/StatusTileService` Quick
+Settings tile (all-up / N-down from cache) with an inline vector icon. (#7) App
+shortcuts (`res/xml/shortcuts.xml`, Push + Settings) deep-linking via `ursa://` into
+`MainActivity` (now owns the VM + routes intents); inline vector icons. (#8) Full i18n
+sweep - every user-facing string extracted to `res/values/strings.xml`; all screens
+use `stringResource`; `StatusUi.labelRes` returns a string id. Added `androidx.glance`.
+All build/lint/tests green.
+
+**M4 code complete (8/8).** Remaining before release: deferred asset list
+(launcher/notification/widget-preview/F-Droid/screenshots) + on-device QA pass of all
+flows. Widget/tile/shortcuts compile but need a device for visual verification.
+
 ### 2026-07-04 - M4 #4: local TLS-expiry reminders
 
 **changed**: `CertInfo` gained `validTo` + `daysRemaining` (parsed in `KumaParse.cert`,

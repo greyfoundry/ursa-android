@@ -32,12 +32,19 @@ code-only and verifiable by logic/unit tests until a device is available.
    encrypted `CertExpiryStore`; a daily `CertExpiryWorker` (WorkManager, no network)
    notifies when a cert is within 14 days of expiry. Pure `CertExpiryUtil`
    (resolve/daysUntil/codec) unit-tested.
-5. **Home-screen widget** (Jetpack Glance) - at-a-glance up/down counts. Code now; a
-   polished preview image is a deferred asset.
-6. **Quick Settings tile** - a shade glance ("is everything up?"). Inline vector icon.
-7. **App shortcuts** - long-press launcher: jump to a server, or pause a monitor.
-8. **i18n sweep** - extract user-facing strings to resources so translation is
-   possible.
+5. ~~**Home-screen widget** (Jetpack Glance)~~ **DONE (2026-07-04)** - `MonitorWidget`
+   shows cached up/down counts, taps to open. Preview image still a deferred asset;
+   visual check needs a device.
+6. ~~**Quick Settings tile**~~ **DONE (2026-07-04)** - `StatusTileService` shows
+   all-up / N-down from cache, opens app on tap; inline vector icon.
+7. ~~**App shortcuts**~~ **DONE (2026-07-04)** - Push and Settings shortcuts
+   (`shortcuts.xml`) deep-link via `ursa://` into `MainActivity`; inline vector icons.
+8. ~~**i18n sweep**~~ **DONE (2026-07-04)** - all screen strings extracted to
+   `res/values/strings.xml`; every screen uses `stringResource`. Ready for translations.
+
+**M4 code complete.** All eight built, unit-tested where logic allows, CI green.
+Remaining before a release: the deferred asset list (icons/graphics/screenshots) and
+an on-device QA pass of every flow, both to be done when a device is available.
 
 ## deferred (needs assets or a device)
 

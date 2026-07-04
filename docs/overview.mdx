@@ -31,16 +31,20 @@ and the module docs under `docs/modules/`.
   detail (heartbeat history + TLS cert), public status-page viewer, pause/resume.
 - M2 done: Tink AES-256-GCM credential encryption (Keystore master key), resilient
   reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
-- M3 in progress: UnifiedPush push - receive path (non-exported `PushService`,
-  webhook parser, notifications) + registration UI (distributor picker, endpoint,
-  permission) built. See `docs/modules/push.mdx`.
+- M3 done: UnifiedPush push - receive path (non-exported `PushService`, webhook
+  parser, notifications) + registration UI. See `docs/modules/push.mdx`.
+- M4 done (code): native depth - offline last-known cache, biometric app lock,
+  notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,
+  Quick Settings tile, app shortcuts, and full i18n. See
+  `docs/planning/m4-native-depth.mdx`. Icons/assets + on-device QA deferred.
 - Builds green (`assembleDebug`, `lintDebug`); parsers unit-tested. On-device UI
   smoke test still pending (no emulator/AVD provisioned). See `docs/sessions/log.mdx`.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
 - Local reference for agents (gitignored): `docs/kuma-notes/`, `archive/uptime-kuma/`,
   `MEMORY.md`.
-- Next: M3 on-device verification (emulator, deferred to the end) + a branded
-  notification icon.
+- Next: on-device QA pass of all flows (emulator, deferred to the end) + the asset
+  list (launcher/notification/widget-preview/F-Droid icons + screenshots) + first
+  tagged release.
 
 **depends on**
 - a running Uptime Kuma server (the app is a client; it stores/creates nothing
