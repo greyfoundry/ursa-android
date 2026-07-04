@@ -25,8 +25,8 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Run zizmor
-        uses: zizmorcore/zizmor-action@v0.3.0
+        uses: zizmorcore/zizmor-action@v0.5.7
