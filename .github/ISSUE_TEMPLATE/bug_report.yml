@@ -1,0 +1,130 @@
+name: Bug report
+description: Report a problem with the URSA Android app
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in as much as you can.
+        URSA is a client; if the problem is with your Uptime Kuma server itself,
+        report it upstream instead.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checks
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I am on the latest version of URSA I can install.
+          required: true
+        - label: This is a problem with the app, not with my Uptime Kuma server.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug. Screenshots are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we trigger the bug, step by step?
+      placeholder: |
+        1. Open the app
+        2. Add a server at ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: ursa-version
+    attributes:
+      label: URSA version
+      description: App version name, or the commit hash if you built it yourself.
+      placeholder: e.g. 0.1.0 or commit abc1234
+    validations:
+      required: true
+
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version and device
+      placeholder: e.g. Android 14, Pixel 7
+    validations:
+      required: true
+
+  - type: input
+    id: kuma-version
+    attributes:
+      label: Uptime Kuma version
+      placeholder: e.g. 2.4.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection
+    attributes:
+      label: How do you connect to Uptime Kuma?
+      multiple: true
+      options:
+        - Direct HTTPS
+        - Plain HTTP
+        - Self-signed certificate
+        - Reverse proxy (nginx / Caddy / Traefik / other)
+        - Cloudflare Tunnel
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area is affected?
+      options:
+        - Login / authentication (incl. 2FA)
+        - Monitor list / detail / heartbeats
+        - Pause / resume
+        - Public status page viewer
+        - Push notifications (UnifiedPush)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: distributor
+    attributes:
+      label: Push distributor (only if the bug is about notifications)
+      placeholder: e.g. ntfy 1.16.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: |
+        If you can, capture logs with `adb logcat`. This is formatted as code, so
+        no backticks are needed. Please redact hostnames or tokens you consider
+        sensitive.
+      render: text
+    validations:
+      required: false

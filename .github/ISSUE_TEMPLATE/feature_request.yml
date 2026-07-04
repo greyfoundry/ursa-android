@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest an idea or improvement for URSA
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        URSA follows a focused roadmap (viewer -> actions -> push). Please check the
+        README and existing issues first. Ideas that broaden scope may be deferred,
+        but we still want to hear them.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checks
+      options:
+        - label: I searched existing issues and discussions and did not find a duplicate.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or pain point, not just the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like URSA to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Mockups, links to related Uptime Kuma features, etc.
+    validations:
+      required: false
