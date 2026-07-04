@@ -67,6 +67,15 @@ class MonitorRepository(
         combine(liveMonitors, cachedMonitors) { live, cached -> live.isEmpty() && cached.isNotEmpty() }
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val state: StateFlow<ConnectionState> = activeClient
+        .flatMapLatest { client -> client?.state ?: flowOf(ConnectionState.Disconnected) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
+
+    // Declared before init: the cert-expiry collector below reads this flow.
+    val certs: StateFlow<Map<Int, CertInfo>> = activeClient
+        .flatMapLatest { client -> client?.certs ?: flowOf(emptyMap()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     init {
         // Persist every live update as the new snapshot for the active server, and
         // promote it into the cache flow so it survives the next reconnect.
@@ -99,14 +108,6 @@ class MonitorRepository(
             }
         }
     }
-
-    val state: StateFlow<ConnectionState> = activeClient
-        .flatMapLatest { client -> client?.state ?: flowOf(ConnectionState.Disconnected) }
-        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
-
-    val certs: StateFlow<Map<Int, CertInfo>> = activeClient
-        .flatMapLatest { client -> client?.certs ?: flowOf(emptyMap()) }
-        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     suspend fun beats(id: Int): List<Heartbeat> = activeClient.value?.getBeats(id) ?: emptyList()
 

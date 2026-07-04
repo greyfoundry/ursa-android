@@ -1,0 +1,4 @@
+<resources>
+    <!-- Kuma dark background ($dark-bg). -->
+    <color name="window_bg">#0D1117</color>
+</resources>

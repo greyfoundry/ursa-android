@@ -1,0 +1,4 @@
+<resources>
+    <!-- Kuma light page background ($bg). Dark override in values-night/. -->
+    <color name="window_bg">#F7F8FA</color>
+</resources>
