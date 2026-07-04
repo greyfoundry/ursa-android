@@ -19,7 +19,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.ui.StatusCircle
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.UrsaViewModel
 
@@ -96,12 +96,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(monitors, key = { it.id }) { monitor ->
-                        MonitorRow(
-                            monitor = monitor,
-                            onClick = { vm.select(monitor.id) },
-                            onPause = { vm.pause(monitor.id) },
-                            onResume = { vm.resume(monitor.id) },
-                        )
+                        MonitorRow(monitor = monitor, onClick = { vm.select(monitor.id) })
                     }
                 }
             }
@@ -110,7 +105,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MonitorRow(monitor: Monitor, onClick: () -> Unit, onPause: () -> Unit, onResume: () -> Unit) {
+private fun MonitorRow(monitor: Monitor, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -121,24 +116,34 @@ private fun MonitorRow(monitor: Monitor, onClick: () -> Unit, onPause: () -> Uni
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            StatusCircle(monitor.status)
             Column(Modifier.weight(1f)) {
-                Text(monitor.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val sub = buildString {
-                    monitor.ping?.let { append("${it}ms") }
-                    monitor.uptime24h?.let {
-                        if (isNotEmpty()) append(" · ")
-                        append("${(it * 100).toInt()}% 24h")
-                    }
-                }
-                if (sub.isNotEmpty()) {
-                    Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(monitor.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                monitor.url?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
-            StatusPill(monitor.status)
-            if (monitor.active) TextButton(onClick = onPause) { Text(stringResource(R.string.action_pause)) }
-            else TextButton(onClick = onResume) { Text(stringResource(R.string.action_resume)) }
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                StatusPill(monitor.status)
+                monitor.uptime24h?.let {
+                    Text(
+                        "${(it * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
