@@ -118,6 +118,28 @@ Quick Settings tile, Wear OS, and more. See [docs/roadmap.mdx](docs/roadmap.mdx)
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), the
 [Code of Conduct](CODE_OF_CONDUCT.md), and the [Security Policy](SECURITY.md).
 
+## Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please):
+merging its release PR tags a [Semantic Version](https://semver.org) (major =
+breaking, minor = features, patch = fixes), generates the changelog, and the
+workflow builds a **signed release APK**, a **CycloneDX SBOM**, checksums, and a
+build-provenance attestation, attaching them all to the GitHub Release.
+
+Signing uses a keystore stored in repository secrets. To set it up once:
+
+```bash
+keytool -genkeypair -v -keystore ursa-release.jks -alias ursa \
+  -keyalg RSA -keysize 4096 -validity 10000       # keep this file safe + backed up
+base64 -w0 ursa-release.jks | gh secret set ANDROID_KEYSTORE_BASE64
+gh secret set ANDROID_KEYSTORE_PASSWORD           # the keystore password
+gh secret set ANDROID_KEY_ALIAS --body "ursa"
+gh secret set ANDROID_KEY_PASSWORD                # the key password
+```
+
+Local `./gradlew assembleRelease` falls back to the debug key when those secrets are
+absent, so it still produces an installable APK for testing.
+
 ## License
 
 MIT - matching upstream Uptime Kuma.

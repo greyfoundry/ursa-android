@@ -13,13 +13,36 @@ android {
         applicationId = "dev.astoris.ursa"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0" // x-release-please-version
+        val appVersion = "0.1.0" // x-release-please-version
+        versionName = appVersion
+        // Derive an ever-increasing integer versionCode from the semver name.
+        val (maj, min, pat) = appVersion.split(".", "-").take(3)
+            .map { it.filter(Char::isDigit).ifEmpty { "0" }.toInt() }
+        versionCode = maj * 10000 + min * 100 + pat
+    }
+
+    // Release signing: uses the keystore from CI secrets when present, otherwise
+    // falls back to the debug key so local `assembleRelease` still produces an
+    // installable APK. See docs/infrastructure and the release-please workflow.
+    signingConfigs {
+        create("release") {
+            System.getenv("ANDROID_KEYSTORE_PATH")?.let { path ->
+                storeFile = file(path)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
