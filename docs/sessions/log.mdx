@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions — project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 — security posture doc + internal threat model
+
+**changed**: Added `docs/security.mdx` (tracked) — URSA's posture mapped to OWASP
+MASVS v2.1, per-category status, and a prioritized remediation backlog. Added
+gitignored `docs/security-notes/` (`threat-model.md` = assets/boundaries/STRIDE-lite
++ residual-risk register; `checklist.md` = per-commit + milestone security gates
+incl. the undercover leak scan) via `.git/info/exclude`. Wired pointers into
+`docs/overview.mdx` and the local project map. No code changed.
+
+**decisions made**:
+- Target **MASVS-L1**; **RESILIENCE out of scope** (no third-party secrets / fraud
+  surface — obfuscation/anti-debug not worth the cost). Recorded as a deliberate
+  scope call, not a gap.
+- Verified against the live manifest before asserting posture: `allowBackup=true`,
+  global `usesCleartextTraffic=true`, only the launcher activity exported, no
+  `FLAG_SECURE`. Top backlog items: `FLAG_SECURE`, `allowBackup=false`, scoped
+  cleartext, TOFU cert pinning.
+- Checklist lives gitignored because it spells out the leak-scan fingerprint
+  patterns, which would themselves be a leak if tracked.
+
 ### 2026-07-03 — M2 (encryption, reconnect, TLS) + local kuma reference cache
 
 **changed**: (1) Set up local-only tooling for future agents: cloned upstream
