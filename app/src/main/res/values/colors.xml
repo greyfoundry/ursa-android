@@ -1,4 +1,6 @@
 <resources>
     <!-- Kuma light page background ($bg). Dark override in values-night/. -->
     <color name="window_bg">#F7F8FA</color>
+    <!-- Adaptive launcher icon background (Kuma dark, matches the bear artwork). -->
+    <color name="ic_launcher_background">#0D1117</color>
 </resources>

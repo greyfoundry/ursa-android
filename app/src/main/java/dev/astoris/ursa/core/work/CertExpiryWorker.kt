@@ -49,7 +49,7 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
                     "The certificate for ${entry.monitorName} expires in $days day(s)."
                 }
                 val notification = Notification.Builder(applicationContext, CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.ic_dialog_alert) // TODO: branded icon
+                    .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
                     .setContentTitle("Certificate expiring")
                     .setContentText(text)
                     .setStyle(Notification.BigTextStyle().bigText(text))

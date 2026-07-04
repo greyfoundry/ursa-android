@@ -62,7 +62,7 @@ class UrsaPushService : PushService() {
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_notify_sync) // TODO: replace with a branded icon
+            .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
             .setContentTitle(notice.title)
             .setContentText(notice.body)
             .setStyle(Notification.BigTextStyle().bigText(notice.body))
