@@ -20,6 +20,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Handles Pause/Resume actions on a monitor notification. NOT exported:
+             only the app's own notification PendingIntents trigger it. -->
+        <receiver
+            android:name=".core.push.MonitorActionReceiver"
+            android:exported="false" />
+
         <!-- UnifiedPush delivery target. NOT exported: the connector ships its own
              internal receiver that forwards push events to this service. -->
         <service

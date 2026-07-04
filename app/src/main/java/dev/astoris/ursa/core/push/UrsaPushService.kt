@@ -61,7 +61,7 @@ class UrsaPushService : PushService() {
             this, 0, open,
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = Notification.Builder(this, CHANNEL_ID)
+        val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync) // TODO: replace with a branded icon
             .setContentTitle(notice.title)
             .setContentText(notice.body)
@@ -69,7 +69,23 @@ class UrsaPushService : PushService() {
             .setAutoCancel(true)
             .setContentIntent(pi)
             .apply { if (notice.important) setPriority(Notification.PRIORITY_HIGH) }
-            .build()
+
+        // Act on the monitor straight from the alert (only when we know which one).
+        notice.monitorId?.let { monitorId ->
+            builder.addAction(
+                Notification.Action.Builder(
+                    android.R.drawable.ic_media_pause, "Pause",
+                    monitorActionIntent(monitorId, MonitorActionReceiver.ACTION_PAUSE),
+                ).build(),
+            )
+            builder.addAction(
+                Notification.Action.Builder(
+                    android.R.drawable.ic_media_play, "Resume",
+                    monitorActionIntent(monitorId, MonitorActionReceiver.ACTION_RESUME),
+                ).build(),
+            )
+        }
+        val notification = builder.build()
 
         // POST_NOTIFICATIONS is a runtime permission on API 33+; the UI requests it.
         // If it isn't granted, drop the notification rather than crash.
@@ -83,6 +99,18 @@ class UrsaPushService : PushService() {
         // Same monitor id replaces its previous notification.
         val id = notice.monitorId ?: notice.title.hashCode()
         NotificationManagerCompat.from(this).notify(id, notification)
+    }
+
+    private fun monitorActionIntent(monitorId: Int, action: String): android.app.PendingIntent {
+        val intent = Intent(this, MonitorActionReceiver::class.java)
+            .setAction(action)
+            .putExtra(MonitorActionReceiver.EXTRA_MONITOR_ID, monitorId)
+        // Unique request code per (monitor, action) so PendingIntents do not collide.
+        val requestCode = "$monitorId:$action".hashCode()
+        return android.app.PendingIntent.getBroadcast(
+            this, requestCode, intent,
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+        )
     }
 
     companion object {
