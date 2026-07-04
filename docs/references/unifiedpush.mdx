@@ -1,9 +1,10 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-07-04
 owner: astoris
-status: in-flux
-source: knowledge (connector 3.x). ⚠ VERIFY against https://unifiedpush.org/developers/android/
-        — Context7 has no UnifiedPush entry and both doc fetches were redirect-gated.
+status: verified
+source: connector 3.3.3 source, read directly from the tagged repo
+        (UnifiedPush/android-connector) on 2026-07-04. Context7 has no UnifiedPush
+        entry; the website docs are redirect-gated, so the source is authoritative.
 ---
 
 ## what this is
@@ -20,55 +21,76 @@ HTTP 200. Body is `{ heartbeat, monitor, msg }`; `msg` is ready-made text like
 `"[name] [🔴 Down] connect ECONNREFUSED ..."`. URSA parses this JSON itself.
 Append `?up=1` to the ntfy endpoint so ntfy forwards raw bytes untouched.
 
-## technical map
+## technical map (verified against connector 3.3.3 source)
 
 **gradle**
 ```kotlin
-implementation("org.unifiedpush.android:connector:<3.x>")
+implementation("org.unifiedpush.android:connector:3.3.3")
 ```
 
-**register / distributor selection (connector 3.x API — verify names)**
+**register / distributor selection** — `UnifiedPush` is an object with `@JvmStatic`
+functions. `register(...)` (not `registerApp`, which is deprecated) has optional
+`instance`, `messageForDistributor`, `vapid`:
 ```kotlin
-// pick a distributor (ntfy etc.); persist the choice
-val distributors = UnifiedPush.getDistributors(context)
-UnifiedPush.saveDistributor(context, distributors.first())
-UnifiedPush.registerApp(context)            // optional: instance, messageForDistributor, vapid
-// or: UnifiedPush.tryUseDefaultDistributor(context) { success -> ... }
-```
+import org.unifiedpush.android.connector.UnifiedPush
 
-**receive (extend the connector's receiver/service)**
+// Option A — let the user pick from installed distributors:
+val distributors = UnifiedPush.getDistributors(context)   // List<String> package names
+UnifiedPush.saveDistributor(context, chosen)              // must precede register()
+UnifiedPush.register(context)                             // instance defaults to INSTANCE_DEFAULT
+
+// Option B — use the saved-or-default distributor (call on startup; context must be an Activity):
+UnifiedPush.tryUseCurrentOrDefaultDistributor(context) { success ->
+    if (success) UnifiedPush.register(context)
+}
+
+// Teardown: UnifiedPush.unregister(context) / UnifiedPush.removeDistributor(context)
+```
+For the Kuma-webhook flow **do not pass a `vapid` key** — Kuma POSTs plain JSON, it
+does not do RFC8291 web-push encryption, so messages arrive unencrypted
+(`PushMessage.decrypted == false`) and `content` is the raw webhook body.
+
+**receive — extend `PushService` (a Service, NOT a BroadcastReceiver).**
+`MessagingReceiver` still exists but is **deprecated**; `PushService` is the current
+API and, crucially, is **not exported** (the library ships its own internal receiver
+that forwards to it). Overrides take no `Context` — the service *is* one:
 ```kotlin
-class UrsaPushReceiver : MessagingReceiver() {
-    override fun onNewEndpoint(ctx: Context, endpoint: PushEndpoint, instance: String) {
-        // endpoint.url → show to user to paste into Kuma Webhook (append ?up=1 for ntfy)
+class UrsaPushService : PushService() {
+    override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
+        // endpoint.url -> surface to the user to paste into a Kuma Webhook
+        // (append ?up=1 for ntfy so it forwards raw bytes)
     }
-    override fun onMessage(ctx: Context, message: PushMessage, instance: String) {
-        // message.content = raw bytes of Kuma's webhook JSON → parse, post a notification
+    override fun onMessage(message: PushMessage, instance: String) {
+        // message.content: ByteArray = Kuma's webhook JSON -> parse, post a notification.
+        // message.decrypted is false for the ntfy raw-forward flow (expected).
     }
-    override fun onRegistrationFailed(ctx: Context, reason: FailedReason, instance: String) {}
-    override fun onUnregistered(ctx: Context, instance: String) {}
+    override fun onRegistrationFailed(reason: FailedReason, instance: String) {}
+    override fun onUnregistered(instance: String) {}
 }
 ```
+Payloads: `PushEndpoint(url: String, pubKeySet: PublicKeySet?)`,
+`PushMessage(content: ByteArray, decrypted: Boolean)`.
+`FailedReason`: `INTERNAL_ERROR | NETWORK | ACTION_REQUIRED | VAPID_REQUIRED`.
 
-**manifest** — register the receiver for the UnifiedPush actions:
+**manifest** — declare the service, **not exported**, handling `PUSH_EVENT`:
 ```xml
-<receiver android:name=".UrsaPushReceiver" android:exported="true">
+<service android:name=".core.push.UrsaPushService" android:exported="false">
     <intent-filter>
-        <action android:name="org.unifiedpush.android.connector.MESSAGE" />
-        <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT" />
-        <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
-        <action android:name="org.unifiedpush.android.connector.UNREGISTERED" />
+        <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
     </intent-filter>
-</receiver>
+</service>
 ```
-Also `POST_NOTIFICATIONS` permission (API 33+) and `INTERNET`.
+Also `POST_NOTIFICATIONS` permission (API 33+) and `INTERNET` (already present).
 
 ## gotchas
 
-- ⚠ API names above are from memory (connector 3.x renamed `onMessage` payloads
-  to `PushMessage` and endpoints to `PushEndpoint`). Confirm exact signatures at
-  unifiedpush.org before writing M3 code.
+- **Use `PushService`, not `MessagingReceiver`** (the latter is deprecated). This
+  also satisfies the M3 security gate: the service is `exported="false"` — no
+  exported push surface to harden. See `docs/security.mdx` / `security-notes`.
 - The Socket.IO connection does NOT need to stay alive for push — push flows
   through the distributor, not the app. No foreground service for v1.
-- No distributor installed → `getDistributors` is empty; guide the user to ntfy.
-- FOSS-clean for F-Droid — confirm before release.
+- No distributor installed → `getDistributors` returns empty; guide the user to ntfy.
+- `saveDistributor` must be called before `register`. `register` throws
+  `VapidNotValidException` only if you pass a malformed `vapid` — we pass none.
+- FOSS-clean for F-Droid — the connector is FOSS; confirm the final dependency set
+  before release.
