@@ -36,7 +36,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
 | AUTH-1 secure auth | partial (server-dependent) | login + TOTP → token, `KumaClient` |
-| AUTH-2 local auth | not implemented (optional at L1) | - |
+| AUTH-2 local auth | met (opt-in) | biometric/credential app lock, `ui/lock` |
 | AUTH-3 step-up auth | n/a (read-heavy client) | - |
 | NETWORK-1 secure transport | partial | TLS default; opt-in trust-all + global cleartext |
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
@@ -118,5 +118,6 @@ Prioritized by value/effort. Tracked items - none are silently dropped.
    tolerantly and render-only. Endpoint origin is not cryptographically validated
    (Kuma sends plain JSON, not web-push-encrypted) - acceptable: render-only, and
    the endpoint is a user-held secret.
-7. **Optional local-auth gate** (biometric/device credential) before revealing
-   sessions (AUTH-2).
+7. ~~**Optional local-auth gate** (biometric/device credential) before revealing
+   sessions (AUTH-2).~~ **Done (2026-07-04)** - opt-in app lock (`ui/lock`,
+   BiometricPrompt with device-credential fallback), re-locks on background.

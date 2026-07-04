@@ -19,8 +19,10 @@ code-only and verifiable by logic/unit tests until a device is available.
    tests); repository seeds `monitors` from cache on connect and persists every live
    update; the list shows a "last-known data, updated <time>" banner until live
    arrives.
-2. **Biometric / device-credential app lock** - optional gate before sessions are
-   shown. Closes security backlog AUTH-2 (`docs/security.mdx`).
+2. ~~**Biometric / device-credential app lock**~~ **DONE (2026-07-04)** - opt-in
+   Settings toggle; `LockStore` + `BiometricGate` (BiometricPrompt, device-credential
+   fallback); `LockScreen` gate routed first in `UrsaApp`; re-locks on background.
+   `MainActivity` is now a `FragmentActivity`. Closes security backlog AUTH-2.
 3. **Notification actions** - Pause / Resume a monitor directly from the alert;
    one-tap reaction, extends M3 push.
 4. **Local TLS-expiry reminders** - a periodic check over the certificate info URSA
