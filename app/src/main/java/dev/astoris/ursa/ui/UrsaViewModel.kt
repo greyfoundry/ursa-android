@@ -43,6 +43,9 @@ sealed interface StatusPageUiState {
     data class Error(val message: String) : StatusPageUiState
 }
 
+/** The three primary destinations in the bottom navigation bar. */
+enum class MainTab { MONITORS, NOTIFICATIONS, SETTINGS }
+
 class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = ConnectionStore(app)
@@ -87,15 +90,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val pushDistributor: StateFlow<String?> = PushStore.distributor
     private val _distributors = MutableStateFlow<List<String>>(emptyList())
     val distributors: StateFlow<List<String>> = _distributors.asStateFlow()
-    private val _pushMode = MutableStateFlow(false)
-    val pushMode: StateFlow<Boolean> = _pushMode.asStateFlow()
 
-    // --- App lock + settings ---
+    // Which bottom-nav tab is selected.
+    private val _tab = MutableStateFlow(MainTab.MONITORS)
+    val tab: StateFlow<MainTab> = _tab.asStateFlow()
+
+    // --- App lock ---
     val lockEnabled: StateFlow<Boolean> = LockStore.enabled
     private val _locked = MutableStateFlow(false)
     val locked: StateFlow<Boolean> = _locked.asStateFlow()
-    private val _settingsMode = MutableStateFlow(false)
-    val settingsMode: StateFlow<Boolean> = _settingsMode.asStateFlow()
 
     init {
         PushStore.load(getApplication())
@@ -155,12 +158,16 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _login.value = LoginUiState.Idle
     }
 
-    // --- Push actions ---
-    fun enterPush() {
-        refreshDistributors()
-        _pushMode.value = true
+    // --- Tab navigation ---
+    fun selectTab(t: MainTab) {
+        if (t == MainTab.NOTIFICATIONS) refreshDistributors()
+        _tab.value = t
     }
-    fun exitPush() { _pushMode.value = false }
+    // Deep-link entry points (app shortcuts) map onto tabs.
+    fun enterPush() = selectTab(MainTab.NOTIFICATIONS)
+    fun enterSettings() = selectTab(MainTab.SETTINGS)
+
+    // --- Push actions ---
 
     /** Re-scan installed UnifiedPush distributors (e.g. ntfy). */
     fun refreshDistributors() {
@@ -192,9 +199,6 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         LockStore.setEnabled(getApplication(), enabled)
         if (!enabled) _locked.value = false
     }
-
-    fun enterSettings() { _settingsMode.value = true }
-    fun exitSettings() { _settingsMode.value = false }
 
     fun enterStatusPage() { _statusPageMode.value = true }
     fun exitStatusPage() {

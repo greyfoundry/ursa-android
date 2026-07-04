@@ -11,17 +11,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.astoris.ursa.ui.connections.LoginScreen
 import dev.astoris.ursa.ui.lock.LockScreen
 import dev.astoris.ursa.ui.monitors.MonitorDetailScreen
-import dev.astoris.ursa.ui.monitors.MonitorListScreen
-import dev.astoris.ursa.ui.push.PushScreen
-import dev.astoris.ursa.ui.settings.SettingsScreen
 import dev.astoris.ursa.ui.statuspage.StatusPageScreen
 
 @Composable
 fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val selected by vm.selectedMonitor.collectAsStateWithLifecycle()
     val statusPageMode by vm.statusPageMode.collectAsStateWithLifecycle()
-    val pushMode by vm.pushMode.collectAsStateWithLifecycle()
-    val settingsMode by vm.settingsMode.collectAsStateWithLifecycle()
     val hasSession by vm.hasSession.collectAsStateWithLifecycle()
     val locked by vm.locked.collectAsStateWithLifecycle()
 
@@ -39,9 +34,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
         locked -> LockScreen(vm)
         statusPageMode -> StatusPageScreen(vm)
         !hasSession -> LoginScreen(vm)
-        settingsMode -> SettingsScreen(vm)
-        pushMode -> PushScreen(vm)
         selected != null -> MonitorDetailScreen(vm, selected!!)
-        else -> MonitorListScreen(vm)
+        else -> MainShell(vm)
     }
 }

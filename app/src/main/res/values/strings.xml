@@ -7,6 +7,11 @@
     <string name="shortcut_settings_short">Settings</string>
     <string name="shortcut_settings_long">Open settings</string>
 
+    <!-- Bottom navigation -->
+    <string name="nav_monitors">Monitors</string>
+    <string name="nav_notifications">Notifications</string>
+    <string name="nav_settings">Settings</string>
+
     <!-- Common -->
     <string name="action_back">Back</string>
     <string name="action_pause">Pause</string>

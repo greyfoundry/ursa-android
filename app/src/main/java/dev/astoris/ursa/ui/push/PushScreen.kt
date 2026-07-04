@@ -34,7 +34,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.BackHandler
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
@@ -43,8 +42,6 @@ import dev.astoris.ursa.ui.UrsaViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
-    BackHandler { vm.exitPush() }
-
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val distributors by vm.distributors.collectAsStateWithLifecycle()
@@ -66,8 +63,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.push_title)) },
-                navigationIcon = { TextButton(onClick = { vm.exitPush() }) { Text(stringResource(R.string.action_back)) } },
+                title = { Text(stringResource(R.string.nav_notifications)) },
                 actions = { TextButton(onClick = { vm.refreshDistributors() }) { Text(stringResource(R.string.push_refresh)) } },
             )
         },
