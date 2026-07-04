@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.StatusPageClient
+import dev.astoris.ursa.core.push.PushStore
+import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
@@ -13,6 +15,7 @@ import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.repository.MonitorRepository
+import org.unifiedpush.android.connector.UnifiedPush
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,7 +74,17 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _statusPage = MutableStateFlow<StatusPageUiState>(StatusPageUiState.Idle)
     val statusPage: StateFlow<StatusPageUiState> = _statusPage.asStateFlow()
 
+    // --- Push (UnifiedPush) ---
+    val pushEndpoint: StateFlow<String?> = PushStore.endpoint
+    val pushDistributor: StateFlow<String?> = PushStore.distributor
+    private val _distributors = MutableStateFlow<List<String>>(emptyList())
+    val distributors: StateFlow<List<String>> = _distributors.asStateFlow()
+    private val _pushMode = MutableStateFlow(false)
+    val pushMode: StateFlow<Boolean> = _pushMode.asStateFlow()
+
     init {
+        PushStore.load(getApplication())
+        UrsaPushService.ensureChannel(getApplication())
         // Keep hasSession true whenever we reach an authenticated state.
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
@@ -122,6 +135,33 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _selectedId.value = null
         _beats.value = emptyList()
         _login.value = LoginUiState.Idle
+    }
+
+    // --- Push actions ---
+    fun enterPush() {
+        refreshDistributors()
+        _pushMode.value = true
+    }
+    fun exitPush() { _pushMode.value = false }
+
+    /** Re-scan installed UnifiedPush distributors (e.g. ntfy). */
+    fun refreshDistributors() {
+        _distributors.value = UnifiedPush.getDistributors(getApplication())
+    }
+
+    /** Save the chosen distributor and request an endpoint (arrives async via the service). */
+    fun registerPush(distributor: String) {
+        val app = getApplication<Application>()
+        PushStore.setDistributor(app, distributor)
+        UnifiedPush.saveDistributor(app, distributor)
+        UnifiedPush.register(app) // no VAPID: Kuma posts plain JSON, not web-push-encrypted
+    }
+
+    fun unregisterPush() {
+        val app = getApplication<Application>()
+        UnifiedPush.unregister(app)
+        UnifiedPush.removeDistributor(app)
+        PushStore.clear(app)
     }
 
     fun enterStatusPage() { _statusPageMode.value = true }

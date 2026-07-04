@@ -44,7 +44,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         topBar = {
             TopAppBar(
                 title = { Text("Monitors") },
-                actions = { TextButton(onClick = { vm.logout() }) { Text("Sign out") } },
+                actions = {
+                    TextButton(onClick = { vm.enterPush() }) { Text("Push") }
+                    TextButton(onClick = { vm.logout() }) { Text("Sign out") }
+                },
             )
         },
     ) { padding ->
