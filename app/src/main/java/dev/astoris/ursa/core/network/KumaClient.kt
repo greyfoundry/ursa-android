@@ -47,6 +47,11 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
     private val _certs = MutableStateFlow<Map<Int, CertInfo>>(emptyMap())
     val certs: StateFlow<Map<Int, CertInfo>> = _certs.asStateFlow()
 
+    /** Recent heartbeat history per monitor, for the list sparklines. Seeded by
+     *  `heartbeatList` on connect and appended from live `heartbeat` events. */
+    private val _beatHistory = MutableStateFlow<Map<Int, List<Heartbeat>>>(emptyMap())
+    val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = _beatHistory.asStateFlow()
+
     fun connect() {
         if (socket != null) return
         _state.value = ConnectionState.Connecting
@@ -105,6 +110,17 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
                 val beat = KumaParse.heartbeat(obj) ?: return@let
                 _heartbeats.tryEmit(beat)
                 updateMonitor(beat.monitorId) { it.copy(status = beat.status, ping = beat.ping) }
+                _beatHistory.update { current ->
+                    current + (beat.monitorId to (current[beat.monitorId].orEmpty() + beat).takeLast(100))
+                }
+            }
+        }
+
+        // heartbeatList: POSITIONAL (monitorID, snake_case beat rows, overwrite) on connect.
+        s.on("heartbeatList") { args ->
+            val id = (args.getOrNull(0) as? Number)?.toInt() ?: return@on
+            args.jsonArrayAt(1)?.let { arr ->
+                _beatHistory.update { it + (id to KumaParse.beatRows(arr)) }
             }
         }
 
@@ -204,5 +220,11 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
     private fun Array<Any?>.jsonAt(index: Int): kotlinx.serialization.json.JsonObject? {
         val raw = getOrNull(index) as? JSONObject ?: return null
         return runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
+    }
+
+    /** Convert a Socket.IO org.json array at [index] into a kotlinx JsonArray for [KumaParse]. */
+    private fun Array<Any?>.jsonArrayAt(index: Int): kotlinx.serialization.json.JsonArray? {
+        val raw = getOrNull(index) as? org.json.JSONArray ?: return null
+        return runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
     }
 }

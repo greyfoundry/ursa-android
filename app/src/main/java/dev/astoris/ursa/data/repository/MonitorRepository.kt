@@ -76,6 +76,11 @@ class MonitorRepository(
         .flatMapLatest { client -> client?.certs ?: flowOf(emptyMap()) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /** Recent heartbeat history per monitor, for list sparklines. */
+    val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = activeClient
+        .flatMapLatest { client -> client?.beatHistory ?: flowOf(emptyMap()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     init {
         // Persist every live update as the new snapshot for the active server, and
         // promote it into the cache flow so it survives the next reconnect.

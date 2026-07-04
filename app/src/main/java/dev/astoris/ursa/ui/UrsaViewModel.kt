@@ -78,6 +78,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val beats: StateFlow<List<Heartbeat>> = _beats.asStateFlow()
 
     val certs: StateFlow<Map<Int, CertInfo>> = repo.certs
+    val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
 
     private val statusClient = StatusPageClient()
     private val _statusPageMode = MutableStateFlow(false)
