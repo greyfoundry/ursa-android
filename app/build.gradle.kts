@@ -56,6 +56,10 @@ dependencies {
         exclude(group = "com.google.crypto.tink", module = "tink")
     }
 
+    // biometric / device-credential app lock (FragmentActivity is required by BiometricPrompt)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.fragment)
+
     // networking: Socket.IO (live monitors) + Ktor (public status-page REST)
     implementation(libs.socket.io.client) {
         exclude(group = "org.json", module = "json") // Android ships its own org.json

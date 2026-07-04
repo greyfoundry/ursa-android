@@ -8,6 +8,7 @@ import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
@@ -86,9 +87,18 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _pushMode = MutableStateFlow(false)
     val pushMode: StateFlow<Boolean> = _pushMode.asStateFlow()
 
+    // --- App lock + settings ---
+    val lockEnabled: StateFlow<Boolean> = LockStore.enabled
+    private val _locked = MutableStateFlow(false)
+    val locked: StateFlow<Boolean> = _locked.asStateFlow()
+    private val _settingsMode = MutableStateFlow(false)
+    val settingsMode: StateFlow<Boolean> = _settingsMode.asStateFlow()
+
     init {
         PushStore.load(getApplication())
         UrsaPushService.ensureChannel(getApplication())
+        LockStore.load(getApplication())
+        if (LockStore.enabled.value) _locked.value = true // start locked if enabled
         // Keep hasSession true whenever we reach an authenticated state.
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
@@ -167,6 +177,20 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         UnifiedPush.removeDistributor(app)
         PushStore.clear(app)
     }
+
+    // --- Lock actions ---
+    fun unlock() { _locked.value = false }
+
+    /** Re-lock when the app returns to the background, if the lock is enabled. */
+    fun relock() { if (LockStore.enabled.value) _locked.value = true }
+
+    fun setLockEnabled(enabled: Boolean) {
+        LockStore.setEnabled(getApplication(), enabled)
+        if (!enabled) _locked.value = false
+    }
+
+    fun enterSettings() { _settingsMode.value = true }
+    fun exitSettings() { _settingsMode.value = false }
 
     fun enterStatusPage() { _statusPageMode.value = true }
     fun exitStatusPage() {

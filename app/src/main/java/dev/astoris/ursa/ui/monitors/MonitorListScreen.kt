@@ -49,6 +49,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 title = { Text("Monitors") },
                 actions = {
                     TextButton(onClick = { vm.enterPush() }) { Text("Push") }
+                    TextButton(onClick = { vm.enterSettings() }) { Text("Settings") }
                     TextButton(onClick = { vm.logout() }) { Text("Sign out") }
                 },
             )
