@@ -32,7 +32,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | Category | Status | Where |
 |---|---|---|
 | STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt` |
-| STORAGE-2 no data leakage | partial | manifest backup + no screenshot flag — see gaps |
+| STORAGE-2 no data leakage | partial | `FLAG_SECURE` set; backup still on — see gaps |
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
 | AUTH-1 secure auth | partial (server-dependent) | login + TOTP → token, `KumaClient` |
@@ -42,7 +42,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
 | PLATFORM-1 IPC | met | only the launcher activity is exported |
 | PLATFORM-2 WebViews | n/a | app uses none |
-| PLATFORM-3 UI security | gap | no `FLAG_SECURE` |
+| PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide, `MainActivity` |
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 36 |
 | CODE-2 enforced updates | n/a | side-loaded, no store channel yet |
 | CODE-3 no vulnerable deps | partial | versions pinned, no automated scan |
@@ -55,10 +55,12 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 **STORAGE.** Connections persist through `ConnectionStore` (DataStore Preferences).
 The value is encrypted by `Crypto` (Tink AEAD, AES-256-GCM) under a master key held
 in the Android Keystore, with an app-specific AAD. The login password and TOTP are
-never written to disk; only the resulting session token is. *Gap (STORAGE-2):* the
-manifest sets `allowBackup=true`, so the encrypted blob is eligible for backup — it
-is useless without the Keystore key (which is not backed up), but `allowBackup=false`
-is cleaner. No `FLAG_SECURE`, so monitor data can surface in screenshots/recents.
+never written to disk; only the resulting session token is. `FLAG_SECURE` is set
+app-wide (`MainActivity`), so monitor data and server URLs are kept out of
+screenshots, screen recordings, and the recents thumbnail. *Gap (STORAGE-2):* the
+manifest still sets `allowBackup=true`, so the encrypted blob is eligible for backup
+— it is useless without the Keystore key (which is not backed up), but
+`allowBackup=false` is cleaner.
 
 **CRYPTO.** AES-256-GCM via Tink is current best practice; keys are generated and
 wrapped through the Keystore rather than derived from anything app-controlled. No
@@ -77,9 +79,10 @@ default) and a global `usesCleartextTraffic=true` for plain-http instances. Both
 tracked risks (see backlog). Certificate pinning is not applicable — URSA connects to
 arbitrary servers the user names, not a fixed backend.
 
-**PLATFORM.** The only exported component is the launcher activity. No WebViews. The
-open UI item is the absent `FLAG_SECURE`. The M3 push receiver will need to be
-exported for UnifiedPush and must treat its payload as untrusted.
+**PLATFORM.** The only exported component is the launcher activity. No WebViews.
+`FLAG_SECURE` is applied app-wide so no screen can be captured or previewed in
+recents. The M3 push receiver will need to be exported for UnifiedPush and must
+treat its payload as untrusted.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; automated CVE
@@ -98,8 +101,8 @@ only if URSA ever brokers other people's credentials.
 
 Prioritized by value/effort. Tracked items — none are silently dropped.
 
-1. **`FLAG_SECURE`** on windows showing sessions/monitor data (PLATFORM-3). One flag,
-   removes screenshot + recents leakage. *High value, low effort.*
+1. ~~**`FLAG_SECURE`** on windows showing sessions/monitor data (PLATFORM-3).~~
+   **Done (2026-07-04)** — applied app-wide in `MainActivity`.
 2. **`allowBackup=false`** (or backup exclusion rules) for the encrypted store
    (STORAGE-2).
 3. **Scoped cleartext** — replace the global `usesCleartextTraffic` with a network-

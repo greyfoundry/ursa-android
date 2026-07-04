@@ -9,6 +9,14 @@ status: stable
 The running change log across sessions — project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 — harden: FLAG_SECURE app-wide (backlog R1)
+
+**changed**: `MainActivity.onCreate` now sets `WindowManager.LayoutParams.FLAG_SECURE`
+app-wide — blocks screenshots/screen recording and blanks the recents thumbnail so
+monitor data and server URLs don't leak there. Closes backlog item R1 / threat T3
+(OWASP MASVS-PLATFORM-3). Updated `docs/security.mdx` + `docs/security-notes/`
+status. Build + lint + unit tests green.
+
 ### 2026-07-04 — security posture doc + internal threat model
 
 **changed**: Added `docs/security.mdx` (tracked) — URSA's posture mapped to OWASP
