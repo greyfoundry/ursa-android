@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  punctuation:
+    name: ASCII punctuation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No em/en dashes in tracked files
+        run: |
+          if git grep -lP '[\x{2013}\x{2014}]' -- . >/tmp/hits 2>/dev/null && [ -s /tmp/hits ]; then
+            echo "Em/en dash found in:"; cat /tmp/hits
+            echo "Use an ASCII hyphen '-' instead."
+            exit 1
+          fi
+          echo "OK: tracked files use ASCII punctuation."
+
+  build:
+    name: Build, test, lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble, test, lint
+        run: ./gradlew assembleDebug testDebugUnitTest lintDebug --stacktrace --no-daemon
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
