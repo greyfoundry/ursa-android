@@ -1,0 +1,62 @@
+---
+last-updated: 2026-07-04
+owner: astoris
+status: in-flux
+---
+
+## what this is
+
+The M4 milestone plan: native-Android depth that Uptime Kuma's web app cannot
+offer. Approved 2026-07-04. Built in order, one sub-milestone per set of phases,
+committed and pushed each, CI kept green. Icon/asset work and the on-device QA pass
+are deferred (an asset list will be produced separately); everything here is
+code-only and verifiable by logic/unit tests until a device is available.
+
+## sequence
+
+1. **Offline last-known status** - cache the monitor list and statuses so the app is
+   useful with no connectivity; show them instantly on launch with a "last updated"
+   stamp, and reconcile when live data arrives.
+2. **Biometric / device-credential app lock** - optional gate before sessions are
+   shown. Closes security backlog AUTH-2 (`docs/security.mdx`).
+3. **Notification actions** - Pause / Resume a monitor directly from the alert;
+   one-tap reaction, extends M3 push.
+4. **Local TLS-expiry reminders** - a periodic check over the certificate info URSA
+   already reads; a local notification N days before a monitored cert expires.
+5. **Home-screen widget** (Jetpack Glance) - at-a-glance up/down counts. Code now; a
+   polished preview image is a deferred asset.
+6. **Quick Settings tile** - a shade glance ("is everything up?"). Inline vector icon.
+7. **App shortcuts** - long-press launcher: jump to a server, or pause a monitor.
+8. **i18n sweep** - extract user-facing strings to resources so translation is
+   possible.
+
+## deferred (needs assets or a device)
+
+- Launcher icon, notification small icon, widget preview image, F-Droid graphics,
+  screenshots (an asset list will be provided).
+- On-device QA pass of all flows, and cutting the first tagged release.
+
+## sub-milestone 1: offline last-known status (design)
+
+**Goal.** On launch, the monitor list appears immediately from the last saved
+snapshot (with a "last updated <time>" line) instead of an empty screen, then live
+data takes over as the socket reconnects.
+
+**Shape.**
+- A pure `MonitorSnapshot` model (serializable) plus pure encode/decode and a
+  "should show cache" decision - unit-testable on the JVM.
+- An Android-side store that persists the snapshot per active server, encrypted at
+  rest with the existing `Crypto` (monitor names and URLs are infrastructure detail,
+  so they get the same protection as credentials).
+- The repository writes a snapshot whenever the live monitor list updates, and seeds
+  its `monitors` StateFlow from the snapshot on init so the UI has data at once.
+- The UI shows a subtle "Last updated <relative time>" indicator when displaying
+  cached (not-yet-live) data.
+
+**Reconciliation.** Live data always wins: when the socket delivers a non-empty
+monitor list, it replaces the cache in the flow and is written back as the new
+snapshot. The cache is per active-server; switching servers loads that server's
+snapshot.
+
+**Out of scope.** Caching heartbeat history or certificates (list + status only for
+now). No background refresh - the cache is a fast first paint, not a sync engine.
