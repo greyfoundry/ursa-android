@@ -1,6 +1,8 @@
 package dev.astoris.ursa.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.MonitorStatus
 
 object StatusUi {
@@ -11,10 +13,11 @@ object StatusUi {
         MonitorStatus.MAINTENANCE -> Color(0xFF1565C0)
     }
 
-    fun label(status: MonitorStatus): String = when (status) {
-        MonitorStatus.UP -> "Up"
-        MonitorStatus.DOWN -> "Down"
-        MonitorStatus.PENDING -> "Pending"
-        MonitorStatus.MAINTENANCE -> "Maintenance"
+    @StringRes
+    fun labelRes(status: MonitorStatus): Int = when (status) {
+        MonitorStatus.UP -> R.string.status_up
+        MonitorStatus.DOWN -> R.string.status_down
+        MonitorStatus.PENDING -> R.string.status_pending
+        MonitorStatus.MAINTENANCE -> R.string.status_maintenance
     }
 }

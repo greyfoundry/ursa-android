@@ -20,8 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.astoris.ursa.R
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.lock.BiometricGate
 
@@ -38,8 +40,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = { TextButton(onClick = { vm.exitSettings() }) { Text("Back") } },
+                title = { Text(stringResource(R.string.settings_title)) },
+                navigationIcon = { TextButton(onClick = { vm.exitSettings() }) { Text(stringResource(R.string.action_back)) } },
             )
         },
     ) { padding ->
@@ -50,13 +52,12 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f).padding(end = 16.dp)) {
-                    Text("Require unlock", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.settings_require_unlock), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        if (canLock) {
-                            "Ask for your biometric or device PIN/pattern before showing monitors."
-                        } else {
-                            "Set up a screen lock or biometric on your device to use this."
-                        },
+                        stringResource(
+                            if (canLock) R.string.settings_require_unlock_desc
+                            else R.string.settings_require_unlock_unavailable,
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

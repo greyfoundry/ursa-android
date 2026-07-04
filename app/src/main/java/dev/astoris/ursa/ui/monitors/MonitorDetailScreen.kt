@@ -27,8 +27,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.ui.StatusUi
@@ -61,7 +63,7 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.size(12.dp).clip(CircleShape).background(StatusUi.color(monitor.status)))
-                Text(StatusUi.label(monitor.status), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(StatusUi.labelRes(monitor.status)), style = MaterialTheme.typography.titleMedium)
                 monitor.ping?.let { Text("${it}ms", style = MaterialTheme.typography.bodyMedium) }
                 monitor.uptime24h?.let { Text("${(it * 100).toInt()}% 24h", style = MaterialTheme.typography.bodyMedium) }
             }

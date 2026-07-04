@@ -9,6 +9,7 @@ import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import dev.astoris.ursa.R
 
 /**
  * Thin wrapper over BiometricPrompt for the app-lock gate. Prefers a strong biometric
@@ -34,8 +35,8 @@ object BiometricGate {
         onError: (CharSequence) -> Unit = {},
     ) {
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock URSA")
-            .setSubtitle("Confirm it's you to view your monitors")
+            .setTitle(activity.getString(R.string.lock_prompt_title))
+            .setSubtitle(activity.getString(R.string.lock_prompt_subtitle))
             .apply {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
@@ -43,7 +44,7 @@ object BiometricGate {
                     // A negative button is required (and only allowed) when device
                     // credential is not among the allowed authenticators.
                     setAllowedAuthenticators(BIOMETRIC_WEAK)
-                    setNegativeButtonText("Cancel")
+                    setNegativeButtonText(activity.getString(R.string.lock_prompt_cancel))
                 }
             }
             .build()

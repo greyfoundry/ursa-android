@@ -26,9 +26,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.ui.StatusUi
@@ -46,11 +48,11 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Monitors") },
+                title = { Text(stringResource(R.string.monitors_title)) },
                 actions = {
-                    TextButton(onClick = { vm.enterPush() }) { Text("Push") }
-                    TextButton(onClick = { vm.enterSettings() }) { Text("Settings") }
-                    TextButton(onClick = { vm.logout() }) { Text("Sign out") }
+                    TextButton(onClick = { vm.enterPush() }) { Text(stringResource(R.string.action_push)) }
+                    TextButton(onClick = { vm.enterSettings() }) { Text(stringResource(R.string.action_settings)) }
+                    TextButton(onClick = { vm.logout() }) { Text(stringResource(R.string.action_sign_out)) }
                 },
             )
         },
@@ -58,7 +60,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (state != ConnectionState.Authenticated) {
                 Text(
-                    text = "Connection: $state",
+                    text = stringResource(R.string.connection_status, state.toString()),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -71,8 +73,8 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     )
                 }
                 Text(
-                    text = whenText?.let { "Showing last-known data, updated $it" }
-                        ?: "Showing last-known data",
+                    text = whenText?.let { stringResource(R.string.cache_banner_updated, it) }
+                        ?: stringResource(R.string.cache_banner),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -80,7 +82,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             }
             if (monitors.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No monitors yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
@@ -117,14 +119,15 @@ private fun MonitorRow(monitor: Monitor, onClick: () -> Unit, onPause: () -> Uni
         )
         Column(Modifier.weight(1f)) {
             Text(monitor.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val statusLabel = stringResource(StatusUi.labelRes(monitor.status))
             val sub = buildString {
-                append(StatusUi.label(monitor.status))
+                append(statusLabel)
                 monitor.ping?.let { append(" · ${it}ms") }
                 monitor.uptime24h?.let { append(" · ${(it * 100).toInt()}% 24h") }
             }
             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (monitor.active) TextButton(onClick = onPause) { Text("Pause") }
-        else TextButton(onClick = onResume) { Text("Resume") }
+        if (monitor.active) TextButton(onClick = onPause) { Text(stringResource(R.string.action_pause)) }
+        else TextButton(onClick = onResume) { Text(stringResource(R.string.action_resume)) }
     }
 }

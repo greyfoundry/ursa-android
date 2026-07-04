@@ -12,9 +12,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import dev.astoris.ursa.R
 import dev.astoris.ursa.ui.UrsaViewModel
 
 /**
@@ -39,14 +41,14 @@ fun LockScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("URSA is locked", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.lock_title), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Unlock to view your monitors.",
+            stringResource(R.string.lock_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
-        Button(onClick = { authenticate() }) { Text("Unlock") }
+        Button(onClick = { authenticate() }) { Text(stringResource(R.string.lock_unlock)) }
     }
 }
