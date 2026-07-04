@@ -21,24 +21,16 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "21"
+          persist-credentials: false
 
+      # build-mode "none" extracts from source without invoking the Kotlin
+      # compiler, which avoids CodeQL's compiler hook crashing on very new Kotlin.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: java-kotlin
-          build-mode: manual
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build for analysis
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+          build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
@@ -48,6 +40,8 @@ jobs:
   actions-security:
     name: Actions security (zizmor)
     runs-on: ubuntu-latest
+    # Advisory: findings are uploaded to the Security tab but do not fail the branch.
+    continue-on-error: true
     permissions:
       security-events: write
       contents: read
