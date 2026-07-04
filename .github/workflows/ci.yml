@@ -18,7 +18,7 @@ jobs:
     name: ASCII punctuation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: No em/en dashes in tracked files
         run: |
           if git grep -lP '[\x{2013}\x{2014}]' -- . >/tmp/hits 2>/dev/null && [ -s /tmp/hits ]; then
@@ -32,23 +32,23 @@ jobs:
     name: Build, test, lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Assemble, test, lint
         run: ./gradlew assembleDebug testDebugUnitTest lintDebug --stacktrace --no-daemon
 
       - name: Upload lint report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
