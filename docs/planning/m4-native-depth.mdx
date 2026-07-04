@@ -23,8 +23,10 @@ code-only and verifiable by logic/unit tests until a device is available.
    Settings toggle; `LockStore` + `BiometricGate` (BiometricPrompt, device-credential
    fallback); `LockScreen` gate routed first in `UrsaApp`; re-locks on background.
    `MainActivity` is now a `FragmentActivity`. Closes security backlog AUTH-2.
-3. **Notification actions** - Pause / Resume a monitor directly from the alert;
-   one-tap reaction, extends M3 push.
+3. ~~**Notification actions**~~ **DONE (2026-07-04)** - Pause/Resume buttons on monitor
+   notifications; a non-exported `MonitorActionReceiver` opens a short-lived
+   connection to the active server (loginByToken, then pause/resume, bounded by
+   timeouts) and dismisses the notification. On-device verification pending.
 4. **Local TLS-expiry reminders** - a periodic check over the certificate info URSA
    already reads; a local notification N days before a monitored cert expires.
 5. **Home-screen widget** (Jetpack Glance) - at-a-glance up/down counts. Code now; a

@@ -9,6 +9,15 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - M4 #3: notification actions (Pause/Resume)
+
+**changed**: Monitor notifications now carry Pause and Resume actions. New non-exported
+`core/push/MonitorActionReceiver` (goAsync + IO coroutine) opens a short-lived
+`KumaClient` to the active server, `loginByToken` then pause/resume (both time-bounded),
+and cancels the notification. `UrsaPushService` builds per-(monitor,action) broadcast
+PendingIntents. Manifest declares the receiver `exported="false"`. Build/lint/tests
+green. On-device verification pending (deferred).
+
 ### 2026-07-04 - M4 #2: biometric / device-credential app lock
 
 **changed**: Opt-in app lock (closes security backlog AUTH-2 / threat T7). Added
