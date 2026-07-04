@@ -10,6 +10,18 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      # These AndroidX lines now require compileSdk 37. URSA targets compileSdk 36
+      # for now (android-37 is not provisioned in the dev environment), so hold them
+      # back until we move to 37. Remove these caps when adopting compileSdk 37.
+      - dependency-name: "androidx.core:core"
+        versions: [">=1.17.0"]
+      - dependency-name: "androidx.core:core-ktx"
+        versions: [">=1.17.0"]
+      - dependency-name: "androidx.lifecycle:*"
+        versions: [">=2.10.0"]
+      - dependency-name: "androidx.activity:activity-compose"
+        versions: [">=1.11.0"]
     groups:
       # Keep routine minor/patch bumps in a single PR to reduce noise.
       gradle-minor-and-patch:
