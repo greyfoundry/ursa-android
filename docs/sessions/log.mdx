@@ -9,6 +9,35 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - UI redesign to match the mockup + 1.0.0 release engineering
+
+**UI (matches the feature-graphic mockup, verified on Pixel 8):**
+- Bottom navigation shell `ui/MainShell` (Monitors / Notifications / Settings);
+  VM `MainTab` replaced pushMode/settingsMode; each tab keeps its own top bar; the
+  Monitors bar shows the green bear logo; sign-out moved into Settings.
+- Redesigned monitor cards: leading `StatusCircle` (tinted circle + up/down/neutral
+  arrow), name + URL, `StatusPill`, per-monitor response-time `Sparkline`, uptime %.
+  Pause/resume dropped from the card (still on the detail screen).
+- Per-monitor `Sparkline`: `KumaClient` now captures `beatHistory` (seeded by the
+  positional `heartbeatList` event = snake_case rows, appended from live `heartbeat`).
+- Search + status filter in the Monitors top bar (local filtering).
+- New icon vectors: nav (pulse/bell/gear), status arrows, search/filter/close.
+
+**Release engineering (1.0.0, do NOT merge PR #3 until keystore secrets exist):**
+- `release-please-config.json`: `"release-as": "1.0.0"` (PR #3 is now
+  "release ursa-android 1.0.0"). **After 1.0.0 merges, REMOVE `release-as` or future
+  releases stay 1.0.0.** Dropped the pre-major bump flags (post-1.0 = standard semver).
+- `app/build.gradle.kts`: versionCode derived from versionName (maj*10000+min*100+pat);
+  a release signingConfig that uses the `ANDROID_KEYSTORE_*` secrets when present and
+  falls back to the debug key locally (so `assembleRelease` works without secrets).
+- `release-please.yml`: gated `release-artifacts` job builds the signed APK, generates
+  a CycloneDX SBOM (anchore/sbom-action), attests build provenance, writes
+  SHA256SUMS, and `gh release upload`s them all. Needs the 4 keystore secrets.
+- README "Releases" section documents the keystore setup (keytool + gh secret).
+
+**User actions left:** add the 4 `ANDROID_KEYSTORE_*` secrets, then merge PR #3 to cut
+1.0.0; afterwards remove `release-as` from the config.
+
 ### 2026-07-04 - brand assets: bear app icon + notification icon + showcase
 
 **changed**: User supplied a bear+heartbeat app icon (green on dark), a feature
