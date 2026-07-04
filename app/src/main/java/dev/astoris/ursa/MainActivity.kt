@@ -6,10 +6,10 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.material3.MaterialTheme
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.ui.UrsaApp
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.theme.UrsaTheme
 
 // FragmentActivity (not ComponentActivity) so BiometricPrompt can attach to it.
 class MainActivity : FragmentActivity() {
@@ -28,7 +28,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         handleRoute(intent)
         setContent {
-            MaterialTheme {
+            UrsaTheme {
                 UrsaApp(vm)
             }
         }

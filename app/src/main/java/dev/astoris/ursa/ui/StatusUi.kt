@@ -4,13 +4,18 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.ui.theme.KumaBlue
+import dev.astoris.ursa.ui.theme.KumaGreen
+import dev.astoris.ursa.ui.theme.KumaOrange
+import dev.astoris.ursa.ui.theme.KumaRed
 
 object StatusUi {
+    // Match Uptime Kuma's status colors exactly (vars.scss).
     fun color(status: MonitorStatus): Color = when (status) {
-        MonitorStatus.UP -> Color(0xFF2E7D32)
-        MonitorStatus.DOWN -> Color(0xFFC62828)
-        MonitorStatus.PENDING -> Color(0xFFF9A825)
-        MonitorStatus.MAINTENANCE -> Color(0xFF1565C0)
+        MonitorStatus.UP -> KumaGreen
+        MonitorStatus.DOWN -> KumaRed
+        MonitorStatus.PENDING -> KumaOrange
+        MonitorStatus.MAINTENANCE -> KumaBlue
     }
 
     @StringRes

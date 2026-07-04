@@ -57,8 +57,9 @@ class MonitorWidget : GlanceAppWidget() {
     }
 }
 
-private val Green = ColorProvider(Color(0xFF2E7D32))
-private val Red = ColorProvider(Color(0xFFC62828))
+// Kuma status colors (vars.scss) for brand consistency with the app.
+private val Green = ColorProvider(Color(0xFF5CDD8B))
+private val Red = ColorProvider(Color(0xFFDC3545))
 private val OnBg = ColorProvider(Color(0xFF1B1B1B))
 private val Bg = ColorProvider(Color(0xFFFAFAFA))
 
