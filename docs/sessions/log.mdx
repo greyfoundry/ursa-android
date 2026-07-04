@@ -9,6 +9,19 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-04 - Kuma-matched theme: light/dark mode + status conventions
+
+**changed**: New `ui/theme/` (`Color.kt` + `Theme.kt`, `UrsaTheme`) applying Uptime
+Kuma's exact palette from `vars.scss` (primary/up `#5cdd8b`, down `#dc3545`, pending
+`#f8a306`, maintenance `#1747f5`; dark bg `#0d1117`, cards `#161b22`, border
+`#1d2634`, text `#b1b8c0`) as a Material 3 light + dark scheme following the system
+setting; rounded shapes. `MainActivity` uses `UrsaTheme`. `StatusUi.color` now uses
+the Kuma colors; widget colors aligned. New `ui/StatusPill` matches Kuma's
+`badge rounded-pill bg-{color}` (colored pill, white text, 64dp min). Monitor list is
+now rounded cards with a status pill; detail header uses the pill. Goal: users who
+know Kuma do not relearn - same colors and conventions, only icons/assets differ.
+Build/lint/tests green. On-device visual check still pending.
+
 ### 2026-07-04 - M4 #5-#8: widget, QS tile, shortcuts, i18n (M4 code complete)
 
 **changed**: (#5) `ui/widget/MonitorWidget` (Jetpack Glance) + receiver + provider XML

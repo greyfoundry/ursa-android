@@ -41,6 +41,11 @@ homelab users can actually rely on: real-time, multi-server, and secure by defau
   session token is stored, never your password
 - Optional trust for self-signed certificates, per connection
 - Screenshots and recents previews blocked (`FLAG_SECURE`) so monitor data doesn't leak
+- Light and dark mode, using Uptime Kuma's own colors and status conventions so it
+  feels familiar (only the icons differ)
+- Native extras: home-screen widget, Quick Settings tile, app shortcuts, biometric
+  app lock, notification Pause/Resume actions, offline last-known view, and local
+  TLS-expiry reminders
 
 **Next (M3)**
 - Push notifications via UnifiedPush - the app registers an endpoint you paste into a

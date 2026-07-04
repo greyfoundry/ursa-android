@@ -20,7 +20,12 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows.
 - `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, cert, pause/resume.
 - `.../ui/statuspage/StatusPageScreen.kt` - public page by URL+slug.
-- `.../ui/StatusUi.kt` - status → color/label.
+- `.../ui/StatusUi.kt` - status -> Kuma color / label string-resource.
+- `.../ui/StatusPill.kt` - Kuma-style rounded status badge (colored pill, white text).
+- `.../ui/theme/` - `Color.kt` + `Theme.kt` (`UrsaTheme`): Uptime Kuma's palette
+  (`vars.scss`) as a Material 3 light/dark scheme, following the system setting.
+- `.../ui/settings/SettingsScreen.kt`, `.../ui/lock/`, `.../ui/push/PushScreen.kt`,
+  `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, widget, QS tile.
 
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
