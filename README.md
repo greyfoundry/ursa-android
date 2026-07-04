@@ -1,5 +1,7 @@
 # URSA
 
+![URSA - your Uptime Kuma companion](docs/assets/feature-graphic.png)
+
 [![CI](https://github.com/AstorisTheBrave/ursa-android/actions/workflows/ci.yml/badge.svg)](https://github.com/AstorisTheBrave/ursa-android/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform: Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
@@ -69,6 +71,18 @@ homelab users can actually rely on: real-time, multi-server, and secure by defau
 URSA talks to Kuma over standard HTTPS + WebSocket, so any transport your instance
 sits behind - reverse proxy or tunnel - works the same way. The protocol is verified
 against a live Uptime Kuma 2.4.0; a full on-device compatibility pass is in progress.
+
+## Screenshots
+
+Real screenshots from a device, running against a live Uptime Kuma instance. URSA
+uses Kuma's own colors and status conventions, in light and dark mode.
+
+<p>
+  <img src="docs/assets/screenshots/02-monitors-dark.png" width="210" alt="Monitor list (dark)" />
+  <img src="docs/assets/screenshots/03-detail-dark.png" width="210" alt="Monitor detail with heartbeat bar and TLS certificate" />
+  <img src="docs/assets/screenshots/04-monitors-light.png" width="210" alt="Monitor list (light)" />
+  <img src="docs/assets/screenshots/01-login-dark.png" width="210" alt="Login (dark)" />
+</p>
 
 ## Tech
 
