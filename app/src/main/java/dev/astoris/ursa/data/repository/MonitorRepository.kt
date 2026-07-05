@@ -119,7 +119,8 @@ class MonitorRepository(
         }
     }
 
-    suspend fun beats(id: Int): List<Heartbeat> = activeClient.value?.getBeats(id) ?: emptyList()
+    suspend fun beats(id: Int, hours: Int = 24): List<Heartbeat> =
+        activeClient.value?.getBeats(id, hours) ?: emptyList()
 
     /** Connect to a new server and log in; on success the JWT is persisted. */
     suspend fun addServerAndLogin(

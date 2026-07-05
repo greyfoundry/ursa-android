@@ -16,6 +16,7 @@ import dev.astoris.ursa.core.work.CertExpiryWorker
 import dev.astoris.ursa.core.work.ResponseAlertNotifier
 import dev.astoris.ursa.core.work.ResponseAlertWorker
 import dev.astoris.ursa.core.work.ResponseAlertUtil
+import dev.astoris.ursa.ui.monitors.HeartbeatRange
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -80,6 +81,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _beats = MutableStateFlow<List<Heartbeat>>(emptyList())
     val beats: StateFlow<List<Heartbeat>> = _beats.asStateFlow()
+    private val _beatRange = MutableStateFlow(HeartbeatRange.DAY)
+    val beatRange: StateFlow<HeartbeatRange> = _beatRange.asStateFlow()
 
     val certs: StateFlow<Map<Int, CertInfo>> = repo.certs
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
@@ -174,7 +177,17 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun select(id: Int) {
         _selectedId.value = id
-        viewModelScope.launch { _beats.value = repo.beats(id) }
+        refetchBeats()
+    }
+
+    fun setBeatRange(range: HeartbeatRange) {
+        _beatRange.value = range
+        refetchBeats()
+    }
+
+    private fun refetchBeats() {
+        val id = _selectedId.value ?: return
+        viewModelScope.launch { _beats.value = repo.beats(id, _beatRange.value.hours) }
     }
 
     fun back() {

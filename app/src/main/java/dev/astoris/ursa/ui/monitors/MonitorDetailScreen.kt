@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -51,6 +52,7 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
     val beats by vm.beats.collectAsStateWithLifecycle()
     val certs by vm.certs.collectAsStateWithLifecycle()
     val cert = certs[monitor.id]
+    val beatRange by vm.beatRange.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     var overrideText by remember(monitor.id) { mutableStateOf("") }
     LaunchedEffect(monitor.id) { overrideText = vm.monitorThresholdMs(monitor.id)?.toString() ?: "" }
@@ -83,6 +85,15 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
             Text(stringResource(R.string.detail_type, monitor.type), style = MaterialTheme.typography.bodySmall)
 
             Text(stringResource(R.string.detail_recent_heartbeats), style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HeartbeatRange.entries.forEach { range ->
+                    FilterChip(
+                        selected = beatRange == range,
+                        onClick = { vm.setBeatRange(range) },
+                        label = { Text(range.label) },
+                    )
+                }
+            }
             HeartbeatBar(beats)
 
             if (cert != null) {
