@@ -9,6 +9,7 @@ import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.DynamicColorStore
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.ResponseAlertStore
@@ -118,6 +119,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         PushStore.load(getApplication())
         UrsaPushService.ensureChannel(getApplication())
         LockStore.load(getApplication())
+        DynamicColorStore.load(getApplication())
         if (LockStore.enabled.value) _locked.value = true // start locked if enabled
         CertExpiryWorker.schedule(getApplication()) // daily TLS-expiry reminder
         ResponseAlertWorker.schedule(getApplication()) // periodic slow-response check (#1813)
@@ -264,6 +266,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             alertStore.setThresholdFor(ResponseAlertUtil.monitorKey(url, monitorId), ms)
         }
     }
+
+    val dynamicColorEnabled: StateFlow<Boolean> = DynamicColorStore.enabled
+    fun setDynamicColorEnabled(enabled: Boolean) =
+        DynamicColorStore.setEnabled(getApplication(), enabled)
 
     fun setLockEnabled(enabled: Boolean) {
         LockStore.setEnabled(getApplication(), enabled)

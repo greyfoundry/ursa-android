@@ -60,6 +60,9 @@
     <string name="settings_slow_threshold">Response time limit (ms)</string>
     <string name="detail_slow_override">Slow-response limit for this monitor (ms)</string>
     <string name="detail_slow_override_desc">Leave blank to use the global limit.</string>
+    <string name="settings_dynamic_color">Material You colors</string>
+    <string name="settings_dynamic_color_desc">Use your wallpaper colors instead of the Uptime Kuma palette.</string>
+    <string name="settings_dynamic_color_unavailable">Available on Android 12 and newer.</string>
 
     <!-- App lock -->
     <string name="lock_title">URSA is locked</string>

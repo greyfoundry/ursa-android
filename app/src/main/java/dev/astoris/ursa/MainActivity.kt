@@ -7,7 +7,9 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.ui.UrsaApp
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.theme.UrsaTheme
@@ -33,7 +35,8 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         handleRoute(intent)
         setContent {
-            UrsaTheme {
+            val dynamicColor by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
+            UrsaTheme(dynamicColor = dynamicColor) {
                 UrsaApp(vm)
             }
         }

@@ -1,5 +1,6 @@
 package dev.astoris.ursa.ui.settings
 
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val lockEnabled by vm.lockEnabled.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val slowThresholdMs by vm.slowThresholdMs.collectAsStateWithLifecycle()
+    val dynamicColorEnabled by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
+    val canDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -110,6 +113,33 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(stringResource(R.string.settings_dynamic_color), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(
+                            if (canDynamicColor) R.string.settings_dynamic_color_desc
+                            else R.string.settings_dynamic_color_unavailable,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = dynamicColorEnabled && canDynamicColor,
+                    enabled = canDynamicColor,
+                    onCheckedChange = { vm.setDynamicColorEnabled(it) },
                 )
             }
 
