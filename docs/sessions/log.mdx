@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-07-05
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,47 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-07-05 - post-1.0 feature batch, Wear OS module, 1.1.x releases, F-Droid submission
+
+**Releases:** 1.0.0 -> 1.1.3 shipped via release-please (signed phone + watch APKs, SBOM,
+checksums, provenance). Clean `vX.Y.Z` tags (include-component-in-tag false). versionCode
+is now a LITERAL (for F-Droid parseability); release-please does NOT bump it, so bump it by
+hand on the release branch each release (major*10000 + minor*100 + patch).
+
+**Post-1.0 features (built, lint/tests green, verified):**
+- Slow-response alerts (#1813): `core/work/ResponseAlert{Util,Store,Worker,Notifier}`;
+  15-min worker + live foreground check + per-monitor override.
+- Downtime duration on recovery (#177): `core/push/DownSinceStore` + `PushParse.formatDowntime`.
+- Configurable heartbeat range (#1888): `ui/monitors/HeartbeatRange` (6h/24h/7d/30d chips).
+- Service favicons (#443): `core/network/FaviconCache` (best-effort, status-circle fallback).
+- Material You (opt-in; default keeps Kuma palette): `DynamicColorStore` + `UrsaTheme(dynamicColor=)`.
+
+**Wear OS (new `:wear` module, 100% FOSS, no Google Play Services):** `StatusTileService`
+(androidx tiles/protolayout + guava) polls a public Kuma status-page URL and renders
+up/down counts; `WearConfigActivity`/`WearPrefs` hold the URL; `usesCleartextTraffic` for
+http Kuma. Notification + Pause/Resume bridging to the watch is free (Wear system, zero
+code). Verified live on the Wear emulator (adb DEBUG_SURFACE add-tile). Release workflow
+builds + attaches `ursa-wear-vX.Y.Z.apk` (sideload-only; F-Droid cannot deliver to a watch).
+
+**F-Droid (submitted, fully green, awaiting maintainer):** fdroiddata MR !42166 via `glab`.
+Reproducible build ENABLED (`Binaries` = release APK URL, `AllowedAPKSigningKeys` =
+signing-cert SHA-256). Fix chain: `dependenciesInfo` off (drops AGP "Dependency metadata"
+block), LITERAL versionName/versionCode (checkupdates cannot parse variables/arithmetic),
+`packaging { jniLibs { keepDebugSymbols += "**/*.so" } }` (datastore `.so` strip is
+non-deterministic -> reproducible), `AutoName`, wrapped `Binaries`. See `docs/fdroid.mdx`
++ `fdroid/dev.astoris.ursa.yml`. CRITICAL: `ursa-release.jks` is now permanently tied to
+the F-Droid identity via `AllowedAPKSigningKeys` - back it up.
+
+**Repo:** branch protection on `main` (admin bypass; others PR). `FUNDING.yml` =
+paypal.me/RyanMwita. README revamped (user-facing, "Free, and always free"). Wiki revamped
+(consumer + developer + new Wear-OS page). fastlane metadata under
+`fastlane/metadata/android/en-US`.
+
+**next:** 1.2.0 competitive features vs KumaAlert (paid iOS) + OpenKuma (FOSS read-only) -
+live ongoing outage duration, overview counts header, favorites/pin, monitor groups,
+events/incident log, emergency mode. Post the drafted Reddit announcement. Watch MR !42166
+for reviewer feedback.
 
 ### 2026-07-04 - UI redesign to match the mockup + 1.0.0 release engineering
 
