@@ -1,5 +1,4 @@
 # Shows a "Sponsor" button at the top of the repo.
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
 github: AstorisTheBrave
-custom:
-  - https://paypal.me/RyanMwita
+custom: ["https://paypal.me/RyanMwita"]

@@ -21,7 +21,10 @@ jobs:
       - uses: actions/checkout@v7
       - name: No em/en dashes in tracked files
         run: |
-          if git grep -lP '[\x{2013}\x{2014}]' -- . >/tmp/hits 2>/dev/null && [ -s /tmp/hits ]; then
+          # CHANGELOG.md is generated from historical commit subjects (some predate
+          # the ASCII rule), so it is excluded; new commit messages are still guarded
+          # by the commit-msg hook.
+          if git grep -lP '[\x{2013}\x{2014}]' -- . ':(exclude)CHANGELOG.md' >/tmp/hits 2>/dev/null && [ -s /tmp/hits ]; then
             echo "Em/en dash found in:"; cat /tmp/hits
             echo "Use an ASCII hyphen '-' instead."
             exit 1
