@@ -1,0 +1,15 @@
+# Shows a "Sponsor" button at the top of the repo.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# GitHub Sponsors. The button links here once your Sponsors account is approved.
+# Note: Sponsors payouts are paid out via Stripe (a bank account), not PayPal.
+github: AstorisTheBrave
+
+# Works with PayPal today. Uncomment and replace the handle with your own, then
+# any of these render as an extra "Sponsor" option:
+# custom:
+#   - https://paypal.me/YOURHANDLE
+#   - https://ko-fi.com/YOURHANDLE
+# ko_fi: YOURHANDLE
+# liberapay: YOURHANDLE
+# buy_me_a_coffee: YOURHANDLE

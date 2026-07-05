@@ -7,139 +7,122 @@
 ![Platform: Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
 ![Made with Kotlin](https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white)
 
-**Native Android client for Uptime Kuma - real-time monitoring, multi-server
-support, and FOSS push notifications.**
-
-Watch every self-hosted monitor from your phone: live up/down status, heartbeat
-history, TLS certificate details, and pause/resume - across all your servers, with
-push that needs no paid relay and no Google services.
-
-- **Native Android** - Kotlin + Jetpack Compose, not another abandoned React Native
-  wrapper.
-- **No relay server** - push goes straight from your Kuma instance to your device.
-- **No Firebase** - notifications ride [UnifiedPush](https://unifiedpush.org), so you
-  choose the distributor (e.g. ntfy) and nothing routes through Google.
-
-> Status: **M1 (core viewing)** and **M2 (encryption, resilient reconnect, TLS
-> options)** are built. **M3 (push)** is next. On-device polish is ongoing.
-
-## Why
-
-Uptime Kuma is one of the largest self-hosted monitoring projects, yet after years
-there's still no solid, actively maintained Android client - the existing options are
-abandoned, broken, or read-only status-page viewers. URSA is built to be the one
-homelab users can actually rely on: real-time, multi-server, and secure by default.
-
-## Features
-
-**Available now (M1 + M2)**
-- Connect to one or more Uptime Kuma servers, switch between them
-- Login with username/password and two-factor (TOTP); persistent, self-healing session
-- Live monitor list - real-time status, ping, and uptime
-- Monitor detail - heartbeat history and TLS certificate info
-- Pause / resume a monitor
-- Public status-page viewer (no login required)
-- Credentials encrypted at rest (AES-256-GCM, key in the Android Keystore); only the
-  session token is stored, never your password
-- Optional trust for self-signed certificates, per connection
-- Screenshots and recents previews blocked (`FLAG_SECURE`) so monitor data doesn't leak
-- Light and dark mode, using Uptime Kuma's own colors and status conventions so it
-  feels familiar (only the icons differ)
-- Native extras: home-screen widget, Quick Settings tile, app shortcuts, biometric
-  app lock, notification Pause/Resume actions, offline last-known view, and local
-  TLS-expiry reminders
-
-**Next (M3)**
-- Push notifications via UnifiedPush - the app registers an endpoint you paste into a
-  Kuma Webhook notification; no server to run, no Firebase
-- F-Droid release
-
-## Compatibility
-
-| Capability | Supported |
-|---|---|
-| Uptime Kuma 2.4.x | ✔ (verified against a live instance) |
-| Username / password login | ✔ |
-| Two-factor authentication (TOTP) | ✔ |
-| Multiple servers | ✔ |
-| Self-signed certificates | ✔ (opt-in per connection) |
-| Plain-HTTP instances | ✔ |
-| Reverse proxies (nginx, Caddy, Traefik) | ✔ |
-| Cloudflare Tunnel | ✔ |
-| UnifiedPush notifications | 🚧 planned (M3) |
-
-URSA talks to Kuma over standard HTTPS + WebSocket, so any transport your instance
-sits behind - reverse proxy or tunnel - works the same way. The protocol is verified
-against a live Uptime Kuma 2.4.0; a full on-device compatibility pass is in progress.
-
-## Screenshots
-
-Real screenshots from a device, running against a live Uptime Kuma instance. URSA
-uses Kuma's own colors and status conventions, in light and dark mode.
+**Your [Uptime Kuma](https://github.com/louislam/uptime-kuma) monitors, live in your
+pocket.** URSA is a native Android app that keeps every self-hosted monitor a glance
+away - real-time up/down status, heartbeat history, and push notifications that never
+touch Google or a paid relay.
 
 <p>
-  <img src="docs/assets/screenshots/02-monitors-dark.png" width="210" alt="Monitor list (dark)" />
-  <img src="docs/assets/screenshots/03-detail-dark.png" width="210" alt="Monitor detail with heartbeat bar and TLS certificate" />
-  <img src="docs/assets/screenshots/04-monitors-light.png" width="210" alt="Monitor list (light)" />
-  <img src="docs/assets/screenshots/01-login-dark.png" width="210" alt="Login (dark)" />
+  <img src="docs/assets/screenshots/02-monitors-dark.png" width="220" alt="Monitor list" />
+  <img src="docs/assets/screenshots/03-detail-dark.png" width="220" alt="Monitor detail with heartbeat and TLS certificate" />
+  <img src="docs/assets/screenshots/04-monitors-light.png" width="220" alt="Monitor list, light mode" />
 </p>
 
-## Tech
+## 🐻 Why URSA?
 
-- Kotlin + Jetpack Compose (Material 3)
-- Socket.IO for the live connection, Ktor for status-page REST
-- DataStore + Tink + Android Keystore for encrypted-at-rest credentials
-- AGP 9 / Gradle 9.4.1 · compileSdk 36 · minSdk 26 (Android 8.0+)
+You already run Uptime Kuma. It watches your homelab, your side project, your family's
+Plex box - and it does it beautifully in the browser. But the moment you close the
+laptop, you're back to refreshing a tab on your phone or wiring up yet another
+notification bot.
 
-## Build
+Uptime Kuma has wanted a real Android app for years. The web dashboard is great on a
+desktop but cramped on a phone, the existing apps are abandoned or read-only, and every
+"just get alerts" path seems to end at Firebase or a third-party relay you have to trust.
 
-```bash
-# Requires Android Studio (bundled JDK) + Android SDK
-export JAVA_HOME="<path-to-jbr>"
-./gradlew assembleDebug        # -> app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:lintDebug
-```
+URSA fixes that. It's the companion app your Kuma setup has been missing: fast, native,
+and yours. Point it at your server, log in, and your monitors are just... there -
+whenever you pull your phone out.
 
-Point the app at a Uptime Kuma instance (e.g. `http://10.0.2.2:3001` from an
-emulator). Local dev instance:
+## ✨ What you get
 
-```bash
-docker run -d -p 3001:3001 -v uptime-kuma:/app/data --name uptime-kuma louislam/uptime-kuma:2
-```
+- 📡 **Live status at a glance** - every monitor, up or down, updating in real time as
+  Kuma pings them. No pull-to-refresh, no stale numbers.
+- 📈 **Heartbeat history and uptime** - tap a monitor for its recent beats, response
+  time, and uptime percentage, right where you'd expect it.
+- 🔒 **TLS certificate details** - see which certs are healthy and which are about to
+  expire, with local reminders before they do.
+- 🔔 **Push notifications, your way** - get alerted the instant something goes down,
+  routed through [UnifiedPush](https://unifiedpush.org) (e.g. ntfy). No Firebase, no
+  Google Play Services, no relay server to run or pay for.
+- 🖥️ **All your servers, one app** - connect multiple Uptime Kuma instances and switch
+  between them.
+- ⏯️ **Pause and resume** - silence a monitor during maintenance without opening a
+  browser.
+- 🔑 **Login that sticks** - username/password and two-factor (TOTP), with a session
+  that heals itself when your connection drops.
+- 🌐 **Public status pages** - check a shared status page without logging in at all.
+- 🛡️ **Private by default** - credentials are encrypted on-device, only your session
+  token is ever stored (never your password), and monitor data is hidden from
+  screenshots and the app switcher.
+- 📱 **Feels like Android** - a home-screen widget, a Quick Settings tile, app
+  shortcuts, biometric app lock, an offline last-known view, and notification actions.
+  Things the web dashboard simply can't do.
+- 🎨 **Light and dark, Kuma's colors** - it uses Uptime Kuma's own palette and status
+  conventions, so it feels like part of the family from the first launch.
 
-## Roadmap
+## 📥 Get it
 
-URSA follows **viewer -> actions -> push**. Beyond that, being native unlocks
-things the Kuma web app cannot do: home-screen widgets, notification actions, a
-Quick Settings tile, Wear OS, and more. See [docs/roadmap.mdx](docs/roadmap.mdx).
+Grab the latest signed APK from the
+[**Releases**](https://github.com/AstorisTheBrave/ursa-android/releases) page, install
+it, open the app, and add your server's address (for example
+`https://kuma.yourdomain.com`). That's it - log in and your monitors show up.
 
-## Contributing
+New to the app? The [Getting Started guide](https://github.com/AstorisTheBrave/ursa-android/wiki/Getting-Started)
+walks you through your first connection, and
+[Push Notifications](https://github.com/AstorisTheBrave/ursa-android/wiki/Push-Notifications)
+covers getting alerts on your phone.
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), the
-[Code of Conduct](CODE_OF_CONDUCT.md), and the [Security Policy](SECURITY.md).
+> An F-Droid listing is on the way.
 
-## Releases
+## ✅ Works with your setup
 
-Releases are automated with [release-please](https://github.com/googleapis/release-please):
-merging its release PR tags a [Semantic Version](https://semver.org) (major =
-breaking, minor = features, patch = fixes), generates the changelog, and the
-workflow builds a **signed release APK**, a **CycloneDX SBOM**, checksums, and a
-build-provenance attestation, attaching them all to the GitHub Release.
+| Your Kuma looks like... | URSA handles it |
+|---|---|
+| Uptime Kuma 2.4.x | ✔ verified against a live instance |
+| Username / password login | ✔ |
+| Two-factor (TOTP) | ✔ |
+| Several servers | ✔ switch freely |
+| Self-signed certificates | ✔ opt-in per connection |
+| Plain-HTTP instances | ✔ |
+| Behind nginx / Caddy / Traefik | ✔ |
+| Behind a Cloudflare Tunnel | ✔ |
 
-Signing uses a keystore stored in repository secrets. To set it up once:
+If your instance is reachable in a browser, URSA can talk to it - reverse proxy or
+tunnel, it's all the same standard HTTPS + WebSocket underneath.
 
-```bash
-keytool -genkeypair -v -keystore ursa-release.jks -alias ursa \
-  -keyalg RSA -keysize 4096 -validity 10000       # keep this file safe + backed up
-base64 -w0 ursa-release.jks | gh secret set ANDROID_KEYSTORE_BASE64
-gh secret set ANDROID_KEYSTORE_PASSWORD           # the keystore password
-gh secret set ANDROID_KEY_ALIAS --body "ursa"
-gh secret set ANDROID_KEY_PASSWORD                # the key password
-```
+## ❤️ Support URSA
 
-Local `./gradlew assembleRelease` falls back to the debug key when those secrets are
-absent, so it still produces an installable APK for testing.
+URSA is free and open source, built in spare time for the self-hosting community. If it
+saves you a few browser refreshes, here's how you can help:
 
-## License
+- ⭐ **Star the repo** - it genuinely helps others find the app.
+- 🐛 **Report bugs and ideas** in [Issues](https://github.com/AstorisTheBrave/ursa-android/issues),
+  or say hi in [Discussions](https://github.com/AstorisTheBrave/ursa-android/discussions).
+- 💛 **Sponsor the project** using the **Sponsor** button at the top of the repo - even
+  a coffee's worth keeps the batteries charged.
 
-MIT - matching upstream Uptime Kuma.
+## 🤝 Contributing
+
+Pull requests and issues are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), and
+please be kind - we follow a [Code of Conduct](CODE_OF_CONDUCT.md). Found something
+security-sensitive? See the [Security Policy](SECURITY.md).
+
+## 🛠️ For developers
+
+Curious how it works under the hood, or want to build it yourself? The technical deep
+dive lives in the wiki:
+
+- [Building and Testing](https://github.com/AstorisTheBrave/ursa-android/wiki/Building-and-Testing)
+- [Architecture](https://github.com/AstorisTheBrave/ursa-android/wiki/Architecture)
+- [Network and Protocol](https://github.com/AstorisTheBrave/ursa-android/wiki/Network-and-Protocol)
+- [Push Internals](https://github.com/AstorisTheBrave/ursa-android/wiki/Push-Internals)
+- [Security](https://github.com/AstorisTheBrave/ursa-android/wiki/Security)
+
+In short: Kotlin + Jetpack Compose, Socket.IO for the live link, encrypted-at-rest
+credentials, no third-party services. Releases are automated and every build ships
+signed, with an SBOM and a provenance attestation attached.
+
+## 📜 License
+
+MIT - matching upstream Uptime Kuma. URSA is an independent client and is not affiliated
+with the Uptime Kuma project.
