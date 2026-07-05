@@ -60,19 +60,21 @@ jobs:
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$KS"
           echo "path=$KS" >> "$GITHUB_OUTPUT"
 
-      - name: Build signed release APK
+      - name: Build signed release APKs (phone + watch)
         env:
           ANDROID_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+        run: ./gradlew :app:assembleRelease :wear:assembleRelease --no-daemon --stacktrace
 
-      - name: Name the APK after the tag
+      - name: Name the APKs after the tag
         id: apk
         run: |
           cp app/build/outputs/apk/release/app-release.apk "ursa-${TAG}.apk"
+          cp wear/build/outputs/apk/release/wear-release.apk "ursa-wear-${TAG}.apk"
           echo "path=ursa-${TAG}.apk" >> "$GITHUB_OUTPUT"
+          echo "wear=ursa-wear-${TAG}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Generate SBOM (CycloneDX)
         uses: anchore/sbom-action@v0
@@ -84,10 +86,12 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: ${{ steps.apk.outputs.path }}
+          subject-path: |
+            ${{ steps.apk.outputs.path }}
+            ${{ steps.apk.outputs.wear }}
 
       - name: Checksums
-        run: sha256sum "${{ steps.apk.outputs.path }}" "ursa-${TAG}-sbom.cdx.json" > SHA256SUMS.txt
+        run: sha256sum "${{ steps.apk.outputs.path }}" "${{ steps.apk.outputs.wear }}" "ursa-${TAG}-sbom.cdx.json" > SHA256SUMS.txt
 
       - name: Upload assets to the release
         env:
@@ -95,6 +99,7 @@ jobs:
         run: |
           gh release upload "$TAG" \
             "${{ steps.apk.outputs.path }}" \
+            "${{ steps.apk.outputs.wear }}" \
             "ursa-${TAG}-sbom.cdx.json" \
             SHA256SUMS.txt \
             --clobber
