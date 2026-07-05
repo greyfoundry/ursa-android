@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +31,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +47,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.data.model.Heartbeat
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import dev.astoris.ursa.core.network.FaviconCache
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.Sparkline
@@ -189,6 +195,20 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     }
 }
 
+/** Service favicon when one is reachable (#443), else the tinted status circle. Status
+ *  is still conveyed by the pill on the right. */
+@Composable
+private fun MonitorLeadingIcon(monitor: Monitor) {
+    var favicon by remember(monitor.url) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(monitor.url) { favicon = monitor.url?.let { FaviconCache.get(it) } }
+    val fav = favicon
+    if (fav != null) {
+        Image(bitmap = fav, contentDescription = null, modifier = Modifier.size(32.dp).clip(CircleShape))
+    } else {
+        StatusCircle(monitor.status)
+    }
+}
+
 @Composable
 private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> Unit) {
     Card(
@@ -203,7 +223,7 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StatusCircle(monitor.status)
+            MonitorLeadingIcon(monitor)
             Column(Modifier.weight(1f)) {
                 Text(monitor.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 monitor.url?.let {
