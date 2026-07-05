@@ -8,3 +8,7 @@
 .externalNativeBuild
 .cxx
 /app/build/
+/wear/build/
+
+# Kotlin build cache
+/.kotlin/

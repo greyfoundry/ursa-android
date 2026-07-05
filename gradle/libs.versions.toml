@@ -15,6 +15,9 @@ biometric = "1.1.0"
 fragment = "1.8.6"
 work = "2.9.1"
 glance = "1.1.1"
+wearTiles = "1.4.1"
+wearProtolayout = "1.2.1"
+guava = "33.3.1-android"
 junit = "4.13.2"
 
 [libraries]
@@ -43,6 +46,12 @@ ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-conte
 ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+# Wear OS (FOSS: androidx tiles/protolayout, no Google Play Services)
+androidx-wear-tiles = { group = "androidx.wear.tiles", name = "tiles", version.ref = "wearTiles" }
+androidx-wear-protolayout = { group = "androidx.wear.protolayout", name = "protolayout", version.ref = "wearProtolayout" }
+androidx-wear-protolayout-material = { group = "androidx.wear.protolayout", name = "protolayout-material", version.ref = "wearProtolayout" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
