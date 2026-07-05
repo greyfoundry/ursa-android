@@ -15,15 +15,16 @@ RepoType: git
 Repo: https://github.com/AstorisTheBrave/ursa-android.git
 
 Builds:
-  - versionName: 1.1.0
-    versionCode: 10100
-    commit: v1.1.0
+  - versionName: 1.1.1
+    versionCode: 10101
+    commit: 5d3cc8cbcf5c6bac2725e6a98378541d369372b4
     subdir: app
     gradle:
       - yes
 
-# Releases are tagged vX.Y.Z; pick them up automatically and bump the build entry.
+# Use the full commit hash (not a tag/branch) in each build entry, per F-Droid policy.
+# Releases are tagged vX.Y.Z; auto update picks up new tags and bumps the build entry.
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]
-CurrentVersion: 1.1.0
-CurrentVersionCode: 10100
+CurrentVersion: 1.1.1
+CurrentVersionCode: 10101
