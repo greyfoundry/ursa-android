@@ -61,6 +61,15 @@ android {
         includeInApk = false
         includeInBundle = false
     }
+
+    // Keep prebuilt native libs (e.g. datastore's libdatastore_shared_counter.so)
+    // unstripped so the APK is byte-for-byte reproducible: AGP's symbol stripping is
+    // not deterministic across build hosts, which breaks F-Droid's reproducible build.
+    packaging {
+        jniLibs {
+            keepDebugSymbols += "**/*.so"
+        }
+    }
 }
 
 dependencies {
