@@ -11,8 +11,10 @@ import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
+import dev.astoris.ursa.core.storage.ResponseAlertStore
 import dev.astoris.ursa.core.work.CertExpiryWorker
 import dev.astoris.ursa.core.work.ResponseAlertWorker
+import dev.astoris.ursa.core.work.ResponseAlertUtil
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -102,6 +104,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _locked = MutableStateFlow(false)
     val locked: StateFlow<Boolean> = _locked.asStateFlow()
 
+    private val alertStore = ResponseAlertStore(getApplication())
+    private val _slowAlertEnabled = MutableStateFlow(false)
+    val slowAlertEnabled: StateFlow<Boolean> = _slowAlertEnabled.asStateFlow()
+    private val _slowThresholdMs = MutableStateFlow(ResponseAlertUtil.DEFAULT_GLOBAL_THRESHOLD_MS)
+    val slowThresholdMs: StateFlow<Int> = _slowThresholdMs.asStateFlow()
+
     init {
         PushStore.load(getApplication())
         UrsaPushService.ensureChannel(getApplication())
@@ -109,6 +117,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         if (LockStore.enabled.value) _locked.value = true // start locked if enabled
         CertExpiryWorker.schedule(getApplication()) // daily TLS-expiry reminder
         ResponseAlertWorker.schedule(getApplication()) // periodic slow-response check (#1813)
+        viewModelScope.launch {
+            _slowAlertEnabled.value = alertStore.isEnabled()
+            _slowThresholdMs.value = alertStore.globalThresholdMs()
+        }
         // Keep hasSession true whenever we reach an authenticated state.
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
@@ -197,6 +209,16 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Re-lock when the app returns to the background, if the lock is enabled. */
     fun relock() { if (LockStore.enabled.value) _locked.value = true }
+
+    fun setSlowAlertEnabled(enabled: Boolean) {
+        _slowAlertEnabled.value = enabled
+        viewModelScope.launch { alertStore.setEnabled(enabled) }
+    }
+
+    fun setSlowThresholdMs(ms: Int) {
+        _slowThresholdMs.value = ms
+        viewModelScope.launch { alertStore.setGlobalThresholdMs(ms) }
+    }
 
     fun setLockEnabled(enabled: Boolean) {
         LockStore.setEnabled(getApplication(), enabled)

@@ -10,15 +10,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +40,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val canLock = remember { BiometricGate.canAuthenticate(context) }
     val lockEnabled by vm.lockEnabled.collectAsStateWithLifecycle()
+    val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
+    val slowThresholdMs by vm.slowThresholdMs.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -65,6 +72,44 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     checked = lockEnabled && canLock,
                     enabled = canLock,
                     onCheckedChange = { vm.setLockEnabled(it) },
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(stringResource(R.string.settings_slow_alert), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.settings_slow_alert_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = slowAlertEnabled,
+                    onCheckedChange = { vm.setSlowAlertEnabled(it) },
+                )
+            }
+            if (slowAlertEnabled) {
+                Spacer(Modifier.height(8.dp))
+                var thresholdText by remember(slowThresholdMs) { mutableStateOf(slowThresholdMs.toString()) }
+                OutlinedTextField(
+                    value = thresholdText,
+                    onValueChange = { input ->
+                        thresholdText = input.filter { it.isDigit() }.take(6)
+                        thresholdText.toIntOrNull()?.takeIf { it > 0 }?.let { vm.setSlowThresholdMs(it) }
+                    },
+                    label = { Text(stringResource(R.string.settings_slow_threshold)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 

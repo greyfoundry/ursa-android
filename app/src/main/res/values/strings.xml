@@ -55,6 +55,9 @@
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>
+    <string name="settings_slow_alert">Slow-response alerts</string>
+    <string name="settings_slow_alert_desc">Notify when a monitor is up but responding slower than the limit below. Checked periodically in the background.</string>
+    <string name="settings_slow_threshold">Response time limit (ms)</string>
 
     <!-- App lock -->
     <string name="lock_title">URSA is locked</string>
