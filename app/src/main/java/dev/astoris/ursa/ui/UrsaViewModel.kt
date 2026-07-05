@@ -12,6 +12,7 @@ import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.work.CertExpiryWorker
+import dev.astoris.ursa.core.work.ResponseAlertWorker
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -107,6 +108,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         LockStore.load(getApplication())
         if (LockStore.enabled.value) _locked.value = true // start locked if enabled
         CertExpiryWorker.schedule(getApplication()) // daily TLS-expiry reminder
+        ResponseAlertWorker.schedule(getApplication()) // periodic slow-response check (#1813)
         // Keep hasSession true whenever we reach an authenticated state.
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
