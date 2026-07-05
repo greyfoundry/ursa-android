@@ -13,6 +13,8 @@ data class PushNotice(
     val title: String,
     val body: String,
     val important: Boolean,
+    /** Kuma heartbeat status (0=down, 1=up, 2=pending, 3=maintenance), when known. */
+    val status: Int? = null,
 )
 
 /**
@@ -53,6 +55,7 @@ object PushParse {
             title = "$name ${statusPhrase(status)}",
             body = message,
             important = important,
+            status = status,
         )
     }
 
@@ -62,5 +65,20 @@ object PushParse {
         2 -> "is Pending"
         3 -> "in Maintenance"
         else -> "updated"
+    }
+
+    /** Human "down for" text (#177). Kuma's webhook has no cumulative downtime, so the
+     *  caller computes the elapsed millis; this only formats it. */
+    fun formatDowntime(ms: Long): String {
+        val totalMin = ms / 60_000
+        if (totalMin < 1) return "less than a minute"
+        val days = totalMin / 1440
+        val hours = (totalMin % 1440) / 60
+        val mins = totalMin % 60
+        return buildList {
+            if (days > 0) add("${days}d")
+            if (hours > 0) add("${hours}h")
+            if (mins > 0) add("${mins}m")
+        }.joinToString(" ")
     }
 }

@@ -40,7 +40,23 @@ class UrsaPushService : PushService() {
             body = raw.take(240).ifBlank { "Monitor update" },
             important = false,
         )
-        notify(notice)
+        notify(enrichWithDowntime(notice))
+    }
+
+    /** Append "Was down for X" to a recovery notification, using the locally tracked
+     *  down -> up transition (#177). No-op when the monitor id or status is unknown. */
+    private fun enrichWithDowntime(notice: PushNotice): PushNotice {
+        val id = notice.monitorId ?: return notice
+        val store = DownSinceStore(this)
+        return when (notice.status) {
+            0 -> { store.markDown(id, System.currentTimeMillis()); notice }
+            1 -> {
+                val since = store.takeDown(id) ?: return notice
+                val elapsed = System.currentTimeMillis() - since
+                notice.copy(body = "${notice.body}\nWas down for ${PushParse.formatDowntime(elapsed)}.")
+            }
+            else -> notice
+        }
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {

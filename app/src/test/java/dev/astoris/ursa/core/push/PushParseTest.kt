@@ -63,4 +63,18 @@ class PushParseTest {
         )!!
         assertEquals("Y is Up", n.title)
     }
+
+    @Test fun exposes_status_for_downtime_tracking() {
+        assertEquals(0, PushParse.parse("""{"heartbeat":{"monitorID":1,"status":0}}""")!!.status)
+        assertEquals(1, PushParse.parse("""{"heartbeat":{"monitorID":1,"status":1}}""")!!.status)
+    }
+
+    @Test fun formats_downtime() {
+        assertEquals("less than a minute", PushParse.formatDowntime(30_000))
+        assertEquals("1m", PushParse.formatDowntime(90_000))
+        assertEquals("5m", PushParse.formatDowntime(5 * 60_000L))
+        assertEquals("1h 5m", PushParse.formatDowntime((65 * 60_000L)))
+        assertEquals("2h", PushParse.formatDowntime((120 * 60_000L)))
+        assertEquals("1d 1h", PushParse.formatDowntime((25 * 60 * 60_000L)))
+    }
 }
