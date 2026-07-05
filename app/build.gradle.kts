@@ -17,8 +17,8 @@ android {
         // auto-update (it cannot evaluate variables or arithmetic). release-please
         // updates versionName via the marker; bump versionCode per release by hand
         // (major*10000 + minor*100 + patch).
-        versionCode = 10102
-        versionName = "1.1.2" // x-release-please-version
+        versionCode = 10103
+        versionName = "1.1.3" // x-release-please-version
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise

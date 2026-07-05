@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/AstorisTheBrave/ursa-android/compare/v1.1.2...v1.1.3) (2026-07-05)
+
+
+### Bug Fixes
+
+* **build:** keep native .so unstripped for reproducible F-Droid builds ([01922fa](https://github.com/AstorisTheBrave/ursa-android/commit/01922fa0d30bef050fafe33f25abedb5b7a32838))
+
 ## [1.1.2](https://github.com/AstorisTheBrave/ursa-android/compare/v1.1.1...v1.1.2) (2026-07-05)
 
 
