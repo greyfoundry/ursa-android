@@ -54,6 +54,13 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // F-Droid rejects the AGP "Dependency metadata" signing block that Google adds to
+    // release APKs by default; omit it so the build passes F-Droid's APK scanner.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 }
 
 dependencies {
