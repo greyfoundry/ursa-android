@@ -13,6 +13,7 @@ import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.ResponseAlertStore
 import dev.astoris.ursa.core.work.CertExpiryWorker
+import dev.astoris.ursa.core.work.ResponseAlertNotifier
 import dev.astoris.ursa.core.work.ResponseAlertWorker
 import dev.astoris.ursa.core.work.ResponseAlertUtil
 import dev.astoris.ursa.data.model.CertInfo
@@ -121,6 +122,24 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _slowAlertEnabled.value = alertStore.isEnabled()
             _slowThresholdMs.value = alertStore.globalThresholdMs()
         }
+        // Live foreground half of "Both": evaluate incoming beats while connected. The
+        // shared cooldown in alertStore keeps this from double-firing with the worker.
+        viewModelScope.launch {
+            repo.heartbeats.collect { beat ->
+                if (!_slowAlertEnabled.value) return@collect
+                val url = store.activeUrl.first() ?: return@collect
+                val key = ResponseAlertUtil.monitorKey(url, beat.monitorId)
+                val threshold = ResponseAlertUtil.effectiveThreshold(
+                    alertStore.thresholdFor(key), _slowThresholdMs.value,
+                )
+                val now = System.currentTimeMillis()
+                if (ResponseAlertUtil.shouldAlert(beat.status.code, beat.ping, threshold, alertStore.lastAlerted()[key], now)) {
+                    val name = monitors.value.firstOrNull { it.id == beat.monitorId }?.name ?: "Monitor ${beat.monitorId}"
+                    ResponseAlertNotifier.notify(getApplication(), name, beat.ping ?: 0, threshold, key)
+                    alertStore.markAlerted(key, now)
+                }
+            }
+        }
         // Keep hasSession true whenever we reach an authenticated state.
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
@@ -218,6 +237,19 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun setSlowThresholdMs(ms: Int) {
         _slowThresholdMs.value = ms
         viewModelScope.launch { alertStore.setGlobalThresholdMs(ms) }
+    }
+
+    /** Per-monitor slow-response override in ms, or null when the global limit applies. */
+    suspend fun monitorThresholdMs(monitorId: Int): Int? {
+        val url = store.activeUrl.first() ?: return null
+        return alertStore.thresholdFor(ResponseAlertUtil.monitorKey(url, monitorId))
+    }
+
+    fun setMonitorThresholdMs(monitorId: Int, ms: Int?) {
+        viewModelScope.launch {
+            val url = store.activeUrl.first() ?: return@launch
+            alertStore.setThresholdFor(ResponseAlertUtil.monitorKey(url, monitorId), ms)
+        }
     }
 
     fun setLockEnabled(enabled: Boolean) {

@@ -1,13 +1,9 @@
 package dev.astoris.ursa.core.work
 
 import android.Manifest
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -45,13 +41,12 @@ class ResponseAlertWorker(context: Context, params: WorkerParameters) :
         ) {
             return Result.success()
         }
-        ensureChannel(applicationContext)
+        ResponseAlertNotifier.ensureChannel(applicationContext)
 
         val connections = ConnectionStore(applicationContext).connections.first()
         val globalThreshold = store.globalThresholdMs()
         val perMonitor = store.perMonitorThresholds()
         val lastAlerted = store.lastAlerted()
-        val manager = NotificationManagerCompat.from(applicationContext)
         val now = System.currentTimeMillis()
 
         for (conn in connections) {
@@ -82,7 +77,7 @@ class ResponseAlertWorker(context: Context, params: WorkerParameters) :
                         continue
                     }
                     val name = names[monitorId]?.name ?: "Monitor $monitorId"
-                    manager.notify(key.hashCode(), buildNotification(name, latest.ping ?: 0, threshold))
+                    ResponseAlertNotifier.notify(applicationContext, name, latest.ping ?: 0, threshold, key)
                     store.markAlerted(key, now)
                 }
             } catch (_: Exception) {
@@ -94,34 +89,9 @@ class ResponseAlertWorker(context: Context, params: WorkerParameters) :
         return Result.success()
     }
 
-    private fun buildNotification(name: String, pingMs: Int, thresholdMs: Int): Notification {
-        val text = "$name responded in ${pingMs}ms (limit ${thresholdMs}ms)."
-        return Notification.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
-            .setContentTitle("Slow response")
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
-            .setAutoCancel(true)
-            .build()
-    }
-
     companion object {
-        const val CHANNEL_ID = "ursa_slow_response"
         private const val WORK_NAME = "response_alert_check"
         private const val SETTLE_TIMEOUT_MS = 15_000L
-
-        private fun ensureChannel(context: Context) {
-            val mgr = context.getSystemService(NotificationManager::class.java)
-            if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
-                mgr.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID,
-                        "Slow response",
-                        NotificationManager.IMPORTANCE_DEFAULT,
-                    ).apply { description = "Alerts when a monitor is up but responding slowly" },
-                )
-            }
-        }
 
         /** Schedule the periodic check once (kept if already scheduled). */
         fun schedule(context: Context) {

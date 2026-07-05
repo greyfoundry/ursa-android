@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -80,6 +81,10 @@ class MonitorRepository(
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = activeClient
         .flatMapLatest { client -> client?.beatHistory ?: flowOf(emptyMap()) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** Live heartbeats from the active server, for real-time slow-response checks. */
+    val heartbeats: Flow<Heartbeat> = activeClient
+        .flatMapLatest { client -> client?.heartbeats ?: emptyFlow() }
 
     init {
         // Persist every live update as the new snapshot for the active server, and

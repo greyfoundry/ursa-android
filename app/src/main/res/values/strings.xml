@@ -58,6 +58,8 @@
     <string name="settings_slow_alert">Slow-response alerts</string>
     <string name="settings_slow_alert_desc">Notify when a monitor is up but responding slower than the limit below. Checked periodically in the background.</string>
     <string name="settings_slow_threshold">Response time limit (ms)</string>
+    <string name="detail_slow_override">Slow-response limit for this monitor (ms)</string>
+    <string name="detail_slow_override_desc">Leave blank to use the global limit.</string>
 
     <!-- App lock -->
     <string name="lock_title">URSA is locked</string>
