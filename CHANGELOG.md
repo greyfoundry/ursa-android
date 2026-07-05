@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/AstorisTheBrave/ursa-android/compare/v1.1.1...v1.1.2) (2026-07-05)
+
+
+### Bug Fixes
+
+* **build:** literal versionName/versionCode so F-Droid checkupdates can parse them ([e793b2e](https://github.com/AstorisTheBrave/ursa-android/commit/e793b2ee936eae84a3d828f3100efa4b94ff481f))
+
 ## [1.1.1](https://github.com/AstorisTheBrave/ursa-android/compare/v1.1.0...v1.1.1) (2026-07-05)
 
 
