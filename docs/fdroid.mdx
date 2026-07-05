@@ -1,0 +1,42 @@
+---
+last-updated: 2026-07-05
+owner: astoris
+status: ready-to-submit
+---
+
+# Publishing URSA on F-Droid
+
+URSA is F-Droid ready: every dependency is FOSS (androidx, Ktor, socket.io-client,
+UnifiedPush connector, Tink), there is no Firebase or Google Play Services, and it
+builds from source with a plain Gradle target. This note is the checklist for getting
+it listed.
+
+## What is already in the repo
+
+- **Fastlane metadata** at `fastlane/metadata/android/en-US/` (title, short and full
+  description, `changelogs/<versionCode>.txt`, and images: icon, feature graphic,
+  phone screenshots). F-Droid reads these directly for the listing.
+- **A prepared metadata file** at `fdroid/dev.astoris.ursa.yml` for the fdroiddata
+  submission.
+
+## Submitting (one-time)
+
+1. Fork https://gitlab.com/fdroid/fdroiddata.
+2. Copy `fdroid/dev.astoris.ursa.yml` to `metadata/dev.astoris.ursa.yml` in the fork.
+3. Optionally test the build locally with `fdroid build -v -l dev.astoris.ursa`
+   (requires the F-Droid `fdroidserver` tools).
+4. Open a merge request against fdroiddata. The F-Droid team reviews, then their
+   buildserver compiles from the tagged source and signs with the F-Droid key.
+
+## Per-release upkeep
+
+`AutoUpdateMode: Version` plus `UpdateCheckMode: Tags ^v[0-9]` means F-Droid picks up
+future `vX.Y.Z` tags automatically and adds a build entry. Just keep tagging releases
+(release-please already does) and adding a `changelogs/<versionCode>.txt` for each.
+
+## Notes
+
+- The 1.0.0 tag is `ursa-android-v1.0.0`; later tags are the cleaner `vX.Y.Z`, which
+  the update-check regex matches.
+- F-Droid signs its own builds, so the release keystore and CI signing secrets are
+  only for the GitHub Release APK, not for F-Droid.

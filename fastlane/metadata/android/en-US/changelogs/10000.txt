@@ -1,0 +1,8 @@
+First release.
+
+* Connect to one or more Uptime Kuma servers with username/password and two-factor.
+* Live monitor list, monitor detail with heartbeat history and TLS certificate info.
+* Pause/resume monitors and view public status pages.
+* UnifiedPush notifications (no Firebase, no relay server).
+* Encrypted-at-rest credentials, biometric app lock, offline last-known view.
+* Home-screen widget, Quick Settings tile, app shortcuts, notification actions.

@@ -1,0 +1,30 @@
+# F-Droid metadata for submission to https://gitlab.com/fdroid/fdroiddata
+# Copy this to metadata/dev.astoris.ursa.yml in an fdroiddata fork and open a merge
+# request. F-Droid builds from source on its own buildserver and signs with its own
+# key, so no keystore is needed here.
+Categories:
+  - Internet
+  - System
+License: MIT
+AuthorName: astoris
+SourceCode: https://github.com/AstorisTheBrave/ursa-android
+IssueTracker: https://github.com/AstorisTheBrave/ursa-android/issues
+Changelog: https://github.com/AstorisTheBrave/ursa-android/blob/main/CHANGELOG.md
+
+RepoType: git
+Repo: https://github.com/AstorisTheBrave/ursa-android.git
+
+Builds:
+  - versionName: 1.0.0
+    versionCode: 10000
+    commit: ursa-android-v1.0.0
+    subdir: app
+    gradle:
+      - yes
+
+# New releases are tagged vX.Y.Z (the 1.0.0 tag predates that scheme); pick them up
+# automatically and bump the build entry.
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9]
+CurrentVersion: 1.0.0
+CurrentVersionCode: 10000
