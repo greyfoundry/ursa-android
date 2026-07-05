@@ -13,7 +13,7 @@ android {
         applicationId = "dev.astoris.ursa"
         minSdk = 26
         targetSdk = 36
-        val appVersion = "0.1.0" // x-release-please-version
+        val appVersion = "1.0.0" // x-release-please-version
         versionName = appVersion
         // Derive an ever-increasing integer versionCode from the semver name.
         val (maj, min, pat) = appVersion.split(".", "-").take(3)
