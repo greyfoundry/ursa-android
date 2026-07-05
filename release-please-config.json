@@ -6,7 +6,6 @@
       "package-name": "ursa-android",
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
-      "release-as": "1.0.0",
       "extra-files": [
         {
           "type": "generic",
