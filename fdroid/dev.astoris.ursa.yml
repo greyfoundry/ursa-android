@@ -1,7 +1,6 @@
-# F-Droid metadata for submission to https://gitlab.com/fdroid/fdroiddata
-# Copy this to metadata/dev.astoris.ursa.yml in an fdroiddata fork and open a merge
-# request. F-Droid builds from source on its own buildserver and signs with its own
-# key, so no keystore is needed here.
+# Submitted to F-Droid as fdroiddata MR !42166 (reproducible build: F-Droid verifies
+# its build against the released APK and signs with the upstream key). AutoUpdateMode
+# picks up future vX.Y.Z tags automatically. This file mirrors the submitted metadata.
 Categories:
   - Internet
   - System
@@ -11,20 +10,24 @@ SourceCode: https://github.com/AstorisTheBrave/ursa-android
 IssueTracker: https://github.com/AstorisTheBrave/ursa-android/issues
 Changelog: https://github.com/AstorisTheBrave/ursa-android/blob/main/CHANGELOG.md
 
+AutoName: URSA
+
 RepoType: git
 Repo: https://github.com/AstorisTheBrave/ursa-android.git
+Binaries:
+  https://github.com/AstorisTheBrave/ursa-android/releases/download/v%v/ursa-v%v.apk
 
 Builds:
-  - versionName: 1.1.1
-    versionCode: 10101
-    commit: 5d3cc8cbcf5c6bac2725e6a98378541d369372b4
+  - versionName: 1.1.3
+    versionCode: 10103
+    commit: 27c7cbe26e2b429523f1401b6212453ed943b1a1
     subdir: app
     gradle:
       - yes
 
-# Use the full commit hash (not a tag/branch) in each build entry, per F-Droid policy.
-# Releases are tagged vX.Y.Z; auto update picks up new tags and bumps the build entry.
+AllowedAPKSigningKeys: 1f359fb27aa92453412527921b16d59e45505bf6f7bb83bc3c2c5edf05315cd2
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]
-CurrentVersion: 1.1.1
-CurrentVersionCode: 10101
+CurrentVersion: 1.1.3
+CurrentVersionCode: 10103
