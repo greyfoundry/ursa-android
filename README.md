@@ -35,15 +35,21 @@ whenever you pull your phone out.
 
 ## ✨ What you get
 
-- 📡 **Live status at a glance** - every monitor, up or down, updating in real time as
-  Kuma pings them. No pull-to-refresh, no stale numbers.
-- 📈 **Heartbeat history and uptime** - tap a monitor for its recent beats, response
-  time, and uptime percentage, right where you'd expect it.
+- 📡 **Live status at a glance** - every monitor, up or down, with a response-time
+  sparkline and service favicon, updating in real time as Kuma pings them. Search and
+  filter when the list gets long. No pull-to-refresh, no stale numbers.
+- 📈 **Heartbeat history and uptime** - tap a monitor for its recent beats (over 6h,
+  24h, 7d, or 30d), response time, and uptime percentage.
+- 🐢 **Slow-response alerts** - get notified when a monitor is up but responding slower
+  than a limit you set, globally or per monitor. Kuma can't do this; your phone can.
 - 🔒 **TLS certificate details** - see which certs are healthy and which are about to
   expire, with local reminders before they do.
-- 🔔 **Push notifications, your way** - get alerted the instant something goes down,
-  routed through [UnifiedPush](https://unifiedpush.org) (e.g. ntfy). No Firebase, no
-  Google Play Services, no relay server to run or pay for.
+- 🔔 **Push notifications, your way** - get alerted the instant something goes down (and
+  told how long it was down when it recovers), routed through
+  [UnifiedPush](https://unifiedpush.org) (e.g. ntfy). No Firebase, no Google Play
+  Services, no relay server to run or pay for.
+- ⌚ **Wear OS tile** - an at-a-glance "all clear / N down" tile on your watch, and your
+  alerts (with Pause/Resume) show up on your wrist. Fully FOSS, no Google services.
 - 🖥️ **All your servers, one app** - connect multiple Uptime Kuma instances and switch
   between them.
 - ⏯️ **Pause and resume** - silence a monitor during maintenance without opening a
@@ -58,7 +64,8 @@ whenever you pull your phone out.
   shortcuts, biometric app lock, an offline last-known view, and notification actions.
   Things the web dashboard simply can't do.
 - 🎨 **Light and dark, Kuma's colors** - it uses Uptime Kuma's own palette and status
-  conventions, so it feels like part of the family from the first launch.
+  conventions by default, with optional Material You if you'd rather match your
+  wallpaper.
 
 ## 📥 Get it
 
@@ -71,6 +78,10 @@ New to the app? The [Getting Started guide](https://github.com/AstorisTheBrave/u
 walks you through your first connection, and
 [Push Notifications](https://github.com/AstorisTheBrave/ursa-android/wiki/Push-Notifications)
 covers getting alerts on your phone.
+
+**Got a Wear OS watch?** There's a separate `ursa-wear-*.apk` on the Releases page for
+the status tile - see [Wear OS](https://github.com/AstorisTheBrave/ursa-android/wiki/Wear-OS)
+for how to sideload it.
 
 > An F-Droid listing is on the way.
 
@@ -116,11 +127,13 @@ dive lives in the wiki:
 - [Architecture](https://github.com/AstorisTheBrave/ursa-android/wiki/Architecture)
 - [Network and Protocol](https://github.com/AstorisTheBrave/ursa-android/wiki/Network-and-Protocol)
 - [Push Internals](https://github.com/AstorisTheBrave/ursa-android/wiki/Push-Internals)
+- [Wear OS](https://github.com/AstorisTheBrave/ursa-android/wiki/Wear-OS)
 - [Security](https://github.com/AstorisTheBrave/ursa-android/wiki/Security)
 
-In short: Kotlin + Jetpack Compose, Socket.IO for the live link, encrypted-at-rest
-credentials, no third-party services. Releases are automated and every build ships
-signed, with an SBOM and a provenance attestation attached.
+In short: Kotlin + Jetpack Compose (with a separate `:wear` module for the watch tile),
+Socket.IO for the live link, encrypted-at-rest credentials, no third-party services.
+Releases are automated and every build ships signed, with an SBOM and a provenance
+attestation attached.
 
 ## 📜 License
 
