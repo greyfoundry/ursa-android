@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/AstorisTheBrave/ursa-android/compare/v1.1.0...v1.1.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* **build:** omit AGP dependency-metadata signing block for F-Droid ([a75ff71](https://github.com/AstorisTheBrave/ursa-android/commit/a75ff719a85d0ab7638645883556146a6457fde6))
+
 ## [1.1.0](https://github.com/AstorisTheBrave/ursa-android/compare/v1.0.0...v1.1.0) (2026-07-05)
 
 
