@@ -12,6 +12,9 @@ pocket.** URSA is a native Android app that keeps every self-hosted monitor a gl
 away - real-time up/down status, heartbeat history, and push notifications that never
 touch Google or a paid relay.
 
+**Free, and always free.** URSA is open source (MIT) with no paywalls, no premium tier,
+no ads, and no tracking - now and forever. If it works for your Kuma setup, it's yours.
+
 <p>
   <img src="docs/assets/screenshots/02-monitors-dark.png" width="220" alt="Monitor list" />
   <img src="docs/assets/screenshots/03-detail-dark.png" width="220" alt="Monitor detail with heartbeat and TLS certificate" />
@@ -103,8 +106,9 @@ tunnel, it's all the same standard HTTPS + WebSocket underneath.
 
 ## ❤️ Support URSA
 
-URSA is free and open source, built in spare time for the self-hosting community. If it
-saves you a few browser refreshes, here's how you can help:
+URSA is free and open source - and always will be - built in spare time for the
+self-hosting community. There's no paid version to upsell you; if it saves you a few
+browser refreshes, here's how you can help:
 
 - ⭐ **Star the repo** - it genuinely helps others find the app.
 - 🐛 **Report bugs and ideas** in [Issues](https://github.com/AstorisTheBrave/ursa-android/issues),
