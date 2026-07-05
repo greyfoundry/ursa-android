@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">URSA</string>
+    <string name="config_prompt">Kuma status-page URL</string>
+    <string name="config_hint">https://kuma.example.com/status/home</string>
+    <string name="config_save">Save</string>
+    <string name="config_saved">Saved</string>
+</resources>

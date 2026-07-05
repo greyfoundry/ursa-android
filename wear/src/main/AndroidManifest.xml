@@ -19,6 +19,16 @@
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
 
+        <activity
+            android:name=".WearConfigActivity"
+            android:exported="true"
+            android:label="URSA">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".StatusTileService"
             android:exported="true"
