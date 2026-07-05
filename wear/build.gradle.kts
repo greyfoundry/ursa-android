@@ -13,11 +13,10 @@ android {
         // Wear OS 3+ (the modern Tiles API baseline).
         minSdk = 30
         targetSdk = 36
-        val appVersion = "1.0.0" // x-release-please-version
-        versionName = appVersion
-        val (maj, min, pat) = appVersion.split(".", "-").take(3)
-            .map { it.filter(Char::isDigit).ifEmpty { "0" }.toInt() }
-        versionCode = maj * 10000 + min * 100 + pat
+        // Literal, matching the app module. The watch app is sideloaded, not on
+        // F-Droid, so its versionCode is bumped by hand alongside the app.
+        versionCode = 10101
+        versionName = "1.1.1"
     }
 
     // Release signing mirrors the app module: the keystore from CI secrets when present,

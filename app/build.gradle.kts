@@ -13,12 +13,12 @@ android {
         applicationId = "dev.astoris.ursa"
         minSdk = 26
         targetSdk = 36
-        val appVersion = "1.1.1" // x-release-please-version
-        versionName = appVersion
-        // Derive an ever-increasing integer versionCode from the semver name.
-        val (maj, min, pat) = appVersion.split(".", "-").take(3)
-            .map { it.filter(Char::isDigit).ifEmpty { "0" }.toInt() }
-        versionCode = maj * 10000 + min * 100 + pat
+        // Literal versionName/versionCode so F-Droid's parser can read them for
+        // auto-update (it cannot evaluate variables or arithmetic). release-please
+        // updates versionName via the marker; bump versionCode per release by hand
+        // (major*10000 + minor*100 + patch).
+        versionCode = 10101
+        versionName = "1.1.1" // x-release-please-version
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise
