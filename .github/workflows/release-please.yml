@@ -36,7 +36,7 @@ jobs:
     env:
       TAG: ${{ needs.release-please.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -45,7 +45,7 @@ jobs:
           java-version: "21"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Decode release keystore
         id: keystore
@@ -84,7 +84,7 @@ jobs:
           output-file: ursa-${{ env.TAG }}-sbom.cdx.json
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             ${{ steps.apk.outputs.path }}
