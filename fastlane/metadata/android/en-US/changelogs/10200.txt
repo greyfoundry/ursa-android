@@ -1,0 +1,5 @@
+URSA 1.2.0 improves daily monitor triage.
+
+* Restored service favicons and a clear outage-attention banner.
+* Added favourites, attention-first sorting, groups, and monitor incident history.
+* Improved offline cache handling and hardened release automation.

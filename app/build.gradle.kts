@@ -17,7 +17,7 @@ android {
         // auto-update (it cannot evaluate variables or arithmetic). release-please
         // updates versionName via the marker; bump versionCode per release by hand
         // (major*10000 + minor*100 + patch).
-        versionCode = 10103
+        versionCode = 10200
         versionName = "1.2.0" // x-release-please-version
     }
 
