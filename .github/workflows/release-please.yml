@@ -35,6 +35,7 @@ jobs:
       attestations: write
     env:
       TAG: ${{ needs.release-please.outputs.tag_name }}
+      SBOM_FILE: ursa-${{ needs.release-please.outputs.tag_name }}-sbom.cdx.json
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -83,7 +84,7 @@ jobs:
         with:
           file: ${{ steps.apk.outputs.path }}
           format: cyclonedx-json
-          output-file: ursa-${{ env.TAG }}-sbom.cdx.json
+          output-file: ${{ env.SBOM_FILE }}
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
@@ -93,15 +94,20 @@ jobs:
             ${{ steps.apk.outputs.wear }}
 
       - name: Checksums
-        run: sha256sum "${{ steps.apk.outputs.path }}" "${{ steps.apk.outputs.wear }}" "ursa-${TAG}-sbom.cdx.json" > SHA256SUMS.txt
+        env:
+          PHONE_APK: ${{ steps.apk.outputs.path }}
+          WEAR_APK: ${{ steps.apk.outputs.wear }}
+        run: sha256sum "$PHONE_APK" "$WEAR_APK" "$SBOM_FILE" > SHA256SUMS.txt
 
       - name: Upload assets to the release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PHONE_APK: ${{ steps.apk.outputs.path }}
+          WEAR_APK: ${{ steps.apk.outputs.wear }}
         run: |
           gh release upload "$TAG" \
-            "${{ steps.apk.outputs.path }}" \
-            "${{ steps.apk.outputs.wear }}" \
-            "ursa-${TAG}-sbom.cdx.json" \
+            "$PHONE_APK" \
+            "$WEAR_APK" \
+            "$SBOM_FILE" \
             SHA256SUMS.txt \
             --clobber
