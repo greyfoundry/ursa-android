@@ -16,6 +16,12 @@
     <string name="action_back">Back</string>
     <string name="action_pause">Pause</string>
     <string name="action_resume">Resume</string>
+    <string name="action_pausing">Pausing…</string>
+    <string name="action_resuming">Resuming…</string>
+    <string name="monitor_paused">Monitoring paused</string>
+    <string name="monitor_pause_failed">Couldn’t pause monitoring</string>
+    <string name="monitor_resumed">Monitoring resumed</string>
+    <string name="monitor_resume_failed">Couldn’t resume monitoring</string>
 
     <!-- Monitor status -->
     <string name="status_up">Up</string>
@@ -33,10 +39,15 @@
     <string name="cache_banner">Showing last-known data</string>
     <string name="monitors_empty">No monitors yet</string>
     <string name="monitors_none_match">No monitors match</string>
+    <plurals name="monitors_need_attention">
+        <item quantity="one">%d monitor needs attention</item>
+        <item quantity="other">%d monitors need attention</item>
+    </plurals>
     <string name="search_hint">Search monitors</string>
     <string name="action_search">Search</string>
     <string name="action_filter">Filter</string>
     <string name="filter_all">All</string>
+    <string name="filter_tags">Tags</string>
 
     <!-- Login -->
     <string name="login_subtitle">Connect to an Uptime Kuma server</string>

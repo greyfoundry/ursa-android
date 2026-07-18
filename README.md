@@ -89,7 +89,7 @@ for how to sideload it.
 **Prefer auto-updates?** Add the repo to [Obtainium](https://github.com/ImranR98/Obtainium)
 to track releases and update URSA automatically, no store required.
 
-> An F-Droid listing is on the way.
+**Prefer F-Droid?** [Install URSA from F-Droid](https://f-droid.org/packages/dev.astoris.ursa/).
 
 ## ✅ Works with your setup
 

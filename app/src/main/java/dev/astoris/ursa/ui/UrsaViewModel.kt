@@ -174,8 +174,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun switchTo(conn: ServerConnection) = viewModelScope.launch { repo.switchTo(conn) }
-    fun pause(id: Int) = viewModelScope.launch { repo.pause(id) }
-    fun resume(id: Int) = viewModelScope.launch { repo.resume(id) }
+    fun pause(id: Int, onResult: (Boolean) -> Unit = {}) = viewModelScope.launch {
+        onResult(repo.pause(id))
+    }
+
+    fun resume(id: Int, onResult: (Boolean) -> Unit = {}) = viewModelScope.launch {
+        onResult(repo.resume(id))
+    }
 
     fun select(id: Int) {
         _selectedId.value = id

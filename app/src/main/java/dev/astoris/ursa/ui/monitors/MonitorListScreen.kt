@@ -21,8 +21,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -30,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,17 +74,23 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var searchActive by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf<MonitorStatus?>(null) }
+    var tagFilter by remember { mutableStateOf<String?>(null) }
     var filterOpen by remember { mutableStateOf(false) }
 
-    val shown = monitors.filter { m ->
-        (query.isBlank() || m.name.contains(query, ignoreCase = true)) &&
-            (statusFilter == null || m.status == statusFilter)
-    }
+    val downCount = monitors.count { it.status == MonitorStatus.DOWN }
+    val availableTags = monitors.flatMap { it.tags }.distinct().sorted()
+    val shown = monitors
+        .filter { m ->
+                (query.isBlank() || m.name.contains(query, ignoreCase = true)) &&
+                (statusFilter == null || m.status == statusFilter) &&
+                (tagFilter?.let { it in m.tags } ?: true)
+        }
+        .sortedBy { it.status.attentionPriority }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = {
                     if (searchActive) {
                         TextField(
@@ -122,13 +132,13 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_filter),
                                 contentDescription = stringResource(R.string.action_filter),
-                                tint = if (statusFilter != null) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                                tint = if (statusFilter != null || tagFilter != null) MaterialTheme.colorScheme.primary else LocalContentColor.current,
                             )
                         }
                         DropdownMenu(expanded = filterOpen, onDismissRequest = { filterOpen = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.filter_all)) },
-                                onClick = { statusFilter = null; filterOpen = false },
+                                onClick = { statusFilter = null; tagFilter = null; filterOpen = false },
                             )
                             listOf(
                                 MonitorStatus.UP, MonitorStatus.DOWN,
@@ -138,6 +148,23 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     text = { Text(stringResource(StatusUi.labelRes(s))) },
                                     onClick = { statusFilter = s; filterOpen = false },
                                 )
+                            }
+                            if (availableTags.isNotEmpty()) {
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.filter_tags)) },
+                                    onClick = {},
+                                    enabled = false,
+                                )
+                                availableTags.forEach { tag ->
+                                    DropdownMenuItem(
+                                        text = { Text(tag) },
+                                        onClick = {
+                                            tagFilter = if (tagFilter == tag) null else tag
+                                            filterOpen = false
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
@@ -168,6 +195,26 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
+            if (downCount > 0) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        StatusPill(MonitorStatus.DOWN)
+                        Text(
+                            text = pluralStringResource(R.plurals.monitors_need_attention, downCount, downCount),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                }
+            }
             if (monitors.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -194,6 +241,14 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         }
     }
 }
+
+private val MonitorStatus.attentionPriority: Int
+    get() = when (this) {
+        MonitorStatus.DOWN -> 0
+        MonitorStatus.PENDING -> 1
+        MonitorStatus.MAINTENANCE -> 2
+        MonitorStatus.UP -> 3
+    }
 
 /** Service favicon when one is reachable (#443), else the tinted status circle. Status
  *  is still conveyed by the pill on the right. */
@@ -235,6 +290,15 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (monitor.tags.isNotEmpty()) {
+                    Text(
+                        text = monitor.tags.take(2).joinToString(separator = "  •  "),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Column(
                 horizontalAlignment = Alignment.End,
@@ -247,6 +311,13 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
                         color = StatusUi.color(monitor.status),
                         modifier = Modifier.width(64.dp).height(18.dp),
                     )
+                    monitor.ping?.let {
+                        Text(
+                            "${it}ms",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     monitor.uptime24h?.let {
                         Text(
                             "${(it * 100).toInt()}%",

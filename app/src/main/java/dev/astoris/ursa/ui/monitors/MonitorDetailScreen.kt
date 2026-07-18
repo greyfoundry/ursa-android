@@ -24,6 +24,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -31,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
@@ -45,6 +48,7 @@ import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,12 +59,20 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
     val beatRange by vm.beatRange.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     var overrideText by remember(monitor.id) { mutableStateOf("") }
+    var actionInFlight by remember(monitor.id) { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val pausedMessage = stringResource(R.string.monitor_paused)
+    val pauseFailedMessage = stringResource(R.string.monitor_pause_failed)
+    val resumedMessage = stringResource(R.string.monitor_resumed)
+    val resumeFailedMessage = stringResource(R.string.monitor_resume_failed)
     LaunchedEffect(monitor.id) { overrideText = vm.monitorThresholdMs(monitor.id)?.toString() ?: "" }
 
     BackHandler { vm.back() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(monitor.name) },
@@ -106,8 +118,41 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
                 cert.subject?.let { Text(stringResource(R.string.detail_subject, it), style = MaterialTheme.typography.bodySmall) }
             }
 
-            if (monitor.active) Button(onClick = { vm.pause(monitor.id) }) { Text(stringResource(R.string.action_pause)) }
-            else Button(onClick = { vm.resume(monitor.id) }) { Text(stringResource(R.string.action_resume)) }
+            if (monitor.active) {
+                Button(
+                    enabled = !actionInFlight,
+                    onClick = {
+                        actionInFlight = true
+                        vm.pause(monitor.id) { succeeded ->
+                            actionInFlight = false
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (succeeded) pausedMessage else pauseFailedMessage,
+                                )
+                            }
+                        }
+                    },
+                ) {
+                    Text(stringResource(if (actionInFlight) R.string.action_pausing else R.string.action_pause))
+                }
+            } else {
+                Button(
+                    enabled = !actionInFlight,
+                    onClick = {
+                        actionInFlight = true
+                        vm.resume(monitor.id) { succeeded ->
+                            actionInFlight = false
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (succeeded) resumedMessage else resumeFailedMessage,
+                                )
+                            }
+                        }
+                    },
+                ) {
+                    Text(stringResource(if (actionInFlight) R.string.action_resuming else R.string.action_resume))
+                }
+            }
 
             if (slowAlertEnabled) {
                 OutlinedTextField(
