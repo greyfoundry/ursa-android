@@ -86,8 +86,9 @@ covers getting alerts on your phone.
 the status tile - see [Wear OS](https://github.com/AstorisTheBrave/ursa-android/wiki/Wear-OS)
 for how to sideload it.
 
-**Prefer auto-updates?** Add the repo to [Obtainium](https://github.com/ImranR98/Obtainium)
-to track releases and update URSA automatically, no store required.
+**Prefer auto-updates?** In [Obtainium](https://github.com/ImranR98/Obtainium), add
+[URSA's GitHub source](https://github.com/AstorisTheBrave/ursa-android). It tracks the
+versioned release tags and updates URSA automatically, no store required.
 
 **Prefer F-Droid?** [Install URSA from F-Droid](https://f-droid.org/packages/dev.astoris.ursa/).
 
