@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-05
+last-updated: 2026-07-18
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,18 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-07-18 - lint cleanup
+
+**changed**: Reduced lint from 24 warnings to 9 without suppressing security or
+platform-compatibility checks. SharedPreferences calls now use Core KTX, URI parsing
+uses Core KTX, dead strings were removed, and the notification permission is guarded
+before its API-33-only value is read. Widget cell-size metadata now lives in an
+`xml-v31` override, retaining the sizing hint where Android supports it.
+
+**intentionally retained**: the opt-in self-signed-certificate warnings (tracked in
+`docs/security.mdx`), dependency/platform update notices, and the adaptive-icon
+resource qualifier that Android's packaging still requires.
 
 ### 2026-07-05 - post-1.0 feature batch, Wear OS module, 1.1.x releases, F-Droid submission
 

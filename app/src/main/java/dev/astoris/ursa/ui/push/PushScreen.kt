@@ -49,10 +49,11 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val endpoint by vm.pushEndpoint.collectAsStateWithLifecycle()
 
     // Notification permission (API 33+). Below 33 it is granted at install time.
-    fun notifGranted(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+    fun notifGranted(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
+    }
 
     var granted by remember { mutableStateOf(notifGranted()) }
     val permLauncher = rememberLauncherForActivityResult(

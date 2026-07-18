@@ -13,7 +13,6 @@
     <string name="nav_settings">Settings</string>
 
     <!-- Common -->
-    <string name="action_back">Back</string>
     <string name="action_pause">Pause</string>
     <string name="action_resume">Resume</string>
     <string name="action_pausing">Pausing…</string>
@@ -31,8 +30,6 @@
 
     <!-- Monitor list -->
     <string name="monitors_title">Monitors</string>
-    <string name="action_push">Push</string>
-    <string name="action_settings">Settings</string>
     <string name="action_sign_out">Sign out</string>
     <string name="connection_status">Connection: %1$s</string>
     <string name="cache_banner_updated">Showing last-known data, updated %1$s</string>
@@ -102,7 +99,6 @@
     <string name="statuspage_empty">No public monitors on this page</string>
 
     <!-- Push notifications screen -->
-    <string name="push_title">Push notifications</string>
     <string name="push_refresh">Refresh</string>
     <string name="push_intro">Get a notification the moment a monitor goes down, over UnifiedPush, with no relay server and no Google services.</string>
     <string name="push_section_allow">1. Allow notifications</string>

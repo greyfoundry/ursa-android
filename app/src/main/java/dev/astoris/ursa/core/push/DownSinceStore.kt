@@ -1,6 +1,7 @@
 package dev.astoris.ursa.core.push
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * Remembers when each monitor was last seen going down, so a later recovery
@@ -16,7 +17,7 @@ class DownSinceStore(context: Context) {
     /** Record the moment a monitor went down, keeping the earliest if already down. */
     fun markDown(monitorId: Int, atMillis: Long) {
         val key = key(monitorId)
-        if (!prefs.contains(key)) prefs.edit().putLong(key, atMillis).apply()
+        if (!prefs.contains(key)) prefs.edit { putLong(key, atMillis) }
     }
 
     /** Return and clear the down-since time, or null if we never saw it go down. */
@@ -24,7 +25,7 @@ class DownSinceStore(context: Context) {
         val key = key(monitorId)
         if (!prefs.contains(key)) return null
         val value = prefs.getLong(key, 0L)
-        prefs.edit().remove(key).apply()
+        prefs.edit { remove(key) }
         return value
     }
 

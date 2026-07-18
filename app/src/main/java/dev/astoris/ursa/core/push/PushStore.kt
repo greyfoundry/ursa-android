@@ -1,6 +1,7 @@
 package dev.astoris.ursa.core.push
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,18 +37,18 @@ object PushStore {
     }
 
     fun setEndpoint(context: Context, url: String?) {
-        prefs(context).edit().putString(KEY_ENDPOINT, url).apply()
+        prefs(context).edit { putString(KEY_ENDPOINT, url) }
         _endpoint.value = url
     }
 
     fun setDistributor(context: Context, distributor: String?) {
-        prefs(context).edit().putString(KEY_DISTRIBUTOR, distributor).apply()
+        prefs(context).edit { putString(KEY_DISTRIBUTOR, distributor) }
         _distributor.value = distributor
     }
 
     /** Clear everything on unregister. */
     fun clear(context: Context) {
-        prefs(context).edit().clear().apply()
+        prefs(context).edit { clear() }
         _endpoint.value = null
         _distributor.value = null
     }
