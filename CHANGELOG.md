@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0](https://github.com/AstorisTheBrave/ursa-android/compare/v1.1.3...v1.2.0) (2026-07-18)
+
+
+### Features
+
+* add monitor overview and paused filter ([d3a1cee](https://github.com/AstorisTheBrave/ursa-android/commit/d3a1cee61d068fff9c3a2ea8ec39385d4a1ebb33))
+* elevate monitor triage ([98b514d](https://github.com/AstorisTheBrave/ursa-android/commit/98b514d1a1e4b826b7e9355d01b1ad476f467f3d))
+* organize monitor triage ([d41ccc8](https://github.com/AstorisTheBrave/ursa-android/commit/d41ccc859f6ddba70d9ed57abf3f812f42059876))
+* refine monitor reference layout ([ea20898](https://github.com/AstorisTheBrave/ursa-android/commit/ea208983c0603ae61811e973f238734e4325ba34))
+* restore monitor attention cues ([8441507](https://github.com/AstorisTheBrave/ursa-android/commit/84415076c80dc10d2403dc74c351e539b82aad5a))
+
+
+### Bug Fixes
+
+* clean up actionable lint warnings ([1625752](https://github.com/AstorisTheBrave/ursa-android/commit/1625752d84bf6108a788b4827b50ed01fc664805))
+* harden release workflow inputs ([5458475](https://github.com/AstorisTheBrave/ursa-android/commit/545847541564a3d6f945a86c7ac72ad7ad9522d2))
+
 ## [1.1.3](https://github.com/AstorisTheBrave/ursa-android/compare/v1.1.2...v1.1.3) (2026-07-05)
 
 
