@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -82,7 +83,9 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var filterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
     var showOverview by remember { mutableStateOf(false) }
+    var sortMode by remember { mutableStateOf(MonitorSort.ATTENTION) }
     val searchFocusRequester = remember { FocusRequester() }
+    val favorites by vm.favorites.collectAsStateWithLifecycle()
 
     val activeMonitors = monitors.filter { it.active }
     val downCount = activeMonitors.count { it.status == MonitorStatus.DOWN }
@@ -101,7 +104,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     MonitorActivityFilter.ALL -> true
                 }
         }
-        .sortedBy { it.status.attentionPriority }
+        .sortedWith(sortMode.comparator(favorites))
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -233,6 +236,19 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     )
                                 },
                                 onClick = { showOverview = !showOverview; moreOpen = false },
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_sort_attention)) },
+                                onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_sort_favorites)) },
+                                onClick = { sortMode = MonitorSort.FAVORITES; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_sort_name)) },
+                                onClick = { sortMode = MonitorSort.NAME; moreOpen = false },
                             )
                         }
                     }
@@ -372,6 +388,22 @@ private fun MonitorFilterMenu(
 
 private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
 
+private enum class MonitorSort {
+    ATTENTION,
+    FAVORITES,
+    NAME;
+
+    fun comparator(favorites: Set<Int>): Comparator<Monitor> = when (this) {
+        ATTENTION -> compareBy<Monitor> { it.status.attentionPriority }
+            .thenBy { if (it.id in favorites) 0 else 1 }
+            .thenBy { it.name.lowercase() }
+        FAVORITES -> compareBy<Monitor> { if (it.id in favorites) 0 else 1 }
+            .thenBy { it.status.attentionPriority }
+            .thenBy { it.name.lowercase() }
+        NAME -> compareBy { it.name.lowercase() }
+    }
+}
+
 @Composable
 private fun MonitorOverview(
     upCount: Int,
@@ -472,7 +504,8 @@ private val MonitorStatus.attentionPriority: Int
 @Composable
 private fun MonitorLeadingIcon(monitor: Monitor) {
     var favicon by remember(monitor.url) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(monitor.url) { favicon = monitor.url?.let { FaviconCache.get(it) } }
+    val context = LocalContext.current.applicationContext
+    LaunchedEffect(monitor.url) { favicon = monitor.url?.let { FaviconCache.get(context, it) } }
     val icon = favicon
     if (icon != null) {
         Image(

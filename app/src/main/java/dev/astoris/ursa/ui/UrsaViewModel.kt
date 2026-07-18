@@ -12,6 +12,7 @@ import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.DynamicColorStore
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
+import dev.astoris.ursa.core.storage.MonitorPreferenceStore
 import dev.astoris.ursa.core.storage.ResponseAlertStore
 import dev.astoris.ursa.core.work.CertExpiryWorker
 import dev.astoris.ursa.core.work.ResponseAlertNotifier
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -56,6 +58,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = ConnectionStore(app)
     private val cacheStore = MonitorCacheStore(app)
+    private val monitorPreferenceStore = MonitorPreferenceStore(app)
     private val certExpiryStore = CertExpiryStore(app)
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
 
@@ -63,6 +66,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<ConnectionState> = repo.state
     val lastUpdated: StateFlow<Long?> = repo.lastUpdated
     val showingCache: StateFlow<Boolean> = repo.showingCache
+    private val _favorites = MutableStateFlow<Set<Int>>(emptySet())
+    val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
     val connections: StateFlow<List<ServerConnection>> =
         repo.connections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -159,6 +164,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 repo.switchTo(conn)
             }
         }
+        viewModelScope.launch {
+            repo.activeUrl.collectLatest { url ->
+                if (url == null) {
+                    _favorites.value = emptySet()
+                } else {
+                    monitorPreferenceStore.favorites(url).collect { _favorites.value = it }
+                }
+            }
+        }
     }
 
     fun login(url: String, username: String, password: String, token: String = "", insecure: Boolean = false) {
@@ -180,6 +194,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resume(id: Int, onResult: (Boolean) -> Unit = {}) = viewModelScope.launch {
         onResult(repo.resume(id))
+    }
+
+    fun toggleFavorite(id: Int) {
+        viewModelScope.launch {
+            val url = repo.activeUrl.first() ?: return@launch
+            monitorPreferenceStore.toggleFavorite(url, id)
+        }
     }
 
     fun select(id: Int) {

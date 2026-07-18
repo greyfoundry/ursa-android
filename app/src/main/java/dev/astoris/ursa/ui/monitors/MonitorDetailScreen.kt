@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
@@ -58,6 +59,7 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
     val cert = certs[monitor.id]
     val beatRange by vm.beatRange.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
+    val favorites by vm.favorites.collectAsStateWithLifecycle()
     var overrideText by remember(monitor.id) { mutableStateOf("") }
     var actionInFlight by remember(monitor.id) { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -93,6 +95,19 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
                 monitor.uptime24h?.let { Text("${(it * 100).toInt()}% 24h", style = MaterialTheme.typography.bodyMedium) }
             }
 
+            FilterChip(
+                selected = monitor.id in favorites,
+                onClick = { vm.toggleFavorite(monitor.id) },
+                label = {
+                    Text(
+                        stringResource(
+                            if (monitor.id in favorites) R.string.action_remove_favorite
+                            else R.string.action_add_favorite,
+                        ),
+                    )
+                },
+            )
+
             monitor.url?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(stringResource(R.string.detail_type, monitor.type), style = MaterialTheme.typography.bodySmall)
 
@@ -107,6 +122,7 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
                 }
             }
             HeartbeatBar(beats)
+            IncidentTimeline(beats)
 
             if (cert != null) {
                 Text(stringResource(R.string.detail_tls_certificate), style = MaterialTheme.typography.titleSmall)
@@ -187,6 +203,45 @@ private fun HeartbeatBar(beats: List<Heartbeat>) {
                     .clip(RoundedCornerShape(2.dp))
                     .background(StatusUi.color(beat.status)),
             )
+        }
+    }
+}
+
+private data class IncidentEvent(val status: MonitorStatus, val time: String, val message: String?)
+
+@Composable
+private fun IncidentTimeline(beats: List<Heartbeat>) {
+    val events = beats.zipWithNext().mapNotNull { (previous, current) ->
+        when {
+            previous.status != MonitorStatus.DOWN && current.status == MonitorStatus.DOWN ->
+                IncidentEvent(current.status, current.time, current.msg)
+            previous.status == MonitorStatus.DOWN && current.status == MonitorStatus.UP ->
+                IncidentEvent(current.status, current.time, current.msg)
+            previous.status != current.status -> IncidentEvent(current.status, current.time, current.msg)
+            else -> null
+        }
+    }.takeLast(8).asReversed()
+
+    if (events.isEmpty()) return
+    Text(stringResource(R.string.detail_recent_incidents), style = MaterialTheme.typography.titleSmall)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        events.forEach { event ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatusPill(event.status)
+                Column {
+                    val label = when (event.status) {
+                        MonitorStatus.DOWN -> R.string.incident_down
+                        MonitorStatus.UP -> R.string.incident_recovered
+                        else -> R.string.incident_status_changed
+                    }
+                    Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        event.message?.takeIf { it.isNotBlank() } ?: event.time,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

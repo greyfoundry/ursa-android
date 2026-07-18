@@ -9,6 +9,23 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-18 - monitor organization and release hardening
+
+**changed**: Added per-server favorites, attention/favorite/name sorting, Kuma-tag
+groups in the existing monitor filter, and a monitor-detail incident timeline.
+Favicons now use bounded image responses, an LRU memory cache, and an encrypted,
+bounded disk cache. The dependency catalog now includes the current routine Gradle
+updates.
+
+**CI**: Public monitor screenshot assets are checked for Pixel dimensions and
+Fastlane parity. Workflow actions are pinned to immutable commits and verified in
+CI alongside the F-Droid metadata and release-APK checks.
+
+**verified**: Full unit-test, lint, and debug-build gate passed. Installed on the
+Pixel 8 emulator: offline monitor list retains the favicon and attention banner;
+favourite state survives navigation and favourites-first reorders the list without
+an application crash.
+
 ### 2026-07-18 - monitor signal and F-Droid validation
 
 **changed**: Restored service favicons on monitor cards and the always-visible

@@ -14,11 +14,14 @@ navigation library for M1 - the screen set is small and state-driven).
 
 **file paths**
 - `.../ui/UrsaViewModel.kt` - AndroidViewModel; owns `MonitorRepository` +
-  `StatusPageClient`; login flow, selection, status-page state, pause/resume.
+  `StatusPageClient`; login flow, selection, status-page state, pause/resume,
+  and per-server favourites.
 - `.../ui/UrsaApp.kt` - root; routes status-page / login / detail / list.
 - `.../ui/connections/LoginScreen.kt` - server URL + creds + conditional 2FA.
-- `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows.
-- `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, cert, pause/resume.
+- `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
+  and attention/favourite/name sorting.
+- `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, incident timeline,
+  favourite toggle, cert, pause/resume.
 - `.../ui/statuspage/StatusPageScreen.kt` - public page by URL+slug.
 - `.../ui/StatusUi.kt` - status -> Kuma color / label string-resource.
 - `.../ui/StatusPill.kt` - Kuma-style rounded status badge (colored pill, white text).
@@ -30,7 +33,8 @@ navigation library for M1 - the screen set is small and state-driven).
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
-  `login`, `statusPage`; actions `login`, `select`/`back`, `pause`/`resume`,
+  `favorites`, `login`, `statusPage`; actions `login`, `select`/`back`, `pause`/`resume`,
+  `toggleFavorite`,
   `enterStatusPage`/`loadStatusPage`/`exitStatusPage`.
 
 **depends on**

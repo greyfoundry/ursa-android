@@ -49,7 +49,12 @@
     <string name="filter_all">All</string>
     <string name="filter_active">Active</string>
     <string name="filter_paused">Paused</string>
-    <string name="filter_tags">Tags</string>
+    <string name="filter_tags">Groups</string>
+    <string name="action_add_favorite">Add to favorites</string>
+    <string name="action_remove_favorite">Remove from favorites</string>
+    <string name="action_sort_attention">Sort: attention first</string>
+    <string name="action_sort_favorites">Sort: favorites first</string>
+    <string name="action_sort_name">Sort: name</string>
     <string name="monitor_overview">Overview</string>
     <plurals name="monitor_paused_count">
         <item quantity="one">%d paused</item>
@@ -93,6 +98,10 @@
     <!-- Monitor detail -->
     <string name="detail_type">Type: %1$s</string>
     <string name="detail_recent_heartbeats">Recent heartbeats</string>
+    <string name="detail_recent_incidents">Recent incidents</string>
+    <string name="incident_down">Monitor down</string>
+    <string name="incident_recovered">Recovered</string>
+    <string name="incident_status_changed">Status changed</string>
     <string name="detail_no_history">No history yet</string>
     <string name="detail_tls_certificate">TLS certificate</string>
     <string name="cert_valid">Valid</string>

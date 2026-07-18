@@ -31,7 +31,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 
 | Category | Status | Where |
 |---|---|---|
-| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt` |
+| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `FaviconStore.kt` |
 | STORAGE-2 no data leakage | partial | `FLAG_SECURE` set; backup still on - see gaps |
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
@@ -62,6 +62,11 @@ manifest still sets `allowBackup=true`, so the encrypted blob is eligible for ba
 - it is useless without the Keystore key (which is not backed up), but
 `allowBackup=false` is cleaner.
 
+The optional favicon cache is also encrypted with the same Keystore-backed AEAD and
+lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small image
+responses from each monitor's own HTTP(S) origin, and falls back safely when an
+entry cannot be decrypted or decoded.
+
 **CRYPTO.** AES-256-GCM via Tink is current best practice; keys are generated and
 wrapped through the Keystore rather than derived from anything app-controlled. No
 home-rolled crypto anywhere.
@@ -91,8 +96,9 @@ is no exported push surface. The push body is treated as untrusted input: parsed
 tolerantly by `PushParse` and only rendered into a notification, never acted upon.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
-Dependencies are version-pinned in `gradle/libs.versions.toml`; automated CVE
-scanning is not yet wired. Untrusted server input is parsed in one tolerant,
+Dependencies are version-pinned in `gradle/libs.versions.toml`; release workflows
+also validate the Gradle dependency set and pin every GitHub Action to an immutable
+commit. Untrusted server input is parsed in one tolerant,
 unit-tested adapter (`KumaParse`) that isolates Kuma's wire quirks.
 
 **PRIVACY.** URSA collects nothing and phones no one home. The only network peers

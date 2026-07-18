@@ -1,31 +1,42 @@
 package dev.astoris.ursa.core.network
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.net.toUri
+import dev.astoris.ursa.core.storage.FaviconStore
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
+import io.ktor.http.ContentType
+import io.ktor.http.contentLength
+import io.ktor.http.contentType
+import java.util.Collections
+import java.util.LinkedHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Best-effort favicon fetcher for the monitor list (upstream #443). Icons are decorative
- * only, so this stays deliberately light: standard TLS (self-signed internal hosts just
- * fall back to the status circle), an in-memory cache, and a miss-set so a host without a
- * usable icon is not retried. Android's BitmapFactory cannot decode ICO, so PNG
- * candidates are tried first and the classic favicon.ico last.
+ * Best-effort favicon fetcher for monitor cards. Only small image responses are decoded,
+ * cache entries are bounded, and persisted bytes are encrypted at rest. Internal hosts
+ * with self-signed certificates fall back to the status circle rather than weakening TLS.
  */
 object FaviconCache {
 
-    private val hits = ConcurrentHashMap<String, ImageBitmap>()
-    private val misses = Collections.synchronizedSet(mutableSetOf<String>())
+    private const val MAX_RESPONSE_BYTES = 512 * 1024
+    private const val MAX_DECODE_DIMENSION = 2_048
+    private const val MAX_MEMORY_ENTRIES = 32
     private val candidates = listOf("/apple-touch-icon.png", "/favicon.png", "/favicon.ico")
+    private val misses = Collections.synchronizedSet(mutableSetOf<String>())
+    private val hits = object : LinkedHashMap<String, ImageBitmap>(MAX_MEMORY_ENTRIES, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?) =
+            size > MAX_MEMORY_ENTRIES
+    }
+
+    private var persistentStore: FaviconStore? = null
 
     private val client by lazy {
         HttpClient(OkHttp) {
@@ -35,24 +46,45 @@ object FaviconCache {
     }
 
     /** Favicon for the host of [monitorUrl], or null when none is usable. */
-    suspend fun get(monitorUrl: String): ImageBitmap? {
+    suspend fun get(context: Context, monitorUrl: String): ImageBitmap? {
         val origin = originOf(monitorUrl) ?: return null
-        hits[origin]?.let { return it }
+        synchronized(hits) { hits[origin] }?.let { return it }
         if (origin in misses) return null
+
         return withContext(Dispatchers.IO) {
+            val store = storeFor(context)
+            store.load(origin)?.let(::decodeSafely)?.also { cache(origin, it) }?.let { return@withContext it }
+
             for (path in candidates) {
-                val bitmap = runCatching {
-                    val bytes: ByteArray = client.get("$origin$path").body()
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                val result = runCatching {
+                    val response = client.get("$origin$path")
+                    if (response.contentLength()?.let { it > MAX_RESPONSE_BYTES } == true) return@runCatching null
+                    if (response.contentType()?.match(ContentType.Image.Any) != true) return@runCatching null
+                    val bytes: ByteArray = response.body()
+                    if (bytes.size > MAX_RESPONSE_BYTES) return@runCatching null
+                    decodeSafely(bytes)?.also { store.save(origin, bytes) }
                 }.getOrNull()
-                if (bitmap != null) {
-                    hits[origin] = bitmap
-                    return@withContext bitmap
+                if (result != null) {
+                    cache(origin, result)
+                    return@withContext result
                 }
             }
             misses.add(origin)
             null
         }
+    }
+
+    private fun cache(origin: String, icon: ImageBitmap) = synchronized(hits) { hits[origin] = icon }
+
+    private fun storeFor(context: Context): FaviconStore = synchronized(this) {
+        persistentStore ?: FaviconStore(context.applicationContext).also { persistentStore = it }
+    }
+
+    private fun decodeSafely(bytes: ByteArray): ImageBitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth !in 1..MAX_DECODE_DIMENSION || bounds.outHeight !in 1..MAX_DECODE_DIMENSION) return null
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
     }
 
     /** scheme://host[:port] for http(s) URLs only; null otherwise. */

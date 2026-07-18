@@ -19,6 +19,8 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
 - `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
+- `.../core/network/FaviconCache.kt` - bounded best-effort monitor favicon fetcher;
+  encrypted disk cache lives in `core/storage/FaviconStore.kt`.
 
 **exports**
 - `KumaClient(baseUrl)` - `connect()`, `login(u,p,token)`, `loginByToken(jwt)`,
@@ -26,6 +28,8 @@ here so the rest of the app sees clean domain models.
   `disconnect()`. Flows: `state`, `monitors`, `heartbeats`, `certs`.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `beatRow(s)`, `cert`, `tags`.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`.
+- `FaviconCache.get(context, monitorUrl): ImageBitmap?` - only accepts a small image
+  from the monitor's own HTTP(S) origin, otherwise returns null for the status-circle fallback.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
