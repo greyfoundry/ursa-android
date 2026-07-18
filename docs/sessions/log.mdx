@@ -9,6 +9,20 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-07-18 - reference monitor-screen pass
+
+**changed**: The monitor list now follows the feature-graphic composition more
+closely: a compact branded app bar, green Monitors label, search/filter/more
+controls, status-first monitor cards, and the existing three-tab navigation.
+The richer outage summary remains available from the more menu instead of
+changing the initial monitor-list layout. Monitor cards now always use their
+local status icon, so the primary list is stable while offline and does not
+depend on a remote favicon request.
+
+**verified**: Built, linted, installed, and smoke-tested on the Pixel 8
+emulator. The installed app launches without a crash; search, filters, more
+menu, and the overview state render. No README or showcase images were changed.
+
 ### 2026-07-18 - lint cleanup
 
 **changed**: Reduced lint from 24 warnings to 9 without suppressing security or
