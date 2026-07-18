@@ -44,7 +44,14 @@
     <string name="action_search">Search</string>
     <string name="action_filter">Filter</string>
     <string name="filter_all">All</string>
+    <string name="filter_active">Active</string>
+    <string name="filter_paused">Paused</string>
     <string name="filter_tags">Tags</string>
+    <string name="monitor_overview">Overview</string>
+    <plurals name="monitor_paused_count">
+        <item quantity="one">%d paused</item>
+        <item quantity="other">%d paused</item>
+    </plurals>
 
     <!-- Login -->
     <string name="login_subtitle">Connect to an Uptime Kuma server</string>
