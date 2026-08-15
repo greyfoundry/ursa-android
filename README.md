@@ -1,3 +1,5 @@
+
+
 # URSA
 
 ![URSA - your Uptime Kuma companion](docs/assets/feature-graphic.png)
@@ -67,7 +69,7 @@ whenever you pull your phone out.
   shortcuts, biometric app lock, an offline last-known view, and notification actions.
   Things the web dashboard simply can't do.
 - 🎨 **Light and dark, Kuma's colors** - it uses Uptime Kuma's own palette and status
-  conventions by default, with optional Material You if you'd rather match your
+  conventions by default, with optional Material You (Android 12+) if you'd rather match your
   wallpaper.
 
 ## 📥 Get it
