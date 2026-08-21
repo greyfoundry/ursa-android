@@ -3,6 +3,8 @@
   "packages": {
     ".": {
       "release-type": "simple",
+      "package-name": "ursa-android",
+      "component": "ursa-android",
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
       "include-component-in-tag": false,
