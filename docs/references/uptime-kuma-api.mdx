@@ -1,17 +1,20 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-08-21
 owner: astoris
 status: stable
-source: verified live against Uptime Kuma 2.4.0 (not the wiki)
+source: verified from Uptime Kuma 2.5.0 source and a live 2.5.0 container
 ---
 
 ## what this is
 
 How URSA talks to an Uptime Kuma server. Kuma has no stable public API - it's a
 Socket.IO app plus a few unauthenticated REST endpoints for public status pages.
-Everything below was captured by connecting a real Socket.IO client to a live
-2.4.0 instance, so it reflects reality, not the upstream wiki (which is wrong in
-several places). Build a thin adapter around this; expect drift between versions.
+Everything below was checked against tag `2.5.0` (`d9a60df`) and captured from
+the official `louislam/uptime-kuma:2.5.0` image (digest
+`sha256:a8610b3b4c38077922ba51b036691e06887d7cefd91fe620fd3d6d23d03dc240`).
+Sanitized raw captures and the complete source-derived event/route inventory live
+under gitignored `docs/kuma-notes/`. Build a thin adapter around this; expect drift
+between versions.
 
 ## technical map
 
@@ -29,9 +32,10 @@ several places). Build a thin adapter around this; expect drift between versions
 - `info` → `{ version, latestVersion, serverTimezone, dbType, isContainer, ... }`
 - `monitorList` → `{ [id]: MonitorObject }` (id-keyed object, not array)
 - `heartbeat` → `{ monitorID, status, time, msg, ping, important, retries }` (camelCase)
-- `avgPing` → **positional** `(monitorID, avgPingMs)`
-- `uptime` → **positional** `(monitorID, periodHours:Number, fraction:0..1)`
-- `certInfo` → **positional** `(monitorID, tlsInfoJSON)`
+- `heartbeatList` → **positional** `(monitorID:String, HeartbeatRow[], overwrite:Boolean)`
+- `avgPing` → **positional** `(monitorID:String, avgPingMs:Number)`; average may be fractional
+- `uptime` → **positional** `(monitorID:String, periodHours:Number, fraction:0..1)`
+- `certInfo` → **positional** `(monitorID:String, tlsInfoJSON:String)`; parse the second argument again
 - also pushed on login: `monitorTypeList, maintenanceList, notificationList,
   proxyList, dockerHostList, apiKeyList, remoteBrowserList, statusPageList,
   initServerTimezone`
@@ -48,6 +52,10 @@ several places). Build a thin adapter around this; expect drift between versions
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
 
+Kuma 2.5.0 adds `ntp` and `pm2` monitor types plus the authenticated
+`getPM2ProcessList` event. Those additions do not change URSA's read,
+heartbeat-history, certificate, pause, or resume contracts.
+
 **REST (no auth - public status pages)**
 - `GET /api/status-page/<slug>` - page config, groups, monitors, incident
 - `GET /api/status-page/heartbeat/<slug>` - heartbeats + uptime
@@ -57,6 +65,9 @@ several places). Build a thin adapter around this; expect drift between versions
 
 - **Case split**: live `heartbeat` event is camelCase; `getMonitorBeats` rows are
   snake_case. The data model must map both to one domain type.
+- **String IDs in positional events**: monitor IDs are JSON strings in live 2.5.0
+  `heartbeatList`, `avgPing`, `uptime`, and `certInfo` emissions even though IDs
+  inside object payloads are numbers. Normalize both forms at the adapter boundary.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
   JSON string *inside* the JSON - parse twice.
 - Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON

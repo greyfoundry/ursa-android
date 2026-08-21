@@ -16,9 +16,23 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * Pure normalization of Uptime Kuma wire payloads into domain models. Kept free of
  * Android/Socket.IO types (operates on kotlinx JsonObject) so it is unit-testable on
- * the JVM. Shapes verified live against Kuma 2.4.0 - see docs/references/uptime-kuma-api.mdx.
+ * the JVM. Shapes verified live against Kuma 2.5.0 - see docs/references/uptime-kuma-api.mdx.
  */
 object KumaParse {
+
+    /** Kuma serializes some positional Socket.IO IDs as JSON strings. */
+    fun positionalInt(value: Any?): Int? = when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }
+
+    /** Kuma positional metrics may arrive as either JSON numbers or numeric strings. */
+    fun positionalDouble(value: Any?): Double? = when (value) {
+        is Number -> value.toDouble()
+        is String -> value.toDoubleOrNull()
+        else -> null
+    }
 
     /** `monitorList` / `updateMonitorIntoList`: id-keyed object of monitors. */
     fun monitorList(obj: JsonObject): Map<Int, Monitor> = buildMap {

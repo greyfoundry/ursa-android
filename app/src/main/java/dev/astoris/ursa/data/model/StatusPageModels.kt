@@ -2,7 +2,7 @@ package dev.astoris.ursa.data.model
 
 import kotlinx.serialization.Serializable
 
-// ---- Wire DTOs (verified against Uptime Kuma 2.4.0 REST) ----
+// ---- Wire DTOs (verified against Uptime Kuma 2.5.0 REST) ----
 // GET /api/status-page/<slug>  and  /api/status-page/heartbeat/<slug>
 
 @Serializable

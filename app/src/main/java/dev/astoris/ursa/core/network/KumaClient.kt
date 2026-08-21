@@ -101,7 +101,7 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
             }
         }
         s.on("deleteMonitorFromList") { args ->
-            (args.getOrNull(0) as? Number)?.toInt()?.let { id -> _monitors.update { it - id } }
+            KumaParse.positionalInt(args.getOrNull(0))?.let { id -> _monitors.update { it - id } }
         }
 
         // heartbeat is an OBJECT (camelCase)
@@ -118,7 +118,7 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
 
         // heartbeatList: POSITIONAL (monitorID, snake_case beat rows, overwrite) on connect.
         s.on("heartbeatList") { args ->
-            val id = (args.getOrNull(0) as? Number)?.toInt() ?: return@on
+            val id = KumaParse.positionalInt(args.getOrNull(0)) ?: return@on
             args.jsonArrayAt(1)?.let { arr ->
                 _beatHistory.update { it + (id to KumaParse.beatRows(arr)) }
             }
@@ -126,18 +126,18 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
 
         // POSITIONAL events: (monitorID, value...) - NOT objects
         s.on("avgPing") { args ->
-            val id = (args.getOrNull(0) as? Number)?.toInt() ?: return@on
-            val avg = (args.getOrNull(1) as? Number)?.toInt()
+            val id = KumaParse.positionalInt(args.getOrNull(0)) ?: return@on
+            val avg = KumaParse.positionalDouble(args.getOrNull(1))?.toInt()
             updateMonitor(id) { it.copy(avgPing = avg) }
         }
         s.on("uptime") { args ->
-            val id = (args.getOrNull(0) as? Number)?.toInt() ?: return@on
-            val period = (args.getOrNull(1) as? Number)?.toInt()
-            val fraction = (args.getOrNull(2) as? Number)?.toDouble()
+            val id = KumaParse.positionalInt(args.getOrNull(0)) ?: return@on
+            val period = KumaParse.positionalInt(args.getOrNull(1))
+            val fraction = KumaParse.positionalDouble(args.getOrNull(2))
             if (period == 24 && fraction != null) updateMonitor(id) { it.copy(uptime24h = fraction) }
         }
         s.on("certInfo") { args ->
-            val id = (args.getOrNull(0) as? Number)?.toInt() ?: return@on
+            val id = KumaParse.positionalInt(args.getOrNull(0)) ?: return@on
             val text = when (val raw = args.getOrNull(1)) {
                 is JSONObject -> raw.toString()
                 is String -> raw
