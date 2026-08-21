@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-08-21
 owner: astoris
 status: stable
 ---
@@ -33,11 +33,11 @@ project.
 
 **commits**
 - Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`).
-- **Undercover**: no AI-provider references, no co-author trailers, no AI hints
-  anywhere in commits/code/docs/README.
+- **Public hygiene**: keep commits, code, docs, and README focused on the project
+  and credited contributors. Omit private workflow provenance and co-author trailers.
 
 **tests**
-- Ponytail rule: non-trivial logic (parsers, the socket adapter, money/security
+- Non-trivial logic (parsers, the socket adapter, money/security
   paths) leaves one runnable check - a small `test_*` or an `assert` self-check.
   No framework ceremony unless asked.
 
