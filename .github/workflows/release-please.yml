@@ -3,6 +3,12 @@ name: release-please
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and attach assets to
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -10,6 +16,7 @@ permissions:
 
 jobs:
   release-please:
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -27,18 +34,22 @@ jobs:
   # release. Requires the ANDROID_KEYSTORE_* repository secrets (see README).
   release-artifacts:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: >-
+      ${{ always() &&
+          (needs.release-please.outputs.release_created == 'true' ||
+           (github.event_name == 'workflow_dispatch' && inputs.tag != '')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
       attestations: write
     env:
-      TAG: ${{ needs.release-please.outputs.tag_name }}
-      SBOM_FILE: ursa-${{ needs.release-please.outputs.tag_name }}-sbom.cdx.json
+      TAG: ${{ inputs.tag || needs.release-please.outputs.tag_name }}
+      SBOM_FILE: ursa-${{ inputs.tag || needs.release-please.outputs.tag_name }}-sbom.cdx.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
 
       - name: Set up JDK 21
