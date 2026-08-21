@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Payloads below are real captures from a live Uptime Kuma 2.4.0 instance
+ * Payloads below are real captures from live Uptime Kuma instances through 2.5.0
  * (see docs/references/uptime-kuma-api.mdx). This guards the adapter against
  * the known wire quirks: id-keyed monitorList, camelCase heartbeat, null url,
  * tag name extraction, and status-code mapping.
@@ -111,5 +111,18 @@ class KumaParseTest {
         assertEquals(MonitorStatus.PENDING, MonitorStatus.from(2))
         assertEquals(MonitorStatus.MAINTENANCE, MonitorStatus.from(3))
         assertEquals(MonitorStatus.PENDING, MonitorStatus.from(99)) // unknown -> pending
+    }
+
+    @Test fun positional_monitor_id_accepts_number_and_numeric_string() {
+        assertEquals(7, KumaParse.positionalInt(7))
+        assertEquals(7, KumaParse.positionalInt(7L))
+        assertEquals(7, KumaParse.positionalInt("7"))
+        assertNull(KumaParse.positionalInt("not-an-id"))
+    }
+
+    @Test fun positional_decimal_accepts_number_and_numeric_string() {
+        assertEquals(13.67, KumaParse.positionalDouble(13.67)!!, 0.001)
+        assertEquals(13.67, KumaParse.positionalDouble("13.67")!!, 0.001)
+        assertNull(KumaParse.positionalDouble("not-a-number"))
     }
 }

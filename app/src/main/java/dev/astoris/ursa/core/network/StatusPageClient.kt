@@ -18,7 +18,7 @@ import kotlinx.serialization.json.Json
 /**
  * Fetches a public Uptime Kuma status page (no auth). Combines the config endpoint
  * (groups + monitors) with the heartbeat endpoint (latest status + 24h uptime) into
- * a flat [StatusPageView]. Shapes verified against Kuma 2.4.0.
+ * a flat [StatusPageView]. Shapes verified against Kuma 2.5.0.
  */
 class StatusPageClient {
 

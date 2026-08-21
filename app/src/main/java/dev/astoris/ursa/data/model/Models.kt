@@ -2,7 +2,7 @@ package dev.astoris.ursa.data.model
 
 import kotlinx.serialization.Serializable
 
-/** Kuma heartbeat status codes (verified against Uptime Kuma 2.4.0). */
+/** Kuma heartbeat status codes (verified against Uptime Kuma 2.5.0). */
 @Serializable
 enum class MonitorStatus(val code: Int) {
     DOWN(0), UP(1), PENDING(2), MAINTENANCE(3);
