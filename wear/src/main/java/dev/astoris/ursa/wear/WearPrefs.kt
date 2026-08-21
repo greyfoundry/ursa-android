@@ -1,6 +1,7 @@
 package dev.astoris.ursa.wear
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * Watch-side settings. Just the public Kuma status-page URL the tile polls (no auth,
@@ -15,7 +16,7 @@ object WearPrefs {
         prefs(context).getString(KEY_STATUS_URL, null)?.ifBlank { null }
 
     fun setStatusUrl(context: Context, url: String) {
-        prefs(context).edit().putString(KEY_STATUS_URL, url.trim()).apply()
+        prefs(context).edit { putString(KEY_STATUS_URL, url.trim()) }
     }
 
     private fun prefs(context: Context) =

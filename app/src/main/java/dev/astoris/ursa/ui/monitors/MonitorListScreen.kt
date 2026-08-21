@@ -177,7 +177,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     IconButton(onClick = { searchActive = false; query = "" }) {
                         Icon(
                             painter = painterResource(R.drawable.ic_close),
-                            contentDescription = stringResource(R.string.action_search),
+                            contentDescription = stringResource(R.string.action_close_search),
                         )
                     }
                 }

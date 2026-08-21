@@ -1,6 +1,6 @@
 package dev.astoris.ursa.wear
 
-import android.net.Uri
+import androidx.core.net.toUri
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -53,7 +53,7 @@ object StatusPoll {
 
     /** scheme://host[:port] plus the last path segment (the status-page slug). */
     private fun parse(statusUrl: String): Pair<String, String>? {
-        val uri = runCatching { Uri.parse(statusUrl.trim()) }.getOrNull() ?: return null
+        val uri = runCatching { statusUrl.trim().toUri() }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase()
         if (scheme != "http" && scheme != "https") return null
         val host = uri.host ?: return null

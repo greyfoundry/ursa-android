@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-18
+last-updated: 2026-08-21
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,25 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-08-21 - Kuma 2.5 compatibility and Android 17 hardening
+
+**changed**: Reverified the socket and public status-page contracts against the
+exact Uptime Kuma 2.5.0 tag and a disposable live container. Positional monitor
+identifiers can now be parsed from both JSON strings and numbers, restoring live
+heartbeat history, average ping, uptime, certificate updates, and delete events on
+2.5.0. Source-derived and live payload inventories remain local and untracked.
+
+**platform**: Updated both modules to compile/target SDK 37, Compose BOM 2026.08,
+Gradle 9.7.1, and compatible AndroidX/dependency releases. Phone and Wear backup
+and device-transfer rules now exclude all app data. Notifications and clipboard
+use their current compatibility APIs; Wear lint findings were resolved.
+
+**accessibility**: Replaced text-glyph back controls with labelled vector buttons,
+gave the close-search action its own label, and added a spoken status summary to
+the color-based heartbeat strip. The existing incident-first list, search, Kuma-tag
+groups, filters, favorites, and timeline remain unchanged after a monitoring UX
+review; no server-side integration features or layout redesign were added.
 
 ### 2026-07-18 - monitor organization and release hardening
 

@@ -1,7 +1,6 @@
 package dev.astoris.ursa.core.push
 
 import android.Manifest
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -9,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.astoris.ursa.MainActivity
@@ -77,28 +77,26 @@ class UrsaPushService : PushService() {
             this, 0, open,
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val builder = Notification.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
             .setContentTitle(notice.title)
             .setContentText(notice.body)
-            .setStyle(Notification.BigTextStyle().bigText(notice.body))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(notice.body))
             .setAutoCancel(true)
             .setContentIntent(pi)
-            .apply { if (notice.important) setPriority(Notification.PRIORITY_HIGH) }
+            .apply { if (notice.important) setPriority(NotificationCompat.PRIORITY_HIGH) }
 
         // Act on the monitor straight from the alert (only when we know which one).
         notice.monitorId?.let { monitorId ->
             builder.addAction(
-                Notification.Action.Builder(
-                    android.R.drawable.ic_media_pause, "Pause",
-                    monitorActionIntent(monitorId, MonitorActionReceiver.ACTION_PAUSE),
-                ).build(),
+                android.R.drawable.ic_media_pause,
+                "Pause",
+                monitorActionIntent(monitorId, MonitorActionReceiver.ACTION_PAUSE),
             )
             builder.addAction(
-                Notification.Action.Builder(
-                    android.R.drawable.ic_media_play, "Resume",
-                    monitorActionIntent(monitorId, MonitorActionReceiver.ACTION_RESUME),
-                ).build(),
+                android.R.drawable.ic_media_play,
+                "Resume",
+                monitorActionIntent(monitorId, MonitorActionReceiver.ACTION_RESUME),
             )
         }
         val notification = builder.build()

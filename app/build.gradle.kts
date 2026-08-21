@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "dev.astoris.ursa"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.astoris.ursa"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         // Literal versionName/versionCode so F-Droid's parser can read them for
         // auto-update (it cannot evaluate variables or arithmetic). release-please
         // updates versionName via the marker; bump versionCode per release by hand

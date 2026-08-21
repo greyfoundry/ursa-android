@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +40,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -78,7 +83,14 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
         topBar = {
             TopAppBar(
                 title = { Text(monitor.name) },
-                navigationIcon = { IconButton(onClick = { vm.back() }) { Text("‹", style = MaterialTheme.typography.headlineSmall) } },
+                navigationIcon = {
+                    IconButton(onClick = { vm.back() }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_back),
+                            contentDescription = stringResource(R.string.action_back),
+                        )
+                    }
+                },
             )
         },
     ) { padding ->
@@ -194,8 +206,21 @@ private fun HeartbeatBar(beats: List<Heartbeat>) {
         Text(stringResource(R.string.detail_no_history), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         return
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        beats.takeLast(40).forEach { beat ->
+    val recent = beats.takeLast(40)
+    val upCount = recent.count { it.status == MonitorStatus.UP }
+    val downCount = recent.count { it.status == MonitorStatus.DOWN }
+    val otherCount = recent.size - upCount - downCount
+    val summary = stringResource(
+        R.string.heartbeat_summary,
+        pluralStringResource(R.plurals.heartbeat_up_count, upCount, upCount),
+        pluralStringResource(R.plurals.heartbeat_down_count, downCount, downCount),
+        pluralStringResource(R.plurals.heartbeat_other_count, otherCount, otherCount),
+    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.semantics { contentDescription = summary },
+    ) {
+        recent.forEach { beat ->
             Box(
                 Modifier
                     .width(6.dp)

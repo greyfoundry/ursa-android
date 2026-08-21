@@ -32,7 +32,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | Category | Status | Where |
 |---|---|---|
 | STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `FaviconStore.kt` |
-| STORAGE-2 no data leakage | partial | `FLAG_SECURE` set; backup still on - see gaps |
+| STORAGE-2 no data leakage | met | `FLAG_SECURE`; cloud backup and device transfer excluded |
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
 | AUTH-1 secure auth | partial (server-dependent) | login + TOTP → token, `KumaClient` |
@@ -43,7 +43,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | PLATFORM-1 IPC | met | launcher activity + non-exported push service only |
 | PLATFORM-2 WebViews | n/a | app uses none |
 | PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide (release; skipped in debug) |
-| CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 36 |
+| CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 37 |
 | CODE-2 enforced updates | n/a | side-loaded, no store channel yet |
 | CODE-3 no vulnerable deps | partial | versions pinned, no automated scan |
 | CODE-4 input validation | met | tolerant parsing isolated in `KumaParse` |
@@ -57,10 +57,9 @@ The value is encrypted by `Crypto` (Tink AEAD, AES-256-GCM) under a master key h
 in the Android Keystore, with an app-specific AAD. The login password and TOTP are
 never written to disk; only the resulting session token is. `FLAG_SECURE` is set
 app-wide (`MainActivity`), so monitor data and server URLs are kept out of
-screenshots, screen recordings, and the recents thumbnail. *Gap (STORAGE-2):* the
-manifest still sets `allowBackup=true`, so the encrypted blob is eligible for backup
-- it is useless without the Keystore key (which is not backed up), but
-`allowBackup=false` is cleaner.
+screenshots, screen recordings, and the recents thumbnail. The manifest sets
+`allowBackup=false`; legacy backup rules and Android 12+ data-extraction rules also
+exclude every storage domain from cloud backup and device-to-device transfer.
 
 The optional favicon cache is also encrypted with the same Keystore-backed AEAD and
 lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small image
@@ -115,8 +114,9 @@ Prioritized by value/effort. Tracked items - none are silently dropped.
 
 1. ~~**`FLAG_SECURE`** on windows showing sessions/monitor data (PLATFORM-3).~~
    **Done (2026-07-04)** - applied app-wide in `MainActivity`.
-2. **`allowBackup=false`** (or backup exclusion rules) for the encrypted store
-   (STORAGE-2).
+2. ~~**Disable backup and device transfer** for the encrypted store (STORAGE-2).~~
+   **Done (2026-08-21)** - `allowBackup=false` plus explicit legacy and Android
+   12+ exclusion rules in both phone and Wear modules.
 3. **Scoped cleartext** - replace the global `usesCleartextTraffic` with a network-
    security config that permits cleartext only for user-added hosts, and warn in the
    UI (NETWORK-1).
