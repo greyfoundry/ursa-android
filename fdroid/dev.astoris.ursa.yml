@@ -6,16 +6,16 @@ Categories:
   - System
 License: MIT
 AuthorName: astoris
-SourceCode: https://github.com/AstorisTheBrave/ursa-android
-IssueTracker: https://github.com/AstorisTheBrave/ursa-android/issues
-Changelog: https://github.com/AstorisTheBrave/ursa-android/blob/main/CHANGELOG.md
+SourceCode: https://github.com/greyfoundry/ursa-android
+IssueTracker: https://github.com/greyfoundry/ursa-android/issues
+Changelog: https://github.com/greyfoundry/ursa-android/blob/main/CHANGELOG.md
 
 AutoName: URSA
 
 RepoType: git
-Repo: https://github.com/AstorisTheBrave/ursa-android.git
+Repo: https://github.com/greyfoundry/ursa-android.git
 Binaries:
-  https://github.com/AstorisTheBrave/ursa-android/releases/download/v%v/ursa-v%v.apk
+  https://github.com/greyfoundry/ursa-android/releases/download/v%v/ursa-v%v.apk
 
 Builds:
   - versionName: 1.2.0
