@@ -373,7 +373,7 @@ incl. the undercover leak scan) via `.git/info/exclude`. Wired pointers into
 
 ### 2026-07-03 - M2 (encryption, reconnect, TLS) + local kuma reference cache
 
-**changed**: (1) Set up local-only tooling for future agents: cloned upstream
+**changed**: (1) Set up local-only reference material for future maintenance: cloned upstream
 Kuma into `archive/uptime-kuma/` (v2.4.0, matches dev), wrote `docs/kuma-notes/`
 (full socket/REST/data-shape/source-map notes), and a root `MEMORY.md` handoff -
 all gitignored via `.git/info/exclude`. (2) Built M2: Tink AES-256-GCM at-rest
@@ -395,7 +395,7 @@ across drops; sign-out added); opt-in self-signed TLS trust per connection.
 - Trust-all TLS is opt-in per connection, gated behind an explicit checkbox and a
   loud comment in `TlsTrust`. Cert pinning is the future upgrade if wanted.
 - Kuma reference kept LOCAL (archive + kuma-notes + MEMORY.md) - large / not part
-  of the shipped app; a fresh agent reads them to avoid re-fetching.
+  of the shipped app; future maintenance can reuse them instead of re-fetching.
 
 **next**: M3 - UnifiedPush push (endpoint registration UI, receiver, notification
 rendering). Note Kuma also has native web-push VAPID (`getWebpushVapidPublicKey`)
