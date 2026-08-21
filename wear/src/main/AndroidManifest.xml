@@ -6,7 +6,10 @@
 
     <application
         android:allowBackup="false"
-        android:label="URSA"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@drawable/tile_preview"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true">
 
@@ -23,7 +26,7 @@
         <activity
             android:name=".WearConfigActivity"
             android:exported="true"
-            android:label="URSA">
+            android:taskAffinity="dev.astoris.ursa.wear.config">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -33,7 +36,7 @@
         <service
             android:name=".StatusTileService"
             android:exported="true"
-            android:label="URSA status"
+            android:label="@string/tile_name"
             android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
             <intent-filter>
                 <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />

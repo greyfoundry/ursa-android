@@ -6,17 +6,17 @@ plugins {
 
 android {
     namespace = "dev.astoris.ursa.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.astoris.ursa"
         // Wear OS 3+ (the modern Tiles API baseline).
         minSdk = 30
-        targetSdk = 36
+        targetSdk = 37
         // Literal, matching the app module. The watch app is sideloaded, not on
         // F-Droid, so its versionCode is bumped by hand alongside the app.
-        versionCode = 10103
-        versionName = "1.1.3"
+        versionCode = 10200
+        versionName = "1.2.0"
     }
 
     // Release signing mirrors the app module: the keystore from CI secrets when present,

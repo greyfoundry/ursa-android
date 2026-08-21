@@ -1,6 +1,7 @@
 package dev.astoris.ursa.ui.push
 
 import android.Manifest
+import android.content.ClipData
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -27,23 +28,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.ui.UrsaViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val distributors by vm.distributors.collectAsStateWithLifecycle()
     val distributor by vm.pushDistributor.collectAsStateWithLifecycle()
     val endpoint by vm.pushEndpoint.collectAsStateWithLifecycle()
@@ -142,7 +146,13 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { clipboard.setText(AnnotatedString(ep)) }) { Text(stringResource(R.string.push_copy)) }
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("UnifiedPush endpoint", ep)))
+                                }
+                            },
+                        ) { Text(stringResource(R.string.push_copy)) }
                         OutlinedButton(onClick = { vm.unregisterPush() }) { Text(stringResource(R.string.push_disconnect)) }
                     }
                 }

@@ -14,11 +14,11 @@ actually resolves, the build wins - update this file.
 
 **toolchain (verified building on this machine 2026-08-21)**
 - Kotlin **2.4.10** (pinned via root `buildscript` classpath - see gotchas)
-- Jetpack Compose - BOM **2026.06.01** (core 1.11.4, material3 1.4.0)
-- Android Gradle Plugin **9.3.1**, Gradle **9.7.0**
-- compileSdk **36**, minSdk **26**, targetSdk **36**
+- Jetpack Compose - BOM **2026.08.00** (Compose 1.12 line)
+- Android Gradle Plugin **9.3.1**, Gradle **9.7.1**
+- compileSdk **37**, minSdk **26**, targetSdk **37**
 - JDK: build runs on Android Studio's bundled JBR 21, targets Java/Kotlin 17
-- SDK build-tools 36.1.0 / 37.0.0; platform android-36.1
+- SDK build-tools 37.0.0; platform android-37.0
 
 **major runtime dependencies**
 - `io.socket:socket.io-client` - real-time Kuma connection. Exclude bundled
@@ -43,7 +43,6 @@ actually resolves, the build wins - update this file.
   `buildscript { dependencies { classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10") } }`.
 - The build omits an explicit Kotlin `jvmTarget`; AGP aligns Kotlin compilation
   to the Java 17 `compileOptions` boundary.
-- Compose BOM 2026.08.00 resolves Compose 1.12, which requires compileSdk 37.
-  Keep BOM 2026.06.01 while URSA remains on its compileSdk 36 release baseline.
-- Kotlin 2.4 rejects Gradle 9.1; the wrapper is pinned to 9.7.0.
+- Compose BOM 2026.08.00 resolves Compose 1.12 and requires compileSdk 37.
+- Kotlin 2.4 rejects Gradle 9.1; the wrapper is pinned to 9.7.1.
 - Build command: `JAVA_HOME` = JBR, then `./gradlew.bat assembleDebug --no-daemon`.

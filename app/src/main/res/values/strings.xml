@@ -42,6 +42,8 @@
     </plurals>
     <string name="search_hint">Search monitors</string>
     <string name="action_search">Search</string>
+    <string name="action_close_search">Close search</string>
+    <string name="action_back">Back</string>
     <string name="action_filter">Filter</string>
     <string name="action_more">More options</string>
     <string name="action_show_overview">Show overview</string>
@@ -103,6 +105,19 @@
     <string name="incident_recovered">Recovered</string>
     <string name="incident_status_changed">Status changed</string>
     <string name="detail_no_history">No history yet</string>
+    <string name="heartbeat_summary">Recent heartbeats: %1$s, %2$s, %3$s</string>
+    <plurals name="heartbeat_up_count">
+        <item quantity="one">%d up heartbeat</item>
+        <item quantity="other">%d up heartbeats</item>
+    </plurals>
+    <plurals name="heartbeat_down_count">
+        <item quantity="one">%d down heartbeat</item>
+        <item quantity="other">%d down heartbeats</item>
+    </plurals>
+    <plurals name="heartbeat_other_count">
+        <item quantity="one">%d other heartbeat</item>
+        <item quantity="other">%d other heartbeats</item>
+    </plurals>
     <string name="detail_tls_certificate">TLS certificate</string>
     <string name="cert_valid">Valid</string>
     <string name="cert_invalid">Invalid</string>

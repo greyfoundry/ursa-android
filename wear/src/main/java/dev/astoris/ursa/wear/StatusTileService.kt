@@ -29,7 +29,7 @@ class StatusTileService : TileService() {
         val url = WearPrefs.statusUrl(this)
             ?: return Futures.immediateFuture(tileOf(centered(messageLayout("Tap to set up"))))
 
-        // ponytail: fetch on a worker thread and complete the future; a tile refresh is
+        // Fetch on a worker thread and complete the future; a tile refresh is
         // infrequent, so a blocking Ktor call here is fine. Upgrade to WorkManager +
         // cache if refresh frequency ever grows.
         val future = SettableFuture.create<TileBuilders.Tile>()

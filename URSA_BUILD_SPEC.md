@@ -1,20 +1,20 @@
 # URSA - Uptime Kuma Android Client
 ### Build Spec v1 (package `dev.astoris.ursa`)
 
-Status: Draft - verified against live Kuma 2.4.0 on 2026-07-03
+Status: Implemented - reverified against live Kuma 2.5.0 on 2026-08-21
 Stack: Kotlin, Jetpack Compose, native Android (no KMP, no RN)
 
 ---
 
-## 0. Verification status (2026-07-03)
+## 0. Verification status (2026-08-21)
 
-All four pre-build checks ran against a live `louislam/uptime-kuma:2` (2.4.0)
-instance plus a real ntfy container. Results folded into this doc:
+The protocol checks ran against a live `louislam/uptime-kuma:2.5.0` instance.
+Results folded into this doc:
 
 - **Storage (§5):** EncryptedSharedPreferences confirmed deprecated. DataStore +
   Tink + Keystore approach stands.
-- **Versions (§8):** catalog updated to current stable (Kotlin 2.4.0, Compose BOM
-  2026.06.01, AGP 9.2, compileSdk 37).
+- **Versions (§8):** catalog updated to Kotlin 2.4.10, Compose BOM 2026.08.00,
+  AGP 9.3.1, Gradle 9.7.1, and compileSdk/targetSdk 37.
 - **Socket.IO API (§4):** event *names* correct; several *payload shapes* in the
   original draft were wrong and are corrected below (positional args, chart field
   names, snake_case vs camelCase). Adapter layer is now mandatory, not optional.
@@ -105,7 +105,7 @@ mid-build.
 
 The API is internal/unstable (flagged as such in the Kuma wiki, no back-compat
 guarantee). Build a **thin adapter layer** so protocol drift doesn't ripple
-through the app. Verification on 2.4.0 confirmed this is necessary - several
+through the app. Verification on 2.5.0 confirmed this is necessary - several
 payloads are positional multi-arg emits, not the objects the wiki implies.
 
 ### 4.1 First-run / DB setup `[VERIFIED]`
@@ -135,7 +135,7 @@ Observed login callback: `{ ok: true, token: "<JWT>" }`.
 > emitted as **positional arguments**, NOT single objects. Handle them as
 > `socket.on("uptime", (monitorID, period, percent) => …)`.
 
-| Event | Actual payload (2.4.0) | Use |
+| Event | Actual payload (2.5.0) | Use |
 |---|---|---|
 | `info` | `{ version, latestVersion, serverTimezone, serverTimezoneOffset, dbType, isContainer, primaryBaseURL, runtime }` | Server info, version-gate features |
 | `monitorList` | `{ [monitorID]: MonitorObject }` (id-keyed object) | Initial full list |
@@ -259,7 +259,7 @@ for `fdroiddata`.
 
 ---
 
-## 8. Environment & version catalog (current 2026-07-03)
+## 8. Environment & version catalog (current 2026-08-21)
 
 Prefer Android Studio "Empty Activity (Compose)" wizard - it wires the Gradle
 wrapper, AGP, and Compose compiler plugin correctly. Set minSdk 26, package
@@ -269,18 +269,18 @@ Toolchain (verified current stable):
 
 | Component | Version | Notes |
 |---|---|---|
-| Kotlin | **2.4.0** | Jun 3 2026 |
-| Compose BOM | **2026.06.01** | core 1.11.4, material3 1.4.0 |
-| AGP | **9.2.0** | requires Gradle 9.4.1, JDK 17, Build-Tools 36 |
-| compileSdk | **36** | build target. 37 is ecosystem-stable but the android-37 platform isn't installed on this machine (only android-36.1); bump to 37 once `sdkmanager "platforms;android-37"` is run |
+| Kotlin | **2.4.10** | pinned through the root buildscript classpath |
+| Compose BOM | **2026.08.00** | Compose 1.12 line; requires compileSdk 37 |
+| AGP | **9.3.1** | Gradle 9.7.1, JDK 17 target |
+| compileSdk / targetSdk | **37 / 37** | Android 17 platform installed and verified locally |
 | minSdk | 26 | Android 8.0, ~98%+ of active devices |
 | JDK | 17 | AGP 9.x minimum (JBR 21 used to build, targets 17) |
 
 **AGP 9 built-in Kotlin (gotcha, learned during scaffold):** AGP 9.0+ compiles
 Kotlin itself - do **NOT** apply `org.jetbrains.kotlin.android` (it errors). Still
 apply `org.jetbrains.kotlin.plugin.compose`. AGP bundles an older KGP, so to run
-Kotlin 2.4.0 (matching the Compose compiler) pin it in the **root** build via
-`buildscript { dependencies { classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.0") } }`.
+Kotlin 2.4.10 (matching the Compose compiler) pin it in the **root** build via
+`buildscript { dependencies { classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10") } }`.
 The `android { compilerOptions { } }` DSL from the AGP 9.0 notes is not resolvable
 on 9.2 - omit explicit Kotlin `jvmTarget`; AGP aligns it to `compileOptions`.
 
@@ -288,14 +288,14 @@ on 9.2 - omit explicit Kotlin `jvmTarget`; AGP aligns it to `compileOptions`.
 
 ```toml
 [versions]
-kotlin = "2.4.0"
-composeBom = "2026.06.01"
-agp = "9.2.0"
-socketio = "2.1.1"       # io.socket:socket.io-client (JVM); verify latest before pinning
-ktor = "3.0.0"           # verify current stable before pinning
-unifiedpush = "3.0.0"    # verify current stable before pinning
-tink = "1.14.0"          # verify current stable before pinning
-datastore = "1.1.1"
+kotlin = "2.4.10"
+composeBom = "2026.08.00"
+agp = "9.3.1"
+socketio = "2.1.2"
+ktor = "3.5.2"
+unifiedpush = "3.3.4"
+tink = "1.23.0"
+datastore = "1.2.1"
 
 [libraries]
 socket-io-client = { group = "io.socket", name = "socket.io-client", version.ref = "socketio" }
