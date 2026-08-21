@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/greyfoundry/ursa-android/compare/v1.2.0...v1.2.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **network:** normalize Kuma 2.5 positional ids ([1c280d6](https://github.com/greyfoundry/ursa-android/commit/1c280d67c288ea297e32bff93b3d7f7621dacec4))
+
 ## [1.2.0](https://github.com/greyfoundry/ursa-android/compare/v1.1.3...v1.2.0) (2026-07-18)
 
 
