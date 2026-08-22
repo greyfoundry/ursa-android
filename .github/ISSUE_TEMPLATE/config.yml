@@ -1,10 +1,10 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and ideas
-    url: https://github.com/AstorisTheBrave/ursa-android/discussions
+    url: https://github.com/greyfoundry/ursa-android/discussions
     about: Ask a question or discuss an idea in Discussions before opening an issue.
   - name: Security vulnerability
-    url: https://github.com/AstorisTheBrave/ursa-android/security/policy
+    url: https://github.com/greyfoundry/ursa-android/security/policy
     about: Please report vulnerabilities privately, not via public issues.
   - name: Uptime Kuma (server) issues
     url: https://github.com/louislam/uptime-kuma/issues
