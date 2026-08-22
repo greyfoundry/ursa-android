@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.2](https://github.com/greyfoundry/ursa-android/compare/v1.2.1...v1.2.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* **ci:** scope release permissions by job ([10340b7](https://github.com/greyfoundry/ursa-android/commit/10340b79c8af676933cbab3910aed34568172e2d))
+* **release:** add tagged artifact recovery ([2847255](https://github.com/greyfoundry/ursa-android/commit/28472558e9bd57e3aa8da1b657c377ecbade97aa))
+* **release:** declare release component ([d3b5f2f](https://github.com/greyfoundry/ursa-android/commit/d3b5f2fc7a766376a9aaba16086868ae2b9fff9b))
+* **release:** remove obsolete package name option ([eaa1f98](https://github.com/greyfoundry/ursa-android/commit/eaa1f9888362f63e8c2d2a00801d8b3809ce5458))
+
 ## [1.2.1](https://github.com/greyfoundry/ursa-android/compare/v1.2.0...v1.2.1) (2026-08-21)
 
 

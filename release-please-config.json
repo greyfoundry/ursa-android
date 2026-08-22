@@ -12,6 +12,10 @@
         {
           "type": "generic",
           "path": "app/build.gradle.kts"
+        },
+        {
+          "type": "generic",
+          "path": "wear/build.gradle.kts"
         }
       ]
     }
