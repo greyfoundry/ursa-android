@@ -53,7 +53,9 @@ here so the rest of the app sees clean domain models.
   every `EVENT_CONNECT`, so a dropped socket re-authenticates itself. `disconnect()`
   clears the JWT.
 - Self-signed TLS: `KumaClient(url, insecure=true)` sets Socket.IO's
-  `callFactory`/`webSocketFactory` to `TlsTrust.insecureClient()`;
-  `StatusPageClient` uses Ktor OkHttp `preconfigured`. Trust-all is opt-in only.
+  `callFactory`/`webSocketFactory` to `TlsTrust.sessionPinnedClient()`;
+  `StatusPageClient` uses a separate Ktor OkHttp client per base URL. The first
+  valid certificate is pinned for that client's lifetime, reconnects must match
+  it, and normal hostname verification remains enabled. This mode is opt-in only.
 - The UI routes on the ViewModel's `hasSession`, not raw `state`, so transient
   disconnects don't bounce to login.
