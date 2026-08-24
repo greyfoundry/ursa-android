@@ -1,12 +1,12 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-08-24
 owner: astoris
 status: in-flux
 ---
 
 ## what this is
 
-How to build, run, and (eventually) release URSA.
+How to build, run, and release URSA.
 
 ## technical map
 
@@ -14,18 +14,28 @@ How to build, run, and (eventually) release URSA.
 ```bash
 export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ./gradlew.bat assembleDebug --no-daemon     # -> app/build/outputs/apk/debug/app-debug.apk
+./gradlew.bat testDebugUnitTest --no-daemon # unit tests
 ./gradlew.bat :app:lintDebug --no-daemon    # must pass before commit
 ```
-No unit tests yet; add under `app/src/test/` as logic lands.
 
 **run**
 - Install the debug APK on a device/emulator, or Run from Android Studio.
 - Point it at the dev Kuma at `http://10.0.2.2:3001` (emulator) or the LAN IP.
 
-**release (M3, not yet)**
-- MIT license (match upstream Kuma), F-Droid metadata via `fdroiddata`
-  (FOSS-only deps - verify connector + socket.io-client are clean).
-- Add a signing config + app icon before release.
+**release**
+
+1. Prepare a release PR. Update `CHANGELOG.md`, both modules' literal
+   `versionName` and `versionCode`, `fdroid/dev.astoris.ursa.yml`, and
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. The version code
+   is `major*10000 + minor*100 + patch`.
+2. Run the local build, tests, lint, F-Droid metadata validator, screenshot
+   baseline validator, and immutable Action-pin validator. Merge only after the
+   hosted checks pass.
+3. Create the `vX.Y.Z` tag and GitHub release from the release merge commit.
+4. Run the **Release artifacts** workflow with that existing tag. It builds and
+   uploads signed phone and watch APKs, a CycloneDX SBOM, checksums, and provenance.
+5. Download the assets and verify the checksums, APK signatures/version metadata,
+   and attestations. F-Droid discovers the version tag automatically.
 
 ## gotchas
 

@@ -9,6 +9,21 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-24 - manual release publication
+
+**changed**: Removed Release Please and its manifest/configuration after the
+organization policy prevented Actions from opening release pull requests. Releases
+now use an explicit maintainer release PR, tag, and GitHub release, followed by the
+manually dispatched `release.yml` artifact workflow.
+
+**preserved**: The artifact workflow still builds signed phone and watch APKs,
+generates the CycloneDX SBOM and checksums, attests provenance, and uploads all four
+assets to the selected existing release. F-Droid continues to discover version tags
+automatically.
+
+**CI**: CodeQL analysis builds now clean and rerun compilation with the Gradle build
+cache disabled, preventing cached class output from producing a false failed scan.
+
 ### 2026-08-24 - local trust-boundary hardening
 
 **changed**: Replaced the opt-in trust-all TLS client with session-scoped

@@ -142,8 +142,8 @@ dive lives in the wiki:
 
 In short: Kotlin + Jetpack Compose (with a separate `:wear` module for the watch tile),
 Socket.IO for the live link, encrypted-at-rest credentials, no third-party services.
-Releases are automated and every build ships signed, with an SBOM and a provenance
-attestation attached.
+Release publication is manually initiated. Every published build ships signed, with
+an SBOM and a provenance attestation attached.
 
 ## 📜 License
 

@@ -1,8 +1,6 @@
-name: release-please
+name: Release artifacts
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -12,46 +10,39 @@ on:
 
 permissions: {}
 
-jobs:
-  release-please:
-    if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-    steps:
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
-        id: release
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
 
-  # Runs only when a release was just created (the release PR was merged). Builds a
-  # signed APK, generates an SBOM, attests provenance, and attaches everything to the
-  # release. Requires the ANDROID_KEYSTORE_* repository secrets (see README).
+jobs:
   release-artifacts:
-    needs: release-please
-    if: >-
-      ${{ always() &&
-          (needs.release-please.outputs.release_created == 'true' ||
-           (github.event_name == 'workflow_dispatch' && inputs.tag != '')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
       attestations: write
     env:
-      TAG: ${{ inputs.tag || needs.release-please.outputs.tag_name }}
-      SBOM_FILE: ursa-${{ inputs.tag || needs.release-please.outputs.tag_name }}-sbom.cdx.json
+      TAG: ${{ inputs.tag }}
+      SBOM_FILE: ursa-${{ inputs.tag }}-sbom.cdx.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.tag }}
           persist-credentials: false
+
+      - name: Validate release tag and metadata
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag must use the vX.Y.Z format."
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          grep -Fq "versionName = \"${VERSION}\"" app/build.gradle.kts
+          grep -Fq "versionName = \"${VERSION}\"" wear/build.gradle.kts
+          python3 scripts/check_fdroid_metadata.py
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
 
       - name: Set up JDK 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
