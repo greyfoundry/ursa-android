@@ -36,7 +36,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
 | AUTH-1 secure auth | partial (server-dependent) | login + TOTP → token, `KumaClient` |
-| AUTH-2 local auth | met (opt-in) | biometric/credential app lock, `ui/lock` |
+| AUTH-2 local auth | met (opt-in) | Keystore-bound biometric/credential app lock, `ui/lock` |
 | AUTH-3 step-up auth | n/a (read-heavy client) | - |
 | NETWORK-1 secure transport | partial | TLS default; opt-in trust-all + global cleartext |
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
@@ -45,7 +45,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide (release; skipped in debug) |
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 37 |
 | CODE-2 enforced updates | n/a | side-loaded, no store channel yet |
-| CODE-3 no vulnerable deps | partial | versions pinned, no automated scan |
+| CODE-3 no vulnerable deps | met | pinned versions, Dependabot updates and alerts |
 | CODE-4 input validation | met | tolerant parsing isolated in `KumaParse` |
 | RESILIENCE-1..4 | out of scope | deliberate - see below |
 | PRIVACY-1..4 | met | no collection, no third-party endpoints |
@@ -73,15 +73,18 @@ home-rolled crypto anywhere.
 **AUTH.** Authentication is delegated to the Kuma server over Socket.IO
 (username/password, optional TOTP, then a bearer token re-used via `loginByToken`).
 Strength therefore depends on the server's configuration. The client holds the token
-only. There is no local (biometric) gate before the stored session is used - an
-acceptable L1 posture, but an optional hardening item (see backlog).
+only. The optional local app lock requires a proof signed by an Android Keystore key
+whose use is bound to a strong biometric or device credential; a prompt callback alone
+cannot unlock the UI.
 
 **NETWORK.** All traffic runs over TLS by default (OkHttp for Socket.IO, Ktor for
 status pages). Two deliberate downgrades exist for self-hosted reality: a per-
 connection "trust self-signed certificate" option (`TlsTrust`, opt-in only, never
-default) and a global `usesCleartextTraffic=true` for plain-http instances. Both are
-tracked risks (see backlog). Certificate pinning is not applicable - URSA connects to
-arbitrary servers the user names, not a fixed backend.
+default) and a global `usesCleartextTraffic=true` for plain-http instances. The
+self-signed mode pins the first valid certificate for the connection lifetime and
+retains hostname verification; first use remains the trust decision. Cleartext remains
+a tracked risk (see backlog). Static certificate pinning is not applicable - URSA
+connects to arbitrary servers the user names, not a fixed backend.
 
 **PLATFORM.** The only exported component is the launcher activity (plus the
 AppWidget receiver and Quick Settings tile, which the platform requires to be
@@ -95,7 +98,8 @@ is no exported push surface. The push body is treated as untrusted input: parsed
 tolerantly by `PushParse` and only rendered into a notification, never acted upon.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
-Dependencies are version-pinned in `gradle/libs.versions.toml`; release workflows
+Dependencies are version-pinned in `gradle/libs.versions.toml`; Dependabot checks
+Gradle and GitHub Actions weekly and security alerts remain enabled. Release workflows
 also validate the Gradle dependency set and pin every GitHub Action to an immutable
 commit. Untrusted server input is parsed in one tolerant,
 unit-tested adapter (`KumaParse`) that isolates Kuma's wire quirks.
@@ -120,14 +124,18 @@ Prioritized by value/effort. Tracked items - none are silently dropped.
 3. **Scoped cleartext** - replace the global `usesCleartextTraffic` with a network-
    security config that permits cleartext only for user-added hosts, and warn in the
    UI (NETWORK-1).
-4. **Trust-on-first-use** - prefer pinning the certificate the user accepted over
-   blanket trust-all, with a louder warning at the toggle (NETWORK-1).
-5. **Dependency vulnerability check** in the build (CODE-3).
+4. ~~**Trust-on-first-use** - prefer pinning the certificate the user accepted over
+   blanket trust-all.~~ **Done (2026-08-24)** - the opt-in self-signed client pins
+   the first valid leaf certificate for its lifetime and retains hostname verification.
+5. ~~**Dependency vulnerability monitoring** (CODE-3).~~ **Done (2026-08-24)** -
+   Dependabot monitors Gradle and GitHub Actions, security alerts are enabled, and
+   release CI validates the resolved dependency set.
 6. ~~**M3 push receiver** - minimal export surface, treat payload as untrusted.~~
    **Done (2026-07-04)** - `PushService` is `exported="false"`; body is parsed
    tolerantly and render-only. Endpoint origin is not cryptographically validated
    (Kuma sends plain JSON, not web-push-encrypted) - acceptable: render-only, and
    the endpoint is a user-held secret.
 7. ~~**Optional local-auth gate** (biometric/device credential) before revealing
-   sessions (AUTH-2).~~ **Done (2026-07-04)** - opt-in app lock (`ui/lock`,
-   BiometricPrompt with device-credential fallback), re-locks on background.
+   sessions (AUTH-2).~~ **Done (2026-08-24)** - the opt-in app lock uses
+   BiometricPrompt with device-credential fallback and requires a cryptographic proof
+   from an authentication-bound Android Keystore key; it re-locks on background.

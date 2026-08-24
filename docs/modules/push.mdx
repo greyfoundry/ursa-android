@@ -50,5 +50,7 @@ connection: push works while the app is closed.
 - ntfy endpoints need `?up=1` appended so ntfy forwards Kuma's raw bytes - surfaced
   as a hint on the endpoint screen.
 - Same monitor id reuses its notification id, so a new status replaces the old one.
+- Notification content and monitor actions use immutable PendingIntents with explicit
+  app-owned activity/receiver components.
 - Notifications use the branded monochrome `ic_stat_ursa` small icon and
   `NotificationCompat` for consistent behavior across supported Android versions.
