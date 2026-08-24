@@ -18,7 +18,7 @@ android {
         // updates versionName via the marker; bump versionCode per release by hand
         // (major*10000 + minor*100 + patch).
         versionCode = 10202
-        versionName = "1.2.2" // x-release-please-version
+        versionName = "1.2.3" // x-release-please-version
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise
