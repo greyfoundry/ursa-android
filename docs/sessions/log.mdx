@@ -20,6 +20,8 @@ Keystore key bound to a strong biometric or device credential.
 
 **dependencies**: Merged the green AGP 9.3.2 and CodeQL Action 4.37.8 updates.
 Removed obsolete compileSdk 36 Dependabot caps now that the project targets SDK 37.
+Restored blocking CodeQL scans on pull requests and pushes after current extraction
+success proved the previous Kotlin compatibility limitation obsolete.
 
 **verified**: 44 debug unit tests passed, including certificate pin regressions;
 debug assembly and Android lint passed locally.

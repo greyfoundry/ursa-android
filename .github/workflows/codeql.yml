@@ -1,13 +1,10 @@
 name: CodeQL
 
-# NOTE: CodeQL's Kotlin extractor currently supports Kotlin < 2.3.30, but this
-# project builds with Kotlin 2.4.0, so extraction fails with
-# "KotlinVersionTooRecentError". Until a CodeQL release adds Kotlin 2.4.x support,
-# this workflow is kept configured and ready but runs only on a schedule (and on
-# demand) and is non-blocking. It will begin producing results automatically once
-# CodeQL catches up. At that point, restore the push/pull_request triggers and
-# drop continue-on-error.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "23 3 * * 1"
   workflow_dispatch:
@@ -19,8 +16,6 @@ jobs:
   analyze:
     name: Analyze (java-kotlin)
     runs-on: ubuntu-latest
-    # Non-blocking while the Kotlin toolchain is newer than CodeQL supports.
-    continue-on-error: true
     permissions:
       security-events: write
       actions: read

@@ -99,8 +99,9 @@ tolerantly by `PushParse` and only rendered into a notification, never acted upo
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; Dependabot checks
-Gradle and GitHub Actions weekly and security alerts remain enabled. Release workflows
-also validate the Gradle dependency set and pin every GitHub Action to an immutable
+Gradle and GitHub Actions weekly and security alerts remain enabled. CodeQL scans
+pull requests, pushes to `main`, and a weekly schedule. Release workflows also
+validate the Gradle dependency set and pin every GitHub Action to an immutable
 commit. Untrusted server input is parsed in one tolerant,
 unit-tested adapter (`KumaParse`) that isolates Kuma's wire quirks.
 
