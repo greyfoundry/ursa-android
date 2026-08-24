@@ -18,9 +18,9 @@ Binaries:
   https://github.com/greyfoundry/ursa-android/releases/download/v%v/ursa-v%v.apk
 
 Builds:
-  - versionName: 1.2.2
-    versionCode: 10202
-    commit: fe2f8c438f654cccfeee1996626f9da200ce20ea
+  - versionName: 1.2.3
+    versionCode: 10203
+    commit: c99a463864f112d355a7e580937d0f1668b6d96a
     subdir: app
     gradle:
       - yes
@@ -29,5 +29,5 @@ AllowedAPKSigningKeys: 1f359fb27aa92453412527921b16d59e45505bf6f7bb83bc3c2c5edf0
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]
-CurrentVersion: 1.2.2
-CurrentVersionCode: 10202
+CurrentVersion: 1.2.3
+CurrentVersionCode: 10203

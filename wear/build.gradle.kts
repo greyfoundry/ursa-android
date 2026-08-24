@@ -15,8 +15,8 @@ android {
         targetSdk = 37
         // Literal, matching the app module. The watch app is sideloaded, not on
         // F-Droid, so its versionCode is bumped by hand alongside the app.
-        versionCode = 10202
-        versionName = "1.2.2" // x-release-please-version
+        versionCode = 10203
+        versionName = "1.2.3" // x-release-please-version
     }
 
     // Release signing mirrors the app module: the keystore from CI secrets when present,

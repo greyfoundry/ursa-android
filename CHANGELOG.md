@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.3](https://github.com/greyfoundry/ursa-android/compare/v1.2.2...v1.2.3) (2026-08-24)
+
+
+### Bug Fixes
+
+* **security:** harden local trust boundaries ([#36](https://github.com/greyfoundry/ursa-android/issues/36)) ([c4b7658](https://github.com/greyfoundry/ursa-android/commit/c4b765800b13001559f8d70748d27bc128a4f1ad))
+
 ## [1.2.2](https://github.com/greyfoundry/ursa-android/compare/v1.2.1...v1.2.2) (2026-08-21)
 
 
