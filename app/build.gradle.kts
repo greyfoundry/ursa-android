@@ -14,16 +14,15 @@ android {
         minSdk = 26
         targetSdk = 37
         // Literal versionName/versionCode so F-Droid's parser can read them for
-        // auto-update (it cannot evaluate variables or arithmetic). release-please
-        // updates versionName via the marker; bump versionCode per release by hand
-        // (major*10000 + minor*100 + patch).
+        // auto-update (it cannot evaluate variables or arithmetic). Update both
+        // by hand for each release (major*10000 + minor*100 + patch).
         versionCode = 10203
-        versionName = "1.2.3" // x-release-please-version
+        versionName = "1.2.3"
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise
     // falls back to the debug key so local `assembleRelease` still produces an
-    // installable APK. See docs/infrastructure and the release-please workflow.
+    // installable APK. See docs/infrastructure/deployment.mdx and release.yml.
     signingConfigs {
         create("release") {
             System.getenv("ANDROID_KEYSTORE_PATH")?.let { path ->

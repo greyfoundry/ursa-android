@@ -71,9 +71,9 @@ The same check runs in CI, so enabling the hook locally saves a round trip.
   wire quirks into clean domain models; repositories expose `StateFlow`s; Compose
   renders them. Keep Kuma's protocol quirks isolated in the network adapter.
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org)
-  (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, ...). Releases and the
-  changelog are generated from commit messages, so keep them accurate. Use a scope
-  when helpful, e.g. `feat(push): ...`.
+  (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, ...). Keep them accurate
+  so release notes can be prepared from the history. Use a scope when helpful, e.g.
+  `feat(push): ...`.
 - **Tests**: add or update unit tests for logic changes. Wire-format parsing must
   stay covered.
 - **Lint**: `./gradlew :app:lintDebug` must be clean before you push.
@@ -86,6 +86,12 @@ The same check runs in CI, so enabling the hook locally saves a round trip.
    device/emulator and Android version if UI is affected).
 4. Ensure build, unit tests, and lint pass locally.
 5. Be responsive to review feedback.
+
+## Maintainer releases
+
+Release publication is deliberately manual. Follow the checklist in
+[`docs/infrastructure/deployment.mdx`](docs/infrastructure/deployment.mdx) and do
+not tag a release until its release PR has passed CI.
 
 ## Security
 
