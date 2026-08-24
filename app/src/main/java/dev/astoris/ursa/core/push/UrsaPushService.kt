@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -72,14 +71,12 @@ class UrsaPushService : PushService() {
 
     private fun notify(notice: PushNotice) {
         ensureChannel(this)
-        val open = Intent().apply {
-            component = ComponentName(this@UrsaPushService, MainActivity::class.java)
-            `package` = packageName
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
+        val open = Intent()
+        open.setClassName(packageName, MainActivity::class.java.name)
+        open.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         val pi = PendingIntent.getActivity(
             this, 0, open,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            PendingIntent.FLAG_IMMUTABLE,
         )
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
@@ -121,15 +118,14 @@ class UrsaPushService : PushService() {
 
     private fun monitorActionIntent(monitorId: Int, action: String): PendingIntent {
         val intent = Intent()
-            .setComponent(ComponentName(this, MonitorActionReceiver::class.java))
-            .setPackage(packageName)
-            .setAction(action)
-            .putExtra(MonitorActionReceiver.EXTRA_MONITOR_ID, monitorId)
+        intent.setClassName(packageName, MonitorActionReceiver::class.java.name)
+        intent.action = action
+        intent.putExtra(MonitorActionReceiver.EXTRA_MONITOR_ID, monitorId)
         // Unique request code per (monitor, action) so PendingIntents do not collide.
         val requestCode = "$monitorId:$action".hashCode()
         return PendingIntent.getBroadcast(
             this, requestCode, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            PendingIntent.FLAG_IMMUTABLE,
         )
     }
 
