@@ -22,20 +22,22 @@ import kotlinx.serialization.json.Json
  */
 class StatusPageClient {
 
-    // One client per TLS mode, created on demand.
-    private val clients = HashMap<Boolean, HttpClient>()
+    // Secure requests share a client. Self-signed requests get one certificate pin
+    // per base URL so separate servers cannot influence one another.
+    private val clients = HashMap<String, HttpClient>()
 
-    private fun client(insecure: Boolean): HttpClient = clients.getOrPut(insecure) {
-        HttpClient(OkHttp) {
-            engine { if (insecure) preconfigured = TlsTrust.insecureClient() }
-            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-            install(HttpTimeout) { requestTimeoutMillis = 15_000 }
+    private fun client(baseUrl: String, insecure: Boolean): HttpClient =
+        clients.getOrPut(if (insecure) "self-signed:$baseUrl" else "secure") {
+            HttpClient(OkHttp) {
+                engine { if (insecure) preconfigured = TlsTrust.sessionPinnedClient() }
+                install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+                install(HttpTimeout) { requestTimeoutMillis = 15_000 }
+            }
         }
-    }
 
     suspend fun fetch(baseUrl: String, slug: String, insecure: Boolean = false): StatusPageView {
         val base = baseUrl.trim().removeSuffix("/")
-        val http = client(insecure)
+        val http = client(base, insecure)
         val page: StatusPageResponse = http.get("$base/api/status-page/$slug").body()
         val hb: StatusHeartbeatResponse = http.get("$base/api/status-page/heartbeat/$slug").body()
 

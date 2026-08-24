@@ -60,7 +60,7 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
             reconnection = true
         }
         if (insecure) {
-            val ok = TlsTrust.insecureClient()
+            val ok = TlsTrust.sessionPinnedClient()
             opts.callFactory = ok
             opts.webSocketFactory = ok
         }

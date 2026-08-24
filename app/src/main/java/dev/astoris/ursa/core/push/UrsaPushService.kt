@@ -3,6 +3,8 @@ package dev.astoris.ursa.core.push
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -70,12 +72,14 @@ class UrsaPushService : PushService() {
 
     private fun notify(notice: PushNotice) {
         ensureChannel(this)
-        val open = Intent(this, MainActivity::class.java).apply {
+        val open = Intent().apply {
+            component = ComponentName(this@UrsaPushService, MainActivity::class.java)
+            `package` = packageName
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
-        val pi = android.app.PendingIntent.getActivity(
+        val pi = PendingIntent.getActivity(
             this, 0, open,
-            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
@@ -115,15 +119,17 @@ class UrsaPushService : PushService() {
         NotificationManagerCompat.from(this).notify(id, notification)
     }
 
-    private fun monitorActionIntent(monitorId: Int, action: String): android.app.PendingIntent {
-        val intent = Intent(this, MonitorActionReceiver::class.java)
+    private fun monitorActionIntent(monitorId: Int, action: String): PendingIntent {
+        val intent = Intent()
+            .setComponent(ComponentName(this, MonitorActionReceiver::class.java))
+            .setPackage(packageName)
             .setAction(action)
             .putExtra(MonitorActionReceiver.EXTRA_MONITOR_ID, monitorId)
         // Unique request code per (monitor, action) so PendingIntents do not collide.
         val requestCode = "$monitorId:$action".hashCode()
-        return android.app.PendingIntent.getBroadcast(
+        return PendingIntent.getBroadcast(
             this, requestCode, intent,
-            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }
 
