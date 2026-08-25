@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - password-encrypted configuration backup
+
+**changed**: Completed parity item CP-005. The saved-server manager can export and
+import a versioned `.ursa.json` document through Android's system document picker.
+The encrypted payload carries connections, access headers, favorites, dynamic
+colour preference, slow-alert settings, and per-monitor thresholds. Import merges
+by URL and preserves an existing local session when the backup omitted it.
+
+**security boundary**: Backups use PBKDF2-HMAC-SHA256 with 210,000 iterations and
+a random 128-bit salt, then AES-256-GCM with a random 96-bit nonce and fixed format
+AAD. Passwords must be at least eight characters. Session JWTs are excluded by
+default behind an explicit warning; lock keys, push endpoints, caches, and alert
+cooldowns are never exported. Import validates format/KDF bounds, authenticated
+decryption, URL schemes, header injection/duplicates, field sizes, counts, and
+portable preference ownership before changing storage.
+
+**verification**: Added JVM round-trip, optional-session, wrong-password, header,
+and legacy compatibility coverage. Emulator QA exported a real encrypted document,
+re-imported it with the password, confirmed a one-server merge without duplication,
+and displayed success feedback. The temporary document was then deleted from the
+emulator.
+
 ### 2026-08-25 - encrypted access headers
 
 **changed**: Completed parity item CP-004. Connection forms now include a

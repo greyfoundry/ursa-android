@@ -107,6 +107,7 @@
     <string name="login_test_success">Connection and credentials verified</string>
     <string name="login_test_2fa">Server reached - enter your 2FA code to finish verification</string>
     <string name="login_view_status_page">View a public status page</string>
+    <string name="login_import_backup">Import backup</string>
 
     <!-- Saved servers -->
     <string name="servers_title">Servers</string>
@@ -118,9 +119,32 @@
     <string name="servers_active_status">%1$s - %2$s</string>
     <string name="servers_saved">Saved</string>
     <string name="servers_reauthenticate">Sign in again</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_import">Import</string>
+    <string name="backup_export_title">Export encrypted backup</string>
+    <string name="backup_import_title">Import encrypted backup</string>
+    <string name="backup_export_desc">Choose a password for this file. Servers, access headers, favorites, and alert preferences are encrypted.</string>
+    <string name="backup_import_desc">Enter the password used when this backup was created. Valid servers are merged by URL.</string>
+    <string name="backup_password">Backup password</string>
+    <string name="backup_confirm_password">Confirm password</string>
+    <string name="backup_include_sessions">Include signed-in sessions</string>
+    <string name="backup_include_sessions_desc">Off by default. Enable only for a backup you will protect carefully.</string>
+    <string name="backup_password_too_short">Use at least 8 characters.</string>
+    <string name="backup_password_mismatch">Passwords do not match.</string>
+    <string name="backup_working">Working…</string>
+    <string name="backup_exported">Encrypted backup saved</string>
+    <string name="backup_write_failed">Could not write the backup file</string>
+    <string name="backup_read_failed">Could not read this backup file</string>
+    <string name="backup_invalid_document">This is not a supported URSA backup</string>
+    <string name="backup_wrong_password">Wrong password or damaged backup</string>
+    <string name="backup_invalid_content">Backup contents failed validation</string>
     <plurals name="access_header_count">
         <item quantity="one">%d encrypted access header</item>
         <item quantity="other">%d encrypted access headers</item>
+    </plurals>
+    <plurals name="backup_imported_count">
+        <item quantity="one">Imported %d server</item>
+        <item quantity="other">Imported %d servers</item>
     </plurals>
     <string name="servers_rename">Rename</string>
     <string name="servers_rename_title">Rename server</string>

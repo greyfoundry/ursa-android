@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import java.security.MessageDigest
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.monitorPreferenceDataStore by preferencesDataStore(name = "ursa_monitor_preferences")
@@ -28,6 +29,17 @@ class MonitorPreferenceStore(context: Context) {
             val ids = preferences[favoritesKey(serverUrl)].orEmpty().toMutableSet()
             if (!ids.add(monitorId.toString())) ids.remove(monitorId.toString())
             preferences[favoritesKey(serverUrl)] = ids
+        }
+    }
+
+    suspend fun favoriteSnapshot(serverUrl: String): Set<Int> = favorites(serverUrl).first()
+
+    suspend fun mergeFavorites(serverUrl: String, monitorIds: Set<Int>) {
+        if (monitorIds.isEmpty()) return
+        appContext.monitorPreferenceDataStore.edit { preferences ->
+            val key = favoritesKey(serverUrl)
+            val merged = preferences[key].orEmpty() + monitorIds.filter { it > 0 }.map(Int::toString)
+            preferences[key] = merged
         }
     }
 

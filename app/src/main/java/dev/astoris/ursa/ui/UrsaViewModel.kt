@@ -9,6 +9,11 @@ import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.BackupDecodeResult
+import dev.astoris.ursa.core.storage.BackupError
+import dev.astoris.ursa.core.storage.ConnectionBackupCodec
+import dev.astoris.ursa.core.storage.ConnectionBackupData
+import dev.astoris.ursa.core.storage.PortablePreferences
 import dev.astoris.ursa.core.storage.DynamicColorStore
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
@@ -36,7 +41,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed interface LoginUiState {
     data object Idle : LoginUiState
@@ -51,6 +58,12 @@ sealed interface ConnectionTestUiState {
     data object Success : ConnectionTestUiState
     data object NeedsTwoFactor : ConnectionTestUiState
     data class Error(val message: String) : ConnectionTestUiState
+}
+
+sealed interface ConnectionBackupResult {
+    data class Document(val content: String) : ConnectionBackupResult
+    data class Imported(val count: Int) : ConnectionBackupResult
+    data class Error(val reason: BackupError) : ConnectionBackupResult
 }
 
 sealed interface StatusPageUiState {
@@ -399,6 +412,82 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetConnectionTest() {
         _connectionTest.value = ConnectionTestUiState.Idle
+    }
+
+    fun createConnectionBackup(
+        password: String,
+        includeSessions: Boolean,
+        onResult: (ConnectionBackupResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val chars = password.toCharArray()
+            val result = try {
+                withContext(Dispatchers.Default) {
+                    val snapshot = store.snapshot()
+                    val preferences = PortablePreferences(
+                        dynamicColor = DynamicColorStore.enabled.value,
+                        slowAlertsEnabled = alertStore.isEnabled(),
+                        slowAlertThresholdMs = alertStore.globalThresholdMs(),
+                        perMonitorThresholds = alertStore.perMonitorThresholds(),
+                        favoritesByServer = snapshot.associate { connection ->
+                            connection.url to monitorPreferenceStore.favoriteSnapshot(connection.url)
+                        }.filterValues { it.isNotEmpty() },
+                    )
+                    ConnectionBackupResult.Document(
+                        ConnectionBackupCodec.encrypt(
+                            ConnectionBackupData(snapshot, preferences),
+                            chars,
+                            includeSessions,
+                        ),
+                    )
+                }
+            } catch (_: Exception) {
+                ConnectionBackupResult.Error(BackupError.INVALID_CONTENT)
+            } finally {
+                chars.fill('\u0000')
+            }
+            onResult(result)
+        }
+    }
+
+    fun importConnectionBackup(
+        document: String,
+        password: String,
+        onResult: (ConnectionBackupResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val chars = password.toCharArray()
+            val decoded = try {
+                withContext(Dispatchers.Default) { ConnectionBackupCodec.decrypt(document, chars) }
+            } catch (_: Exception) {
+                BackupDecodeResult.Error(BackupError.INVALID_DOCUMENT)
+            } finally {
+                chars.fill('\u0000')
+            }
+            when (decoded) {
+                is BackupDecodeResult.Error -> onResult(ConnectionBackupResult.Error(decoded.reason))
+                is BackupDecodeResult.Success -> {
+                    val data = decoded.data
+                    store.mergeImported(data.connections)
+                    if (!_hasSession.value) {
+                        data.connections.firstOrNull { it.jwt != null }?.let { connection ->
+                            repo.switchTo(connection)
+                            _hasSession.value = true
+                        }
+                    }
+                    DynamicColorStore.setEnabled(getApplication(), data.preferences.dynamicColor)
+                    alertStore.setEnabled(data.preferences.slowAlertsEnabled)
+                    alertStore.setGlobalThresholdMs(data.preferences.slowAlertThresholdMs)
+                    alertStore.mergePerMonitorThresholds(data.preferences.perMonitorThresholds)
+                    data.preferences.favoritesByServer.forEach { (url, ids) ->
+                        monitorPreferenceStore.mergeFavorites(url, ids)
+                    }
+                    _slowAlertEnabled.value = data.preferences.slowAlertsEnabled
+                    _slowThresholdMs.value = data.preferences.slowAlertThresholdMs
+                    onResult(ConnectionBackupResult.Imported(data.connections.size))
+                }
+            }
+        }
     }
 
     // --- Push actions ---

@@ -69,6 +69,14 @@ lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small i
 responses from each monitor's own HTTP(S) origin, and falls back safely when an
 entry cannot be decrypted or decoded.
 
+Portable backups use a separate user-chosen password and a versioned authenticated
+envelope: PBKDF2-HMAC-SHA256 (210,000 iterations, random 128-bit salt) derives an
+AES-256-GCM key; each file has a random 96-bit nonce and fixed format AAD. Import
+caps document size, KDF work factor, connection/header/preference counts, and field
+lengths before merging. Session tokens are excluded by default. Android Keystore
+keys, local-lock material, push endpoints, caches, and alert cooldown state are
+never portable.
+
 **CRYPTO.** AES-256-GCM via Tink is current best practice; keys are generated and
 wrapped through the Keystore rather than derived from anything app-controlled. No
 home-rolled crypto anywhere.

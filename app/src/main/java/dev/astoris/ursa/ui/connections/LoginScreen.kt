@@ -510,8 +510,13 @@ fun LoginScreen(
                 }
 
                 if (onBack == null) {
-                    TextButton(onClick = { vm.enterStatusPage() }) {
-                        Text(stringResource(R.string.login_view_status_page))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { vm.enterStatusPage() }) {
+                            Text(stringResource(R.string.login_view_status_page))
+                        }
+                        TextButton(onClick = { vm.enterConnectionManager() }) {
+                            Text(stringResource(R.string.login_import_backup))
+                        }
                     }
                 }
             }

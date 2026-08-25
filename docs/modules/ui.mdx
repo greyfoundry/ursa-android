@@ -23,7 +23,8 @@ navigation library for M1 - the screen set is small and state-driven).
   explicit self-signed-certificate choice. Its collapsed access-header editor
   supports masked Cloudflare Access credentials and up to eight custom headers.
 - `.../ui/connections/ConnectionManagerScreen.kt` - add, switch, rename, and
-  confirmed removal of encrypted saved-server sessions.
+  confirmed removal of encrypted saved-server sessions, plus password-encrypted
+  document export/import.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
   and attention/favourite/name sorting.
 - `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, incident timeline,
@@ -65,6 +66,10 @@ navigation library for M1 - the screen set is small and state-driven).
   flows to `insecure` on the connection.
 - Connection summaries show only the number of encrypted access headers. Header
   values are masked during entry and never rendered after save.
+- Portable backups merge servers by normalized URL. They include connections,
+  access headers, favorites, dynamic-colour choice, and slow-alert preferences;
+  session JWTs require an explicit opt-in. Device-bound lock keys, push endpoints,
+  cached monitor data, and alert cooldown timestamps are never exported.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

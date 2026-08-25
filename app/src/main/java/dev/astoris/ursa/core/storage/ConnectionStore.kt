@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
@@ -63,6 +64,29 @@ class ConnectionStore(context: Context) {
                 else connection
             }
             prefs[connectionsKey] = encode(next)
+        }
+    }
+
+    suspend fun snapshot(): List<ServerConnection> = connections.first()
+
+    /** Merge a validated portable backup by URL, preserving local sessions when omitted. */
+    suspend fun mergeImported(imported: List<ServerConnection>) {
+        context.dataStore.edit { prefs ->
+            val merged = decode(prefs).toMutableList()
+            imported.forEach { incoming ->
+                val index = merged.indexOfFirst { it.url == incoming.url }
+                if (index >= 0) {
+                    val existing = merged[index]
+                    merged[index] = incoming.copy(jwt = incoming.jwt ?: existing.jwt)
+                } else {
+                    merged += incoming
+                }
+            }
+            prefs[connectionsKey] = encode(merged)
+            val active = prefs[activeUrlKey]
+            if (active == null || merged.none { it.url == active }) {
+                merged.firstOrNull()?.let { prefs[activeUrlKey] = it.url }
+            }
         }
     }
 
