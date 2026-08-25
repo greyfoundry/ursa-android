@@ -249,6 +249,19 @@
     <string name="statuspage_remove_message">Remove %1$s from this device?</string>
     <string name="statuspage_untitled">(untitled)</string>
     <string name="statuspage_empty">No public monitors on this page</string>
+    <string name="statuspage_refreshed">Updated %1$s</string>
+    <string name="statuspage_maintenance">Maintenance</string>
+    <string name="statuspage_active_incidents">Active incidents</string>
+    <string name="statuspage_incident_history">Incident history</string>
+    <string name="statuspage_no_incidents">No incidents reported</string>
+    <string name="statuspage_incident_active">Active</string>
+    <string name="statuspage_incident_resolved">Resolved</string>
+    <string name="statuspage_incident_created">Started %1$s</string>
+    <plurals name="statuspage_incident_partial">
+        <item quantity="one">Showing the latest %1$d of %2$d incident</item>
+        <item quantity="other">Showing the latest %1$d of %2$d incidents</item>
+    </plurals>
+    <string name="statuspage_no_recent_checks">No recent checks</string>
 
     <!-- Push notifications screen -->
     <string name="push_refresh">Refresh</string>

@@ -69,8 +69,12 @@ source inventory remains 87 client events, 30 server emit candidates, and 33 RES
 routes; normalized live payload shapes used by URSA are unchanged.
 
 **REST (no auth - public status pages)**
-- `GET /api/status-page/<slug>` - page config, groups, monitors, incident
-- `GET /api/status-page/heartbeat/<slug>` - heartbeats + uptime
+- `GET /api/status-page/<slug>` - page config, public groups/monitors, pinned
+  active incidents, and active maintenance entries
+- `GET /api/status-page/heartbeat/<slug>` - up to 100 public heartbeat rows per
+  monitor plus `{"<monitorId>_24": <fraction>}` uptime values
+- `GET /api/status-page/<slug>/incident-history` - paginated active and resolved
+  incidents as `{ ok, incidents, total, nextCursor, hasMore }`
 - `GET /api/entry-page` - `statusPageMatchedDomain` returns `statusPageSlug`;
   `entryPage` can return `statusPage-<slug>` for a configured default page
 
@@ -83,6 +87,8 @@ routes; normalized live payload shapes used by URSA are unchanged.
   inside object payloads are numbers. Normalize both forms at the adapter boundary.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
   JSON string *inside* the JSON - parse twice.
+- **Public incident overlap**: a pinned active incident is returned by both the
+  main page endpoint and incident history. De-duplicate by numeric incident ID.
 - Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON
   array) on Kuma 2.x - absent from the wiki.
 - Kuma 2.x boots into a separate "setup-database" mode; the app socket isn't

@@ -1,12 +1,10 @@
 package dev.astoris.ursa.core.network
 
-import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.data.model.RequestHeader
-import dev.astoris.ursa.data.model.StatusGroupView
 import dev.astoris.ursa.data.model.StatusHeartbeatResponse
-import dev.astoris.ursa.data.model.StatusMonitorView
-import dev.astoris.ursa.data.model.StatusPageResponse
+import dev.astoris.ursa.data.model.StatusIncidentHistoryResponse
 import dev.astoris.ursa.data.model.StatusPageEntryResponse
+import dev.astoris.ursa.data.model.StatusPageResponse
 import dev.astoris.ursa.data.model.StatusPageView
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -16,12 +14,14 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 
 /**
- * Fetches a public Uptime Kuma status page (no auth). Combines the config endpoint
- * (groups + monitors) with the heartbeat endpoint (latest status + 24h uptime) into
- * a flat [StatusPageView]. Shapes verified against Kuma 2.5.3.
+ * Fetches a public Uptime Kuma status page (no auth). Combines page configuration,
+ * recent heartbeats, and incident history into a UI-safe [StatusPageView]. Shapes
+ * verified against Kuma 2.5.3.
  */
 class StatusPageClient {
 
@@ -43,32 +43,33 @@ class StatusPageClient {
         slug: String,
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
-    ): StatusPageView {
+    ): StatusPageView = coroutineScope {
         val base = baseUrl.trim().removeSuffix("/")
         val http = client(base, insecure)
         val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
-        val page: StatusPageResponse = http.get("$base/api/status-page/$slug") {
-            safeHeaders.forEach { header(it.name, it.value) }
-        }.body()
-        val hb: StatusHeartbeatResponse = http.get("$base/api/status-page/heartbeat/$slug") {
-            safeHeaders.forEach { header(it.name, it.value) }
-        }.body()
-
-        val groups = page.publicGroupList.map { group ->
-            StatusGroupView(
-                name = group.name,
-                monitors = group.monitorList.map { m ->
-                    val latest = hb.heartbeatList[m.id.toString()]?.lastOrNull()
-                    StatusMonitorView(
-                        id = m.id,
-                        name = m.name,
-                        status = MonitorStatus.from(latest?.status ?: 2),
-                        uptime24h = hb.uptimeList["${m.id}_24"],
-                    )
-                },
-            )
+        val pageRequest = async {
+            http.get("$base/api/status-page/$slug") {
+                safeHeaders.forEach { header(it.name, it.value) }
+            }.body<StatusPageResponse>()
         }
-        return StatusPageView(page.config.title, page.config.description, groups)
+        val heartbeatRequest = async {
+            http.get("$base/api/status-page/heartbeat/$slug") {
+                safeHeaders.forEach { header(it.name, it.value) }
+            }.body<StatusHeartbeatResponse>()
+        }
+        val historyRequest = async {
+            runCatching {
+                http.get("$base/api/status-page/$slug/incident-history") {
+                    safeHeaders.forEach { header(it.name, it.value) }
+                }.body<StatusIncidentHistoryResponse>()
+            }.getOrNull()
+        }
+        StatusPageMapper.map(
+            pageRequest.await(),
+            heartbeatRequest.await(),
+            historyRequest.await(),
+            System.currentTimeMillis(),
+        )
     }
 
     /** Resolve a custom-domain or configured status-page entry without guessing slugs. */

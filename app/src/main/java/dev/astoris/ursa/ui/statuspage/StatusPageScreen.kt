@@ -1,6 +1,8 @@
 package dev.astoris.ursa.ui.statuspage
 
+import android.text.format.DateUtils
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,21 +44,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.network.StatusPageAddressError
+import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.data.model.SavedStatusPage
+import dev.astoris.ursa.data.model.StatusCheckView
+import dev.astoris.ursa.data.model.StatusIncidentView
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.ui.StatusPageUiState
 import dev.astoris.ursa.ui.StatusPageFormResult
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.components.UrsaPressableCard
-import dev.astoris.ursa.core.network.StatusPageAddressError
+import dev.astoris.ursa.ui.theme.KumaBlue
+import dev.astoris.ursa.ui.theme.KumaGreen
+import dev.astoris.ursa.ui.theme.KumaOrange
+import dev.astoris.ursa.ui.theme.KumaRed
 
 private data class StatusPageDraft(
     val name: String,
@@ -462,6 +474,44 @@ private fun StatusPageContent(view: StatusPageView, modifier: Modifier) {
                 view.description?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                Text(
+                    stringResource(
+                        R.string.statuspage_refreshed,
+                        DateUtils.getRelativeTimeSpanString(
+                            view.refreshedAtMillis,
+                            System.currentTimeMillis(),
+                            DateUtils.MINUTE_IN_MILLIS,
+                            DateUtils.FORMAT_ABBREV_RELATIVE,
+                        ),
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (view.maintenances.isNotEmpty()) {
+            item { SectionLabel(stringResource(R.string.statuspage_maintenance)) }
+            items(view.maintenances, key = { "maintenance-${it.id}" }) { maintenance ->
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(maintenance.title, style = MaterialTheme.typography.titleSmall)
+                        maintenance.description.takeIf { it.isNotBlank() }?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+        val activeIncidents = view.incidents.filter { it.active }
+        if (activeIncidents.isNotEmpty()) {
+            item { SectionLabel(stringResource(R.string.statuspage_active_incidents)) }
+            items(activeIncidents, key = { "active-incident-${it.id}" }) { incident ->
+                StatusIncidentCard(incident)
             }
         }
         if (view.groups.isEmpty()) item {
@@ -473,24 +523,144 @@ private fun StatusPageContent(view: StatusPageView, modifier: Modifier) {
         }
         view.groups.forEach { group ->
             item(key = "group-${group.name}") {
-                Text(group.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
+                SectionLabel(group.name)
             }
             items(group.monitors, key = { "${group.name}-${it.id}" }) { monitor ->
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
                     shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Row(
+                    Column(
                         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Box(Modifier.size(10.dp).clip(CircleShape).background(StatusUi.color(monitor.status)))
-                        Text(monitor.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        monitor.uptime24h?.let { Text("${(it * 100).toInt()}%", style = MaterialTheme.typography.labelMedium) }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(StatusUi.color(monitor.status)))
+                            Text(monitor.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            monitor.uptime24h?.let { Text("${(it * 100).toInt()}%", style = MaterialTheme.typography.labelMedium) }
+                        }
+                        PublicHeartbeatBar(monitor.recentChecks)
                     }
                 }
+            }
+        }
+        val resolvedIncidents = view.incidents.filterNot { it.active }
+        item { SectionLabel(stringResource(R.string.statuspage_incident_history)) }
+        if (resolvedIncidents.isEmpty()) {
+            item {
+                Text(
+                    stringResource(R.string.statuspage_no_incidents),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            items(resolvedIncidents, key = { "resolved-incident-${it.id}" }) { incident ->
+                StatusIncidentCard(incident)
+            }
+        }
+        if (view.incidentHasMore) item {
+            Text(
+                pluralStringResource(
+                    R.plurals.statuspage_incident_partial,
+                    view.incidentTotal,
+                    view.incidents.size,
+                    view.incidentTotal,
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+    )
+}
+
+@Composable
+private fun PublicHeartbeatBar(checks: List<StatusCheckView>) {
+    if (checks.isEmpty()) {
+        Text(
+            stringResource(R.string.statuspage_no_recent_checks),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    val recent = checks.takeLast(30)
+    val upCount = recent.count { it.status == MonitorStatus.UP }
+    val downCount = recent.count { it.status == MonitorStatus.DOWN }
+    val otherCount = recent.size - upCount - downCount
+    val summary = stringResource(
+        R.string.heartbeat_summary,
+        pluralStringResource(R.plurals.heartbeat_up_count, upCount, upCount),
+        pluralStringResource(R.plurals.heartbeat_down_count, downCount, downCount),
+        pluralStringResource(R.plurals.heartbeat_other_count, otherCount, otherCount),
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(20.dp)
+            .clearAndSetSemantics { contentDescription = summary },
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        recent.forEach { check ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(20.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(StatusUi.color(check.status)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusIncidentCard(incident: StatusIncidentView) {
+    val accent = when (incident.style) {
+        "danger" -> KumaRed
+        "warning" -> KumaOrange
+        "info" -> KumaBlue
+        "primary" -> KumaGreen
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        color = if (incident.active) accent.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(accent))
+                Text(incident.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(
+                    stringResource(if (incident.active) R.string.statuspage_incident_active else R.string.statuspage_incident_resolved),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = accent,
+                )
+            }
+            incident.content.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+            incident.createdDate.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    stringResource(R.string.statuspage_incident_created, it),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

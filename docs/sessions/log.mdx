@@ -9,6 +9,27 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - public-page operational detail
+
+**changed**: Completed parity item CP-008. Public pages now merge Kuma's page,
+heartbeat, and incident-history endpoints into one native snapshot. Saved pages
+show grouped monitors, the latest 30 of Kuma's returned checks, 24-hour uptime,
+active maintenance, pinned active incidents, resolved incident history, and a
+relative refresh timestamp. Incident cards use Kuma's warning, danger, info, and
+primary colours while retaining text labels and non-colour semantics.
+
+**compatibility boundary**: Incident-history failure remains optional so public
+pages from older Kuma releases still load their groups and recent checks. Active
+incidents returned by both endpoints are de-duplicated by ID. Nullable
+maintenance descriptions and unknown wire fields are accepted safely.
+
+**verification**: Added a pure mapper test covering current status, preserved
+checks, incident overlap, active-first ordering, counts, and refresh time. Full
+unit, lint, and assembly gates pass with zero lint issues. Pixel 8 emulator QA
+against an official Uptime Kuma 2.5.3 container confirmed the public group,
+heartbeat semantics, active warning incident, resolved info incident, uptime,
+and refresh timestamp from live payloads.
+
 ### 2026-08-25 - public-page URL discovery and validation
 
 **changed**: Completed parity item CP-007. The public-page editor now accepts a

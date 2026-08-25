@@ -20,7 +20,9 @@ data class SavedStatusPage(
 @Serializable
 data class StatusPageResponse(
     val config: StatusPageConfig = StatusPageConfig(),
+    val incidents: List<StatusIncidentDto> = emptyList(),
     val publicGroupList: List<StatusGroupDto> = emptyList(),
+    val maintenanceList: List<StatusMaintenanceDto> = emptyList(),
 )
 
 @Serializable
@@ -61,12 +63,45 @@ data class StatusBeatDto(
     val ping: Int? = null,
 )
 
+@Serializable
+data class StatusIncidentDto(
+    val id: Int,
+    val style: String = "warning",
+    val title: String = "",
+    val content: String = "",
+    val pin: Boolean = false,
+    val active: Boolean = false,
+    val createdDate: String = "",
+    val lastUpdatedDate: String? = null,
+)
+
+@Serializable
+data class StatusIncidentHistoryResponse(
+    val ok: Boolean = false,
+    val incidents: List<StatusIncidentDto> = emptyList(),
+    val total: Int = 0,
+    val nextCursor: String? = null,
+    val hasMore: Boolean = false,
+)
+
+@Serializable
+data class StatusMaintenanceDto(
+    val id: Int,
+    val title: String = "",
+    val description: String? = null,
+)
+
 // ---- Domain view (flattened for the UI) ----
 
 data class StatusPageView(
     val title: String,
     val description: String?,
     val groups: List<StatusGroupView>,
+    val incidents: List<StatusIncidentView>,
+    val incidentTotal: Int,
+    val incidentHasMore: Boolean,
+    val maintenances: List<StatusMaintenanceView>,
+    val refreshedAtMillis: Long,
 )
 
 data class StatusGroupView(
@@ -79,4 +114,28 @@ data class StatusMonitorView(
     val name: String,
     val status: MonitorStatus,
     val uptime24h: Double?,
+    val recentChecks: List<StatusCheckView>,
+)
+
+data class StatusCheckView(
+    val status: MonitorStatus,
+    val time: String,
+    val ping: Int?,
+)
+
+data class StatusIncidentView(
+    val id: Int,
+    val style: String,
+    val title: String,
+    val content: String,
+    val active: Boolean,
+    val pinned: Boolean,
+    val createdDate: String,
+    val lastUpdatedDate: String?,
+)
+
+data class StatusMaintenanceView(
+    val id: Int,
+    val title: String,
+    val description: String,
 )
