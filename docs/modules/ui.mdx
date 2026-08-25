@@ -14,8 +14,8 @@ navigation library for M1 - the screen set is small and state-driven).
 
 **file paths**
 - `.../ui/UrsaViewModel.kt` - AndroidViewModel; owns `MonitorRepository` +
-  `StatusPageClient`; login and saved-server flows, selection, status-page state,
-  pause/resume, and per-server favourites.
+  `StatusPageClient`; login, saved-server, and saved public-page flows, selection,
+  status-page state, pause/resume, and per-server favourites.
 - `.../ui/UrsaApp.kt` - root; routes server manager / status-page / login /
   detail / list.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
@@ -29,7 +29,8 @@ navigation library for M1 - the screen set is small and state-driven).
   and attention/favourite/name sorting.
 - `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, incident timeline,
   favourite toggle, cert, pause/resume.
-- `.../ui/statuspage/StatusPageScreen.kt` - public page by URL+slug.
+- `.../ui/statuspage/StatusPageScreen.kt` - unlimited encrypted local public-page
+  manager with add/edit/remove, favourite, ordering, refresh, and native viewing.
 - `.../ui/StatusUi.kt` - status -> Kuma color / label string-resource.
 - `.../ui/StatusPill.kt` - Kuma-style rounded status badge (colored pill, white text).
 - `.../ui/theme/` - `Color.kt`, `Theme.kt`, and `Motion.kt`: semantic Kuma status
@@ -43,12 +44,12 @@ navigation library for M1 - the screen set is small and state-driven).
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
-  `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`;
+  `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`,
+  `savedStatusPages`, `selectedStatusPageId`;
   actions `login`, `loginWithSessionToken`, `testConnection`, `testSessionToken`,
   `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
-  `pause`/`resume`, `toggleFavorite`,
-  `enterStatusPage`/`loadStatusPage`/`exitStatusPage`.
+  `pause`/`resume`, `toggleFavorite`, and saved status-page CRUD/order/open/refresh.
 
 **depends on**
 - `data/repository`, `core/network` (StatusPageClient), Compose Material 3,
@@ -62,8 +63,9 @@ navigation library for M1 - the screen set is small and state-driven).
 - Routing uses `hasSession` (set once authenticated, and optimistically at startup
   if a stored JWT exists) - NOT raw connection state - so reconnects keep the list
   visible with a "Connection: …" banner. `logout()` clears it.
-- Login/status-page screens have a "Trust self-signed certificate" checkbox that
-  flows to `insecure` on the connection.
+- Saved public pages are encrypted by `StatusPageStore`; public-page URLs never
+  duplicate access headers. A page whose normalized base URL exactly matches a
+  saved server inherits that server's encrypted headers only at request time.
 - Connection summaries show only the number of encrypted access headers. Header
   values are masked during entry and never rendered after save.
 - Portable backups merge servers by normalized URL. They include connections,

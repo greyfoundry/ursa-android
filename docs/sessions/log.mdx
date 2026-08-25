@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-24
+last-updated: 2026-08-25
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,25 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-08-25 - saved public status pages
+
+**changed**: Completed parity item CP-006. Replaced the one-off public-page form
+with an unlimited, named, local-first page manager available before sign-in and
+from Settings. Pages can be added, edited, favourited, manually reordered, opened,
+refreshed, and removed behind confirmation. The viewer retains native grouped
+monitor presentation and uses the shared modern card/surface language.
+
+**security boundary**: Page definitions are encrypted in their own DataStore with
+the existing Keystore-backed Tink AEAD. They never duplicate credentials. An exact
+normalized URL match can reuse a saved server's encrypted reverse-proxy headers at
+request time without rendering or logging them.
+
+**verification**: Added focused sparse-order and boundary tests. Full JVM tests,
+debug assembly, and lint pass. Pixel 8 emulator QA against an ephemeral official
+Uptime Kuma 2.5.3 container covered add, edit, favourite, reorder, restart
+persistence, successful REST load, refresh surface, and confirmed removal. The
+temporary server exposed a real public page and was removed after the run.
 
 ### 2026-08-25 - password-encrypted configuration backup
 

@@ -457,13 +457,12 @@ private fun MonitorOverview(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = stringResource(
-                            R.string.fleet_summary,
-                            upCount,
-                            downCount,
-                            pendingCount,
-                            pausedCount,
-                        ),
+                        text = listOf(
+                            pluralStringResource(R.plurals.fleet_up_count, upCount, upCount),
+                            pluralStringResource(R.plurals.fleet_down_count, downCount, downCount),
+                            pluralStringResource(R.plurals.fleet_pending_count, pendingCount, pendingCount),
+                            pluralStringResource(R.plurals.fleet_paused_count, pausedCount, pausedCount),
+                        ).joinToString(" • "),
                         style = MaterialTheme.typography.bodySmall,
                         color = contentColor.copy(alpha = 0.72f),
                     )

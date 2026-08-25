@@ -68,6 +68,17 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     )
                 }
             }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = { vm.enterStatusPage() }, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.statuspage_title), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.settings_status_pages_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()

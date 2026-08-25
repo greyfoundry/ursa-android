@@ -19,6 +19,7 @@ import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorPreferenceStore
 import dev.astoris.ursa.core.storage.ResponseAlertStore
+import dev.astoris.ursa.core.storage.StatusPageStore
 import dev.astoris.ursa.core.work.CertExpiryWorker
 import dev.astoris.ursa.core.work.ResponseAlertNotifier
 import dev.astoris.ursa.core.work.ResponseAlertWorker
@@ -29,6 +30,7 @@ import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.RequestHeader
+import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.repository.MonitorRepository
@@ -44,6 +46,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 sealed interface LoginUiState {
     data object Idle : LoginUiState
@@ -120,10 +123,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
 
     private val statusClient = StatusPageClient()
+    private val statusPageStore = StatusPageStore(app)
     private val _statusPageMode = MutableStateFlow(false)
     val statusPageMode: StateFlow<Boolean> = _statusPageMode.asStateFlow()
     private val _statusPage = MutableStateFlow<StatusPageUiState>(StatusPageUiState.Idle)
     val statusPage: StateFlow<StatusPageUiState> = _statusPage.asStateFlow()
+    val savedStatusPages: StateFlow<List<SavedStatusPage>> =
+        statusPageStore.pages.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _selectedStatusPageId = MutableStateFlow<String?>(null)
+    val selectedStatusPageId: StateFlow<String?> = _selectedStatusPageId.asStateFlow()
 
     // --- Push (UnifiedPush) ---
     val pushEndpoint: StateFlow<String?> = PushStore.endpoint
@@ -553,15 +561,67 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun enterStatusPage() { _statusPageMode.value = true }
     fun exitStatusPage() {
         _statusPageMode.value = false
+        _selectedStatusPageId.value = null
         _statusPage.value = StatusPageUiState.Idle
     }
 
-    fun loadStatusPage(url: String, slug: String, insecure: Boolean = false) {
-        val normalized = normalizeUrl(url)
+    fun saveStatusPage(
+        existingId: String?,
+        name: String,
+        url: String,
+        slug: String,
+        insecure: Boolean,
+    ) {
+        val existing = savedStatusPages.value.firstOrNull { it.id == existingId }
+        val page = SavedStatusPage(
+            id = existingId ?: UUID.randomUUID().toString(),
+            name = name.trim(),
+            url = normalizeUrl(url),
+            slug = slug.trim(),
+            insecure = insecure,
+            favorite = existing?.favorite ?: false,
+            order = existing?.order ?: savedStatusPages.value.size,
+        )
+        viewModelScope.launch { statusPageStore.upsert(page) }
+    }
+
+    fun removeStatusPage(id: String) {
+        if (_selectedStatusPageId.value == id) closeStatusPageView()
+        viewModelScope.launch { statusPageStore.remove(id) }
+    }
+
+    fun toggleStatusPageFavorite(id: String) =
+        viewModelScope.launch { statusPageStore.toggleFavorite(id) }
+
+    fun moveStatusPage(id: String, direction: Int) =
+        viewModelScope.launch { statusPageStore.move(id, direction) }
+
+    fun openStatusPage(page: SavedStatusPage) {
+        _selectedStatusPageId.value = page.id
+        loadStatusPage(page)
+    }
+
+    fun refreshStatusPage() {
+        val id = _selectedStatusPageId.value ?: return
+        savedStatusPages.value.firstOrNull { it.id == id }?.let(::loadStatusPage)
+    }
+
+    fun closeStatusPageView() {
+        _selectedStatusPageId.value = null
+        _statusPage.value = StatusPageUiState.Idle
+    }
+
+    private fun loadStatusPage(page: SavedStatusPage) {
         viewModelScope.launch {
             _statusPage.value = StatusPageUiState.Loading
             _statusPage.value = try {
-                StatusPageUiState.Loaded(statusClient.fetch(normalized, slug.trim(), insecure))
+                val headers = store.snapshot()
+                    .firstOrNull { normalizeUrl(it.url) == page.url }
+                    ?.headers
+                    .orEmpty()
+                StatusPageUiState.Loaded(
+                    statusClient.fetch(page.url, page.slug, page.insecure, headers),
+                )
             } catch (e: Exception) {
                 StatusPageUiState.Error(e.message ?: "Failed to load status page")
             }

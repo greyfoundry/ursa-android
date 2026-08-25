@@ -54,8 +54,6 @@
     <string name="action_back">Back</string>
     <string name="action_filter">Filter</string>
     <string name="action_more">More options</string>
-    <string name="action_show_overview">Show overview</string>
-    <string name="action_hide_overview">Hide overview</string>
     <string name="filter_all">All</string>
     <string name="filter_active">Active</string>
     <string name="filter_paused">Paused</string>
@@ -65,11 +63,21 @@
     <string name="action_sort_attention">Sort: attention first</string>
     <string name="action_sort_favorites">Sort: favorites first</string>
     <string name="action_sort_name">Sort: name</string>
-    <string name="monitor_overview">Overview</string>
     <string name="fleet_healthy">All systems operational</string>
     <string name="fleet_checking">Checks in progress</string>
-    <string name="fleet_summary">%1$d up - %2$d down - %3$d pending - %4$d paused</string>
-    <plurals name="monitor_paused_count">
+    <plurals name="fleet_up_count">
+        <item quantity="one">%d up</item>
+        <item quantity="other">%d up</item>
+    </plurals>
+    <plurals name="fleet_down_count">
+        <item quantity="one">%d down</item>
+        <item quantity="other">%d down</item>
+    </plurals>
+    <plurals name="fleet_pending_count">
+        <item quantity="one">%d pending</item>
+        <item quantity="other">%d pending</item>
+    </plurals>
+    <plurals name="fleet_paused_count">
         <item quantity="one">%d paused</item>
         <item quantity="other">%d paused</item>
     </plurals>
@@ -155,6 +163,7 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_servers_desc">Add or switch servers</string>
+    <string name="settings_status_pages_desc">Save and open public dashboards</string>
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>
@@ -203,10 +212,26 @@
     <string name="detail_subject">Subject: %1$s</string>
 
     <!-- Status page viewer -->
-    <string name="statuspage_title">Status page</string>
+    <string name="statuspage_title">Status pages</string>
+    <string name="statuspage_intro">Keep public dashboards together for quick, account-free access.</string>
+    <string name="statuspage_add">Add page</string>
+    <string name="statuspage_edit">Edit page</string>
+    <string name="statuspage_name">Page name</string>
+    <string name="statuspage_editor_desc">Save a public Uptime Kuma page on this device. There is no page limit.</string>
+    <string name="statuspage_none">No saved pages</string>
+    <string name="statuspage_none_desc">Add a public status page to see it here.</string>
     <string name="statuspage_slug">Status page slug</string>
     <string name="statuspage_slug_placeholder">my-status</string>
-    <string name="statuspage_load">Load</string>
+    <string name="statuspage_slug_value">Page: %1$s</string>
+    <string name="statuspage_refresh">Refresh</string>
+    <string name="statuspage_retry">Try again</string>
+    <string name="statuspage_favorite">Add page to favorites</string>
+    <string name="statuspage_unfavorite">Remove page from favorites</string>
+    <string name="statuspage_move_up">Move up</string>
+    <string name="statuspage_move_down">Move down</string>
+    <string name="statuspage_remove">Remove</string>
+    <string name="statuspage_remove_title">Remove status page?</string>
+    <string name="statuspage_remove_message">Remove %1$s from this device?</string>
     <string name="statuspage_untitled">(untitled)</string>
     <string name="statuspage_empty">No public monitors on this page</string>
 

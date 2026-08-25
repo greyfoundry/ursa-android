@@ -32,7 +32,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 
 | Category | Status | Where |
 |---|---|---|
-| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `FaviconStore.kt` |
+| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `StatusPageStore.kt`, `FaviconStore.kt` |
 | STORAGE-2 no data leakage | met | `FLAG_SECURE`; cloud backup and device transfer excluded |
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
@@ -53,8 +53,9 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 
 ## category detail
 
-**STORAGE.** Connections persist through `ConnectionStore` (DataStore Preferences).
-The value is encrypted by `Crypto` (Tink AEAD, AES-256-GCM) under a master key held
+**STORAGE.** Connections and named public-page definitions persist through separate
+DataStore Preferences stores. Their values are encrypted by `Crypto` (Tink AEAD,
+AES-256-GCM) under a master key held
 in the Android Keystore, with an app-specific AAD. The login password and TOTP are
 never written to disk; only the resulting session token and optional user-supplied
 reverse-proxy headers are. Header values are masked in forms, omitted from
@@ -63,6 +64,11 @@ app-wide (`MainActivity`), so monitor data and server URLs are kept out of
 screenshots, screen recordings, and the recents thumbnail. The manifest sets
 `allowBackup=false`; legacy backup rules and Android 12+ data-extraction rules also
 exclude every storage domain from cloud backup and device-to-device transfer.
+
+Saved public pages retain only a local name, base URL, slug, certificate-trust
+choice, favourite flag, and order. They do not copy session tokens or access
+headers. When a page base exactly matches a saved server, the request temporarily
+inherits that server's encrypted headers in memory.
 
 The optional favicon cache is also encrypted with the same Keystore-backed AEAD and
 lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small image

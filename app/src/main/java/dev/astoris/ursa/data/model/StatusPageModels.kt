@@ -2,6 +2,18 @@ package dev.astoris.ursa.data.model
 
 import kotlinx.serialization.Serializable
 
+/** A locally saved public status page. Sensitive reverse-proxy headers stay on the matching server. */
+@Serializable
+data class SavedStatusPage(
+    val id: String,
+    val name: String,
+    val url: String,
+    val slug: String,
+    val insecure: Boolean = false,
+    val favorite: Boolean = false,
+    val order: Int = 0,
+)
+
 // ---- Wire DTOs (verified against Uptime Kuma 2.5.0 REST) ----
 // GET /api/status-page/<slug>  and  /api/status-page/heartbeat/<slug>
 
