@@ -216,6 +216,24 @@
     <string name="incident_resolved_at">Resolved %1$s</string>
     <string name="incident_start_unknown">Start time unavailable</string>
     <string name="incident_duration">Duration %1$s</string>
+    <string name="reliability_title">%1$s reliability</string>
+    <string name="reliability_downtime">Downtime observed</string>
+    <string name="reliability_mttr">MTTR</string>
+    <string name="reliability_no_outages">No outages</string>
+    <string name="reliability_unavailable">N/A</string>
+    <plurals name="reliability_incidents">
+        <item quantity="one">%d incident</item>
+        <item quantity="other">%d incidents</item>
+    </plurals>
+    <plurals name="reliability_complete">
+        <item quantity="one">Complete window across %1$d active monitor</item>
+        <item quantity="other">Complete window across %1$d active monitors</item>
+    </plurals>
+    <plurals name="reliability_incomplete">
+        <item quantity="one">Partial history for %1$d of %2$d active monitor; totals may be low</item>
+        <item quantity="other">Partial history for %1$d of %2$d active monitors; totals may be low</item>
+    </plurals>
+    <string name="reliability_no_active_monitors">No active monitors to summarize</string>
     <string name="detail_no_history">No history yet</string>
     <string name="heartbeat_summary">Recent heartbeats: %1$s, %2$s, %3$s</string>
     <plurals name="heartbeat_up_count">

@@ -1,6 +1,7 @@
 package dev.astoris.ursa.ui.monitors
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.Heartbeat
@@ -54,6 +57,20 @@ internal data class FleetIncident(
 
 internal enum class FleetIncidentFilter { ALL, ACTIVE, RESOLVED }
 
+internal data class MonitorFlakiness(
+    val monitorId: Int,
+    val monitorName: String,
+    val incidents: Int,
+)
+
+internal data class FleetReliabilitySummary(
+    val observedDowntimeMillis: Long,
+    val meanTimeToRecoveryMillis: Long?,
+    val flakiestMonitor: MonitorFlakiness?,
+    val incompleteMonitorCount: Int,
+    val activeMonitorCount: Int,
+)
+
 private val kumaHeartbeatTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
 
 internal fun kumaUtcMillisOrNull(value: String?): Long? = runCatching {
@@ -78,6 +95,60 @@ internal fun compactDuration(durationMillis: Long): String {
         minutes > 0 -> "${minutes}m ${seconds}s"
         else -> "${seconds}s"
     }
+}
+
+internal fun incidentOverlapsWindow(incident: FleetIncident, cutoffMillis: Long, nowMillis: Long): Boolean {
+    val start = kumaUtcMillisOrNull(incident.startedAt)
+    val end = kumaUtcMillisOrNull(incident.resolvedAt) ?: nowMillis
+    return when {
+        incident.active && start == null -> true
+        start == null -> false
+        else -> start <= nowMillis && end >= cutoffMillis
+    }
+}
+
+internal fun fleetReliabilitySummary(
+    monitors: List<Monitor>,
+    history: Map<Int, List<Heartbeat>>,
+    incidents: List<FleetIncident>,
+    windowHours: Int,
+    nowMillis: Long,
+): FleetReliabilitySummary {
+    val cutoff = nowMillis - windowHours * 3_600_000L
+    val activeMonitors = monitors.filter { it.active }
+    val activeMonitorIds = activeMonitors.mapTo(mutableSetOf()) { it.id }
+    val incompleteMonitorCount = activeMonitors.count { monitor ->
+        history[monitor.id].orEmpty().mapNotNull { kumaUtcMillisOrNull(it.time) }.minOrNull()
+            ?.let { it > cutoff } != false
+    }
+    var observedDowntime = 0L
+    val recoveryDurations = mutableListOf<Long>()
+    val outageCounts = mutableMapOf<Int, Int>()
+
+    incidents.forEach { incident ->
+        if (incident.monitorId !in activeMonitorIds) return@forEach
+        val start = kumaUtcMillisOrNull(incident.startedAt) ?: return@forEach
+        val end = (kumaUtcMillisOrNull(incident.resolvedAt) ?: nowMillis).coerceAtMost(nowMillis)
+        if (end < cutoff || start > nowMillis) return@forEach
+        observedDowntime += (end - start.coerceAtLeast(cutoff)).coerceAtLeast(0L)
+        if (start >= cutoff) {
+            outageCounts[incident.monitorId] = outageCounts.getOrDefault(incident.monitorId, 0) + 1
+            if (!incident.active) recoveryDurations += (end - start).coerceAtLeast(0L)
+        }
+    }
+
+    val names = monitors.associate { it.id to it.name }
+    val flakiest = outageCounts.entries
+        .sortedWith(compareByDescending<Map.Entry<Int, Int>> { it.value }.thenBy { names[it.key].orEmpty() })
+        .firstOrNull()
+        ?.let { MonitorFlakiness(it.key, names[it.key].orEmpty(), it.value) }
+    return FleetReliabilitySummary(
+        observedDowntimeMillis = observedDowntime,
+        meanTimeToRecoveryMillis = recoveryDurations.takeIf { it.isNotEmpty() }?.average()?.toLong(),
+        flakiestMonitor = flakiest,
+        incompleteMonitorCount = incompleteMonitorCount,
+        activeMonitorCount = activeMonitors.size,
+    )
 }
 
 internal fun fleetIncidents(
@@ -126,6 +197,7 @@ internal fun FleetIncidentCenter(
 ) {
     val incidents = remember(monitors, history) { fleetIncidents(monitors, history) }
     var filter by remember { mutableStateOf(FleetIncidentFilter.ALL) }
+    var window by remember { mutableStateOf(HeartbeatRange.DAY) }
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -133,7 +205,10 @@ internal fun FleetIncidentCenter(
             nowMillis = System.currentTimeMillis()
         }
     }
-    val shown = incidents.filter { incident ->
+    val cutoffMillis = nowMillis - window.hours * 3_600_000L
+    val windowedIncidents = incidents.filter { incidentOverlapsWindow(it, cutoffMillis, nowMillis) }
+    val reliability = fleetReliabilitySummary(monitors, history, incidents, window.hours, nowMillis)
+    val shown = windowedIncidents.filter { incident ->
         when (filter) {
             FleetIncidentFilter.ALL -> true
             FleetIncidentFilter.ACTIVE -> incident.active
@@ -175,12 +250,37 @@ internal fun FleetIncidentCenter(
                 )
             }
         }
-        if (shown.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    stringResource(R.string.incident_center_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            HeartbeatRange.entries.forEach { option ->
+                FilterChip(
+                    selected = window == option,
+                    onClick = { window = option },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = KumaGreen.copy(alpha = 0.16f),
+                        selectedLabelColor = KumaGreen,
+                    ),
+                    label = { Text(option.label) },
                 )
+            }
+        }
+        if (shown.isEmpty()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                item { ReliabilitySummaryCard(window, reliability) }
+                item {
+                    Box(Modifier.fillParentMaxHeight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(
+                            stringResource(R.string.incident_center_empty),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         } else {
             LazyColumn(
@@ -188,6 +288,7 @@ internal fun FleetIncidentCenter(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                item { ReliabilitySummaryCard(window, reliability) }
                 items(shown, key = { "${it.monitorId}-${it.startedAt}-${it.resolvedAt}" }) { incident ->
                     UrsaPressableCard(onClick = { onIncidentClick(incident.monitorId) }, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -235,5 +336,79 @@ internal fun FleetIncidentCenter(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ReliabilitySummaryCard(
+    window: HeartbeatRange,
+    summary: FleetReliabilitySummary,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                stringResource(R.string.reliability_title, window.label),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ReliabilityMetric(
+                    value = compactDuration(summary.observedDowntimeMillis),
+                    label = stringResource(R.string.reliability_downtime),
+                    modifier = Modifier.weight(1f),
+                )
+                ReliabilityMetric(
+                    value = summary.meanTimeToRecoveryMillis?.let(::compactDuration)
+                        ?: stringResource(R.string.reliability_unavailable),
+                    label = stringResource(R.string.reliability_mttr),
+                    modifier = Modifier.weight(1f),
+                )
+                ReliabilityMetric(
+                    value = summary.flakiestMonitor?.monitorName
+                        ?: stringResource(R.string.reliability_unavailable),
+                    label = summary.flakiestMonitor?.let {
+                        pluralStringResource(R.plurals.reliability_incidents, it.incidents, it.incidents)
+                    } ?: stringResource(R.string.reliability_no_outages),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                if (summary.activeMonitorCount == 0) {
+                    stringResource(R.string.reliability_no_active_monitors)
+                } else if (summary.incompleteMonitorCount == 0) {
+                    pluralStringResource(
+                        R.plurals.reliability_complete,
+                        summary.activeMonitorCount,
+                        summary.activeMonitorCount,
+                    )
+                } else {
+                    pluralStringResource(
+                        R.plurals.reliability_incomplete,
+                        summary.activeMonitorCount,
+                        summary.incompleteMonitorCount,
+                        summary.activeMonitorCount,
+                    )
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReliabilityMetric(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

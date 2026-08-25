@@ -9,6 +9,25 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - fleet reliability statistics
+
+**changed**: Completed parity item CP-013. The incident center now scopes both
+its feed and an active-monitor reliability summary to 6-hour, 24-hour, 7-day, or
+30-day windows. The summary shows observed downtime, mean time to recovery, and
+the monitor with the most incident starts in the selected window.
+
+**correctness boundary**: Metrics derive only from heartbeat transitions already
+available in the client and never trigger fleet-wide polling. Overlapping outage
+duration is clipped to the selected boundary; carry-in outages do not distort
+MTTR or flakiness. Any active monitor whose available history does not reach the
+window boundary makes the summary explicitly partial and warns that totals may
+be low.
+
+**verification**: Focused tests cover multiple resolved and active outages,
+window clipping, aggregate MTTR, flakiest ranking, complete coverage, and partial
+coverage. The Android 17 emulator verified the clean two-row filters, reliability
+card, partial-history copy, window switching, and absence of login regression.
+
 ### 2026-08-25 - restored-session startup gate
 
 **changed**: Cold starts now hold a minimal branded loading surface while the

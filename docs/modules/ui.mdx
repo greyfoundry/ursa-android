@@ -29,7 +29,9 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
   and attention/favourite/name sorting.
 - `.../ui/monitors/FleetIncidentCenter.kt` - active-first outage transitions
-  across monitors with all/active/resolved filters and detail deep links.
+  across monitors with all/active/resolved filters and detail deep links, plus
+  windowed observed downtime, MTTR, flakiest-monitor, and history-coverage
+  summaries for active monitors.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
@@ -84,6 +86,11 @@ navigation library for M1 - the screen set is small and state-driven).
   access headers, favorites, dynamic-colour choice, and slow-alert preferences;
   session JWTs require an explicit opt-in. Device-bound lock keys, push endpoints,
   cached monitor data, and alert cooldown timestamps are never exported.
+- Fleet reliability statistics use only Kuma heartbeat transitions already held
+  by the client. Outages that overlap a selected window contribute only their
+  in-window duration; carry-in incidents are excluded from MTTR and flakiness.
+  Coverage is conservative: any active monitor without a heartbeat at or before
+  the window boundary marks the aggregate partial and warns that totals may be low.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

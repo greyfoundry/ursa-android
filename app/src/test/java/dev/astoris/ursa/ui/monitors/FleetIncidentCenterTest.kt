@@ -56,6 +56,81 @@ class FleetIncidentCenterTest {
         assertNull(kumaUtcMillisOrNull("not a Kuma time"))
     }
 
+    @Test
+    fun reliabilityCalculatesDowntimeMttrAndFlakiestMonitorForWindow() {
+        val now = kumaUtcMillisOrNull("2026-08-25 12:00:00")!!
+        val api = monitor(1, "API", MonitorStatus.DOWN)
+        val database = monitor(2, "Database", MonitorStatus.UP)
+        val history = mapOf(
+            1 to listOf(
+                beat(1, MonitorStatus.UP, "2026-08-25 05:00:00"),
+                beat(1, MonitorStatus.DOWN, "2026-08-25 07:00:00"),
+                beat(1, MonitorStatus.UP, "2026-08-25 07:30:00"),
+                beat(1, MonitorStatus.DOWN, "2026-08-25 10:00:00"),
+            ),
+            2 to listOf(
+                beat(2, MonitorStatus.UP, "2026-08-25 05:00:00"),
+                beat(2, MonitorStatus.DOWN, "2026-08-25 09:00:00"),
+                beat(2, MonitorStatus.UP, "2026-08-25 09:15:00"),
+            ),
+        )
+
+        val summary = fleetReliabilitySummary(
+            monitors = listOf(api, database),
+            history = history,
+            incidents = fleetIncidents(listOf(api, database), history),
+            windowHours = 6,
+            nowMillis = now,
+        )
+
+        assertEquals(9_900_000L, summary.observedDowntimeMillis)
+        assertEquals(1_350_000L, summary.meanTimeToRecoveryMillis)
+        assertEquals(MonitorFlakiness(1, "API", 2), summary.flakiestMonitor)
+        assertEquals(0, summary.incompleteMonitorCount)
+        assertEquals(2, summary.activeMonitorCount)
+    }
+
+    @Test
+    fun reliabilityClipsCarryInOutageAndMarksPartialHistory() {
+        val now = kumaUtcMillisOrNull("2026-08-25 12:00:00")!!
+        val api = monitor(1, "API", MonitorStatus.UP)
+        val history = mapOf(
+            1 to listOf(
+                beat(1, MonitorStatus.DOWN, "2026-08-25 05:30:00"),
+                beat(1, MonitorStatus.UP, "2026-08-25 06:30:00"),
+            ),
+        )
+
+        val summary = fleetReliabilitySummary(
+            monitors = listOf(api),
+            history = history,
+            incidents = fleetIncidents(listOf(api), history),
+            windowHours = 6,
+            nowMillis = now,
+        )
+
+        assertEquals(1_800_000L, summary.observedDowntimeMillis)
+        assertNull(summary.meanTimeToRecoveryMillis)
+        assertNull(summary.flakiestMonitor)
+        assertEquals(0, summary.incompleteMonitorCount)
+        assertTrue(incidentOverlapsWindow(fleetIncidents(listOf(api), history).single(), now - 21_600_000L, now))
+
+        val recentOnly = mapOf(1 to listOf(beat(1, MonitorStatus.UP, "2026-08-25 11:00:00")))
+        val partial = fleetReliabilitySummary(listOf(api), recentOnly, emptyList(), 6, now)
+        assertEquals(1, partial.incompleteMonitorCount)
+
+        val paused = api.copy(active = false)
+        val pausedSummary = fleetReliabilitySummary(
+            listOf(paused),
+            history,
+            fleetIncidents(listOf(paused), history),
+            24 * 30,
+            now,
+        )
+        assertEquals(0L, pausedSummary.observedDowntimeMillis)
+        assertEquals(0, pausedSummary.activeMonitorCount)
+    }
+
     private fun monitor(id: Int, name: String, status: MonitorStatus) = Monitor(
         id = id,
         name = name,
