@@ -9,6 +9,23 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - fleet incident center
+
+**changed**: Completed parity item CP-011. The monitor overflow menu now opens a
+fleet incident center derived from Kuma heartbeat transitions already held by
+the live client. Active outages sort first, resolved outages retain their start,
+recovery, and server message, and all/active/resolved chips filter the feed.
+Selecting any incident opens that monitor's existing detail view.
+
+**data boundary**: The center does not claim server-global retention. It labels
+the feed as available history, includes a current down monitor even when its start
+was outside the received window, and explicitly marks that start time unknown.
+No polling, extra storage, or synthetic incident identifiers were added.
+
+**verification**: Focused tests cover multi-monitor active/resolved extraction,
+active-first ordering, retained recovery/message data, and a current outage with
+no known start. Full unit, lint, and assembly gates pass with zero lint issues.
+
 ### 2026-08-25 - compact dashboard trends
 
 **changed**: Completed parity item CP-010. Monitor rows retain the existing

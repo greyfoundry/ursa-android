@@ -87,6 +87,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var activityFilter by remember { mutableStateOf(MonitorActivityFilter.ACTIVE) }
     var filterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
+    var showIncidentCenter by remember { mutableStateOf(false) }
     var sortMode by remember { mutableStateOf(MonitorSort.ATTENTION) }
     val searchFocusRequester = remember { FocusRequester() }
     val favorites by vm.favorites.collectAsStateWithLifecycle()
@@ -197,7 +198,8 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
-            if (searchActive) {
+            if (!showIncidentCenter) {
+                if (searchActive) {
                 LaunchedEffect(Unit) { searchFocusRequester.requestFocus() }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -269,6 +271,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         }
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.incident_center_title)) },
+                                onClick = { showIncidentCenter = true; moreOpen = false },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
                                 onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
                             )
@@ -283,8 +289,17 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         }
                     }
                 }
+                }
             }
-            if (monitors.isNotEmpty()) {
+            if (showIncidentCenter) {
+                FleetIncidentCenter(
+                    monitors = monitors,
+                    history = history,
+                    onClose = { showIncidentCenter = false },
+                    onIncidentClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else if (monitors.isNotEmpty()) {
                 MonitorOverview(
                     upCount = upCount,
                     downCount = downCount,
@@ -300,15 +315,15 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     },
                 )
             }
-            if (monitors.isEmpty()) {
+            if (!showIncidentCenter && monitors.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (shown.isEmpty()) {
+            } else if (!showIncidentCenter && shown.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_none_match), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else {
+            } else if (!showIncidentCenter) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
