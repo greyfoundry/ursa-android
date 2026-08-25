@@ -16,8 +16,9 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/UrsaViewModel.kt` - AndroidViewModel; owns `MonitorRepository` +
   `StatusPageClient`; login, saved-server, and saved public-page flows, selection,
   status-page state, pause/resume, and per-server favourites.
-- `.../ui/UrsaApp.kt` - root; routes server manager / status-page / login /
-  detail / list.
+- `.../ui/UrsaApp.kt` - root; holds a minimal startup loading bridge while the
+  encrypted saved-session route is restored, then routes server manager /
+  status-page / login / detail / list.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
   imported session-token authentication, conditional 2FA, connection test, and
   explicit self-signed-certificate choice. Its collapsed access-header editor
@@ -68,8 +69,11 @@ navigation library for M1 - the screen set is small and state-driven).
 - Routing is a `when` on state, not a nav graph. System back is handled per-screen
   with `BackHandler` (detail → list, server form → server manager, status
   page → login).
-- Routing uses `hasSession` (set once authenticated, and optimistically at startup
-  if a stored JWT exists) - NOT raw connection state - so reconnects keep the list
+- Startup routing remains behind the one-way `startupReady` gate until encrypted
+  saved connections have been read and any selected client has been activated.
+  It does not wait for the network authentication acknowledgement. Routing then
+  uses `hasSession` (set once authenticated, and optimistically at startup if a
+  stored JWT exists) - NOT raw connection state - so reconnects keep the list
   visible with a "Connection: …" banner. `logout()` clears it.
 - Saved public pages are encrypted by `StatusPageStore`; public-page URLs never
   duplicate access headers. A page whose normalized base URL exactly matches a

@@ -127,6 +127,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _hasSession = MutableStateFlow(false)
     val hasSession: StateFlow<Boolean> = _hasSession.asStateFlow()
 
+    /** True after the initial encrypted connection restore has chosen a route. */
+    private val _startupReady = MutableStateFlow(false)
+    val startupReady: StateFlow<Boolean> = _startupReady.asStateFlow()
+
     private val _selectedId = MutableStateFlow<Int?>(null)
     val selectedId: StateFlow<Int?> = _selectedId.asStateFlow()
 
@@ -217,12 +221,19 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
         // Auto-reconnect to the last active server if we have a stored session.
         viewModelScope.launch {
-            val conns = store.connections.first()
-            val active = store.activeUrl.first()
-            val conn = conns.firstOrNull { it.url == active } ?: conns.firstOrNull()
-            if (conn?.jwt != null) {
-                _hasSession.value = true // show the list immediately, reconnect in background
-                repo.switchTo(conn)
+            try {
+                val conns = store.connections.first()
+                val active = store.activeUrl.first()
+                val conn = conns.firstOrNull { it.url == active } ?: conns.firstOrNull()
+                if (conn?.jwt != null) {
+                    _hasSession.value = true
+                    // Release startup routing once the client and cache restore are active;
+                    // the socket authentication ack can legitimately take up to 15 seconds.
+                    repo.switchTo(conn) { _startupReady.value = true }
+                }
+            } finally {
+                // Missing, corrupt, or unreadable saved state must fall through to login.
+                _startupReady.value = true
             }
         }
         viewModelScope.launch {

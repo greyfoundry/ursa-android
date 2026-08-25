@@ -9,6 +9,24 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - restored-session startup gate
+
+**changed**: Cold starts now hold a minimal branded loading surface while the
+encrypted saved-server state chooses the initial route. A restored session
+activates its client and last-known cache before the gate opens, so upgrades and
+process restarts no longer flash or settle on the login screen.
+
+**failure and performance boundary**: The one-way gate is used only for initial
+storage restoration. It always opens when state is missing, corrupt, or
+unreadable, and it opens as soon as the saved client starts instead of waiting
+up to 15 seconds for the network authentication acknowledgement. Later
+reconnects continue to render the monitor surface normally.
+
+**verification**: Full unit, lint, and assembly gates pass with zero lint issues.
+An install-over-update and cold start on the Android 17 emulator retained the
+encrypted session, showed the loading bridge, and settled on cached monitors
+with the server-unavailable banner instead of login.
+
 ### 2026-08-25 - live incident duration
 
 **changed**: Completed parity item CP-012. Fleet incidents now show compact

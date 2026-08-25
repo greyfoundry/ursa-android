@@ -213,8 +213,12 @@ class MonitorRepository(
     }
 
     /** Switch to an already-configured server, reusing its stored JWT. */
-    suspend fun switchTo(conn: ServerConnection) {
+    suspend fun switchTo(
+        conn: ServerConnection,
+        onConnectionStarted: () -> Unit = {},
+    ) {
         val client = connectFresh(conn.url, conn.insecure, conn.headers)
+        onConnectionStarted()
         conn.jwt?.let { client.loginByToken(it) }
         store.setActive(conn.url)
     }
