@@ -16,7 +16,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * Pure normalization of Uptime Kuma wire payloads into domain models. Kept free of
  * Android/Socket.IO types (operates on kotlinx JsonObject) so it is unit-testable on
- * the JVM. Shapes verified live against Kuma 2.5.0 - see docs/references/uptime-kuma-api.mdx.
+ * the JVM. Shapes verified live against Kuma 2.5.3 - see docs/references/uptime-kuma-api.mdx.
  */
 object KumaParse {
 

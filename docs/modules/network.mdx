@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-21
+last-updated: 2026-08-25
 owner: astoris
 status: stable
 ---
@@ -42,7 +42,7 @@ here so the rest of the app sees clean domain models.
 ## gotchas
 
 - Positional events (`heartbeatList`, `avgPing`, `uptime`, `certInfo`) are read from
-  `args[]` directly. Kuma 2.5.0 serializes their monitor IDs as strings, normalized
+  `args[]` directly. Kuma 2.5.3 serializes their monitor IDs as strings, normalized
   by `KumaParse.positionalInt`; object events go through `jsonAt()` → kotlinx →
   `KumaParse`.
 - `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case - two

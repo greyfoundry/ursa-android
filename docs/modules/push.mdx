@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-04
+last-updated: 2026-08-25
 owner: astoris
 status: in-flux
 ---
@@ -49,6 +49,10 @@ connection: push works while the app is closed.
   notification (logs a warning) if it isn't granted. `PushScreen` requests it.
 - ntfy endpoints need `?up=1` appended so ntfy forwards Kuma's raw bytes - surfaced
   as a hint on the endpoint screen.
+- Kuma 2.5.1's Pinglet and SMS Gateway additions are separate outbound providers;
+  the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
+  body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral
+  Webhook to UnifiedPush path rather than depend on a third-party provider.
 - Same monitor id reuses its notification id, so a new status replaces the old one.
 - Notification content and monitor actions use immutable PendingIntents with explicit
   app-owned activity/receiver components.
