@@ -14,10 +14,14 @@ navigation library for M1 - the screen set is small and state-driven).
 
 **file paths**
 - `.../ui/UrsaViewModel.kt` - AndroidViewModel; owns `MonitorRepository` +
-  `StatusPageClient`; login flow, selection, status-page state, pause/resume,
-  and per-server favourites.
-- `.../ui/UrsaApp.kt` - root; routes status-page / login / detail / list.
-- `.../ui/connections/LoginScreen.kt` - server URL + creds + conditional 2FA.
+  `StatusPageClient`; login and saved-server flows, selection, status-page state,
+  pause/resume, and per-server favourites.
+- `.../ui/UrsaApp.kt` - root; routes server manager / status-page / login /
+  detail / list.
+- `.../ui/connections/LoginScreen.kt` - optional server name, URL, credentials,
+  conditional 2FA, and explicit self-signed-certificate choice.
+- `.../ui/connections/ConnectionManagerScreen.kt` - add, switch, rename, and
+  confirmed removal of encrypted saved-server sessions.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
   and attention/favourite/name sorting.
 - `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, incident timeline,
@@ -36,8 +40,9 @@ navigation library for M1 - the screen set is small and state-driven).
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
-  `favorites`, `login`, `statusPage`; actions `login`, `select`/`back`, `pause`/`resume`,
-  `toggleFavorite`,
+  `favorites`, `login`, `connections`, `activeUrl`, `statusPage`; actions `login`,
+  `switchTo`, `renameConnection`, `removeConnection`, `select`/`back`,
+  `pause`/`resume`, `toggleFavorite`,
   `enterStatusPage`/`loadStatusPage`/`exitStatusPage`.
 
 **depends on**
@@ -47,7 +52,8 @@ navigation library for M1 - the screen set is small and state-driven).
 ## gotchas
 
 - Routing is a `when` on state, not a nav graph. System back is handled per-screen
-  with `BackHandler` (detail → list, status page → login).
+  with `BackHandler` (detail → list, server form → server manager, status
+  page → login).
 - Routing uses `hasSession` (set once authenticated, and optimistically at startup
   if a stored JWT exists) - NOT raw connection state - so reconnects keep the list
   visible with a "Connection: …" banner. `logout()` clears it.

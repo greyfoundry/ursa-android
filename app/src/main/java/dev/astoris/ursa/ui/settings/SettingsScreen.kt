@@ -44,6 +44,9 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val slowThresholdMs by vm.slowThresholdMs.collectAsStateWithLifecycle()
     val dynamicColorEnabled by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
+    val connections by vm.connections.collectAsStateWithLifecycle()
+    val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val activeConnection = connections.firstOrNull { it.url == activeUrl }
     val canDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     Scaffold(
@@ -55,6 +58,21 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
+            OutlinedButton(onClick = { vm.enterConnectionManager() }, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.servers_title), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        activeConnection?.displayName ?: stringResource(R.string.settings_servers_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

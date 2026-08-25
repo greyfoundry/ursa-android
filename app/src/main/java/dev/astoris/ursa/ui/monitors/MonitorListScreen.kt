@@ -74,6 +74,9 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
+    val connections by vm.connections.collectAsStateWithLifecycle()
+    val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val activeConnection = connections.firstOrNull { it.url == activeUrl }
 
     var searchActive by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -110,17 +113,36 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(
-                            painter = painterResource(R.mipmap.ic_launcher_monochrome),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp),
-                        )
-                        Text(
-                            stringResource(R.string.monitors_title),
-                            style = MaterialTheme.typography.titleLarge,
-                        )
+                    Surface(
+                        onClick = { vm.enterConnectionManager() },
+                        color = Color.Transparent,
+                        shape = MaterialTheme.shapes.small,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.mipmap.ic_launcher_monochrome),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp),
+                            )
+                            Column {
+                                Text(
+                                    activeConnection?.displayName ?: stringResource(R.string.app_name),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    stringResource(R.string.servers_switch),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
                     }
                 },
             )

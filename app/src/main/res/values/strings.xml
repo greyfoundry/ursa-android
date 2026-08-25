@@ -31,6 +31,8 @@
     <!-- Monitor list -->
     <string name="monitors_title">Monitors</string>
     <string name="action_sign_out">Sign out</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
     <string name="connection_status">Connection: %1$s</string>
     <string name="cache_banner_updated">Showing last-known data, updated %1$s</string>
     <string name="cache_banner">Showing last-known data</string>
@@ -68,18 +70,34 @@
 
     <!-- Login -->
     <string name="login_subtitle">Connect to an Uptime Kuma server</string>
+    <string name="login_title">Connect a server</string>
+    <string name="login_server_name">Server name (optional)</string>
     <string name="login_server_url">Server URL</string>
     <string name="login_server_placeholder">https://kuma.example.com</string>
     <string name="login_username">Username</string>
     <string name="login_password">Password</string>
     <string name="login_2fa_code">2FA code</string>
     <string name="login_trust_self_signed">Trust self-signed certificate</string>
+    <string name="login_trust_self_signed_desc">Only enable this for a server you control.</string>
     <string name="login_verify">Verify</string>
     <string name="login_connect">Connect</string>
     <string name="login_view_status_page">View a public status page</string>
 
+    <!-- Saved servers -->
+    <string name="servers_title">Servers</string>
+    <string name="servers_intro">Switch between your Uptime Kuma servers. Session tokens are encrypted on this device.</string>
+    <string name="servers_add">Add server</string>
+    <string name="servers_switch">Switch server</string>
+    <string name="servers_active">Active</string>
+    <string name="servers_rename">Rename</string>
+    <string name="servers_rename_title">Rename server</string>
+    <string name="servers_remove">Remove</string>
+    <string name="servers_remove_title">Remove server?</string>
+    <string name="servers_remove_message">Remove %1$s and its saved session from this device?</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
+    <string name="settings_servers_desc">Add or switch servers</string>
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>

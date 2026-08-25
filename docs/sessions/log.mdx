@@ -9,6 +9,21 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - named saved-server manager
+
+**changed**: Completed parity item CP-001. Saved connections now accept an
+optional display name and can be added, switched, renamed, or removed from a
+dedicated manager without clearing unrelated sessions. The active server is
+visible and switchable from the monitor dashboard and settings. Rebuilt the
+connection form with a bounded, grouped layout, clearer certificate-trust copy,
+and a full-row accessible checkbox target.
+
+**verification**: Added model compatibility tests for aliases and legacy stored
+JSON. `:app:testDebugUnitTest` and `:app:lintDebug` pass. Emulator QA covered the
+manager, rename dialog, confirmed removal flow without deleting the test server,
+and add-server form; accessibility semantics exposed every visible control. No
+URSA crash was observed during the flow.
+
 ### 2026-08-25 - UI revamp foundation and monitor dashboard
 
 **changed**: Added the tracked UI/UX direction and motion/performance budget.
@@ -21,7 +36,8 @@ compact status metrics, and denser outlined rows without redundant status pills.
 dashboard, accessibility tree, crash buffer, memory snapshot, frame statistics,
 and a focused Perfetto list/detail trace under gitignored `.private/qa/`.
 The screen is readable and all visible icon actions retain at least 48dp touch
-targets; the crash buffer was empty.
+targets; no URSA crash was observed. A later emulator Bluetooth-process abort was
+system-only and unrelated to the app.
 
 **performance finding**: The debug emulator trace is not an accepted performance
 result. It recorded 12/12 missed frame deadlines during three list/detail round

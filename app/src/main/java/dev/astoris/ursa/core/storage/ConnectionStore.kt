@@ -55,6 +55,17 @@ class ConnectionStore(context: Context) {
         context.dataStore.edit { prefs -> prefs[activeUrlKey] = url }
     }
 
+    /** Rename a saved server without changing which connection is active. */
+    suspend fun rename(url: String, alias: String?) {
+        context.dataStore.edit { prefs ->
+            val next = decode(prefs).map { connection ->
+                if (connection.url == url) connection.copy(alias = alias?.trim()?.takeIf { it.isNotEmpty() })
+                else connection
+            }
+            prefs[connectionsKey] = encode(next)
+        }
+    }
+
     private fun encode(list: List<ServerConnection>): String =
         crypto.encrypt(json.encodeToString(list))
 

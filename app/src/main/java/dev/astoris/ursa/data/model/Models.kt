@@ -61,7 +61,13 @@ data class ServerConnection(
     val jwt: String? = null,
     /** User opted into trusting a self-signed / internal-CA certificate. */
     val insecure: Boolean = false,
-)
+    /** Optional user-facing name; absent in records written before multi-server UI. */
+    val alias: String? = null,
+) {
+    val displayName: String
+        get() = alias?.trim()?.takeIf { it.isNotEmpty() }
+            ?: url.substringAfter("://", url).substringBefore('/').ifBlank { url }
+}
 
 /** Result of a login attempt. */
 sealed interface LoginResult {

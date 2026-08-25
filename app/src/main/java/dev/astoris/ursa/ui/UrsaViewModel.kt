@@ -70,6 +70,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
     val connections: StateFlow<List<ServerConnection>> =
         repo.connections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val activeUrl: StateFlow<String?> =
+        repo.activeUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _login = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val login: StateFlow<LoginUiState> = _login.asStateFlow()
@@ -108,6 +110,11 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     // Which bottom-nav tab is selected.
     private val _tab = MutableStateFlow(MainTab.MONITORS)
     val tab: StateFlow<MainTab> = _tab.asStateFlow()
+
+    private val _connectionManagerMode = MutableStateFlow(false)
+    val connectionManagerMode: StateFlow<Boolean> = _connectionManagerMode.asStateFlow()
+    private val _addingConnection = MutableStateFlow(false)
+    val addingConnection: StateFlow<Boolean> = _addingConnection.asStateFlow()
 
     // --- App lock ---
     val lockEnabled: StateFlow<Boolean> = LockStore.enabled
@@ -175,12 +182,23 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun login(url: String, username: String, password: String, token: String = "", insecure: Boolean = false) {
+    fun login(
+        url: String,
+        username: String,
+        password: String,
+        token: String = "",
+        insecure: Boolean = false,
+        alias: String? = null,
+        onSuccess: () -> Unit = {},
+    ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
-            _login.value = when (val r = repo.addServerAndLogin(normalized, username, password, token, insecure)) {
-                is LoginResult.Success -> LoginUiState.Idle
+            _login.value = when (val r = repo.addServerAndLogin(normalized, username, password, token, insecure, alias)) {
+                is LoginResult.Success -> {
+                    onSuccess()
+                    LoginUiState.Idle
+                }
                 LoginResult.TwoFactorRequired -> LoginUiState.NeedsTwoFactor
                 is LoginResult.Failure -> LoginUiState.Error(r.message)
             }
@@ -188,6 +206,20 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun switchTo(conn: ServerConnection) = viewModelScope.launch { repo.switchTo(conn) }
+
+    fun renameConnection(url: String, alias: String?) =
+        viewModelScope.launch { repo.renameServer(url, alias) }
+
+    fun removeConnection(url: String) {
+        viewModelScope.launch {
+            val fallback = repo.removeServer(url)
+            _hasSession.value = fallback?.jwt != null
+            if (fallback == null) {
+                _addingConnection.value = false
+                _connectionManagerMode.value = false
+            }
+        }
+    }
     fun pause(id: Int, onResult: (Boolean) -> Unit = {}) = viewModelScope.launch {
         onResult(repo.pause(id))
     }
@@ -241,6 +273,32 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     // Deep-link entry points (app shortcuts) map onto tabs.
     fun enterPush() = selectTab(MainTab.NOTIFICATIONS)
     fun enterSettings() = selectTab(MainTab.SETTINGS)
+
+    fun enterConnectionManager() {
+        resetLogin()
+        _addingConnection.value = false
+        _connectionManagerMode.value = true
+    }
+
+    fun exitConnectionManager() {
+        resetLogin()
+        _addingConnection.value = false
+        _connectionManagerMode.value = false
+    }
+
+    fun startAddingConnection() {
+        resetLogin()
+        _addingConnection.value = true
+    }
+
+    fun cancelAddingConnection() {
+        resetLogin()
+        _addingConnection.value = false
+    }
+
+    fun finishAddingConnection() {
+        _addingConnection.value = false
+    }
 
     // --- Push actions ---
 

@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -129,11 +130,12 @@ class MonitorRepository(
         password: String,
         token: String = "",
         insecure: Boolean = false,
+        alias: String? = null,
     ): LoginResult {
         val client = connectFresh(url, insecure)
         val result = client.login(username, password, token)
         if (result is LoginResult.Success) {
-            store.upsert(ServerConnection(url, username, result.jwt, insecure))
+            store.upsert(ServerConnection(url, username, result.jwt, insecure, alias))
         }
         return result
     }
@@ -143,6 +145,21 @@ class MonitorRepository(
         val client = connectFresh(conn.url, conn.insecure)
         conn.jwt?.let { client.loginByToken(it) }
         store.setActive(conn.url)
+    }
+
+    suspend fun renameServer(url: String, alias: String?) = store.rename(url, alias)
+
+    /** Remove a saved server and switch to the next stored session when necessary. */
+    suspend fun removeServer(url: String): ServerConnection? {
+        val active = store.activeUrl.first()
+        store.remove(url)
+        val remaining = store.connections.first()
+        if (active == url) {
+            disconnect()
+            remaining.firstOrNull()?.let { switchTo(it) }
+        }
+        val activeAfter = store.activeUrl.first()
+        return remaining.firstOrNull { it.url == activeAfter } ?: remaining.firstOrNull()
     }
 
     suspend fun pause(id: Int): Boolean = activeClient.value?.pauseMonitor(id) ?: false
