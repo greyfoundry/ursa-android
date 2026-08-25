@@ -64,6 +64,7 @@ import dev.astoris.ursa.ui.Sparkline
 import dev.astoris.ursa.ui.StatusCircle
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.UptimeRing
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
 
@@ -617,7 +618,9 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     (monitor.avgPing ?: monitor.ping)?.let { Text("${it}ms", style = MaterialTheme.typography.labelMedium) }
-                    monitor.uptime24h?.let { Text("${(it * 100).toInt()}%", style = MaterialTheme.typography.labelMedium) }
+                    monitor.uptime24h?.let {
+                        UptimeRing(it, StatusUi.color(monitor.status))
+                    }
                 }
             }
         }

@@ -9,6 +9,23 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - compact dashboard trends
+
+**changed**: Completed parity item CP-010. Monitor rows retain the existing
+30-sample response-time sparkline and now pair it with a compact static 24-hour
+uptime ring. The exact percentage remains visible beside the ring; its arc uses
+the monitor's existing Kuma status colour rather than inventing uptime severity
+thresholds. The list dimensions and one-tap detail navigation remain unchanged.
+
+**accessibility and performance**: Sparklines now announce unavailable, single,
+or min/average/max trend data. Uptime rings expose both a readable 24-hour label
+and native progress semantics. Both visuals are single-pass Canvas primitives
+with no animation or added chart dependency, keeping scrolling work bounded.
+
+**verification**: Added focused tests for uptime clamping, compact rounding, and
+non-finite server values. Full unit, lint, and assembly gates pass with zero lint
+issues.
+
 ### 2026-08-25 - explorable response-time chart
 
 **changed**: Completed parity item CP-009. Monitor detail now charts the raw

@@ -196,6 +196,11 @@
     <string name="response_time_average">Average</string>
     <string name="response_time_maximum">Maximum</string>
     <string name="response_time_milliseconds">%d ms</string>
+    <string name="sparkline_unavailable">Response-time trend unavailable</string>
+    <string name="sparkline_single">Response-time trend: %d ms</string>
+    <string name="sparkline_summary">Response-time trend. Minimum %1$d ms, average %2$d ms, maximum %3$d ms.</string>
+    <string name="uptime_24h_summary">24-hour uptime: %d%%</string>
+    <string name="uptime_percentage">%d%%</string>
     <string name="detail_recent_heartbeats">Recent heartbeats</string>
     <string name="detail_recent_incidents">Recent incidents</string>
     <string name="incident_down">Monitor down</string>
