@@ -4,6 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.ResolvedStatusPageAddress
+import dev.astoris.ursa.core.network.StatusPageAddress
+import dev.astoris.ursa.core.network.StatusPageAddressError
+import dev.astoris.ursa.core.network.StatusPageAddressResult
 import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.UrsaPushService
@@ -74,6 +78,22 @@ sealed interface StatusPageUiState {
     data object Loading : StatusPageUiState
     data class Loaded(val view: StatusPageView) : StatusPageUiState
     data class Error(val message: String) : StatusPageUiState
+}
+
+sealed interface StatusPageFormResult {
+    data object Saved : StatusPageFormResult
+    data class Verified(val title: String) : StatusPageFormResult
+    data class ValidationError(val error: StatusPageAddressError) : StatusPageFormResult
+    data object NoDiscoverablePage : StatusPageFormResult
+    data class NetworkError(val message: String) : StatusPageFormResult
+}
+
+private sealed interface StatusPageResolution {
+    data class Success(
+        val address: ResolvedStatusPageAddress,
+        val headers: List<RequestHeader>,
+    ) : StatusPageResolution
+    data class Failure(val result: StatusPageFormResult) : StatusPageResolution
 }
 
 /** The three primary destinations in the bottom navigation bar. */
@@ -568,21 +588,58 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun saveStatusPage(
         existingId: String?,
         name: String,
-        url: String,
+        address: String,
         slug: String,
         insecure: Boolean,
+        onResult: (StatusPageFormResult) -> Unit,
     ) {
-        val existing = savedStatusPages.value.firstOrNull { it.id == existingId }
-        val page = SavedStatusPage(
-            id = existingId ?: UUID.randomUUID().toString(),
-            name = name.trim(),
-            url = normalizeUrl(url),
-            slug = slug.trim(),
-            insecure = insecure,
-            favorite = existing?.favorite ?: false,
-            order = existing?.order ?: savedStatusPages.value.size,
-        )
-        viewModelScope.launch { statusPageStore.upsert(page) }
+        viewModelScope.launch {
+            when (val resolution = resolveStatusPage(address, slug, insecure)) {
+                is StatusPageResolution.Failure -> onResult(resolution.result)
+                is StatusPageResolution.Success -> {
+                    val existing = savedStatusPages.value.firstOrNull { it.id == existingId }
+                    val page = SavedStatusPage(
+                        id = existingId ?: UUID.randomUUID().toString(),
+                        name = name.trim(),
+                        url = resolution.address.baseUrl,
+                        slug = requireNotNull(resolution.address.slug),
+                        insecure = insecure,
+                        favorite = existing?.favorite ?: false,
+                        order = existing?.order ?: savedStatusPages.value.size,
+                    )
+                    statusPageStore.upsert(page)
+                    onResult(StatusPageFormResult.Saved)
+                }
+            }
+        }
+    }
+
+    fun testStatusPage(
+        address: String,
+        slug: String,
+        insecure: Boolean,
+        onResult: (StatusPageFormResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            when (val resolution = resolveStatusPage(address, slug, insecure)) {
+                is StatusPageResolution.Failure -> onResult(resolution.result)
+                is StatusPageResolution.Success -> {
+                    onResult(
+                        try {
+                            val view = statusClient.fetch(
+                                resolution.address.baseUrl,
+                                requireNotNull(resolution.address.slug),
+                                insecure,
+                                resolution.headers,
+                            )
+                            StatusPageFormResult.Verified(view.title)
+                        } catch (e: Exception) {
+                            StatusPageFormResult.NetworkError(e.message ?: "Request failed")
+                        },
+                    )
+                }
+            }
+        }
     }
 
     fun removeStatusPage(id: String) {
@@ -625,6 +682,36 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 StatusPageUiState.Error(e.message ?: "Failed to load status page")
             }
+        }
+    }
+
+    private suspend fun resolveStatusPage(
+        rawAddress: String,
+        rawSlug: String,
+        insecure: Boolean,
+    ): StatusPageResolution {
+        val parsed = when (val result = StatusPageAddress.resolve(rawAddress, rawSlug)) {
+            is StatusPageAddressResult.Invalid -> {
+                return StatusPageResolution.Failure(StatusPageFormResult.ValidationError(result.error))
+            }
+            is StatusPageAddressResult.Valid -> result.address
+        }
+        val headers = store.snapshot()
+            .firstOrNull { normalizeUrl(it.url) == parsed.baseUrl }
+            ?.headers
+            .orEmpty()
+        if (parsed.slug != null) return StatusPageResolution.Success(parsed, headers)
+        val discovered = try {
+            statusClient.discover(parsed.baseUrl, insecure, headers)
+        } catch (e: Exception) {
+            return StatusPageResolution.Failure(
+                StatusPageFormResult.NetworkError(e.message ?: "Discovery failed"),
+            )
+        }
+        return if (discovered == null) {
+            StatusPageResolution.Failure(StatusPageFormResult.NoDiscoverablePage)
+        } else {
+            StatusPageResolution.Success(parsed.copy(slug = discovered), headers)
         }
     }
 

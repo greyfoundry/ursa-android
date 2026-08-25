@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,9 +51,18 @@ import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.ui.StatusPageUiState
+import dev.astoris.ursa.ui.StatusPageFormResult
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.components.UrsaPressableCard
+import dev.astoris.ursa.core.network.StatusPageAddressError
+
+private data class StatusPageDraft(
+    val name: String,
+    val address: String,
+    val slug: String,
+    val insecure: Boolean,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,10 +124,23 @@ fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             editorOpen -> StatusPageEditor(
                 page = editing,
                 modifier = Modifier.padding(padding),
-                onSave = { name, url, slug, insecure ->
-                    vm.saveStatusPage(editing?.id, name, url, slug, insecure)
-                    adding = false
-                    editingId = null
+                onSave = { draft, callback ->
+                    vm.saveStatusPage(
+                        editing?.id,
+                        draft.name,
+                        draft.address,
+                        draft.slug,
+                        draft.insecure,
+                    ) { result ->
+                        callback(result)
+                        if (result == StatusPageFormResult.Saved) {
+                            adding = false
+                            editingId = null
+                        }
+                    }
+                },
+                onTest = { draft, callback ->
+                    vm.testStatusPage(draft.address, draft.slug, draft.insecure, callback)
                 },
             )
             selected != null -> StatusPageViewer(ui, Modifier.padding(padding), vm::refreshStatusPage)
@@ -287,13 +310,21 @@ private fun SavedStatusPageCard(
 private fun StatusPageEditor(
     page: SavedStatusPage?,
     modifier: Modifier,
-    onSave: (String, String, String, Boolean) -> Unit,
+    onSave: (StatusPageDraft, (StatusPageFormResult) -> Unit) -> Unit,
+    onTest: (StatusPageDraft, (StatusPageFormResult) -> Unit) -> Unit,
 ) {
     var name by rememberSaveable(page?.id) { mutableStateOf(page?.name.orEmpty()) }
     var url by rememberSaveable(page?.id) { mutableStateOf(page?.url.orEmpty()) }
     var slug by rememberSaveable(page?.id) { mutableStateOf(page?.slug.orEmpty()) }
     var insecure by rememberSaveable(page?.id) { mutableStateOf(page?.insecure ?: false) }
-    val valid = name.isNotBlank() && url.isNotBlank() && slug.isNotBlank()
+    var busy by rememberSaveable(page?.id) { mutableStateOf(false) }
+    var result by remember(page?.id) { mutableStateOf<StatusPageFormResult?>(null) }
+    val valid = name.isNotBlank() && url.isNotBlank() && !busy
+    val draft = StatusPageDraft(name.trim(), url.trim(), slug.trim(), insecure)
+    fun complete(next: StatusPageFormResult) {
+        result = next
+        busy = false
+    }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -318,19 +349,20 @@ private fun StatusPageEditor(
         item {
             OutlinedTextField(
                 value = url,
-                onValueChange = { url = it.take(500) },
+                onValueChange = { url = it.take(500); result = null },
                 singleLine = true,
-                label = { Text(stringResource(R.string.login_server_url)) },
-                placeholder = { Text(stringResource(R.string.login_server_placeholder)) },
+                label = { Text(stringResource(R.string.statuspage_address)) },
+                placeholder = { Text(stringResource(R.string.statuspage_address_placeholder)) },
+                supportingText = { Text(stringResource(R.string.statuspage_address_desc)) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
         item {
             OutlinedTextField(
                 value = slug,
-                onValueChange = { slug = it.take(120) },
+                onValueChange = { slug = it.take(120); result = null },
                 singleLine = true,
-                label = { Text(stringResource(R.string.statuspage_slug)) },
+                label = { Text(stringResource(R.string.statuspage_slug_optional)) },
                 placeholder = { Text(stringResource(R.string.statuspage_slug_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -348,14 +380,55 @@ private fun StatusPageEditor(
                 }
             }
         }
+        result?.let { current ->
+            item {
+                Text(
+                    statusPageFormMessage(current),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when (current) {
+                        is StatusPageFormResult.Verified -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                )
+            }
+        }
         item {
-            Button(
-                onClick = { onSave(name.trim(), url.trim(), slug.trim(), insecure) },
-                enabled = valid,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.action_save)) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = { busy = true; result = null; onTest(draft, ::complete) },
+                    enabled = url.isNotBlank() && !busy,
+                    modifier = Modifier.weight(1f),
+                ) { Text(stringResource(if (busy) R.string.statuspage_checking else R.string.statuspage_test)) }
+                Button(
+                    onClick = { busy = true; result = null; onSave(draft, ::complete) },
+                    enabled = valid,
+                    modifier = Modifier.weight(1f),
+                ) { Text(stringResource(R.string.action_save)) }
+            }
         }
     }
+}
+
+@Composable
+private fun statusPageFormMessage(result: StatusPageFormResult): String = when (result) {
+    StatusPageFormResult.Saved -> stringResource(R.string.action_save)
+    is StatusPageFormResult.Verified -> stringResource(
+        R.string.statuspage_verified,
+        result.title.ifBlank { stringResource(R.string.statuspage_untitled) },
+    )
+    StatusPageFormResult.NoDiscoverablePage -> stringResource(R.string.statuspage_error_not_discoverable)
+    is StatusPageFormResult.NetworkError -> stringResource(R.string.statuspage_error_network, result.message)
+    is StatusPageFormResult.ValidationError -> stringResource(
+        when (result.error) {
+            StatusPageAddressError.EMPTY -> R.string.statuspage_error_empty
+            StatusPageAddressError.INVALID_URL -> R.string.statuspage_error_invalid_url
+            StatusPageAddressError.UNSUPPORTED_SCHEME -> R.string.statuspage_error_scheme
+            StatusPageAddressError.CREDENTIALS_NOT_ALLOWED -> R.string.statuspage_error_credentials
+            StatusPageAddressError.QUERY_OR_FRAGMENT_NOT_ALLOWED -> R.string.statuspage_error_query
+            StatusPageAddressError.INVALID_SLUG -> R.string.statuspage_error_slug
+            StatusPageAddressError.CONFLICTING_SLUG -> R.string.statuspage_error_conflict
+        },
+    )
 }
 
 @Composable

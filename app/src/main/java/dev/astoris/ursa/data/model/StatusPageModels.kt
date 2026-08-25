@@ -48,6 +48,13 @@ data class StatusHeartbeatResponse(
 )
 
 @Serializable
+data class StatusPageEntryResponse(
+    val type: String = "",
+    val entryPage: String? = null,
+    val statusPageSlug: String? = null,
+)
+
+@Serializable
 data class StatusBeatDto(
     val status: Int = 2,
     val time: String = "",

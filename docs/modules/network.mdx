@@ -19,6 +19,8 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
 - `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
+- `.../core/network/StatusPageAddress.kt` - pure, tested full-page/base URL and
+  Kuma-slug validation/normalization.
 - `.../core/network/FaviconCache.kt` - bounded best-effort monitor favicon fetcher;
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
 
@@ -28,7 +30,11 @@ here so the rest of the app sees clean domain models.
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `disconnect()`. Flows: `state`, `monitors`, `heartbeats`, `certs`.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `beatRow(s)`, `cert`, `tags`.
-- `StatusPageClient.fetch(baseUrl, slug): StatusPageView`.
+- `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
+  resolves a custom-domain or configured default status page through Kuma's
+  public entry contract.
+- `StatusPageAddress.resolve(address, optionalSlug)` safely derives a normalized
+  base and slug from `/status/<slug>` and `/api/status-page/<slug>` URLs.
 - `FaviconCache.get(context, monitorUrl): ImageBitmap?` - only accepts a small image
   from the monitor's own HTTP(S) origin, otherwise returns null for the status-circle fallback.
 
@@ -62,6 +68,9 @@ here so the rest of the app sees clean domain models.
   polling/WebSocket handshakes. `StatusPageClient.fetch` accepts the same optional
   headers for both REST requests. Invalid names, empty values, duplicates, and
   CR/LF injection are rejected before a connection action is enabled.
+- Public-page addresses accept HTTP(S) only and reject embedded credentials,
+  queries/fragments, traversal segments, encoded separators, invalid Kuma slugs,
+  and conflicts between a pasted page URL and a separately entered slug.
 - Reconnect: `KumaClient` keeps the JWT and silently re-emits `loginByToken` on
   every `EVENT_CONNECT`, so a dropped socket re-authenticates itself. `disconnect()`
   clears the JWT.

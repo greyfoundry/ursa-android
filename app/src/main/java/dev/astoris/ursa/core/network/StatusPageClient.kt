@@ -6,6 +6,7 @@ import dev.astoris.ursa.data.model.StatusGroupView
 import dev.astoris.ursa.data.model.StatusHeartbeatResponse
 import dev.astoris.ursa.data.model.StatusMonitorView
 import dev.astoris.ursa.data.model.StatusPageResponse
+import dev.astoris.ursa.data.model.StatusPageEntryResponse
 import dev.astoris.ursa.data.model.StatusPageView
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -68,6 +69,26 @@ class StatusPageClient {
             )
         }
         return StatusPageView(page.config.title, page.config.description, groups)
+    }
+
+    /** Resolve a custom-domain or configured status-page entry without guessing slugs. */
+    suspend fun discover(
+        baseUrl: String,
+        insecure: Boolean = false,
+        headers: List<RequestHeader> = emptyList(),
+    ): String? {
+        val base = baseUrl.trim().removeSuffix("/")
+        val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
+        val entry: StatusPageEntryResponse = client(base, insecure).get("$base/api/entry-page") {
+            safeHeaders.forEach { header(it.name, it.value) }
+        }.body()
+        val slug = when (entry.type) {
+            "statusPageMatchedDomain" -> entry.statusPageSlug
+            "entryPage" -> entry.entryPage?.takeIf { it.startsWith("statusPage-") }
+                ?.removePrefix("statusPage-")
+            else -> null
+        }
+        return slug?.takeIf(StatusPageAddress::isValidSlug)
     }
 
     fun close() {

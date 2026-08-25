@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - public-page URL discovery and validation
+
+**changed**: Completed parity item CP-007. The public-page editor now accepts a
+complete `/status/<slug>` or `/api/status-page/<slug>` URL and safely separates
+the server base from the page slug, including reverse-proxy subpaths. A base URL
+without a slug can discover Kuma's custom-domain or configured default page via
+`GET /api/entry-page`. A separate test action verifies the resolved page before
+save while still allowing a fully specified page to be stored offline.
+
+**validation boundary**: Only HTTP(S) is accepted. Embedded credentials,
+queries/fragments, traversal segments, encoded slash/backslash, invalid Kuma slug
+grammar, and disagreement between a pasted URL and manual slug are rejected with
+specific corrective copy before storage or network access.
+
+**verification**: Added focused JVM coverage for full URLs, reverse-proxy paths,
+scheme completion, entry discovery inputs, and unsafe/ambiguous cases. Full unit,
+lint, and assembly gates pass. Pixel 8 emulator QA against official Kuma 2.5.3
+confirmed a pasted full URL, bare-host default-page discovery, successful page
+test, normalized persisted fields, and the embedded-credential error path.
+
 ### 2026-08-25 - saved public status pages
 
 **changed**: Completed parity item CP-006. Replaced the one-off public-page form

@@ -71,7 +71,8 @@ routes; normalized live payload shapes used by URSA are unchanged.
 **REST (no auth - public status pages)**
 - `GET /api/status-page/<slug>` - page config, groups, monitors, incident
 - `GET /api/status-page/heartbeat/<slug>` - heartbeats + uptime
-- `GET /api/entry-page` - detect setup state / vanity domains
+- `GET /api/entry-page` - `statusPageMatchedDomain` returns `statusPageSlug`;
+  `entryPage` can return `statusPage-<slug>` for a configured default page
 
 ## gotchas
 
