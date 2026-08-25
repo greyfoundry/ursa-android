@@ -19,7 +19,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,6 +37,10 @@ import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.theme.KumaGreen
+import kotlinx.coroutines.delay
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 internal data class FleetIncident(
     val monitorId: Int,
@@ -47,6 +53,32 @@ internal data class FleetIncident(
 }
 
 internal enum class FleetIncidentFilter { ALL, ACTIVE, RESOLVED }
+
+private val kumaHeartbeatTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.SSS]")
+
+internal fun kumaUtcMillisOrNull(value: String?): Long? = runCatching {
+    value?.let { LocalDateTime.parse(it, kumaHeartbeatTime).toInstant(ZoneOffset.UTC).toEpochMilli() }
+}.getOrNull()
+
+internal fun incidentDurationMillis(incident: FleetIncident, nowMillis: Long): Long? {
+    val start = kumaUtcMillisOrNull(incident.startedAt) ?: return null
+    val end = kumaUtcMillisOrNull(incident.resolvedAt) ?: nowMillis
+    return (end - start).coerceAtLeast(0L)
+}
+
+internal fun compactDuration(durationMillis: Long): String {
+    val totalSeconds = durationMillis.coerceAtLeast(0L) / 1_000L
+    val days = totalSeconds / 86_400L
+    val hours = (totalSeconds % 86_400L) / 3_600L
+    val minutes = (totalSeconds % 3_600L) / 60L
+    val seconds = totalSeconds % 60L
+    return when {
+        days > 0 -> "${days}d ${hours}h"
+        hours > 0 -> "${hours}h ${minutes}m"
+        minutes > 0 -> "${minutes}m ${seconds}s"
+        else -> "${seconds}s"
+    }
+}
 
 internal fun fleetIncidents(
     monitors: List<Monitor>,
@@ -94,6 +126,13 @@ internal fun FleetIncidentCenter(
 ) {
     val incidents = remember(monitors, history) { fleetIncidents(monitors, history) }
     var filter by remember { mutableStateOf(FleetIncidentFilter.ALL) }
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000L)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
     val shown = incidents.filter { incident ->
         when (filter) {
             FleetIncidentFilter.ALL -> true
@@ -178,6 +217,14 @@ internal fun FleetIncidentCenter(
                                     stringResource(R.string.incident_resolved_at, it),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            incidentDurationMillis(incident, nowMillis)?.let { duration ->
+                                Text(
+                                    stringResource(R.string.incident_duration, compactDuration(duration)),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (incident.active) StatusUi.color(MonitorStatus.DOWN)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             incident.message?.takeIf { it.isNotBlank() }?.let {

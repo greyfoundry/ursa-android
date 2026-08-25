@@ -44,6 +44,18 @@ class FleetIncidentCenterTest {
         assertNull(incident.startedAt)
     }
 
+    @Test
+    fun durationUsesUtcHeartbeatTimesAndLiveClock() {
+        val resolved = FleetIncident(1, "API", "2026-08-25 10:00:00.000", "2026-08-25 10:01:05.000", null)
+        val active = FleetIncident(1, "API", "2026-08-25 10:00:00", null, null)
+        val now = kumaUtcMillisOrNull("2026-08-25 11:02:03")!!
+
+        assertEquals(65_000L, incidentDurationMillis(resolved, now))
+        assertEquals("1m 5s", compactDuration(incidentDurationMillis(resolved, now)!!))
+        assertEquals("1h 2m", compactDuration(incidentDurationMillis(active, now)!!))
+        assertNull(kumaUtcMillisOrNull("not a Kuma time"))
+    }
+
     private fun monitor(id: Int, name: String, status: MonitorStatus) = Monitor(
         id = id,
         name = name,

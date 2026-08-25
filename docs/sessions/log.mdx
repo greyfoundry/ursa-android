@@ -9,6 +9,23 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - live incident duration
+
+**changed**: Completed parity item CP-012. Fleet incidents now show compact
+durations derived from Kuma's UTC heartbeat transition timestamps. Resolved
+outages use their recovery heartbeat; active outages advance from a single local
+one-second ticker while the incident center is visible, without network polling
+or a timer per row.
+
+**correctness boundary**: Both Kuma timestamp forms (whole seconds and
+milliseconds) are parsed as UTC, matching the 2.5.3 server write contract.
+Unknown or malformed start times remain unlabeled, future-clock differences clamp
+to zero, and longer durations avoid noisy second-by-second text.
+
+**verification**: Focused tests cover UTC parsing, resolved and live duration,
+compact formatting, and malformed timestamps. Full unit, lint, and assembly gates
+pass with zero lint issues.
+
 ### 2026-08-25 - fleet incident center
 
 **changed**: Completed parity item CP-011. The monitor overflow menu now opens a
