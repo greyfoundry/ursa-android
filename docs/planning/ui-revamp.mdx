@@ -1,0 +1,116 @@
+---
+last-updated: 2026-08-25
+owner: astoris
+status: active
+---
+
+# UI and UX revamp
+
+## Direction
+
+URSA should feel like a calm operations console, not a generic settings app and
+not a miniature web dashboard. The visual direction is **quietly playful**:
+clean neutral surfaces, strong hierarchy, rounded but compact controls, a single
+Kuma-green accent, and status colour used only where it carries information.
+
+"Boring" is a success condition for routine healthy states. Personality appears
+in the bear mark, tactile press feedback, responsive status transitions, loading,
+and small success moments. Incidents become visually urgent without making the
+entire app permanently loud.
+
+Material components remain the native accessibility and behaviour foundation,
+but they do not dictate the product composition. Monitoring and incident apps
+such as Datadog, PagerDuty, Better Stack, Grafana OnCall, and UptimeRobot inform
+the information hierarchy: current health first, active incidents next, then
+trends and the complete monitor list.
+
+## Product principles
+
+1. **Answer "is anything broken?" immediately.** The first content block shows
+   overall health, affected count, and freshness/connection state.
+2. **Progressive disclosure.** Lists stay compact; charts, certificate detail,
+   history, and management appear after choosing a monitor.
+3. **One status signal per hierarchy level.** Avoid repeating the same state as
+   a large icon, pill, banner, and coloured card.
+4. **Text before decoration.** Colour is reinforced by labels/icons and is never
+   the only way to distinguish state.
+5. **Stable layout during live updates.** Numbers may animate or crossfade, but
+   rows do not jump when heartbeat data changes.
+6. **Direct manipulation with safe recovery.** Frequent reversible actions are
+   close at hand; destructive/server-wide actions require confirmation.
+7. **Designed for interruption.** Important state and actions remain usable with
+   one hand, large text, TalkBack, poor connectivity, and at night.
+
+## Visual system
+
+- **Colour:** Kuma green is brand/healthy; red is down; amber is pending; blue is
+  maintenance. Neutral backgrounds carry almost all other hierarchy. Dynamic
+  colour remains opt-in and never changes semantic status colours.
+- **Type:** system sans for zero font-loading cost and reliable scripts. Weight,
+  size, spacing, and tabular metric alignment create hierarchy. Screen titles are
+  compact; fleet state and monitor names carry the strongest emphasis.
+- **Shape:** 12-20dp radii for controls and cards, 28-32dp only for hero surfaces
+  and large sheets. Pills are reserved for filters and short state/actions.
+- **Spacing:** 4dp base grid; 16dp phone edge, 20-24dp section rhythm, 8-12dp
+  internal grouping. Compact mode may reduce vertical padding but not touch area.
+- **Elevation:** mostly colour separation and thin outlines. Shadows are limited
+  to transient overlays and pressed/dragged surfaces.
+
+## Motion budget
+
+The desired feel is responsive and lightly bouncy, not constantly animated.
+
+- Press feedback uses GPU scale/alpha only, normally 90-140ms down and a short
+  critically damped spring back.
+- Status and metric changes use colour/number crossfades around 160-220ms.
+- Screen/tab changes use a short fade; no long full-screen slides.
+- Loading uses one purposeful indicator or skeleton group, never many independent
+  infinite animations.
+- Celebration is reserved for meaningful setup/success milestones and is skipped
+  during routine refreshes.
+- Compose honours the system animation-duration scale. Motion-sensitive users get
+  a stable layout with immediate state changes or subtle fades.
+- Animating layout size, blur, large shadows, and per-frame allocations in long
+  lists is prohibited. List-row motion is transform/colour only.
+
+## Accessibility and performance gates
+
+- All actions keep a 48dp Android touch target even in compact presentation.
+- Normal text targets WCAG AA 4.5:1; status graphics and focus/selection affordances
+  target at least 3:1. Large text and dynamic colour are tested separately.
+- Icon-only controls have accessible names. Charts and heartbeat bars expose a
+  text summary and do not require drag gestures for the same information.
+- Text scales without clipping; tablet/list-detail layouts avoid fixed widths.
+- TalkBack order follows visual order and live refreshes do not steal focus.
+- Baseline and post-change emulator runs capture screenshots, UI trees, logcat,
+  `gfxinfo` frame statistics, and memory snapshots for focused flows. Perfetto is
+  used only when frame evidence shows a problem requiring root-cause analysis.
+
+## Screen programme
+
+1. Foundation: colour, typography, shape, motion tokens, pressable surfaces, and
+   bottom navigation.
+2. Monitors: health hero, compact connection/cache state, search/filter, and
+   high-density monitor rows.
+3. Connection: friendly setup card, saved server picker/editor, clear TLS/auth
+   choices, and connection testing.
+4. Detail: summary hero, response chart, grouped history/certificate/alert cards,
+   and a bottom action area.
+5. Incidents and push: chronological cards, severity hierarchy, setup progress,
+   and test/diagnostic feedback.
+6. Settings: grouped preference cards, short descriptions, and dangerous actions
+   separated from everyday controls.
+7. Public pages, tablet/kiosk, widgets, and Wear: the same hierarchy adapted to
+   each surface rather than a scaled phone layout.
+
+## Research references
+
+- [Compose animation guidance](https://developer.android.com/develop/ui/compose/animation/quick-guide)
+- [Material motion transitions](https://m3.material.io/styles/motion/transitions/applying-transitions)
+- [Datadog mobile app](https://docs.datadoghq.com/mobile/)
+- [PagerDuty mobile home](https://support.pagerduty.com/main/docs/mobile-home-screen)
+- [Better Stack mobile app](https://betterstack.com/community/blog/mobile-app/)
+- [Grafana OnCall mobile app](https://grafana.com/blog/on-call-management-on-the-go-introducing-the-grafana-oncall-mobile-app/)
+- [UptimeRobot mobile app](https://uptimerobot.com/mobile-app/)
+- [Duolingo core-tab redesign](https://blog.duolingo.com/core-tabs-redesign/)
+- [Duolingo Android performance rebuild](https://blog.duolingo.com/duolingo-android-reboot-2021/)

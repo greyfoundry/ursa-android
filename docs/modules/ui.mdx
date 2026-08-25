@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-08-25
 owner: astoris
 status: stable
 ---
@@ -25,8 +25,11 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/statuspage/StatusPageScreen.kt` - public page by URL+slug.
 - `.../ui/StatusUi.kt` - status -> Kuma color / label string-resource.
 - `.../ui/StatusPill.kt` - Kuma-style rounded status badge (colored pill, white text).
-- `.../ui/theme/` - `Color.kt` + `Theme.kt` (`UrsaTheme`): Uptime Kuma's palette
-  (`vars.scss`) as a Material 3 light/dark scheme, following the system setting.
+- `.../ui/theme/` - `Color.kt`, `Theme.kt`, and `Motion.kt`: semantic Kuma status
+  colours over URSA's quiet neutral light/dark surfaces, compact type/shape scale,
+  and the shared low-cost motion vocabulary.
+- `.../ui/components/` - reusable product surfaces. `UrsaPressableCard` provides
+  GPU-only tactile press feedback without list-row layout animation.
 - `.../ui/settings/SettingsScreen.kt`, `.../ui/lock/`, `.../ui/push/PushScreen.kt`,
   `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, widget, QS tile.
 
@@ -52,3 +55,6 @@ navigation library for M1 - the screen set is small and state-driven).
   flows to `insecure` on the connection.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
+- UI/UX direction, accessibility requirements, and performance gates live in
+  `docs/planning/ui-revamp.mdx`. The revamp is active; primary screens may be at
+  different migration stages until that programme completes.

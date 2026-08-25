@@ -58,6 +58,9 @@
     <string name="action_sort_favorites">Sort: favorites first</string>
     <string name="action_sort_name">Sort: name</string>
     <string name="monitor_overview">Overview</string>
+    <string name="fleet_healthy">All systems operational</string>
+    <string name="fleet_checking">Checks in progress</string>
+    <string name="fleet_summary">%1$d up - %2$d down - %3$d pending - %4$d paused</string>
     <plurals name="monitor_paused_count">
         <item quantity="one">%d paused</item>
         <item quantity="other">%d paused</item>

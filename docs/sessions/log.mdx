@@ -9,6 +9,27 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - UI revamp foundation and monitor dashboard
+
+**changed**: Added the tracked UI/UX direction and motion/performance budget.
+Introduced a quieter green-tinted neutral palette, tighter typography and shape
+scale, shared motion tokens, and a GPU-only tactile card. Refined bottom navigation
+and rebuilt the monitor landing screen around a permanent fleet-health hero,
+compact status metrics, and denser outlined rows without redundant status pills.
+
+**visual QA**: Installed on the Pixel 8 Android 17 emulator and captured the
+dashboard, accessibility tree, crash buffer, memory snapshot, frame statistics,
+and a focused Perfetto list/detail trace under gitignored `.private/qa/`.
+The screen is readable and all visible icon actions retain at least 48dp touch
+targets; the crash buffer was empty.
+
+**performance finding**: The debug emulator trace is not an accepted performance
+result. It recorded 12/12 missed frame deadlines during three list/detail round
+trips, with app-side measure/traversal peaks of 211-267ms and a 42.7ms Compose
+recomposition while GPU work was generally much smaller. Continue the revamp with
+lighter screen construction, then repeat on a release-like/profileable build and
+add a baseline profile if the device evidence still misses the frame budget.
+
 ### 2026-08-25 - exhaustive mobile competitor parity inventory
 
 **changed**: Added `docs/planning/mobile-competitor-parity.mdx`, a source-linked

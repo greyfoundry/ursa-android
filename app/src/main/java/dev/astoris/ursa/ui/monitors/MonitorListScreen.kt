@@ -2,6 +2,7 @@ package dev.astoris.ursa.ui.monitors
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +31,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -62,9 +62,9 @@ import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.Sparkline
 import dev.astoris.ursa.ui.StatusCircle
-import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.components.UrsaPressableCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +82,6 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var activityFilter by remember { mutableStateOf(MonitorActivityFilter.ACTIVE) }
     var filterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
-    var showOverview by remember { mutableStateOf(false) }
     var sortMode by remember { mutableStateOf(MonitorSort.ATTENTION) }
     val searchFocusRequester = remember { FocusRequester() }
     val favorites by vm.favorites.collectAsStateWithLifecycle()
@@ -118,14 +117,9 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(26.dp),
                         )
-                        Text(stringResource(R.string.app_name))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { vm.selectTab(dev.astoris.ursa.ui.MainTab.NOTIFICATIONS) }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_nav_notifications),
-                            contentDescription = stringResource(R.string.nav_notifications),
+                        Text(
+                            stringResource(R.string.monitors_title),
+                            style = MaterialTheme.typography.titleLarge,
                         )
                     }
                 },
@@ -227,18 +221,6 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         }
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        stringResource(
-                                            if (showOverview) R.string.action_hide_overview
-                                            else R.string.action_show_overview,
-                                        ),
-                                    )
-                                },
-                                onClick = { showOverview = !showOverview; moreOpen = false },
-                            )
-                            HorizontalDivider()
-                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
                                 onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
                             )
@@ -254,27 +236,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     }
                 }
             }
-            if (downCount > 0) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        StatusPill(MonitorStatus.DOWN)
-                        Text(
-                            text = pluralStringResource(R.plurals.monitors_need_attention, downCount, downCount),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
-                }
-            }
-            if (showOverview && monitors.isNotEmpty()) {
+            if (monitors.isNotEmpty()) {
                 MonitorOverview(
                     upCount = upCount,
                     downCount = downCount,
@@ -413,18 +375,67 @@ private fun MonitorOverview(
     onStatusClick: (MonitorStatus) -> Unit,
     onPausedClick: () -> Unit,
 ) {
+    val healthy = downCount == 0 && pendingCount == 0
+    val containerColor = if (downCount > 0) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    }
+    val contentColor = if (downCount > 0) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text(
-                text = stringResource(R.string.monitor_overview),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (healthy) {
+                            stringResource(R.string.fleet_healthy)
+                        } else if (downCount > 0) {
+                            pluralStringResource(R.plurals.monitors_need_attention, downCount, downCount)
+                        } else {
+                            stringResource(R.string.fleet_checking)
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.fleet_summary,
+                            upCount,
+                            downCount,
+                            pendingCount,
+                            pausedCount,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.72f),
+                    )
+                }
+                Surface(
+                    color = if (healthy) StatusUi.color(MonitorStatus.UP) else contentColor.copy(alpha = 0.1f),
+                    shape = CircleShape,
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (healthy) R.drawable.ic_status_up else R.drawable.ic_status_down,
+                        ),
+                        contentDescription = null,
+                        tint = if (healthy) MaterialTheme.colorScheme.onPrimary else contentColor,
+                        modifier = Modifier.padding(10.dp).size(22.dp),
+                    )
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
                 MonitorMetric(
                     count = upCount,
                     label = stringResource(R.string.status_up),
@@ -446,14 +457,13 @@ private fun MonitorOverview(
                     onClick = { onStatusClick(MonitorStatus.PENDING) },
                     modifier = Modifier.weight(1f),
                 )
-            }
-            if (pausedCount > 0) {
-                TextButton(
+                MonitorMetric(
+                    count = pausedCount,
+                    label = stringResource(R.string.filter_paused),
+                    color = contentColor.copy(alpha = 0.72f),
                     onClick = onPausedClick,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                ) {
-                    Text(pluralStringResource(R.plurals.monitor_paused_count, pausedCount, pausedCount))
-                }
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -476,19 +486,8 @@ private fun MonitorMetric(
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.titleLarge,
-                color = color,
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(text = count.toString(), style = MaterialTheme.typography.titleMedium, color = color)
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = color.copy(alpha = 0.82f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -520,10 +519,9 @@ private fun MonitorLeadingIcon(monitor: Monitor) {
 
 @Composable
 private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> Unit) {
-    Card(
+    UrsaPressableCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(
             modifier = Modifier
@@ -534,7 +532,7 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
         ) {
             MonitorLeadingIcon(monitor)
             Column(Modifier.weight(1f)) {
-                Text(monitor.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(monitor.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 monitor.url?.let {
                     Text(
                         it,
@@ -544,32 +542,36 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(StatusUi.color(monitor.status)),
+                    )
+                    Text(
+                        stringResource(StatusUi.labelRes(monitor.status)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                StatusPill(monitor.status)
+                Sparkline(
+                    beats = beats,
+                    color = StatusUi.color(monitor.status),
+                    modifier = Modifier.width(72.dp).height(20.dp),
+                )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Sparkline(
-                        beats = beats,
-                        color = StatusUi.color(monitor.status),
-                        modifier = Modifier.width(64.dp).height(18.dp),
-                    )
-                    (monitor.avgPing ?: monitor.ping)?.let {
-                        Text(
-                            "${it}ms",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    monitor.uptime24h?.let {
-                        Text(
-                            "${(it * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    (monitor.avgPing ?: monitor.ping)?.let { Text("${it}ms", style = MaterialTheme.typography.labelMedium) }
+                    monitor.uptime24h?.let { Text("${(it * 100).toInt()}%", style = MaterialTheme.typography.labelMedium) }
                 }
             }
         }
