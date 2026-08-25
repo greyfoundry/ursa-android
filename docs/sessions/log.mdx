@@ -9,6 +9,24 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - explorable response-time chart
+
+**changed**: Completed parity item CP-009. Monitor detail now charts the raw
+response-time samples supplied by Kuma for the selected 6-hour, 24-hour, 7-day,
+or 30-day period. The lightweight native Canvas view includes min/average/max,
+an exact selected sample, restrained area fill, and a separate recent-heartbeat
+strip so latency and availability remain distinct.
+
+**accessibility and performance**: Touch press/drag selects the nearest sample.
+The chart exposes the full summary and selected value to accessibility services,
+with previous/next sample actions for non-visual exploration. Drawing is a single
+path and small fixed grid with no per-frame animation or chart dependency.
+
+**verification**: Added focused JVM coverage for missing/invalid ping filtering,
+rounded statistics, empty data, and clamped touch indexing. Pixel 8 emulator QA
+against official Uptime Kuma 2.5.3 heartbeat history confirmed period data,
+rendered statistics, chart semantics, and first-to-last drag selection.
+
 ### 2026-08-25 - public-page operational detail
 
 **changed**: Completed parity item CP-008. Public pages now merge Kuma's page,

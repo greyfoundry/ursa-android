@@ -186,6 +186,16 @@
 
     <!-- Monitor detail -->
     <string name="detail_type">Type: %1$s</string>
+    <string name="detail_response_time">Response time</string>
+    <string name="detail_no_response_time">No response-time data in this period</string>
+    <string name="response_time_summary">Response time chart. Minimum %1$d ms, average %2$d ms, maximum %3$d ms.</string>
+    <string name="response_time_sample">%1$d ms at %2$s</string>
+    <string name="response_time_previous">Previous response-time sample</string>
+    <string name="response_time_next">Next response-time sample</string>
+    <string name="response_time_minimum">Minimum</string>
+    <string name="response_time_average">Average</string>
+    <string name="response_time_maximum">Maximum</string>
+    <string name="response_time_milliseconds">%d ms</string>
     <string name="detail_recent_heartbeats">Recent heartbeats</string>
     <string name="detail_recent_incidents">Recent incidents</string>
     <string name="incident_down">Monitor down</string>

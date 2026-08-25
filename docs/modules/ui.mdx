@@ -27,8 +27,10 @@ navigation library for M1 - the screen set is small and state-driven).
   document export/import.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
   and attention/favourite/name sorting.
-- `.../ui/monitors/MonitorDetailScreen.kt` - heartbeat bar strip, incident timeline,
-  favourite toggle, cert, pause/resume.
+- `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
+  heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume.
+- `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
+  plus a low-cost native Canvas chart with touch and accessibility exploration.
 - `.../ui/statuspage/StatusPageScreen.kt` - unlimited encrypted local public-page
   manager with add/edit/remove, favourite, ordering, URL discovery/testing,
   refresh, native groups and heartbeat bars, maintenance notices, and

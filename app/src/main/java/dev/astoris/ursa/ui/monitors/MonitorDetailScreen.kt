@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,7 @@ import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.theme.KumaGreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,16 +125,22 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
             monitor.url?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(stringResource(R.string.detail_type, monitor.type), style = MaterialTheme.typography.bodySmall)
 
-            Text(stringResource(R.string.detail_recent_heartbeats), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.detail_response_time), style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HeartbeatRange.entries.forEach { range ->
                     FilterChip(
                         selected = beatRange == range,
                         onClick = { vm.setBeatRange(range) },
                         label = { Text(range.label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = KumaGreen.copy(alpha = 0.16f),
+                            selectedLabelColor = KumaGreen,
+                        ),
                     )
                 }
             }
+            ResponseTimeChart(beats)
+            Text(stringResource(R.string.detail_recent_heartbeats), style = MaterialTheme.typography.titleSmall)
             HeartbeatBar(beats)
             IncidentTimeline(beats)
 
