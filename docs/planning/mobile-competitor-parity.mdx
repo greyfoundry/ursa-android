@@ -1,0 +1,446 @@
+---
+last-updated: 2026-08-25
+owner: astoris
+status: active
+---
+
+# Mobile Uptime Kuma client parity ledger
+
+## Purpose
+
+This is the source-linked inventory and implementation ledger for mobile apps
+built for, or explicitly integrating with, Uptime Kuma. It records what each
+product actually ships, what it only claims or plans, and every transferable
+capability that URSA does not yet have.
+
+The catalogue was refreshed on 2026-08-25 from current store listings, product
+sites, public repositories, release notes, and public project discussions. A
+feature is marked **shipped** only when a current listing, release note, source
+tree, or usable release supports that conclusion. Marketing copy and roadmaps
+are labelled **claimed** or **planned**. No proprietary source or assets are
+copied.
+
+The implementation boundary is a direct, privacy-preserving Android companion
+for an existing Uptime Kuma server. Platform-only Apple features, unrelated
+monitoring engines, general homelab dashboards, advertising, vendor accounts,
+and token-bearing embedded browsers are documented but are not parity targets.
+
+## URSA baseline
+
+URSA already ships the following capabilities, so they are not gaps:
+
+- direct Socket.IO connection with password login, TOTP 2FA, reconnect, and
+  encrypted credential storage;
+- live monitor list, groups, tags, search, favourites, pause/resume, status and
+  latency, raw heartbeat history, uptime periods, incident transitions, and TLS
+  detail;
+- public status-page viewing;
+- free UnifiedPush delivery without a vendor relay, plus notification
+  pause/resume actions;
+- opt-in self-signed certificate trust with TOFU pinning, biometric/PIN app lock,
+  encrypted offline cache, slow-response alerts, and certificate reminders;
+- home widget, Quick Settings tile, app shortcuts, Material You, and a Wear OS
+  status tile;
+- no account, advertising, analytics, or Google service dependency.
+
+Several stored capabilities are not yet complete user-facing features. The data
+layer can retain multiple connections, for example, but the app has no complete
+server picker/editor. Those cases remain in the gap ledger.
+
+## Released and store-distributed clients
+
+### KumaAlert
+
+- **Platforms and price:** iPhone, iPad, Apple Watch, and Android; one-time
+  purchase, listed at GBP/USD 3.99 with no subscription.
+- **Shipped:** multiple servers; API key, password, token, TOTP, Cloudflare
+  Access, and custom-header authentication; create/edit/delete/pause monitors;
+  25+ monitor types; nested folders, tags, filtering, and server-synced ordering;
+  charts with scrubbing; heartbeat bars; incident timelines, notes, and share
+  cards; live downtime, MTTR, downtime totals, and flakiest-monitor statistics;
+  certificate and maintenance views; maintenance CRUD; alert severity, delays,
+  repeats, acknowledgement, snooze, quiet hours, sounds, recovery/maintenance/
+  update alerts, and DND breakthrough; one-tap webhook setup and test alerts;
+  widgets, tablet/kiosk UI, diagnostics, deep links, and full watch surfaces.
+- **Vendor-service features:** an optional vendor account provides end-to-end
+  encrypted cross-device settings sync. URSA will provide user-controlled
+  encrypted export/import instead of requiring a third-party account.
+- **Apple-only surfaces:** Live Activities, Dynamic Island, lock-screen widgets,
+  Siri, and Apple Shortcuts are not Android parity targets. An ongoing-incident
+  notification is the Android equivalent where useful.
+- **Evidence:** [product](https://kumaalert.app/),
+  [comparison](https://kumaalert.app/compare/),
+  [setup](https://kumaalert.app/setup/),
+  [iOS listing](https://apps.apple.com/us/app/kumaalert/id6760863575), and
+  [Android listing](https://play.google.com/store/apps/details?id=app.kumaalert).
+
+### Uptime Kuma Manager
+
+- **Platforms and price:** iPhone/iPad and Android; free with optional in-app
+  purchases. The iOS listing shows monthly and annual plans.
+- **Shipped or documented on iOS:** multiple servers; automatic and manual push
+  setup; monitor CRUD; choosing monitor notification channels; pause/enable all;
+  tags, groups, filters, and history ranges; public status-page monitoring and
+  favourites; Cloudflare Access service tokens; encrypted credentials; local
+  service discovery; widgets; and support for Docker, Push, Steam, and MQTT
+  monitor types.
+- **Platform caveat:** the Android listing describes a smaller feature set and
+  user reports mention missing 2FA and unreliable multi-server use. Features are
+  therefore not assumed to be Android-identical without direct evidence.
+- **Excluded:** its raw JSON monitor editor is unsafe as a primary mobile editor;
+  URSA will preserve unknown fields while exposing typed forms.
+- **Evidence:** [product](https://www.uptimekuma.app/),
+  [iOS listing](https://apps.apple.com/us/app/uptime-kuma-manager/id6446004887),
+  and [Android listing](https://play.google.com/store/apps/details?id=com.halliharp.uptime_kuma_manager).
+
+### Wuma
+
+- **Platform and price:** iPhone/iPad with a paid download and Premium purchase.
+- **Shipped:** real-time monitor status, native push, home widgets, and Apple
+  Watch support. Push and watch features are Premium.
+- **Status:** last listed update was in 2023, so it contributes no unique modern
+  management feature beyond the watch/widget/push categories already tracked.
+- **Evidence:** [App Store listing](https://apps.apple.com/us/app/wuma-uptime-kuma-manager/id1662404144).
+
+### Rivet
+
+- **Platform and price:** iPhone/iPad, one-time purchase.
+- **Shipped:** direct/private multi-server connections, biometric lock, monitor
+  tags and filters, response charts and statistics, history periods, push, and a
+  widget.
+- **Compatibility caveat:** the listing currently says Uptime Kuma 1.x only.
+- **Evidence:** [product](https://rivet.level44.co/) and
+  [App Store listing](https://apps.apple.com/us/app/rivet-uptime-kuma-manager/id6759518053).
+
+### Kuma : Status
+
+- **Platforms and price:** Android and iPhone/iPad; advertising-supported free
+  tier and a lifetime Premium purchase listed around EUR/USD 3.99.
+- **Shipped:** multiple saved public status pages, page dashboard, uptime/ping/
+  recent checks, active and resolved incidents, selected-service live
+  monitoring, demo mode, home widgets, and local-first persistence. Premium
+  unlocks unlimited pages, widgets, live monitoring, and customisation.
+- **URSA opportunity:** provide unlimited saved public pages and widgets without
+  advertising, tracking, or a paywall.
+- **Evidence:** [Android listing](https://play.google.com/store/apps/details?id=com.kumastatus.app)
+  and [iOS listing](https://apps.apple.com/nl/app/kuma-status/id6778313236).
+
+### Uptime Mate
+
+- **Platforms and price:** iPhone and Apple Watch; free with optional Pro and app
+  icon purchases.
+- **Shipped:** native Uptime Kuma 2 WebSocket support, TOTP, offline filtering,
+  a distinct paused section, server-inaccessible state and error reasons, watch
+  overview, and complications. Pro adds pause/resume from the watch, list
+  latency, latency charts, tag grouping, and exclude-paused filtering.
+- **Experimental:** silent relay push for complication refresh is labelled
+  experimental and is not a reason to add a vendor relay.
+- **Evidence:** [source](https://github.com/schech1/uptime-buddy) and
+  [App Store listing](https://apps.apple.com/de/app/uptime-mate/id6503297780).
+
+### OpenKuma
+
+- **Platform and price:** Android, free/libre software distributed through
+  F-Droid.
+- **Shipped:** read-only dashboard counts, active incidents, expiring
+  certificates, monitor search/sort/favourites, detailed response and TLS views,
+  a global certificate screen, global event log, offline cache, TOTP, French and
+  English, and optional periodic or persistent foreground real-time updates with
+  local notifications.
+- **Evidence:** [F-Droid listing](https://f-droid.org/en/packages/app.openkuma/).
+
+### PocketKuma
+
+- **Platform and price:** Android APK releases, free; the repository currently
+  publishes releases and documentation but not application source.
+- **Shipped per public release notes:** multiple named servers, TOTP, custom
+  headers, response graphs with time periods, domain and certificate dashboards,
+  connection/re-login controls, backup/restore, clickable HTTP monitors,
+  notification alerts, broad monitor editing including Uptime Kuma 2.5 monitor
+  types, and an update checker.
+- **Security substitution:** its embedded signed-in web surface will not be
+  copied. URSA will use safe external-browser links and never place a session
+  token in a WebView.
+- **Evidence:** [release repository](https://github.com/pocketsized-apps/pocketkuma)
+  and [launch discussion](https://www.reddit.com/r/UptimeKuma/comments/1v4ajlf/pocketkuma_an_android_client_for_uptime_kuma/).
+
+### RawMon
+
+- **Platform and price:** Android with subscription options; it is a broad
+  monitoring app that explicitly integrates with Uptime Kuma.
+- **Shipped:** persistent foreground monitoring, a historical event timer,
+  direct push, and escalating reminders at increasing outage durations.
+- **Outside the companion boundary:** its own HTTP/TCP/ping checks,
+  geofencing/NFC profiles, and non-Kuma integrations are separate products, not
+  missing Uptime Kuma client features.
+- **Evidence:** [Play Store listing](https://play.google.com/store/apps/details?id=dev.rawops.rawmon).
+
+## Public beta and source projects
+
+### KumaCheck
+
+- **Status:** native Android public source project, described as MVP v0.5.0.
+- **Shipped in source/documentation:** aggregate 30-day uptime and average
+  latency; tappable status-count filters; user-selected pinned live heartbeats;
+  uptime rings and sparklines; recent incidents; folder grouping; response chart
+  and recent-check strip; monitor edit/delete/mute while preserving unknown JSON
+  fields; complete maintenance CRUD for all six strategies and affected-monitor
+  display; optional persistent foreground socket; de-duplicated incident and
+  recovery notifications; boot restart; notification deep links; test alert;
+  and visible connection state with token re-authentication.
+- **Evidence:** [source](https://github.com/theonlytruebigmac/KumaCheck).
+
+### Uptime Pocket
+
+- **Status:** MIT Expo project described as early alpha.
+- **Shipped per its explicit current-feature section:** onboarding, persisted
+  multi-server switcher, bearer-token/password authentication, secure storage,
+  live connection, monitor list/detail, response chart, uptime, recent
+  incidents, and themes.
+- **Planned or unverified:** smart notifications, widgets, biometric access, and
+  a complete incidents tab. These are not treated as shipped evidence.
+- **Evidence:** [source](https://github.com/Quavon-dev/uptime-pocket).
+
+### Uptiminger
+
+- **Status:** Android beta announced publicly; no authoritative source or store
+  listing was found during this sweep.
+- **Claimed in the beta post:** Android 8+, live counts/groups/tags, optional
+  persistent overall-status notification, down/recovery alerts, monitor CRUD,
+  pause/resume/delete, themes, and direct-only operation.
+- **Evidence:** [beta discussion](https://www.reddit.com/r/UptimeKuma/comments/1us2ks4/looking_for_beta_testers_uptiminger_an_unofficial/).
+
+### Uptime Kuma Flutter Client
+
+- **Status:** public cross-platform source project.
+- **Documented:** live WebSocket state, native transition notifications, adaptive
+  Android/iOS UI, theme following, configurable refresh interval, compact mode,
+  response-time visibility, and pre-save connection testing. Desktop builds add
+  a colour-coded tray and start/minimise/close-to-tray behaviour.
+- **Android-relevant gap:** compact display preference and explicit connection
+  testing. Desktop window/tray controls are not mobile targets.
+- **Evidence:** [source](https://github.com/keithah/uptime-flutter).
+
+### Uptime Kuma Mobile Version
+
+- **Status:** older public Android project; forks provide no distinct feature
+  evidence and no production release was found.
+- **Claimed:** multiple applications, WebSocket updates, push, uptime statistics,
+  dark theme, multiple languages, and VPN-reachable servers.
+- **Evidence:** [source](https://github.com/Abdelilah27/Uptime-Kuma-Mobile-Version)
+  and [older fork](https://github.com/Mhammed-Tabarani/Uptime-kuma-Mobile-Version).
+
+### uptime-kuma-rn and mirrors
+
+- **Status:** React Native prototype. Two newer repositories reproduce the same
+  project text or contain no additional documentation.
+- **Shipped per repository checklist:** overview, monitor detail, live status,
+  light/dark theme, and public status pages.
+- **Planned:** push, monitor CRUD, incidents, and settings.
+- **Evidence:** [source](https://github.com/radityaharya/uptime-kuma-rn),
+  [document mirror](https://github.com/jinshiagencys-byte/UPTIME_KUMA_Mobile), and
+  [undocumented mirror](https://github.com/jinshiagencys-byte/UPTIME_KUMA_Mobile_play).
+
+### KUMA Monitor (KFM)
+
+- **Status:** iOS-oriented Expo source prototype for public status pages.
+- **Documented:** overall dashboard, monitor list/detail, heartbeat history,
+  auto-refresh, pull-to-refresh, connection test, and configurable page slug.
+- **Evidence:** [source](https://github.com/TheOnly3aq/KFM).
+
+### UptimeKumaMonitor
+
+- **Status:** small SwiftUI iPhone/iPad source prototype.
+- **Documented:** status, uptime, last check, detail, pull-to-refresh, and locally
+  stored server credentials. It adds no unique capability beyond this ledger.
+- **Evidence:** [source](https://github.com/Nilshh/UptimeKumaMonitor).
+
+### Unnamed native iOS beta
+
+- **Status:** public TestFlight discussion without a confirmed product listing.
+- **Claimed:** direct/free monitoring, notifications, optional tips, status pages
+  that work without a slug, Cloudflare token work, editable connections, and URL
+  error handling. Tag filters were requested rather than confirmed shipped.
+- **Evidence:** [beta discussion](https://www.reddit.com/r/UptimeKuma/comments/1uh8cri/native_uptime_kuma_ios_app/).
+
+## Special-purpose and adjacent projects
+
+These were found during the exhaustive search and are retained so later sweeps
+do not rediscover and misclassify them.
+
+### UptimeKuma Android Widget
+
+- **Status:** native MIT Android widget for public status pages.
+- **Shipped:** grouped monitor rows, uptime percentages, per-monitor heartbeat
+  bars, 1-60 minute refresh selection, manual refresh, boot rescheduling,
+  settings for host/slug/interval, and tap-through to the browser.
+- **Evidence:** [source](https://github.com/malammar/uptimekuma-android-widget).
+
+### InfraLab Mobile
+
+- **Status:** open multi-service homelab dashboard for Android and Apple devices.
+- **Uptime Kuma surface:** native public-page groups, heartbeat bars, 24-hour
+  uptime, pull-to-refresh, and update timer alongside Grafana, VPN, and Homepage.
+- **Boundary:** multi-service aggregation is outside URSA; its adaptive grouped
+  public-page presentation is relevant.
+- **Evidence:** [source](https://github.com/eva3si0n/InfraLab-Mobile).
+
+### Homelab Dashboard
+
+- **Status:** archived open multi-service app.
+- **Uptime Kuma surface:** status, uptime, and incidents. App-wide capabilities
+  include multiple instances, encrypted backup/restore, biometric access,
+  translations, update prompts, alternate icons, and bookmarks.
+- **Boundary:** the 33 other service integrations, bookmarks, and network-tool
+  launchers are not Uptime Kuma client parity targets.
+- **Evidence:** [source](https://github.com/JohnnWi/homelab-project).
+
+### Uptime Koma
+
+- **Status:** active Kotlin Multiplatform rewrite of the Uptime Kuma server, not
+  a client for an existing Kuma instance.
+- **Documented:** its Android app can run a local monitoring engine or remotely
+  control its desktop engine; it exports/imports monitors, channels, status
+  screens, tags, and maintenance windows as JSON.
+- **Boundary:** embedding a second monitoring server is outside URSA. Portable
+  user-controlled configuration is represented by encrypted URSA connection and
+  preference export/import.
+- **Evidence:** [source](https://github.com/haasele/uptime_koma).
+
+### IN.VA Uptime Dashboard
+
+- **Status:** custom iOS/PWA deployment backed by a dedicated Flask/Redis service
+  and several independent probes, including three Uptime Kuma instances.
+- **Distinct concept:** it derives a green/yellow/red consensus across probes and
+  pushes global state changes.
+- **Boundary:** multi-probe consensus requires a separate server and is not a
+  portable Uptime Kuma client capability.
+- **Evidence:** [source](https://github.com/microsard81/kuma-dashboard).
+
+### SignalNest
+
+- **Status:** general self-hosted Android webhook inbox, not an Uptime Kuma
+  client, but able to receive Kuma webhooks.
+- **Transferable concepts:** grouped/pinned alert feed, silent categories, notes,
+  and reconnect behaviour. RSS, tasks, cron, and its separate relay server are
+  outside URSA.
+- **Evidence:** [source](https://github.com/UnTamed-Fury/SignalNest).
+
+### Desktop-only and unrelated products
+
+- [Uptime Kuma Monitor for macOS](https://apps.apple.com/us/app/uptime-kuma-monitor/id1670030716)
+  is a menu-bar public-page viewer; menu-bar behaviour has no Android equivalent.
+- Generic products found by broad store search, including UptimeRobot clients
+  and Server Uptime Monitor, monitor their own services rather than an existing
+  Uptime Kuma server. Their features are outside this ledger.
+- `ofekpensso/uptime-kuma-app` and `franastor/uptime_kuma` were blank starter
+  projects at review time. `jinshiagencys-byte/UPTIME_KUMA_POCKET` mirrors Uptime
+  Pocket documentation. They provide no additional feature evidence.
+
+## Transferable feature gap ledger
+
+Status values are `pending`, `in-progress`, `complete`, `deferred`, or `rejected`.
+Completing an item requires code, focused tests where applicable, user-facing
+copy, and an update to this ledger.
+
+### Phase 1 - connections and public pages
+
+| ID | Status | Capability | Evidence sources | Acceptance boundary |
+| --- | --- | --- | --- | --- |
+| CP-001 | pending | Visible multi-server picker | KumaAlert, Manager, Rivet, PocketKuma, Uptime Pocket | Add, switch, edit, and remove named connections without signing out of every server. |
+| CP-002 | pending | Connection health and pre-save test | KumaCheck, Uptime Flutter, KFM | Show connecting/online/offline/auth-failed state, test before save, and offer re-authentication. |
+| CP-003 | pending | Token and API-key login | KumaAlert, Uptime Pocket | Support server-issued token/API-key flows where Kuma exposes them; never invent a vendor token exchange. |
+| CP-004 | pending | Cloudflare Access and custom headers | KumaAlert, Manager, PocketKuma | Store header names/values encrypted per connection and apply them to REST and Socket.IO handshakes. Redact values from logs/UI summaries. |
+| CP-005 | pending | Encrypted configuration export/import | PocketKuma, Homelab Dashboard, Uptime Koma | User-chosen password encryption; include connections and preferences, exclude transient tokens by default, and validate before import. |
+| CP-006 | pending | Saved public status pages | Kuma : Status, Manager | Unlimited named pages, edit/remove/reorder/favourite, local-first persistence, and no advertising. |
+| CP-007 | pending | Slug/URL discovery and connection validation | unnamed iOS beta, KFM | Accept a full page URL, derive host/slug safely where possible, and provide actionable errors. |
+| CP-008 | pending | Public-page recent checks and incident history | Kuma : Status, KFM, InfraLab | Native groups, heartbeat bars, active/resolved incidents, and refresh timestamp. |
+
+### Phase 2 - operational insight
+
+| ID | Status | Capability | Evidence sources | Acceptance boundary |
+| --- | --- | --- | --- | --- |
+| CP-009 | pending | Response-time line chart | KumaAlert, Rivet, Uptime Mate, PocketKuma, KumaCheck | Accessible chart for server-provided periods with min/average/max and touch exploration. |
+| CP-010 | pending | Dashboard sparklines and uptime rings | KumaAlert, KumaCheck | Compact glanceable trends with text alternatives; retain the KISS list layout. |
+| CP-011 | pending | Fleet incident centre | KumaAlert, Kuma : Status, OpenKuma, KumaCheck | Active and resolved incidents across monitors, filterable and deep-linked to detail. |
+| CP-012 | pending | Live downtime and incident duration | KumaAlert, RawMon | Derive from transition history and update locally without polling every row. |
+| CP-013 | pending | MTTR, downtime totals, and flakiness | KumaAlert | Clearly label selected time window and unavailable/incomplete history. |
+| CP-014 | pending | Fleet certificate dashboard | OpenKuma, PocketKuma | Expired/expiring/healthy grouping, sortable expiry, and monitor deep links. |
+| CP-015 | pending | Domain dashboard | PocketKuma | Domain/host grouping over HTTP-family monitors, with certificate and status summary. |
+| CP-016 | pending | Global event log | OpenKuma | Chronological state, recovery, maintenance, pause, and local-alert events with filters. |
+| CP-017 | pending | Aggregate uptime and latency summary | KumaCheck | Explainable 30-day aggregate uptime and average latency; exclude paused/no-data monitors. |
+| CP-018 | pending | Pinned live-heartbeat panel | KumaCheck | User-selected monitors, compact recent checks, persisted locally. |
+| CP-019 | pending | Incident notes and share card | KumaAlert, SignalNest | Notes remain local unless Kuma gains a native field; shared image/text must redact server URL and credentials. |
+
+### Phase 3 - alerts and push setup
+
+| ID | Status | Capability | Evidence sources | Acceptance boundary |
+| --- | --- | --- | --- | --- |
+| CP-020 | pending | One-tap Kuma notification setup | KumaAlert, Manager | Create/update a dedicated Kuma webhook for the UnifiedPush endpoint, select monitors/default use, show status, and allow removal. |
+| CP-021 | pending | Push test and diagnostics | KumaAlert, KumaCheck | Test local channel and end-to-end Kuma delivery separately; show last registration/message/error without secrets. |
+| CP-022 | pending | Per-monitor mute and alert mode | KumaAlert, KumaCheck | Down-only, down-and-recovery, all supported transitions, or muted. |
+| CP-023 | pending | Severity and Android channels | KumaAlert, SignalNest | User-selectable severity mapped to stable Android channels and vibration/sound behaviour. |
+| CP-024 | pending | Delay, repeat, acknowledgement, and snooze | KumaAlert, RawMon | Delayed first alert, bounded escalation schedule, repeat-until-ack, and explicit snooze expiry. |
+| CP-025 | pending | Quiet hours and DND-aware guidance | KumaAlert | Per-day quiet schedule; never silently claim to bypass system policy without granted access. |
+| CP-026 | pending | Custom sounds | KumaAlert | System picker and per-severity assignment; retain silent option. |
+| CP-027 | pending | Recovery, maintenance, certificate, and update alerts | KumaAlert | Separate opt-ins and channels; deduplicate server push and local worker events. |
+| CP-028 | pending | Persistent overall-status notification | OpenKuma, Uptiminger, RawMon, KumaCheck | Optional foreground mode with clear battery cost, status counts, and app deep link. |
+| CP-029 | pending | Flap suppression and event deduplication | KumaCheck | Transition identity/window prevents repeated notifications while preserving genuine recoveries. |
+
+### Phase 4 - server management
+
+| ID | Status | Capability | Evidence sources | Acceptance boundary |
+| --- | --- | --- | --- | --- |
+| CP-030 | pending | Create/edit/delete monitors | KumaAlert, Manager, PocketKuma, KumaCheck, Uptiminger | Typed, validated forms; preserve unknown fields; destructive confirmation; no raw JSON primary editor. |
+| CP-031 | pending | Current Uptime Kuma monitor-type coverage | KumaAlert, Manager, PocketKuma | Derive forms from verified 2.5.3 contracts; unsupported types get safe common-field editing without data loss. |
+| CP-032 | pending | Notification-channel assignment | KumaAlert, Manager | List existing Kuma notification providers, assign per monitor, and support default-enabled notification. |
+| CP-033 | pending | Bulk pause/resume and selection | Manager | Scope by selection/filter and require confirmation for fleet-wide changes. |
+| CP-034 | pending | Server-synced groups, tags, folders, and ordering | KumaAlert | Edit membership/order using Kuma events; avoid client-only order divergence. |
+| CP-035 | pending | Maintenance CRUD | KumaAlert, KumaCheck | All Kuma 2.5.3 strategies, timezone clarity, affected monitors, pause/resume, and delete. |
+| CP-036 | pending | Local service discovery | Manager | Optional mDNS/Bonjour discovery to prefill a new monitor; never scan without a user action. |
+| CP-037 | pending | Safe server web links | PocketKuma, Homelab Dashboard | External browser only, explicit destination, never append or inject authentication material. |
+
+### Phase 5 - Android surfaces and product polish
+
+| ID | Status | Capability | Evidence sources | Acceptance boundary |
+| --- | --- | --- | --- | --- |
+| CP-038 | pending | Detailed configurable home widgets | KumaAlert, Kuma : Status, UptimeKuma Android Widget | Private monitor and public-page widgets, chosen rows, heartbeat/uptime, manual refresh, interval guidance, and deep links. |
+| CP-039 | pending | Adaptive tablet and kiosk mode | KumaAlert, InfraLab | List-detail panes at expanded widths and an opt-in always-on glance screen with burn-in/battery guidance. |
+| CP-040 | pending | Full Wear OS app and complications | KumaAlert, Uptime Mate, Wuma | Overview, latency, tags, pause/resume, detail deep link, and complications in addition to the existing tile. |
+| CP-041 | pending | Connection/monitor/incident deep links | KumaAlert, KumaCheck | Stable internal routes from widgets, notifications, shortcuts, and wear; validate IDs and active server. |
+| CP-042 | pending | Compact display preference | Uptime Flutter | Denser list option without reducing touch targets or accessibility semantics. |
+| CP-043 | pending | Onboarding and connection diagnostics | KumaAlert, Uptime Pocket | Explain direct connection, 2FA, TLS, UnifiedPush, background limits, and actionable server/API incompatibility. |
+| CP-044 | pending | What is new and manual update check | PocketKuma, Homelab Dashboard | F-Droid/GitHub-safe release lookup, opt-in check, no device identifier, and no in-app binary installer. |
+| CP-045 | pending | Advanced filters and saved views | KumaAlert, Manager, Uptime Mate | Status/tag/group/type/certificate/paused filters with clear reset and optional saved combinations. |
+| CP-046 | pending | Error reason and server-inaccessible state | Uptime Mate, KumaCheck | Distinguish server offline, device offline, authentication, certificate, and incompatible response. |
+
+## Deliberate exclusions and substitutions
+
+| ID | Decision | Reason |
+| --- | --- | --- |
+| CP-X01 | rejected - Apple Live Activities, Dynamic Island, lock-screen widgets, Siri, and Apple Shortcuts | The platform surfaces do not exist on Android. Ongoing notifications, widgets, deep links, and Quick Settings are the appropriate equivalents. |
+| CP-X02 | rejected - mandatory vendor account, relay, or cloud settings service | It would weaken URSA's direct/self-hosted privacy advantage. CP-005 supplies portable user-controlled data instead. |
+| CP-X03 | rejected - token-bearing embedded WebView and raw JSON editor | Both increase credential or destructive-edit risk. CP-030 and CP-037 provide safer equivalents. |
+| CP-X04 | rejected - advertising, tracking, and paid caps on pages/widgets | Unlimited local features are a core competitive advantage. |
+| CP-X05 | deferred - general homelab integrations, independent probes, geofencing/NFC, RSS/tasks/cron, and an embedded monitoring engine | These are different products rather than an Android companion for an existing Uptime Kuma server. |
+| CP-X06 | deferred - cross-probe consensus | Requires an external aggregation service and several independent probe sources; cannot be implemented faithfully as a direct client feature. |
+
+## One-by-one implementation order
+
+Implementation follows the ledger in this order unless a verified Kuma contract
+requires a dependency to move earlier:
+
+1. CP-001 through CP-008: connections, authentication headers, encrypted
+   portability, and saved public pages.
+2. CP-009 through CP-019: charts, incidents, certificates/domains, events,
+   aggregate metrics, pinned heartbeats, notes, and safe sharing.
+3. CP-020 through CP-029: one-tap UnifiedPush configuration and complete local
+   alert policy.
+4. CP-030 through CP-037: monitor, notification, ordering, maintenance, discovery,
+   bulk, and safe web management.
+5. CP-038 through CP-046: widgets, tablet/kiosk, Wear, deep links, compact mode,
+   onboarding, update information, filters, and actionable connection states.
+
+Each completed slice gets its own focused tests and conventional commit. The
+ledger status and session log are updated in the same slice so shipped state can
+be audited without reading commit history.
