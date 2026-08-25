@@ -35,6 +35,9 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/CertificateDashboard.kt` - fleet TLS view grouped into
   expired, invalid, expiring, healthy, and unknown sections, with expiry/name
   sorting and monitor-detail deep links.
+- `.../ui/monitors/DomainDashboard.kt` - host/port grouping for HTTP-family
+  monitors, with attention/name sorting, active and paused status rollups, TLS
+  coverage/worst-health summaries, and monitor-detail deep links.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
@@ -98,6 +101,11 @@ navigation library for M1 - the screen set is small and state-driven).
   server. It distinguishes expiry from other certificate-invalid states, uses
   Kuma's 14-day reminder threshold for "expiring soon", and does not invent rows
   for HTTPS monitors whose certificate event has not arrived.
+- Domain grouping parses only absolute HTTP, HTTPS, WS, or WSS URLs on supported
+  HTTP-family monitor types. It strips URL user-info and all path/query/fragment
+  data before display, folds default ports, preserves non-default ports and IPv6,
+  and excludes malformed or hostless addresses. TLS coverage counts only secure
+  monitors and remains explicit when Kuma has not emitted every certificate.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

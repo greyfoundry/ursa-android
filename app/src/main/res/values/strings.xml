@@ -289,6 +289,31 @@
         <item quantity="one">Expiry unavailable (%d)</item>
         <item quantity="other">Expiry unavailable (%d)</item>
     </plurals>
+    <string name="domain_dashboard_title">Domains</string>
+    <string name="domain_sort_attention">Attention</string>
+    <string name="domain_dashboard_empty">No domains to show</string>
+    <string name="domain_dashboard_empty_desc">HTTP-family monitors with a valid host appear here.</string>
+    <plurals name="domain_monitor_count">
+        <item quantity="one">%d monitor</item>
+        <item quantity="other">%d monitors</item>
+    </plurals>
+    <string name="domain_no_active_checks">No active checks</string>
+    <plurals name="domain_maintenance_count">
+        <item quantity="one">%d maintenance</item>
+        <item quantity="other">%d maintenance</item>
+    </plurals>
+    <string name="domain_no_tls">No TLS monitors</string>
+    <string name="domain_tls_pending">Certificate data pending</string>
+    <string name="domain_tls_expired">TLS expired</string>
+    <string name="domain_tls_invalid">TLS invalid</string>
+    <string name="domain_tls_expiring">TLS expiring soon</string>
+    <string name="domain_tls_healthy">TLS healthy</string>
+    <string name="domain_tls_unknown">TLS expiry unavailable</string>
+    <plurals name="domain_tls_coverage">
+        <item quantity="one">%1$d of %2$d certificate available</item>
+        <item quantity="other">%1$d of %2$d certificates available</item>
+    </plurals>
+    <string name="domain_tls_summary">%1$s • %2$s</string>
 
     <!-- Status page viewer -->
     <string name="statuspage_title">Status pages</string>

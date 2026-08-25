@@ -9,6 +9,29 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - domain and host dashboard
+
+**changed**: Completed parity item CP-015. The monitor overflow now opens a
+domain dashboard that groups HTTP-family checks by normalized host and port.
+Each card summarizes active and paused statuses, TLS coverage and worst
+certificate health, then provides compact monitor rows that deep-link to detail.
+Domains sort by operational attention or name; changing sort resets the list to
+the top. The certificate dashboard now follows the same predictable sort motion.
+
+**privacy and correctness boundary**: Host parsing accepts only absolute HTTP,
+HTTPS, WS, and WSS addresses on supported HTTP-family monitor types. Display
+labels omit URL credentials, path, query, and fragment; default ports fold into
+the host while non-default ports and IPv6 remain distinct. Malformed, relative,
+and non-HTTP monitors are excluded. Certificate coverage counts secure monitors
+only and states when live Kuma certificate events are incomplete.
+
+**verification**: Focused tests cover credential/path redaction, shared-host
+grouping, default and non-default ports, WebSocket and legacy HTTP types, IPv6,
+malformed/non-HTTP exclusion, status aggregation, TLS coverage, certificate
+health, and attention/name sorting. Android 17 QA against the live official Kuma
+2.5.3 session confirmed two-monitor host groups, honest one-of-two TLS coverage,
+worst-certificate summaries, sorting, and compact row layout.
+
 ### 2026-08-25 - fleet certificate dashboard
 
 **changed**: Completed parity item CP-014. The monitor overflow now opens a

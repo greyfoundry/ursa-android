@@ -280,6 +280,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 onClick = { overlay = MonitorOverlay.CERTIFICATES; moreOpen = false },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.domain_dashboard_title)) },
+                                onClick = { overlay = MonitorOverlay.DOMAINS; moreOpen = false },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
                                 onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
                             )
@@ -309,6 +313,13 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     certs = certs,
                     onClose = { overlay = null },
                     onCertificateClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.DOMAINS -> DomainDashboard(
+                    monitors = monitors,
+                    certs = certs,
+                    onClose = { overlay = null },
+                    onMonitorClick = vm::select,
                     modifier = Modifier.fillMaxSize(),
                 )
                 null -> if (monitors.isNotEmpty()) {
@@ -426,7 +437,7 @@ private fun MonitorFilterMenu(
 
 private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
 
-private enum class MonitorOverlay { INCIDENTS, CERTIFICATES }
+private enum class MonitorOverlay { INCIDENTS, CERTIFICATES, DOMAINS }
 
 private enum class MonitorSort {
     ATTENTION,
