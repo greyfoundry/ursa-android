@@ -1,5 +1,6 @@
 package dev.astoris.ursa.ui.monitors
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -195,6 +196,7 @@ internal fun FleetIncidentCenter(
     onIncidentClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    BackHandler(onBack = onClose)
     val incidents = remember(monitors, history) { fleetIncidents(monitors, history) }
     var filter by remember { mutableStateOf(FleetIncidentFilter.ALL) }
     var window by remember { mutableStateOf(HeartbeatRange.DAY) }

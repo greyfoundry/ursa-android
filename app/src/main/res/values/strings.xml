@@ -253,6 +253,42 @@
     <string name="cert_invalid">Invalid</string>
     <string name="detail_issuer">Issuer: %1$s</string>
     <string name="detail_subject">Subject: %1$s</string>
+    <string name="certificate_dashboard_title">Certificates</string>
+    <string name="certificate_sort_expiry">Expiry</string>
+    <string name="certificate_sort_name">Name</string>
+    <string name="certificate_dashboard_empty">No certificate data yet</string>
+    <string name="certificate_dashboard_empty_desc">Connect and wait for HTTPS monitors to complete a check.</string>
+    <string name="certificate_issuer">Issuer %1$s</string>
+    <string name="certificate_expires_on">Expires %1$s</string>
+    <string name="certificate_expires_today">Today</string>
+    <plurals name="certificate_expired_days">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <plurals name="certificate_days_left">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="certificate_group_expired">
+        <item quantity="one">Expired (%d)</item>
+        <item quantity="other">Expired (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_invalid">
+        <item quantity="one">Invalid (%d)</item>
+        <item quantity="other">Invalid (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_expiring">
+        <item quantity="one">Expiring soon (%d)</item>
+        <item quantity="other">Expiring soon (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_healthy">
+        <item quantity="one">Healthy (%d)</item>
+        <item quantity="other">Healthy (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_unknown">
+        <item quantity="one">Expiry unavailable (%d)</item>
+        <item quantity="other">Expiry unavailable (%d)</item>
+    </plurals>
 
     <!-- Status page viewer -->
     <string name="statuspage_title">Status pages</string>

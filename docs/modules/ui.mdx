@@ -32,6 +32,9 @@ navigation library for M1 - the screen set is small and state-driven).
   across monitors with all/active/resolved filters and detail deep links, plus
   windowed observed downtime, MTTR, flakiest-monitor, and history-coverage
   summaries for active monitors.
+- `.../ui/monitors/CertificateDashboard.kt` - fleet TLS view grouped into
+  expired, invalid, expiring, healthy, and unknown sections, with expiry/name
+  sorting and monitor-detail deep links.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
@@ -91,6 +94,10 @@ navigation library for M1 - the screen set is small and state-driven).
   in-window duration; carry-in incidents are excluded from MTTR and flakiness.
   Coverage is conservative: any active monitor without a heartbeat at or before
   the window boundary marks the aggregate partial and warns that totals may be low.
+- The certificate dashboard reflects live `certInfo` events for the active Kuma
+  server. It distinguishes expiry from other certificate-invalid states, uses
+  Kuma's 14-day reminder threshold for "expiring soon", and does not invent rows
+  for HTTPS monitors whose certificate event has not arrived.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

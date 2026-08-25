@@ -76,6 +76,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
+    val certs by vm.certs.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
@@ -87,7 +88,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var activityFilter by remember { mutableStateOf(MonitorActivityFilter.ACTIVE) }
     var filterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
-    var showIncidentCenter by remember { mutableStateOf(false) }
+    var overlay by remember { mutableStateOf<MonitorOverlay?>(null) }
     var sortMode by remember { mutableStateOf(MonitorSort.ATTENTION) }
     val searchFocusRequester = remember { FocusRequester() }
     val favorites by vm.favorites.collectAsStateWithLifecycle()
@@ -198,7 +199,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
-            if (!showIncidentCenter) {
+            if (overlay == null) {
                 if (searchActive) {
                 LaunchedEffect(Unit) { searchFocusRequester.requestFocus() }
                 Row(
@@ -272,7 +273,11 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.incident_center_title)) },
-                                onClick = { showIncidentCenter = true; moreOpen = false },
+                                onClick = { overlay = MonitorOverlay.INCIDENTS; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.certificate_dashboard_title)) },
+                                onClick = { overlay = MonitorOverlay.CERTIFICATES; moreOpen = false },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
@@ -291,39 +296,47 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
                 }
             }
-            if (showIncidentCenter) {
-                FleetIncidentCenter(
+            when (overlay) {
+                MonitorOverlay.INCIDENTS -> FleetIncidentCenter(
+                        monitors = monitors,
+                        history = history,
+                        onClose = { overlay = null },
+                        onIncidentClick = vm::select,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                MonitorOverlay.CERTIFICATES -> CertificateDashboard(
                     monitors = monitors,
-                    history = history,
-                    onClose = { showIncidentCenter = false },
-                    onIncidentClick = vm::select,
+                    certs = certs,
+                    onClose = { overlay = null },
+                    onCertificateClick = vm::select,
                     modifier = Modifier.fillMaxSize(),
                 )
-            } else if (monitors.isNotEmpty()) {
-                MonitorOverview(
-                    upCount = upCount,
-                    downCount = downCount,
-                    pendingCount = pendingCount,
-                    pausedCount = pausedCount,
-                    onStatusClick = { status ->
-                        statusFilter = status
-                        activityFilter = MonitorActivityFilter.ACTIVE
-                    },
-                    onPausedClick = {
-                        statusFilter = null
-                        activityFilter = MonitorActivityFilter.PAUSED
-                    },
-                )
+                null -> if (monitors.isNotEmpty()) {
+                    MonitorOverview(
+                        upCount = upCount,
+                        downCount = downCount,
+                        pendingCount = pendingCount,
+                        pausedCount = pausedCount,
+                        onStatusClick = { status ->
+                            statusFilter = status
+                            activityFilter = MonitorActivityFilter.ACTIVE
+                        },
+                        onPausedClick = {
+                            statusFilter = null
+                            activityFilter = MonitorActivityFilter.PAUSED
+                        },
+                    )
+                }
             }
-            if (!showIncidentCenter && monitors.isEmpty()) {
+            if (overlay == null && monitors.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (!showIncidentCenter && shown.isEmpty()) {
+            } else if (overlay == null && shown.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_none_match), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (!showIncidentCenter) {
+            } else if (overlay == null) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
@@ -412,6 +425,8 @@ private fun MonitorFilterMenu(
 }
 
 private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
+
+private enum class MonitorOverlay { INCIDENTS, CERTIFICATES }
 
 private enum class MonitorSort {
     ATTENTION,

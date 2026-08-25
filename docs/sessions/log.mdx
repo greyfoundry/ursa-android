@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - fleet certificate dashboard
+
+**changed**: Completed parity item CP-014. The monitor overflow now opens a
+dedicated certificate dashboard grouped into expired, invalid, expiring soon,
+healthy, and expiry-unavailable sections. Entries sort by expiry or monitor name,
+show issuer and local expiry date, and deep-link to the existing monitor TLS view.
+System back now closes both certificate and incident overlays consistently.
+
+**correctness boundary**: The dashboard uses the active server's live `certInfo`
+events, preserves Kuma's distinction between an expired certificate and another
+invalid state such as hostname mismatch, and applies the same 14-day threshold as
+the background expiry reminder. Monitors without a received certificate event are
+not presented as healthy or unknown.
+
+**verification**: Focused tests cover every health group, the inclusive expiry
+threshold, absent-event exclusion, and expiry/name sorting. Android 17 emulator
+QA against official Kuma 2.5.3 exercised real checks for an expired BadSSL
+certificate, a hostname-invalid certificate, and a healthy certificate, then
+verified the expired-row deep link into monitor detail.
+
 ### 2026-08-25 - fleet reliability statistics
 
 **changed**: Completed parity item CP-013. The incident center now scopes both
