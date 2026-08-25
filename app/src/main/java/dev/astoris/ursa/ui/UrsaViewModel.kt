@@ -44,6 +44,14 @@ sealed interface LoginUiState {
     data class Error(val message: String) : LoginUiState
 }
 
+sealed interface ConnectionTestUiState {
+    data object Idle : ConnectionTestUiState
+    data object Loading : ConnectionTestUiState
+    data object Success : ConnectionTestUiState
+    data object NeedsTwoFactor : ConnectionTestUiState
+    data class Error(val message: String) : ConnectionTestUiState
+}
+
 sealed interface StatusPageUiState {
     data object Idle : StatusPageUiState
     data object Loading : StatusPageUiState
@@ -75,6 +83,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _login = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val login: StateFlow<LoginUiState> = _login.asStateFlow()
+    private val _connectionTest = MutableStateFlow<ConnectionTestUiState>(ConnectionTestUiState.Idle)
+    val connectionTest: StateFlow<ConnectionTestUiState> = _connectionTest.asStateFlow()
 
     /** True once a server session exists; keeps the list visible across reconnects. */
     private val _hasSession = MutableStateFlow(false)
@@ -115,6 +125,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val connectionManagerMode: StateFlow<Boolean> = _connectionManagerMode.asStateFlow()
     private val _addingConnection = MutableStateFlow(false)
     val addingConnection: StateFlow<Boolean> = _addingConnection.asStateFlow()
+    private val _editingConnection = MutableStateFlow<ServerConnection?>(null)
+    val editingConnection: StateFlow<ServerConnection?> = _editingConnection.asStateFlow()
 
     // --- App lock ---
     val lockEnabled: StateFlow<Boolean> = LockStore.enabled
@@ -207,6 +219,24 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun switchTo(conn: ServerConnection) = viewModelScope.launch { repo.switchTo(conn) }
 
+    fun testConnection(
+        url: String,
+        username: String,
+        password: String,
+        token: String = "",
+        insecure: Boolean = false,
+    ) {
+        val normalized = normalizeUrl(url)
+        viewModelScope.launch {
+            _connectionTest.value = ConnectionTestUiState.Loading
+            _connectionTest.value = when (val result = repo.testServer(normalized, username, password, token, insecure)) {
+                is LoginResult.Success -> ConnectionTestUiState.Success
+                LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
+                is LoginResult.Failure -> ConnectionTestUiState.Error(result.message)
+            }
+        }
+    }
+
     fun renameConnection(url: String, alias: String?) =
         viewModelScope.launch { repo.renameServer(url, alias) }
 
@@ -276,28 +306,49 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun enterConnectionManager() {
         resetLogin()
+        resetConnectionTest()
         _addingConnection.value = false
+        _editingConnection.value = null
         _connectionManagerMode.value = true
     }
 
     fun exitConnectionManager() {
         resetLogin()
+        resetConnectionTest()
         _addingConnection.value = false
+        _editingConnection.value = null
         _connectionManagerMode.value = false
     }
 
     fun startAddingConnection() {
         resetLogin()
+        resetConnectionTest()
+        _editingConnection.value = null
+        _addingConnection.value = true
+    }
+
+    fun reauthenticate(connection: ServerConnection) {
+        resetLogin()
+        resetConnectionTest()
+        _editingConnection.value = connection
         _addingConnection.value = true
     }
 
     fun cancelAddingConnection() {
         resetLogin()
+        resetConnectionTest()
         _addingConnection.value = false
+        _editingConnection.value = null
     }
 
     fun finishAddingConnection() {
+        resetConnectionTest()
         _addingConnection.value = false
+        _editingConnection.value = null
+    }
+
+    fun resetConnectionTest() {
+        _connectionTest.value = ConnectionTestUiState.Idle
     }
 
     // --- Push actions ---

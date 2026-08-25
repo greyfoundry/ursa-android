@@ -132,12 +132,37 @@ class MonitorRepository(
         insecure: Boolean = false,
         alias: String? = null,
     ): LoginResult {
-        val client = connectFresh(url, insecure)
-        val result = client.login(username, password, token)
-        if (result is LoginResult.Success) {
-            store.upsert(ServerConnection(url, username, result.jwt, insecure, alias))
+        val client = KumaClient(url, insecure)
+        client.connect()
+        var promoted = false
+        return try {
+            val result = client.login(username, password, token)
+            if (result is LoginResult.Success) {
+                store.upsert(ServerConnection(url, username, result.jwt, insecure, alias))
+                activateClient(url, client)
+                promoted = true
+            }
+            result
+        } finally {
+            if (!promoted) client.disconnect()
         }
-        return result
+    }
+
+    /** Validate transport and credentials without replacing or persisting the active session. */
+    suspend fun testServer(
+        url: String,
+        username: String,
+        password: String,
+        token: String = "",
+        insecure: Boolean = false,
+    ): LoginResult {
+        val client = KumaClient(url, insecure)
+        client.connect()
+        return try {
+            client.login(username, password, token)
+        } finally {
+            client.disconnect()
+        }
     }
 
     /** Switch to an already-configured server, reusing its stored JWT. */
@@ -174,6 +199,13 @@ class MonitorRepository(
     }
 
     private fun connectFresh(url: String, insecure: Boolean): KumaClient {
+        val client = KumaClient(url, insecure)
+        activateClient(url, client)
+        client.connect()
+        return client
+    }
+
+    private fun activateClient(url: String, client: KumaClient) {
         activeClient.value?.disconnect()
         activeUrlValue = url
         // Show this server's last-known list immediately while the socket reconnects.
@@ -185,9 +217,6 @@ class MonitorRepository(
                 lastUpdatedMs.value = snap.updatedAt
             }
         }
-        val client = KumaClient(url, insecure)
         activeClient.value = client
-        client.connect()
-        return client
     }
 }

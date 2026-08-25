@@ -65,6 +65,7 @@ import dev.astoris.ursa.ui.StatusCircle
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.components.UrsaPressableCard
+import dev.astoris.ursa.ui.labelRes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -150,12 +151,36 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (state != ConnectionState.Authenticated) {
-                Text(
-                    text = stringResource(R.string.connection_status, state.toString()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                Surface(
+                    onClick = { vm.enterConnectionManager() },
+                    color = when (state) {
+                        ConnectionState.AuthenticationFailed, ConnectionState.Error ->
+                            MaterialTheme.colorScheme.errorContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.connection_status, stringResource(state.labelRes)),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (
+                                state == ConnectionState.AuthenticationFailed || state == ConnectionState.Error
+                            ) MaterialTheme.colorScheme.onErrorContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = stringResource(R.string.servers_manage),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
             }
             if (showingCache) {
                 val whenText = lastUpdated?.let {

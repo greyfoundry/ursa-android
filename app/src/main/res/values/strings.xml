@@ -34,6 +34,12 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_save">Save</string>
     <string name="connection_status">Connection: %1$s</string>
+    <string name="connection_offline">Offline</string>
+    <string name="connection_connecting">Connecting</string>
+    <string name="connection_signing_in">Signing in</string>
+    <string name="connection_online">Online</string>
+    <string name="connection_auth_failed">Sign-in required</string>
+    <string name="connection_unavailable">Server unavailable</string>
     <string name="cache_banner_updated">Showing last-known data, updated %1$s</string>
     <string name="cache_banner">Showing last-known data</string>
     <string name="monitors_empty">No monitors yet</string>
@@ -71,6 +77,8 @@
     <!-- Login -->
     <string name="login_subtitle">Connect to an Uptime Kuma server</string>
     <string name="login_title">Connect a server</string>
+    <string name="login_reauth_title">Sign in again</string>
+    <string name="login_reauth_subtitle">Refresh the saved session for %1$s</string>
     <string name="login_server_name">Server name (optional)</string>
     <string name="login_server_url">Server URL</string>
     <string name="login_server_placeholder">https://kuma.example.com</string>
@@ -81,6 +89,10 @@
     <string name="login_trust_self_signed_desc">Only enable this for a server you control.</string>
     <string name="login_verify">Verify</string>
     <string name="login_connect">Connect</string>
+    <string name="login_reconnect">Reconnect</string>
+    <string name="login_test">Test connection</string>
+    <string name="login_test_success">Connection and credentials verified</string>
+    <string name="login_test_2fa">Server reached - enter your 2FA code to finish verification</string>
     <string name="login_view_status_page">View a public status page</string>
 
     <!-- Saved servers -->
@@ -88,7 +100,11 @@
     <string name="servers_intro">Switch between your Uptime Kuma servers. Session tokens are encrypted on this device.</string>
     <string name="servers_add">Add server</string>
     <string name="servers_switch">Switch server</string>
+    <string name="servers_manage">Manage</string>
     <string name="servers_active">Active</string>
+    <string name="servers_active_status">%1$s - %2$s</string>
+    <string name="servers_saved">Saved</string>
+    <string name="servers_reauthenticate">Sign in again</string>
     <string name="servers_rename">Rename</string>
     <string name="servers_rename_title">Rename server</string>
     <string name="servers_remove">Remove</string>

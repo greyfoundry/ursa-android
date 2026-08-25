@@ -15,13 +15,21 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
 import kotlin.coroutines.resume
 
-enum class ConnectionState { Disconnected, Connecting, Connected, Authenticated, Error }
+enum class ConnectionState {
+    Disconnected,
+    Connecting,
+    Connected,
+    Authenticated,
+    AuthenticationFailed,
+    Error,
+}
 
 /**
  * Wraps a single Socket.IO connection to one Uptime Kuma server. Parsing of the
@@ -84,6 +92,8 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
                 s.emit("loginByToken", token, Ack { args ->
                     if ((args.getOrNull(0) as? JSONObject)?.optBoolean("ok") == true) {
                         _state.value = ConnectionState.Authenticated
+                    } else {
+                        _state.value = ConnectionState.AuthenticationFailed
                     }
                 })
             }
@@ -158,7 +168,8 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
             .put("username", username)
             .put("password", password)
             .put("token", token)
-        val res = emitAck("login", payload) ?: return LoginResult.Failure("No response")
+        val res = emitAck("login", payload)
+            ?: return LoginResult.Failure("Server did not respond within 15 seconds")
         return when {
             res.optBoolean("tokenRequired") -> LoginResult.TwoFactorRequired
             res.optBoolean("ok") -> {
@@ -166,7 +177,10 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
                 _state.value = ConnectionState.Authenticated
                 LoginResult.Success(jwt)
             }
-            else -> LoginResult.Failure(res.optString("msg").ifEmpty { "Login failed" })
+            else -> {
+                _state.value = ConnectionState.AuthenticationFailed
+                LoginResult.Failure(res.optString("msg").ifEmpty { "Login failed" })
+            }
         }
     }
 
@@ -176,6 +190,8 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
         if (ok) {
             jwt = token
             _state.value = ConnectionState.Authenticated
+        } else {
+            _state.value = ConnectionState.AuthenticationFailed
         }
         return ok
     }
@@ -202,14 +218,16 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
 
     /** Emit with an ack callback, exposed as a suspend fun returning the `{ ok, ... }` reply. */
     private suspend fun emitAck(event: String, vararg data: Any): JSONObject? =
-        suspendCancellableCoroutine { cont ->
-            val s = socket
-            if (s == null) {
-                cont.resume(null)
-                return@suspendCancellableCoroutine
+        withTimeoutOrNull(ACK_TIMEOUT_MS) {
+            suspendCancellableCoroutine { cont ->
+                val s = socket
+                if (s == null) {
+                    cont.resume(null)
+                    return@suspendCancellableCoroutine
+                }
+                val ack = Ack { args -> if (cont.isActive) cont.resume(args.getOrNull(0) as? JSONObject) }
+                s.emit(event, data, ack)
             }
-            val ack = Ack { args -> if (cont.isActive) cont.resume(args.getOrNull(0) as? JSONObject) }
-            s.emit(event, data, ack)
         }
 
     private inline fun updateMonitor(id: Int, transform: (Monitor) -> Monitor) {
@@ -226,5 +244,9 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
     private fun Array<Any?>.jsonArrayAt(index: Int): kotlinx.serialization.json.JsonArray? {
         val raw = getOrNull(index) as? org.json.JSONArray ?: return null
         return runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
+    }
+
+    private companion object {
+        const val ACK_TIMEOUT_MS = 15_000L
     }
 }

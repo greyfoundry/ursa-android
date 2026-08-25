@@ -22,6 +22,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val locked by vm.locked.collectAsStateWithLifecycle()
     val connectionManagerMode by vm.connectionManagerMode.collectAsStateWithLifecycle()
     val addingConnection by vm.addingConnection.collectAsStateWithLifecycle()
+    val editingConnection by vm.editingConnection.collectAsStateWithLifecycle()
 
     // Re-lock when the app goes to the background (if the lock is enabled).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -38,6 +39,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
         statusPageMode -> StatusPageScreen(vm)
         connectionManagerMode && addingConnection -> LoginScreen(
             vm = vm,
+            initialConnection = editingConnection,
             onBack = { vm.cancelAddingConnection() },
             onConnected = { vm.finishAddingConnection() },
         )

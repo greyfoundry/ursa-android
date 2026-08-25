@@ -1,5 +1,6 @@
 package dev.astoris.ursa.ui.connections
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,6 +45,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.data.model.ServerConnection
+import dev.astoris.ursa.ui.ConnectionTestUiState
 import dev.astoris.ursa.ui.LoginUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 
@@ -51,26 +55,38 @@ import dev.astoris.ursa.ui.UrsaViewModel
 fun LoginScreen(
     vm: UrsaViewModel,
     modifier: Modifier = Modifier,
+    initialConnection: ServerConnection? = null,
     onBack: (() -> Unit)? = null,
     onConnected: () -> Unit = {},
 ) {
     val loginState by vm.login.collectAsStateWithLifecycle()
-    val loading = loginState is LoginUiState.Loading
-    val needs2fa = loginState is LoginUiState.NeedsTwoFactor
+    val testState by vm.connectionTest.collectAsStateWithLifecycle()
+    val loading = loginState is LoginUiState.Loading || testState is ConnectionTestUiState.Loading
 
-    var alias by remember { mutableStateOf("") }
-    var url by remember { mutableStateOf("") }
-    var user by remember { mutableStateOf("") }
+    var alias by remember(initialConnection?.url) { mutableStateOf(initialConnection?.alias.orEmpty()) }
+    var url by remember(initialConnection?.url) { mutableStateOf(initialConnection?.url.orEmpty()) }
+    var user by remember(initialConnection?.url) { mutableStateOf(initialConnection?.username.orEmpty()) }
     var pass by remember { mutableStateOf("") }
     var token by remember { mutableStateOf("") }
-    var insecure by remember { mutableStateOf(false) }
+    var insecure by remember(initialConnection?.url) { mutableStateOf(initialConnection?.insecure == true) }
+    val needs2fa = loginState is LoginUiState.NeedsTwoFactor ||
+        testState is ConnectionTestUiState.NeedsTwoFactor || token.isNotEmpty()
+
+    BackHandler(enabled = onBack != null) { onBack?.invoke() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             if (onBack != null) {
                 TopAppBar(
-                    title = { Text(stringResource(R.string.servers_add)) },
+                    title = {
+                        Text(
+                            stringResource(
+                                if (initialConnection == null) R.string.servers_add
+                                else R.string.servers_reauthenticate,
+                            ),
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
@@ -108,9 +124,15 @@ fun LoginScreen(
                     )
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(stringResource(R.string.login_title), style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        stringResource(R.string.login_subtitle),
+                        stringResource(
+                            if (initialConnection == null) R.string.login_title else R.string.login_reauth_title,
+                        ),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    Text(
+                        if (initialConnection == null) stringResource(R.string.login_subtitle)
+                        else stringResource(R.string.login_reauth_subtitle, initialConnection.displayName),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -128,30 +150,43 @@ fun LoginScreen(
                     ) {
                         OutlinedTextField(
                             value = alias,
-                            onValueChange = { alias = it.take(80) },
+                            onValueChange = {
+                                alias = it.take(80)
+                                vm.resetConnectionTest()
+                            },
                             label = { Text(stringResource(R.string.login_server_name)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
                             value = url,
-                            onValueChange = { url = it },
+                            onValueChange = {
+                                url = it
+                                vm.resetConnectionTest()
+                            },
                             label = { Text(stringResource(R.string.login_server_url)) },
                             placeholder = { Text(stringResource(R.string.login_server_placeholder)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            readOnly = initialConnection != null,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
                             value = user,
-                            onValueChange = { user = it },
+                            onValueChange = {
+                                user = it
+                                vm.resetConnectionTest()
+                            },
                             label = { Text(stringResource(R.string.login_username)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
                             value = pass,
-                            onValueChange = { pass = it },
+                            onValueChange = {
+                                pass = it
+                                vm.resetConnectionTest()
+                            },
                             label = { Text(stringResource(R.string.login_password)) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
@@ -161,7 +196,10 @@ fun LoginScreen(
                         if (needs2fa) {
                             OutlinedTextField(
                                 value = token,
-                                onValueChange = { token = it.filter(Char::isDigit).take(8) },
+                                onValueChange = {
+                                    token = it.filter(Char::isDigit).take(8)
+                                    vm.resetConnectionTest()
+                                },
                                 label = { Text(stringResource(R.string.login_2fa_code)) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                                 singleLine = true,
@@ -174,7 +212,10 @@ fun LoginScreen(
                                 .toggleable(
                                     value = insecure,
                                     role = Role.Checkbox,
-                                    onValueChange = { insecure = it },
+                                    onValueChange = {
+                                        insecure = it
+                                        vm.resetConnectionTest()
+                                    },
                                 )
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -205,6 +246,40 @@ fun LoginScreen(
                                 )
                             }
                         }
+                        when (val result = testState) {
+                            ConnectionTestUiState.Success -> ConnectionTestResult(
+                                message = stringResource(R.string.login_test_success),
+                                success = true,
+                            )
+                            ConnectionTestUiState.NeedsTwoFactor -> ConnectionTestResult(
+                                message = stringResource(R.string.login_test_2fa),
+                                success = true,
+                            )
+                            is ConnectionTestUiState.Error -> ConnectionTestResult(
+                                message = result.message,
+                                success = false,
+                            )
+                            ConnectionTestUiState.Idle, ConnectionTestUiState.Loading -> Unit
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                vm.testConnection(
+                                    url = url,
+                                    username = user,
+                                    password = pass,
+                                    token = token,
+                                    insecure = insecure,
+                                )
+                            },
+                            enabled = !loading && url.isNotBlank() && user.isNotBlank() && pass.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (testState is ConnectionTestUiState.Loading) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text(stringResource(R.string.login_test))
+                            }
+                        }
                         Button(
                             onClick = {
                                 vm.login(
@@ -227,7 +302,15 @@ fun LoginScreen(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {
-                                Text(stringResource(if (needs2fa) R.string.login_verify else R.string.login_connect))
+                                Text(
+                                    stringResource(
+                                        when {
+                                            needs2fa -> R.string.login_verify
+                                            initialConnection != null -> R.string.login_reconnect
+                                            else -> R.string.login_connect
+                                        },
+                                    ),
+                                )
                             }
                         }
                     }
@@ -240,5 +323,24 @@ fun LoginScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ConnectionTestResult(message: String, success: Boolean) {
+    val background = if (success) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    } else {
+        MaterialTheme.colorScheme.errorContainer
+    }
+    val foreground = if (success) MaterialTheme.colorScheme.primary
+    else MaterialTheme.colorScheme.onErrorContainer
+    Surface(color = background, shape = MaterialTheme.shapes.medium) {
+        Text(
+            text = message,
+            color = foreground,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+        )
     }
 }

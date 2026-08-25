@@ -34,15 +34,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.components.UrsaPressableCard
+import dev.astoris.ursa.ui.labelRes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val connectionState by vm.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<ServerConnection?>(null) }
     var removing by remember { mutableStateOf<ServerConnection?>(null) }
 
@@ -81,11 +84,13 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 ConnectionCard(
                     connection = connection,
                     active = connection.url == activeUrl,
+                    connectionState = connectionState,
                     onSelect = {
                         vm.switchTo(connection)
                         vm.exitConnectionManager()
                     },
                     onRename = { editing = connection },
+                    onReauthenticate = { vm.reauthenticate(connection) },
                     onRemove = { removing = connection },
                 )
             }
@@ -139,8 +144,10 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 private fun ConnectionCard(
     connection: ServerConnection,
     active: Boolean,
+    connectionState: ConnectionState,
     onSelect: () -> Unit,
     onRename: () -> Unit,
+    onReauthenticate: () -> Unit,
     onRemove: () -> Unit,
 ) {
     UrsaPressableCard(onClick = onSelect) {
@@ -162,27 +169,47 @@ private fun ConnectionCard(
                         maxLines = 1,
                     )
                 }
-                if (active) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                        shape = MaterialTheme.shapes.small,
-                    ) {
-                        Text(
-                            stringResource(R.string.servers_active),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        )
-                    }
-                }
+                ConnectionBadge(active = active, state = connectionState)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = onRename) { Text(stringResource(R.string.servers_rename)) }
+                TextButton(onClick = onReauthenticate) {
+                    Text(stringResource(R.string.servers_reauthenticate))
+                }
                 TextButton(onClick = onRemove) {
                     Text(stringResource(R.string.servers_remove), color = MaterialTheme.colorScheme.error)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ConnectionBadge(active: Boolean, state: ConnectionState) {
+    val status = if (active) state else null
+    val foreground = when (status) {
+        ConnectionState.Authenticated -> MaterialTheme.colorScheme.primary
+        ConnectionState.AuthenticationFailed, ConnectionState.Error -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        color = foreground.copy(alpha = 0.14f),
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Text(
+            text = if (status == null) {
+                stringResource(R.string.servers_saved)
+            } else {
+                stringResource(
+                    R.string.servers_active_status,
+                    stringResource(R.string.servers_active),
+                    stringResource(status.labelRes),
+                )
+            },
+            style = MaterialTheme.typography.labelMedium,
+            color = foreground,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+        )
     }
 }
 

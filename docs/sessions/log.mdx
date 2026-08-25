@@ -9,6 +9,22 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - connection diagnostics and re-authentication
+
+**changed**: Completed parity item CP-002. Active connections now expose localized
+connecting, signing-in, online, offline, sign-in-required, and server-unavailable
+states on the dashboard and saved-server manager. Added a credential-aware
+pre-save connection test and a prefilled re-authentication route. Socket
+acknowledgements now time out after 15 seconds, failed add/test attempts preserve
+the active session, and a new client is promoted only after successful login.
+
+**verification**: Tested the unavailable-server boundary and a successful login
+against an ephemeral official Uptime Kuma 2.5.3 container. Confirmed the test does
+not create a saved server. Emulator semantics covered the health banner, server
+badge, re-authentication form, and result message. QA also found and fixed system
+Back exiting the app from nested connection forms instead of returning to the
+server manager.
+
 ### 2026-08-25 - named saved-server manager
 
 **changed**: Completed parity item CP-001. Saved connections now accept an

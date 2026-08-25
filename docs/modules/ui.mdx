@@ -40,8 +40,9 @@ navigation library for M1 - the screen set is small and state-driven).
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
-  `favorites`, `login`, `connections`, `activeUrl`, `statusPage`; actions `login`,
-  `switchTo`, `renameConnection`, `removeConnection`, `select`/`back`,
+  `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`;
+  actions `login`, `testConnection`, `switchTo`, `reauthenticate`,
+  `renameConnection`, `removeConnection`, `select`/`back`,
   `pause`/`resume`, `toggleFavorite`,
   `enterStatusPage`/`loadStatusPage`/`exitStatusPage`.
 
