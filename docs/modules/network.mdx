@@ -54,6 +54,9 @@ here so the rest of the app sees clean domain models.
   `MonitorRepository.testServer` uses a short-lived client and never replaces or
   persists the active session; a newly added client is promoted only after login
   succeeds.
+- `MonitorRepository.addServerByToken` and `testServerToken` validate imported
+  Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
+  the socket because Kuma limits them to Prometheus HTTP Basic authentication.
 - Reconnect: `KumaClient` keeps the JWT and silently re-emits `loginByToken` on
   every `EVENT_CONNECT`, so a dropped socket re-authenticates itself. `disconnect()`
   clears the JWT.

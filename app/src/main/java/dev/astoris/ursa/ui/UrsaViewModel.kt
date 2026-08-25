@@ -217,6 +217,29 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun loginWithSessionToken(
+        url: String,
+        sessionToken: String,
+        insecure: Boolean = false,
+        alias: String? = null,
+        onSuccess: () -> Unit = {},
+    ) {
+        val normalized = normalizeUrl(url)
+        viewModelScope.launch {
+            _login.value = LoginUiState.Loading
+            _login.value = when (
+                val result = repo.addServerByToken(normalized, sessionToken.trim(), insecure, alias)
+            ) {
+                is LoginResult.Success -> {
+                    onSuccess()
+                    LoginUiState.Idle
+                }
+                LoginResult.TwoFactorRequired -> LoginUiState.NeedsTwoFactor
+                is LoginResult.Failure -> LoginUiState.Error(result.message)
+            }
+        }
+    }
+
     fun switchTo(conn: ServerConnection) = viewModelScope.launch { repo.switchTo(conn) }
 
     fun testConnection(
@@ -230,6 +253,24 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _connectionTest.value = ConnectionTestUiState.Loading
             _connectionTest.value = when (val result = repo.testServer(normalized, username, password, token, insecure)) {
+                is LoginResult.Success -> ConnectionTestUiState.Success
+                LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
+                is LoginResult.Failure -> ConnectionTestUiState.Error(result.message)
+            }
+        }
+    }
+
+    fun testSessionToken(
+        url: String,
+        sessionToken: String,
+        insecure: Boolean = false,
+    ) {
+        val normalized = normalizeUrl(url)
+        viewModelScope.launch {
+            _connectionTest.value = ConnectionTestUiState.Loading
+            _connectionTest.value = when (
+                val result = repo.testServerToken(normalized, sessionToken.trim(), insecure)
+            ) {
                 is LoginResult.Success -> ConnectionTestUiState.Success
                 LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
                 is LoginResult.Failure -> ConnectionTestUiState.Error(result.message)

@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,14 +64,27 @@ fun LoginScreen(
     val testState by vm.connectionTest.collectAsStateWithLifecycle()
     val loading = loginState is LoginUiState.Loading || testState is ConnectionTestUiState.Loading
 
+    var authMode by remember(initialConnection?.url) {
+        mutableStateOf(
+            if (initialConnection != null && initialConnection.username.isBlank()) AuthMode.SESSION_TOKEN
+            else AuthMode.PASSWORD,
+        )
+    }
     var alias by remember(initialConnection?.url) { mutableStateOf(initialConnection?.alias.orEmpty()) }
     var url by remember(initialConnection?.url) { mutableStateOf(initialConnection?.url.orEmpty()) }
     var user by remember(initialConnection?.url) { mutableStateOf(initialConnection?.username.orEmpty()) }
     var pass by remember { mutableStateOf("") }
     var token by remember { mutableStateOf("") }
+    var sessionToken by remember { mutableStateOf("") }
     var insecure by remember(initialConnection?.url) { mutableStateOf(initialConnection?.insecure == true) }
-    val needs2fa = loginState is LoginUiState.NeedsTwoFactor ||
+    val needs2fa = authMode == AuthMode.PASSWORD && (
+        loginState is LoginUiState.NeedsTwoFactor ||
         testState is ConnectionTestUiState.NeedsTwoFactor || token.isNotEmpty()
+    )
+    val credentialsReady = when (authMode) {
+        AuthMode.PASSWORD -> user.isNotBlank() && pass.isNotBlank()
+        AuthMode.SESSION_TOKEN -> sessionToken.isNotBlank()
+    }
 
     BackHandler(enabled = onBack != null) { onBack?.invoke() }
 
@@ -171,38 +185,77 @@ fun LoginScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        OutlinedTextField(
-                            value = user,
-                            onValueChange = {
-                                user = it
-                                vm.resetConnectionTest()
-                            },
-                            label = { Text(stringResource(R.string.login_username)) },
-                            singleLine = true,
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = pass,
-                            onValueChange = {
-                                pass = it
-                                vm.resetConnectionTest()
-                            },
-                            label = { Text(stringResource(R.string.login_password)) },
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        if (needs2fa) {
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            AuthMode.entries.forEach { mode ->
+                                FilterChip(
+                                    selected = authMode == mode,
+                                    onClick = {
+                                        authMode = mode
+                                        vm.resetLogin()
+                                        vm.resetConnectionTest()
+                                    },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                if (mode == AuthMode.PASSWORD) R.string.login_auth_password
+                                                else R.string.login_auth_session_token,
+                                            ),
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                        if (authMode == AuthMode.PASSWORD) {
                             OutlinedTextField(
-                                value = token,
+                                value = user,
                                 onValueChange = {
-                                    token = it.filter(Char::isDigit).take(8)
+                                    user = it
                                     vm.resetConnectionTest()
                                 },
-                                label = { Text(stringResource(R.string.login_2fa_code)) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                label = { Text(stringResource(R.string.login_username)) },
                                 singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = pass,
+                                onValueChange = {
+                                    pass = it
+                                    vm.resetConnectionTest()
+                                },
+                                label = { Text(stringResource(R.string.login_password)) },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            if (needs2fa) {
+                                OutlinedTextField(
+                                    value = token,
+                                    onValueChange = {
+                                        token = it.filter(Char::isDigit).take(8)
+                                        vm.resetConnectionTest()
+                                    },
+                                    label = { Text(stringResource(R.string.login_2fa_code)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = sessionToken,
+                                onValueChange = {
+                                    sessionToken = it.trim().take(4096)
+                                    vm.resetConnectionTest()
+                                },
+                                label = { Text(stringResource(R.string.login_session_token)) },
+                                supportingText = { Text(stringResource(R.string.login_session_token_desc)) },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -263,15 +316,19 @@ fun LoginScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                vm.testConnection(
-                                    url = url,
-                                    username = user,
-                                    password = pass,
-                                    token = token,
-                                    insecure = insecure,
-                                )
+                                if (authMode == AuthMode.PASSWORD) {
+                                    vm.testConnection(
+                                        url = url,
+                                        username = user,
+                                        password = pass,
+                                        token = token,
+                                        insecure = insecure,
+                                    )
+                                } else {
+                                    vm.testSessionToken(url, sessionToken, insecure)
+                                }
                             },
-                            enabled = !loading && url.isNotBlank() && user.isNotBlank() && pass.isNotBlank(),
+                            enabled = !loading && url.isNotBlank() && credentialsReady,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (testState is ConnectionTestUiState.Loading) {
@@ -282,17 +339,27 @@ fun LoginScreen(
                         }
                         Button(
                             onClick = {
-                                vm.login(
-                                    url = url,
-                                    username = user,
-                                    password = pass,
-                                    token = token,
-                                    insecure = insecure,
-                                    alias = alias,
-                                    onSuccess = onConnected,
-                                )
+                                if (authMode == AuthMode.PASSWORD) {
+                                    vm.login(
+                                        url = url,
+                                        username = user,
+                                        password = pass,
+                                        token = token,
+                                        insecure = insecure,
+                                        alias = alias,
+                                        onSuccess = onConnected,
+                                    )
+                                } else {
+                                    vm.loginWithSessionToken(
+                                        url = url,
+                                        sessionToken = sessionToken,
+                                        insecure = insecure,
+                                        alias = alias,
+                                        onSuccess = onConnected,
+                                    )
+                                }
                             },
-                            enabled = !loading && url.isNotBlank() && user.isNotBlank() && pass.isNotBlank(),
+                            enabled = !loading && url.isNotBlank() && credentialsReady,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (loading) {
@@ -344,3 +411,5 @@ private fun ConnectionTestResult(message: String, success: Boolean) {
         )
     }
 }
+
+private enum class AuthMode { PASSWORD, SESSION_TOKEN }

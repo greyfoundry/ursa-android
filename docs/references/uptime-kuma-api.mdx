@@ -28,6 +28,11 @@ between versions.
    `token` = 2FA code; if cb returns `{ tokenRequired: true }`, re-emit with it.
 3. Later sessions: `emit("loginByToken", <jwt>)` instead of credentials.
 
+The session JWT may be imported directly and validated with `loginByToken` before
+it is saved. Kuma's `uk...` API keys are not an alternative socket credential:
+2.5.3 verifies them only in the HTTP Basic authorizer used by the Prometheus
+endpoint. Passing one to `loginByToken` is rejected by design.
+
 **server → client events (⚠ several are POSITIONAL args, not objects)**
 - `info` → `{ version, latestVersion, serverTimezone, dbType, isContainer, ... }`
 - `monitorList` → `{ [id]: MonitorObject }` (id-keyed object, not array)

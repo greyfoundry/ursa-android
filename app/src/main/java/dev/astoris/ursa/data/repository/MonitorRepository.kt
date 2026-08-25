@@ -165,6 +165,46 @@ class MonitorRepository(
         }
     }
 
+    /** Import a Kuma-issued browser session token and persist it only after validation. */
+    suspend fun addServerByToken(
+        url: String,
+        token: String,
+        insecure: Boolean = false,
+        alias: String? = null,
+    ): LoginResult {
+        val client = KumaClient(url, insecure)
+        client.connect()
+        var promoted = false
+        return try {
+            if (client.loginByToken(token)) {
+                store.upsert(ServerConnection(url, "", token, insecure, alias))
+                activateClient(url, client)
+                promoted = true
+                LoginResult.Success(token)
+            } else {
+                LoginResult.Failure(TOKEN_REJECTED_MESSAGE)
+            }
+        } finally {
+            if (!promoted) client.disconnect()
+        }
+    }
+
+    /** Validate a Kuma session token without changing the saved or active session. */
+    suspend fun testServerToken(
+        url: String,
+        token: String,
+        insecure: Boolean = false,
+    ): LoginResult {
+        val client = KumaClient(url, insecure)
+        client.connect()
+        return try {
+            if (client.loginByToken(token)) LoginResult.Success(null)
+            else LoginResult.Failure(TOKEN_REJECTED_MESSAGE)
+        } finally {
+            client.disconnect()
+        }
+    }
+
     /** Switch to an already-configured server, reusing its stored JWT. */
     suspend fun switchTo(conn: ServerConnection) {
         val client = connectFresh(conn.url, conn.insecure)
@@ -218,5 +258,10 @@ class MonitorRepository(
             }
         }
         activeClient.value = client
+    }
+
+    private companion object {
+        const val TOKEN_REJECTED_MESSAGE =
+            "Session token was rejected, expired, or the server did not respond"
     }
 }

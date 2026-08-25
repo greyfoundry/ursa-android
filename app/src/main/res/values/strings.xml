@@ -84,6 +84,10 @@
     <string name="login_server_placeholder">https://kuma.example.com</string>
     <string name="login_username">Username</string>
     <string name="login_password">Password</string>
+    <string name="login_auth_password">Password</string>
+    <string name="login_auth_session_token">Session token</string>
+    <string name="login_session_token">Kuma session token</string>
+    <string name="login_session_token_desc">Paste a token issued by the Kuma web app. Kuma API keys only authorize Prometheus and cannot open the live socket.</string>
     <string name="login_2fa_code">2FA code</string>
     <string name="login_trust_self_signed">Trust self-signed certificate</string>
     <string name="login_trust_self_signed_desc">Only enable this for a server you control.</string>

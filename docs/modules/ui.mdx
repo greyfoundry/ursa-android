@@ -18,8 +18,9 @@ navigation library for M1 - the screen set is small and state-driven).
   pause/resume, and per-server favourites.
 - `.../ui/UrsaApp.kt` - root; routes server manager / status-page / login /
   detail / list.
-- `.../ui/connections/LoginScreen.kt` - optional server name, URL, credentials,
-  conditional 2FA, and explicit self-signed-certificate choice.
+- `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
+  imported session-token authentication, conditional 2FA, connection test, and
+  explicit self-signed-certificate choice.
 - `.../ui/connections/ConnectionManagerScreen.kt` - add, switch, rename, and
   confirmed removal of encrypted saved-server sessions.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
@@ -41,7 +42,8 @@ navigation library for M1 - the screen set is small and state-driven).
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
   `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`;
-  actions `login`, `testConnection`, `switchTo`, `reauthenticate`,
+  actions `login`, `loginWithSessionToken`, `testConnection`, `testSessionToken`,
+  `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
   `pause`/`resume`, `toggleFavorite`,
   `enterStatusPage`/`loadStatusPage`/`exitStatusPage`.

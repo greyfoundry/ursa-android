@@ -9,6 +9,24 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - imported Kuma session authentication
+
+**changed**: Completed parity item CP-003. Connection and re-authentication forms
+now switch between password/2FA and a masked Kuma session-token mode. Imported
+tokens are validated with `loginByToken` before encrypted persistence, and failed
+validation leaves the active session untouched. The UI explicitly explains that
+Kuma API keys cannot open its live socket.
+
+**contract boundary**: Uptime Kuma 2.5.3 source verifies `uk...` API keys only in
+the HTTP Basic authorizer used by Prometheus. Its socket accepts server-signed
+JWTs through `loginByToken`; URSA implements that real contract and does not
+invent an API-key exchange.
+
+**verification**: The token form, masked semantics, mode switch, and rejected
+token result were exercised on the emulator against an ephemeral official Kuma
+2.5.3 instance. Existing stored JWT reconnect continues through the same
+`loginByToken` client path.
+
 ### 2026-08-25 - connection diagnostics and re-authentication
 
 **changed**: Completed parity item CP-002. Active connections now expose localized
