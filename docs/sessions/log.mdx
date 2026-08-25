@@ -9,6 +9,20 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - Kuma 2.5.3 compatibility verification
+
+**verified**: Compared Uptime Kuma 2.5.1 through 2.5.3 release notes and source,
+then captured a fresh official 2.5.3 container. The source inventory remains 87
+client events, 30 server emit candidates, and 33 REST routes. Normalized shapes for
+every URSA-consumed event, acknowledgement, and public status-page response match
+the 2.5.0 baseline.
+
+**decision**: The seven 2.5.1 features are outbound notification providers. Pinglet
+and SMS Gateway are useful alternatives for their own clients, but do not improve
+URSA's provider-neutral Webhook to UnifiedPush flow. The Webhook payload is unchanged,
+so no compatibility code or UI change is required. Versions 2.5.2 and 2.5.3 only
+repair non-Docker packaging and published version identity respectively.
+
 ### 2026-08-24 - manual release publication
 
 **changed**: Removed Release Please and its manifest/configuration after the

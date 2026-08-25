@@ -1,17 +1,17 @@
 ---
-last-updated: 2026-08-21
+last-updated: 2026-08-25
 owner: astoris
 status: stable
-source: verified from Uptime Kuma 2.5.0 source and a live 2.5.0 container
+source: verified from Uptime Kuma 2.5.3 source and a live 2.5.3 container
 ---
 
 ## what this is
 
 How URSA talks to an Uptime Kuma server. Kuma has no stable public API - it's a
 Socket.IO app plus a few unauthenticated REST endpoints for public status pages.
-Everything below was checked against tag `2.5.0` (`d9a60df`) and captured from
-the official `louislam/uptime-kuma:2.5.0` image (digest
-`sha256:a8610b3b4c38077922ba51b036691e06887d7cefd91fe620fd3d6d23d03dc240`).
+Everything below was rechecked against tag `2.5.3` (`1f0755f`) and captured from
+the official `louislam/uptime-kuma:2.5.3` image (digest
+`sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c`).
 Sanitized raw captures and the complete source-derived event/route inventory live
 under gitignored `docs/kuma-notes/`. Build a thin adapter around this; expect drift
 between versions.
@@ -56,6 +56,13 @@ Kuma 2.5.0 adds `ntp` and `pm2` monitor types plus the authenticated
 `getPM2ProcessList` event. Those additions do not change URSA's read,
 heartbeat-history, certificate, pause, or resume contracts.
 
+Kuma 2.5.1 adds seven outbound notification providers: SMS Gateway, ClickUp,
+TurboSMTP, BearSMS, Pinglet, Milky, and OpenWA. They do not change the Webhook
+provider payload URSA consumes. Kuma 2.5.2 fixes non-Docker installation, and
+2.5.3 corrects the published version number. Across 2.5.0 through 2.5.3, the
+source inventory remains 87 client events, 30 server emit candidates, and 33 REST
+routes; normalized live payload shapes used by URSA are unchanged.
+
 **REST (no auth - public status pages)**
 - `GET /api/status-page/<slug>` - page config, groups, monitors, incident
 - `GET /api/status-page/heartbeat/<slug>` - heartbeats + uptime
@@ -65,7 +72,7 @@ heartbeat-history, certificate, pause, or resume contracts.
 
 - **Case split**: live `heartbeat` event is camelCase; `getMonitorBeats` rows are
   snake_case. The data model must map both to one domain type.
-- **String IDs in positional events**: monitor IDs are JSON strings in live 2.5.0
+- **String IDs in positional events**: monitor IDs are JSON strings in live 2.5.3
   `heartbeatList`, `avgPing`, `uptime`, and `certInfo` emissions even though IDs
   inside object payloads are numbers. Normalize both forms at the adapter boundary.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
