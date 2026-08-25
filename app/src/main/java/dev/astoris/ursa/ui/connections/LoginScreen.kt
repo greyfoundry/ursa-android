@@ -33,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.ServerConnection
+import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.ui.ConnectionTestUiState
 import dev.astoris.ursa.ui.LoginUiState
 import dev.astoris.ursa.ui.UrsaViewModel
@@ -77,6 +79,22 @@ fun LoginScreen(
     var token by remember { mutableStateOf("") }
     var sessionToken by remember { mutableStateOf("") }
     var insecure by remember(initialConnection?.url) { mutableStateOf(initialConnection?.insecure == true) }
+    var headersExpanded by remember(initialConnection?.url) {
+        mutableStateOf(initialConnection?.headers?.isNotEmpty() == true)
+    }
+    var cloudflareClientId by remember(initialConnection?.url) {
+        mutableStateOf(initialConnection.headerValue(CLOUDFLARE_CLIENT_ID))
+    }
+    var cloudflareClientSecret by remember(initialConnection?.url) {
+        mutableStateOf(initialConnection.headerValue(CLOUDFLARE_CLIENT_SECRET))
+    }
+    val customHeaders = remember(initialConnection?.url) {
+        mutableStateListOf<HeaderDraft>().apply {
+            initialConnection?.headers
+                ?.filterNot { it.name.equals(CLOUDFLARE_CLIENT_ID, true) || it.name.equals(CLOUDFLARE_CLIENT_SECRET, true) }
+                ?.forEach { add(HeaderDraft(it.name, it.value)) }
+        }
+    }
     val needs2fa = authMode == AuthMode.PASSWORD && (
         loginState is LoginUiState.NeedsTwoFactor ||
         testState is ConnectionTestUiState.NeedsTwoFactor || token.isNotEmpty()
@@ -85,6 +103,20 @@ fun LoginScreen(
         AuthMode.PASSWORD -> user.isNotBlank() && pass.isNotBlank()
         AuthMode.SESSION_TOKEN -> sessionToken.isNotBlank()
     }
+    val hasPartialHeaders = (cloudflareClientId.isBlank() != cloudflareClientSecret.isBlank()) ||
+        customHeaders.any { it.name.isBlank() != it.value.isBlank() }
+    val headerCandidates = buildList {
+        if (cloudflareClientId.isNotBlank() && cloudflareClientSecret.isNotBlank()) {
+            add(RequestHeader(CLOUDFLARE_CLIENT_ID, cloudflareClientId))
+            add(RequestHeader(CLOUDFLARE_CLIENT_SECRET, cloudflareClientSecret))
+        }
+        customHeaders.filter { it.name.isNotBlank() && it.value.isNotBlank() }
+            .forEach { add(RequestHeader(it.name, it.value)) }
+    }
+    val requestHeaders = headerCandidates.mapNotNull { it.normalizedOrNull() }
+    val headersValid = !hasPartialHeaders &&
+        requestHeaders.size == headerCandidates.size &&
+        requestHeaders.map { it.name.lowercase() }.distinct().size == requestHeaders.size
 
     BackHandler(enabled = onBack != null) { onBack?.invoke() }
 
@@ -259,6 +291,97 @@ fun LoginScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
+                        OutlinedButton(
+                            onClick = { headersExpanded = !headersExpanded },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.login_access_headers,
+                                    requestHeaders.size,
+                                ),
+                            )
+                        }
+                        if (headersExpanded) {
+                            Text(
+                                stringResource(R.string.login_access_headers_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedTextField(
+                                value = cloudflareClientId,
+                                onValueChange = {
+                                    cloudflareClientId = it.take(2048)
+                                    vm.resetConnectionTest()
+                                },
+                                label = { Text(stringResource(R.string.login_cloudflare_client_id)) },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = cloudflareClientSecret,
+                                onValueChange = {
+                                    cloudflareClientSecret = it.take(2048)
+                                    vm.resetConnectionTest()
+                                },
+                                label = { Text(stringResource(R.string.login_cloudflare_client_secret)) },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            customHeaders.forEachIndexed { index, draft ->
+                                Surface(
+                                    shape = MaterialTheme.shapes.medium,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        OutlinedTextField(
+                                            value = draft.name,
+                                            onValueChange = {
+                                                customHeaders[index] = draft.copy(name = it.take(128))
+                                                vm.resetConnectionTest()
+                                            },
+                                            label = { Text(stringResource(R.string.login_header_name)) },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        OutlinedTextField(
+                                            value = draft.value,
+                                            onValueChange = {
+                                                customHeaders[index] = draft.copy(value = it.take(4096))
+                                                vm.resetConnectionTest()
+                                            },
+                                            label = { Text(stringResource(R.string.login_header_value)) },
+                                            singleLine = true,
+                                            visualTransformation = PasswordVisualTransformation(),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        TextButton(onClick = { customHeaders.removeAt(index) }) {
+                                            Text(
+                                                stringResource(R.string.login_remove_header),
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            if (customHeaders.size < MAX_CUSTOM_HEADERS) {
+                                TextButton(onClick = { customHeaders.add(HeaderDraft()) }) {
+                                    Text(stringResource(R.string.login_add_header))
+                                }
+                            }
+                            if (!headersValid) {
+                                Text(
+                                    stringResource(R.string.login_headers_invalid),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -323,12 +446,13 @@ fun LoginScreen(
                                         password = pass,
                                         token = token,
                                         insecure = insecure,
+                                        headers = requestHeaders,
                                     )
                                 } else {
-                                    vm.testSessionToken(url, sessionToken, insecure)
+                                    vm.testSessionToken(url, sessionToken, insecure, requestHeaders)
                                 }
                             },
-                            enabled = !loading && url.isNotBlank() && credentialsReady,
+                            enabled = !loading && url.isNotBlank() && credentialsReady && headersValid,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (testState is ConnectionTestUiState.Loading) {
@@ -347,6 +471,7 @@ fun LoginScreen(
                                         token = token,
                                         insecure = insecure,
                                         alias = alias,
+                                        headers = requestHeaders,
                                         onSuccess = onConnected,
                                     )
                                 } else {
@@ -355,11 +480,12 @@ fun LoginScreen(
                                         sessionToken = sessionToken,
                                         insecure = insecure,
                                         alias = alias,
+                                        headers = requestHeaders,
                                         onSuccess = onConnected,
                                     )
                                 }
                             },
-                            enabled = !loading && url.isNotBlank() && credentialsReady,
+                            enabled = !loading && url.isNotBlank() && credentialsReady && headersValid,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (loading) {
@@ -412,4 +538,13 @@ private fun ConnectionTestResult(message: String, success: Boolean) {
     }
 }
 
+private data class HeaderDraft(val name: String = "", val value: String = "")
+
+private fun ServerConnection?.headerValue(name: String): String =
+    this?.headers?.firstOrNull { it.name.equals(name, ignoreCase = true) }?.value.orEmpty()
+
 private enum class AuthMode { PASSWORD, SESSION_TOKEN }
+
+private const val CLOUDFLARE_CLIENT_ID = "CF-Access-Client-Id"
+private const val CLOUDFLARE_CLIENT_SECRET = "CF-Access-Client-Secret"
+private const val MAX_CUSTOM_HEADERS = 8

@@ -9,6 +9,25 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-25 - encrypted access headers
+
+**changed**: Completed parity item CP-004. Connection forms now include a
+collapsed access-header editor with masked Cloudflare Access Client ID/Secret
+fields and up to eight custom name/value pairs. Validated headers are encrypted
+inside each saved connection, applied to Socket.IO polling/WebSocket handshakes,
+available to status-page REST requests, and reused by notification actions.
+Saved-server summaries reveal only a count.
+
+**security boundary**: Header names must use the HTTP token character set; values
+must be non-empty and cannot contain CR/LF; duplicates and partially completed
+pairs disable connection actions. Passwords, TOTP values, session JWTs, and
+header values are never logged or rendered in summaries.
+
+**verification**: Added focused normalization/injection tests and exercised the
+form on the emulator. A temporary Socket.IO server returned login success only
+when the expected custom header arrived in its handshake; URSA's connection test
+passed through that gate. The temporary container was then removed.
+
 ### 2026-08-25 - imported Kuma session authentication
 
 **changed**: Completed parity item CP-003. Connection and re-authentication forms

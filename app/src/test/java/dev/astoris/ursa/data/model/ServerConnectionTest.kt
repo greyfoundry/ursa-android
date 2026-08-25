@@ -22,6 +22,17 @@ class ServerConnectionTest {
             """{"url":"https://kuma.example.com","username":"user","jwt":"token","insecure":false}""",
         )
         assertNull(decoded.alias)
+        assertEquals(emptyList<RequestHeader>(), decoded.headers)
         assertEquals("kuma.example.com", decoded.displayName)
+    }
+
+    @Test fun request_header_normalizes_valid_input() {
+        val header = RequestHeader("  X-Forwarded-User ", " operator@example.com ").normalizedOrNull()
+        assertEquals(RequestHeader("X-Forwarded-User", "operator@example.com"), header)
+    }
+
+    @Test fun request_header_rejects_invalid_name_and_line_breaks() {
+        assertNull(RequestHeader("Bad Header", "value").normalizedOrNull())
+        assertNull(RequestHeader("X-Test", "good\r\ninjected: value").normalizedOrNull())
     }
 }

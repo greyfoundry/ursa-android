@@ -23,6 +23,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.repository.MonitorRepository
@@ -201,12 +202,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         token: String = "",
         insecure: Boolean = false,
         alias: String? = null,
+        headers: List<RequestHeader> = emptyList(),
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
-            _login.value = when (val r = repo.addServerAndLogin(normalized, username, password, token, insecure, alias)) {
+            _login.value = when (
+                val r = repo.addServerAndLogin(normalized, username, password, token, insecure, alias, headers)
+            ) {
                 is LoginResult.Success -> {
                     onSuccess()
                     LoginUiState.Idle
@@ -222,13 +226,14 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         sessionToken: String,
         insecure: Boolean = false,
         alias: String? = null,
+        headers: List<RequestHeader> = emptyList(),
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
             _login.value = when (
-                val result = repo.addServerByToken(normalized, sessionToken.trim(), insecure, alias)
+                val result = repo.addServerByToken(normalized, sessionToken.trim(), insecure, alias, headers)
             ) {
                 is LoginResult.Success -> {
                     onSuccess()
@@ -248,11 +253,14 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         password: String,
         token: String = "",
         insecure: Boolean = false,
+        headers: List<RequestHeader> = emptyList(),
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _connectionTest.value = ConnectionTestUiState.Loading
-            _connectionTest.value = when (val result = repo.testServer(normalized, username, password, token, insecure)) {
+            _connectionTest.value = when (
+                val result = repo.testServer(normalized, username, password, token, insecure, headers)
+            ) {
                 is LoginResult.Success -> ConnectionTestUiState.Success
                 LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
                 is LoginResult.Failure -> ConnectionTestUiState.Error(result.message)
@@ -264,12 +272,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         url: String,
         sessionToken: String,
         insecure: Boolean = false,
+        headers: List<RequestHeader> = emptyList(),
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _connectionTest.value = ConnectionTestUiState.Loading
             _connectionTest.value = when (
-                val result = repo.testServerToken(normalized, sessionToken.trim(), insecure)
+                val result = repo.testServerToken(normalized, sessionToken.trim(), insecure, headers)
             ) {
                 is LoginResult.Success -> ConnectionTestUiState.Success
                 LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor

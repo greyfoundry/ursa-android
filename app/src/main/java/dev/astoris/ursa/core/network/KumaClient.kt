@@ -4,6 +4,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.RequestHeader
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -36,7 +37,11 @@ enum class ConnectionState {
  * (internal, unstable) wire protocol lives in [KumaParse]; this class handles the
  * transport, auth, and flow plumbing only.
  */
-class KumaClient(private val baseUrl: String, private val insecure: Boolean = false) {
+class KumaClient(
+    private val baseUrl: String,
+    private val insecure: Boolean = false,
+    private val headers: List<RequestHeader> = emptyList(),
+) {
 
     private var socket: Socket? = null
 
@@ -66,6 +71,8 @@ class KumaClient(private val baseUrl: String, private val insecure: Boolean = fa
         val opts = IO.Options().apply {
             transports = arrayOf("polling", "websocket") // polling first, then upgrade
             reconnection = true
+            extraHeaders = headers.mapNotNull { it.normalizedOrNull() }
+                .associate { it.name to listOf(it.value) }
         }
         if (insecure) {
             val ok = TlsTrust.sessionPinnedClient()

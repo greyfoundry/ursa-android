@@ -1,6 +1,7 @@
 package dev.astoris.ursa.core.network
 
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.StatusGroupView
 import dev.astoris.ursa.data.model.StatusHeartbeatResponse
 import dev.astoris.ursa.data.model.StatusMonitorView
@@ -12,6 +13,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -35,11 +37,21 @@ class StatusPageClient {
             }
         }
 
-    suspend fun fetch(baseUrl: String, slug: String, insecure: Boolean = false): StatusPageView {
+    suspend fun fetch(
+        baseUrl: String,
+        slug: String,
+        insecure: Boolean = false,
+        headers: List<RequestHeader> = emptyList(),
+    ): StatusPageView {
         val base = baseUrl.trim().removeSuffix("/")
         val http = client(base, insecure)
-        val page: StatusPageResponse = http.get("$base/api/status-page/$slug").body()
-        val hb: StatusHeartbeatResponse = http.get("$base/api/status-page/heartbeat/$slug").body()
+        val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
+        val page: StatusPageResponse = http.get("$base/api/status-page/$slug") {
+            safeHeaders.forEach { header(it.name, it.value) }
+        }.body()
+        val hb: StatusHeartbeatResponse = http.get("$base/api/status-page/heartbeat/$slug") {
+            safeHeaders.forEach { header(it.name, it.value) }
+        }.body()
 
         val groups = page.publicGroupList.map { group ->
             StatusGroupView(

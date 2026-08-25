@@ -12,6 +12,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -131,14 +132,16 @@ class MonitorRepository(
         token: String = "",
         insecure: Boolean = false,
         alias: String? = null,
+        headers: List<RequestHeader> = emptyList(),
     ): LoginResult {
-        val client = KumaClient(url, insecure)
+        val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
+        val client = KumaClient(url, insecure, safeHeaders)
         client.connect()
         var promoted = false
         return try {
             val result = client.login(username, password, token)
             if (result is LoginResult.Success) {
-                store.upsert(ServerConnection(url, username, result.jwt, insecure, alias))
+                store.upsert(ServerConnection(url, username, result.jwt, insecure, alias, safeHeaders))
                 activateClient(url, client)
                 promoted = true
             }
@@ -155,8 +158,9 @@ class MonitorRepository(
         password: String,
         token: String = "",
         insecure: Boolean = false,
+        headers: List<RequestHeader> = emptyList(),
     ): LoginResult {
-        val client = KumaClient(url, insecure)
+        val client = KumaClient(url, insecure, headers)
         client.connect()
         return try {
             client.login(username, password, token)
@@ -171,13 +175,15 @@ class MonitorRepository(
         token: String,
         insecure: Boolean = false,
         alias: String? = null,
+        headers: List<RequestHeader> = emptyList(),
     ): LoginResult {
-        val client = KumaClient(url, insecure)
+        val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
+        val client = KumaClient(url, insecure, safeHeaders)
         client.connect()
         var promoted = false
         return try {
             if (client.loginByToken(token)) {
-                store.upsert(ServerConnection(url, "", token, insecure, alias))
+                store.upsert(ServerConnection(url, "", token, insecure, alias, safeHeaders))
                 activateClient(url, client)
                 promoted = true
                 LoginResult.Success(token)
@@ -194,8 +200,9 @@ class MonitorRepository(
         url: String,
         token: String,
         insecure: Boolean = false,
+        headers: List<RequestHeader> = emptyList(),
     ): LoginResult {
-        val client = KumaClient(url, insecure)
+        val client = KumaClient(url, insecure, headers)
         client.connect()
         return try {
             if (client.loginByToken(token)) LoginResult.Success(null)
@@ -207,7 +214,7 @@ class MonitorRepository(
 
     /** Switch to an already-configured server, reusing its stored JWT. */
     suspend fun switchTo(conn: ServerConnection) {
-        val client = connectFresh(conn.url, conn.insecure)
+        val client = connectFresh(conn.url, conn.insecure, conn.headers)
         conn.jwt?.let { client.loginByToken(it) }
         store.setActive(conn.url)
     }
@@ -238,8 +245,12 @@ class MonitorRepository(
         lastUpdatedMs.value = null
     }
 
-    private fun connectFresh(url: String, insecure: Boolean): KumaClient {
-        val client = KumaClient(url, insecure)
+    private fun connectFresh(
+        url: String,
+        insecure: Boolean,
+        headers: List<RequestHeader> = emptyList(),
+    ): KumaClient {
+        val client = KumaClient(url, insecure, headers)
         activateClient(url, client)
         client.connect()
         return client

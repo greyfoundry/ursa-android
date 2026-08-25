@@ -47,7 +47,7 @@ class MonitorActionReceiver : BroadcastReceiver() {
         val conn = conns.firstOrNull { it.url == activeUrl } ?: conns.firstOrNull()
         val jwt = conn?.jwt ?: return
 
-        val client = KumaClient(conn.url, conn.insecure)
+        val client = KumaClient(conn.url, conn.insecure, conn.headers)
         try {
             client.connect()
             // loginByToken suspends until the server acks auth, so the pause/resume

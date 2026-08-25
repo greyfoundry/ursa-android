@@ -23,7 +23,8 @@ here so the rest of the app sees clean domain models.
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
 
 **exports**
-- `KumaClient(baseUrl)` - `connect()`, bounded `login(u,p,token)`, `loginByToken(jwt)`,
+- `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
+  `login(u,p,token)`, `loginByToken(jwt)`,
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `disconnect()`. Flows: `state`, `monitors`, `heartbeats`, `certs`.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `beatRow(s)`, `cert`, `tags`.
@@ -57,6 +58,10 @@ here so the rest of the app sees clean domain models.
 - `MonitorRepository.addServerByToken` and `testServerToken` validate imported
   Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
   the socket because Kuma limits them to Prometheus HTTP Basic authentication.
+- Per-connection reverse-proxy headers are normalized and applied to Socket.IO
+  polling/WebSocket handshakes. `StatusPageClient.fetch` accepts the same optional
+  headers for both REST requests. Invalid names, empty values, duplicates, and
+  CR/LF injection are rejected before a connection action is enabled.
 - Reconnect: `KumaClient` keeps the JWT and silently re-emits `loginByToken` on
   every `EVENT_CONNECT`, so a dropped socket re-authenticates itself. `disconnect()`
   clears the JWT.

@@ -17,9 +17,10 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 
 ## design principles
 
-- **Store the least.** After login only the session token is persisted - never the
-  password or TOTP. See `docs/modules/network.mdx` and `core/storage`.
-- **Encrypt what we store.** The token blob is sealed with AES-256-GCM (Tink); the
+- **Store the least.** After login only the session token and explicitly supplied
+  reverse-proxy headers are persisted - never the password or TOTP. See
+  `docs/modules/network.mdx` and `core/storage`.
+- **Encrypt what we store.** The connection blob is sealed with AES-256-GCM (Tink); the
   master key lives in the Android Keystore and never leaves the device.
 - **Secure by default, downgrade only on request.** TLS is on by default. Trusting a
   self-signed certificate is opt-in, per connection, and clearly labelled.
@@ -55,7 +56,9 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 **STORAGE.** Connections persist through `ConnectionStore` (DataStore Preferences).
 The value is encrypted by `Crypto` (Tink AEAD, AES-256-GCM) under a master key held
 in the Android Keystore, with an app-specific AAD. The login password and TOTP are
-never written to disk; only the resulting session token is. `FLAG_SECURE` is set
+never written to disk; only the resulting session token and optional user-supplied
+reverse-proxy headers are. Header values are masked in forms, omitted from
+summaries/logs, and rejected if they contain CR/LF. `FLAG_SECURE` is set
 app-wide (`MainActivity`), so monitor data and server URLs are kept out of
 screenshots, screen recordings, and the recents thumbnail. The manifest sets
 `allowBackup=false`; legacy backup rules and Android 12+ data-extraction rules also

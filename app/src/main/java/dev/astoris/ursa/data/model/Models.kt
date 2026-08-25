@@ -63,10 +63,27 @@ data class ServerConnection(
     val insecure: Boolean = false,
     /** Optional user-facing name; absent in records written before multi-server UI. */
     val alias: String? = null,
+    /** Encrypted with the connection; values are never included in UI summaries or logs. */
+    val headers: List<RequestHeader> = emptyList(),
 ) {
     val displayName: String
         get() = alias?.trim()?.takeIf { it.isNotEmpty() }
             ?: url.substringAfter("://", url).substringBefore('/').ifBlank { url }
+}
+
+@Serializable
+data class RequestHeader(val name: String, val value: String) {
+    fun normalizedOrNull(): RequestHeader? {
+        val cleanName = name.trim()
+        val cleanValue = value.trim()
+        if (!HEADER_NAME.matches(cleanName) || cleanValue.isEmpty()) return null
+        if ('\r' in cleanValue || '\n' in cleanValue) return null
+        return RequestHeader(cleanName, cleanValue)
+    }
+
+    private companion object {
+        val HEADER_NAME = Regex("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+    }
 }
 
 /** Result of a login attempt. */

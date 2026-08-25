@@ -20,7 +20,8 @@ navigation library for M1 - the screen set is small and state-driven).
   detail / list.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
   imported session-token authentication, conditional 2FA, connection test, and
-  explicit self-signed-certificate choice.
+  explicit self-signed-certificate choice. Its collapsed access-header editor
+  supports masked Cloudflare Access credentials and up to eight custom headers.
 - `.../ui/connections/ConnectionManagerScreen.kt` - add, switch, rename, and
   confirmed removal of encrypted saved-server sessions.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
@@ -62,6 +63,8 @@ navigation library for M1 - the screen set is small and state-driven).
   visible with a "Connection: …" banner. `logout()` clears it.
 - Login/status-page screens have a "Trust self-signed certificate" checkbox that
   flows to `insecure` on the connection.
+- Connection summaries show only the number of encrypted access headers. Header
+  values are masked during entry and never rendered after save.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

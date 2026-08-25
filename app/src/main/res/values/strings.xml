@@ -88,6 +88,15 @@
     <string name="login_auth_session_token">Session token</string>
     <string name="login_session_token">Kuma session token</string>
     <string name="login_session_token_desc">Paste a token issued by the Kuma web app. Kuma API keys only authorize Prometheus and cannot open the live socket.</string>
+    <string name="login_access_headers">Access headers (%1$d)</string>
+    <string name="login_access_headers_desc">Optional encrypted headers for Cloudflare Access or another reverse proxy. Values stay hidden after entry.</string>
+    <string name="login_cloudflare_client_id">Cloudflare Access Client ID</string>
+    <string name="login_cloudflare_client_secret">Cloudflare Access Client Secret</string>
+    <string name="login_header_name">Header name</string>
+    <string name="login_header_value">Header value</string>
+    <string name="login_add_header">Add custom header</string>
+    <string name="login_remove_header">Remove header</string>
+    <string name="login_headers_invalid">Complete both fields, use a valid header name, and remove duplicates.</string>
     <string name="login_2fa_code">2FA code</string>
     <string name="login_trust_self_signed">Trust self-signed certificate</string>
     <string name="login_trust_self_signed_desc">Only enable this for a server you control.</string>
@@ -109,6 +118,10 @@
     <string name="servers_active_status">%1$s - %2$s</string>
     <string name="servers_saved">Saved</string>
     <string name="servers_reauthenticate">Sign in again</string>
+    <plurals name="access_header_count">
+        <item quantity="one">%d encrypted access header</item>
+        <item quantity="other">%d encrypted access headers</item>
+    </plurals>
     <string name="servers_rename">Rename</string>
     <string name="servers_rename_title">Rename server</string>
     <string name="servers_remove">Remove</string>
