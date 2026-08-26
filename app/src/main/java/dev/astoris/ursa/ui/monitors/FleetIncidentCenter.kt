@@ -1,5 +1,7 @@
 package dev.astoris.ursa.ui.monitors
 
+import android.content.Context
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -17,7 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,10 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.storage.IncidentNote
+import dev.astoris.ursa.core.storage.IncidentNoteCodec
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
@@ -42,6 +49,7 @@ import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.theme.KumaGreen
 import kotlinx.coroutines.delay
+import java.net.URI
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -188,16 +196,119 @@ internal fun fleetIncidents(
         .thenByDescending { it.startedAt.orEmpty() },
 )
 
+internal fun mergedIncidentHistory(
+    liveHistory: Map<Int, List<Heartbeat>>,
+    importantBeats: List<Heartbeat>,
+): Map<Int, List<Heartbeat>> = (liveHistory.keys + importantBeats.map(Heartbeat::monitorId))
+    .associateWith { monitorId ->
+        (importantBeats.filter { it.monitorId == monitorId } + liveHistory[monitorId].orEmpty())
+            .distinctBy { Triple(it.monitorId, it.time, it.status) }
+            .sortedBy(Heartbeat::time)
+    }
+
+internal data class IncidentShareCopy(
+    val heading: String,
+    val active: String,
+    val resolved: String,
+    val started: String,
+    val startUnknown: String,
+    val resolvedAt: String,
+    val duration: String,
+    val message: String,
+    val note: String,
+    val redacted: String,
+)
+
+internal fun incidentShareText(
+    incident: FleetIncident,
+    note: String?,
+    duration: String?,
+    serverUrl: String?,
+    copy: IncidentShareCopy,
+): String {
+    fun safe(value: String): String = redactSharedIncidentValue(value, serverUrl, copy.redacted)
+    return buildString {
+        appendLine(copy.heading)
+        append(safe(incident.monitorName))
+        append(" - ")
+        appendLine(if (incident.active) copy.active else copy.resolved)
+        append(copy.started)
+        append(' ')
+        append(incident.startedAt?.let(::safe) ?: copy.startUnknown)
+        incident.resolvedAt?.let {
+            appendLine()
+            append(copy.resolvedAt)
+            append(' ')
+            append(safe(it))
+        }
+        duration?.let {
+            appendLine()
+            append(copy.duration)
+            append(' ')
+            append(safe(it))
+        }
+        incident.message?.takeIf { it.isNotBlank() }?.let {
+            appendLine()
+            append(copy.message)
+            append(' ')
+            append(safe(it))
+        }
+        note?.takeIf { it.isNotBlank() }?.let {
+            appendLine()
+            append(copy.note)
+            append(' ')
+            append(safe(it))
+        }
+    }
+}
+
+private fun redactSharedIncidentValue(value: String, serverUrl: String?, replacement: String): String {
+    var redacted = value.trim()
+    serverUrl?.trim()?.trimEnd('/')?.takeIf { it.isNotBlank() }?.let { url ->
+        val serverParts = buildSet {
+            add(url)
+            runCatching { URI(url) }.getOrNull()?.let { uri ->
+                uri.rawAuthority?.takeIf(String::isNotBlank)?.let(::add)
+                uri.host?.takeIf(String::isNotBlank)?.let(::add)
+            }
+        }.sortedByDescending(String::length)
+        serverParts.forEach { redacted = redacted.replace(it, replacement, ignoreCase = true) }
+    }
+    redacted = SHARED_URL_PATTERN.replace(redacted, replacement)
+    return SHARED_SECRET_PATTERN.replace(redacted) { match ->
+        "${match.groupValues[1]}=$replacement"
+    }
+}
+
 @Composable
 internal fun FleetIncidentCenter(
     monitors: List<Monitor>,
     history: Map<Int, List<Heartbeat>>,
+    notes: List<IncidentNote>,
+    serverUrl: String?,
+    loadImportantHeartbeats: suspend () -> List<Heartbeat>?,
     onClose: () -> Unit,
     onIncidentClick: (Int) -> Unit,
+    onSaveNote: (Int, String?, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onClose)
-    val incidents = remember(monitors, history) { fleetIncidents(monitors, history) }
+    val context = LocalContext.current
+    var importantHistory by remember { mutableStateOf<ImportantHistoryState>(ImportantHistoryState.Loading) }
+    LaunchedEffect(Unit) {
+        importantHistory = loadImportantHeartbeats()?.let(ImportantHistoryState::Loaded)
+            ?: ImportantHistoryState.Failed
+    }
+    val incidentHistory = remember(history, importantHistory) {
+        when (val state = importantHistory) {
+            is ImportantHistoryState.Loaded -> mergedIncidentHistory(history, state.beats)
+            ImportantHistoryState.Loading, ImportantHistoryState.Failed -> history
+        }
+    }
+    val notesEnabled = importantHistory is ImportantHistoryState.Loaded
+    val incidents = remember(monitors, incidentHistory) { fleetIncidents(monitors, incidentHistory) }
+    val noteByIncident = remember(notes) { notes.associateBy { it.monitorId to it.startedAt } }
+    var editingIncident by remember { mutableStateOf<FleetIncident?>(null) }
     var filter by remember { mutableStateOf(FleetIncidentFilter.ALL) }
     var window by remember { mutableStateOf(HeartbeatRange.DAY) }
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -209,7 +320,7 @@ internal fun FleetIncidentCenter(
     }
     val cutoffMillis = nowMillis - window.hours * 3_600_000L
     val windowedIncidents = incidents.filter { incidentOverlapsWindow(it, cutoffMillis, nowMillis) }
-    val reliability = fleetReliabilitySummary(monitors, history, incidents, window.hours, nowMillis)
+    val reliability = fleetReliabilitySummary(monitors, incidentHistory, incidents, window.hours, nowMillis)
     val shown = windowedIncidents.filter { incident ->
         when (filter) {
             FleetIncidentFilter.ALL -> true
@@ -252,6 +363,14 @@ internal fun FleetIncidentCenter(
                 )
             }
         }
+        if (importantHistory == ImportantHistoryState.Failed) {
+            Text(
+                stringResource(R.string.incident_notes_unavailable),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -292,6 +411,7 @@ internal fun FleetIncidentCenter(
             ) {
                 item { ReliabilitySummaryCard(window, reliability) }
                 items(shown, key = { "${it.monitorId}-${it.startedAt}-${it.resolvedAt}" }) { incident ->
+                    val note = incident.startedAt?.let { noteByIncident[incident.monitorId to it]?.text }
                     UrsaPressableCard(onClick = { onIncidentClick(incident.monitorId) }, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -333,12 +453,138 @@ internal fun FleetIncidentCenter(
                             incident.message?.takeIf { it.isNotBlank() }?.let {
                                 Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2)
                             }
+                            note?.let {
+                                Text(
+                                    stringResource(R.string.incident_note_preview, it),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 3,
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                TextButton(
+                                    onClick = { editingIncident = incident },
+                                    enabled = notesEnabled && incident.startedAt != null,
+                                ) {
+                                    Text(
+                                        stringResource(
+                                            if (note == null) R.string.incident_note_add
+                                            else R.string.incident_note_edit,
+                                        ),
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        shareIncident(
+                                            context = context,
+                                            incident = incident,
+                                            note = note,
+                                            duration = incidentDurationMillis(incident, nowMillis)?.let(::compactDuration),
+                                            serverUrl = serverUrl,
+                                        )
+                                    },
+                                ) { Text(stringResource(R.string.incident_share)) }
+                            }
                         }
                     }
                 }
             }
         }
     }
+    editingIncident?.let { incident ->
+        val existing = incident.startedAt?.let { noteByIncident[incident.monitorId to it]?.text }
+        IncidentNoteDialog(
+            incident = incident,
+            existing = existing,
+            onDismiss = { editingIncident = null },
+            onSave = { text ->
+                onSaveNote(incident.monitorId, incident.startedAt, text)
+                editingIncident = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun IncidentNoteDialog(
+    incident: FleetIncident,
+    existing: String?,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var text by remember(incident, existing) { mutableStateOf(existing.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.incident_note_title, incident.monitorName)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.take(IncidentNoteCodec.MAX_TEXT_LENGTH) },
+                label = { Text(stringResource(R.string.incident_note_label)) },
+                minLines = 3,
+                maxLines = 7,
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = {
+                    Text(
+                        stringResource(
+                            R.string.incident_note_support,
+                            text.length,
+                            IncidentNoteCodec.MAX_TEXT_LENGTH,
+                        ),
+                    )
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = {
+            Row {
+                if (existing != null) {
+                    TextButton(onClick = { onSave("") }) {
+                        Text(stringResource(R.string.incident_note_delete))
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+            }
+        },
+    )
+}
+
+private fun shareIncident(
+    context: Context,
+    incident: FleetIncident,
+    note: String?,
+    duration: String?,
+    serverUrl: String?,
+) {
+    val copy = IncidentShareCopy(
+        heading = context.getString(R.string.incident_share_heading),
+        active = context.getString(R.string.statuspage_incident_active),
+        resolved = context.getString(R.string.statuspage_incident_resolved),
+        started = context.getString(R.string.incident_share_started),
+        startUnknown = context.getString(R.string.incident_start_unknown),
+        resolvedAt = context.getString(R.string.incident_share_resolved),
+        duration = context.getString(R.string.incident_share_duration),
+        message = context.getString(R.string.incident_share_message),
+        note = context.getString(R.string.incident_share_note),
+        redacted = context.getString(R.string.incident_share_redacted),
+    )
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.incident_share_subject))
+        putExtra(Intent.EXTRA_TEXT, incidentShareText(incident, note, duration, serverUrl, copy))
+    }
+    context.startActivity(Intent.createChooser(send, context.getString(R.string.incident_share_chooser)))
+}
+
+private sealed interface ImportantHistoryState {
+    data object Loading : ImportantHistoryState
+    data object Failed : ImportantHistoryState
+    data class Loaded(val beats: List<Heartbeat>) : ImportantHistoryState
 }
 
 @Composable
@@ -414,3 +660,8 @@ private fun ReliabilityMetric(value: String, label: String, modifier: Modifier =
         )
     }
 }
+
+private val SHARED_URL_PATTERN = Regex("(?i)\\b(?:https?|wss?)://\\S+")
+private val SHARED_SECRET_PATTERN = Regex(
+    "(?im)\\b(password|passcode|token|authorization|api[-_ ]?key|secret)\\s*[:=]\\s*[^\\r\\n,;]+",
+)

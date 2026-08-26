@@ -57,6 +57,33 @@ class FleetIncidentCenterTest {
     }
 
     @Test
+    fun durableTransitionsStabilizeAContinuousOutageStart() {
+        val important = listOf(
+            beat(1, MonitorStatus.UP, "2026-08-26 01:00:00"),
+            beat(1, MonitorStatus.DOWN, "2026-08-26 01:05:00"),
+        )
+        val rolling = mapOf(
+            1 to listOf(
+                beat(1, MonitorStatus.DOWN, "2026-08-26 11:58:00"),
+                beat(1, MonitorStatus.DOWN, "2026-08-26 12:00:00"),
+            ),
+        )
+        val monitor = monitor(1, "API", MonitorStatus.DOWN)
+
+        val first = fleetIncidents(listOf(monitor), mergedIncidentHistory(rolling, important)).single()
+        val advanced = fleetIncidents(
+            listOf(monitor),
+            mergedIncidentHistory(
+                mapOf(1 to listOf(beat(1, MonitorStatus.DOWN, "2026-08-26 12:01:00"))),
+                important,
+            ),
+        ).single()
+
+        assertEquals("2026-08-26 01:05:00", first.startedAt)
+        assertEquals(first.startedAt, advanced.startedAt)
+    }
+
+    @Test
     fun reliabilityCalculatesDowntimeMttrAndFlakiestMonitorForWindow() {
         val now = kumaUtcMillisOrNull("2026-08-25 12:00:00")!!
         val api = monitor(1, "API", MonitorStatus.DOWN)
@@ -130,6 +157,69 @@ class FleetIncidentCenterTest {
         assertEquals(0L, pausedSummary.observedDowntimeMillis)
         assertEquals(0, pausedSummary.activeMonitorCount)
     }
+
+    @Test
+    fun sharedIncidentRedactsUrlsAndCredentialLikeValues() {
+        val copy = shareCopy()
+        val incident = FleetIncident(
+            monitorId = 1,
+            monitorName = "API https://kuma.example",
+            startedAt = "2026-08-26 10:00:00",
+            resolvedAt = null,
+            message = "Authorization: Bearer bearer-value endpoint https://internal.example/path",
+        )
+
+        val text = incidentShareText(
+            incident = incident,
+            note = "password=hunter2 tracking at https://kuma.example/dashboard server kuma.example",
+            duration = "5m 2s",
+            serverUrl = "https://kuma.example",
+            copy = copy,
+        )
+
+        assertFalse(text.contains("kuma.example"))
+        assertFalse(text.contains("internal.example"))
+        assertFalse(text.contains("bearer-value"))
+        assertFalse(text.contains("hunter2"))
+        assertTrue(text.contains("[redacted]"))
+        assertTrue(text.contains("API"))
+        assertTrue(text.contains("5m 2s"))
+    }
+
+    @Test
+    fun sharedIncidentIncludesResolvedStateAndLocalNoteWithoutServerMetadata() {
+        val text = incidentShareText(
+            incident = FleetIncident(
+                monitorId = 9,
+                monitorName = "Database",
+                startedAt = "2026-08-26 10:00:00",
+                resolvedAt = "2026-08-26 10:03:00",
+                message = null,
+            ),
+            note = "Recovered after restart",
+            duration = "3m 0s",
+            serverUrl = "https://private.example",
+            copy = shareCopy(),
+        )
+
+        assertTrue(text.contains("Database - Resolved"))
+        assertTrue(text.contains("Resolved: 2026-08-26 10:03:00"))
+        assertTrue(text.contains("Local note: Recovered after restart"))
+        assertFalse(text.contains("private.example"))
+    }
+
+    private fun shareCopy() = IncidentShareCopy(
+        heading = "URSA incident",
+        active = "Active",
+        resolved = "Resolved",
+        started = "Started:",
+        startUnknown = "Start unavailable",
+        resolvedAt = "Resolved:",
+        duration = "Duration:",
+        message = "Message:",
+        note = "Local note:",
+        redacted = "[redacted]",
+    )
 
     private fun monitor(id: Int, name: String, status: MonitorStatus) = Monitor(
         id = id,

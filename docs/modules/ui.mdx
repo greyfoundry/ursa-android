@@ -31,7 +31,7 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/FleetIncidentCenter.kt` - active-first outage transitions
   across monitors with all/active/resolved filters and detail deep links, plus
   windowed observed downtime, MTTR, flakiest-monitor, and history-coverage
-  summaries for active monitors.
+  summaries for active monitors, encrypted local notes, and redacted sharing.
 - `.../ui/monitors/CertificateDashboard.kt` - fleet TLS view grouped into
   expired, invalid, expiring, healthy, and unknown sections, with expiry/name
   sorting and monitor-detail deep links.
@@ -100,11 +100,17 @@ navigation library for M1 - the screen set is small and state-driven).
   access headers, favorites, dynamic-colour choice, and slow-alert preferences;
   session JWTs require an explicit opt-in. Device-bound lock keys, push endpoints,
   cached monitor data, and alert cooldown timestamps are never exported.
-- Fleet reliability statistics use only Kuma heartbeat transitions already held
-  by the client. Outages that overlap a selected window contribute only their
+- Fleet reliability statistics merge the rolling live heartbeat window with one
+  bounded on-demand page of Kuma's durable important transitions. Outages that
+  overlap a selected window contribute only their
   in-window duration; carry-in incidents are excluded from MTTR and flakiness.
   Coverage is conservative: any active monitor without a heartbeat at or before
   the window boundary marks the aggregate partial and warns that totals may be low.
+- Incident notes are encrypted locally and keyed by server, monitor, and durable
+  down-transition time. A blank save deletes the note; notes are capped at 500
+  entries and 2,000 characters each and stay out of portable backups. Sharing
+  uses Android's text sharesheet and omits app-held connection metadata; URL and
+  credential-like values in user/server text are redacted before handoff.
 - The certificate dashboard reflects live `certInfo` events for the active Kuma
   server. It distinguishes expiry from other certificate-invalid states, uses
   Kuma's 14-day reminder threshold for "expiring soon", and does not invent rows

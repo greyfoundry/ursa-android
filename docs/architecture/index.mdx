@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-08-26
 owner: astoris
 status: in-flux
 ---
@@ -28,8 +28,9 @@ distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──�
 **layers (M1 implemented unless noted)**
 - `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) -
   see `docs/modules/network.mdx`.
-- `core.storage` → `.../core/storage/` (ConnectionStore + Crypto) - DataStore with
-  Tink AES-256-GCM at rest, master key in Android Keystore.
+- `core.storage` → `.../core/storage/` (ConnectionStore, encrypted caches,
+  preferences, event history, and incident notes) - DataStore with Tink
+  AES-256-GCM at rest, master key in Android Keystore.
 - `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore) -
   UnifiedPush receive path + notification rendering. See `docs/modules/push.mdx`.
 - `data.model` → `.../data/model/` - Models.kt + StatusPageModels.kt.

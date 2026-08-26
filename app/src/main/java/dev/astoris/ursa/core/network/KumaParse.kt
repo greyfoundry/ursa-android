@@ -74,6 +74,10 @@ object KumaParse {
         )
     }
 
+    /** Bean-serialized heartbeat arrays such as `monitorImportantHeartbeatListPaged`. */
+    fun heartbeatRows(arr: JsonArray): List<Heartbeat> =
+        arr.mapNotNull { (it as? JsonObject)?.let(::heartbeat) }
+
     /** `getMonitorBeats` rows - SNAKE_CASE, `important` is 1/0 not a boolean. */
     fun beatRow(obj: JsonObject): Heartbeat? {
         val id = obj["monitor_id"]?.jsonPrimitive?.intOrNull ?: return null

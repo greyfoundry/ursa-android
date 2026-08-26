@@ -216,6 +216,22 @@ class KumaClient(
         return KumaParse.beatRows(arr)
     }
 
+    /** Newest durable state transitions across the account, fetched only when requested. */
+    suspend fun getImportantBeats(limit: Int = IMPORTANT_BEAT_LIMIT): List<Heartbeat>? {
+        val bounded = limit.coerceIn(1, IMPORTANT_BEAT_LIMIT)
+        val res = emitAck(
+            "monitorImportantHeartbeatListPaged",
+            JSONObject.NULL,
+            0,
+            bounded,
+        ) ?: return null
+        if (!res.optBoolean("ok")) return null
+        val data = res.optJSONArray("data") ?: return null
+        val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull()
+            ?: return null
+        return KumaParse.heartbeatRows(arr).sortedBy(Heartbeat::time)
+    }
+
     /** Server-aggregated uptime and latency buckets, or null when the request failed. */
     suspend fun getChartData(id: Int, hours: Int): List<MonitorChartPoint>? {
         val res = emitAck("getMonitorChartData", id, hours) ?: return null
@@ -266,5 +282,6 @@ class KumaClient(
 
     private companion object {
         const val ACK_TIMEOUT_MS = 15_000L
+        const val IMPORTANT_BEAT_LIMIT = 500
     }
 }

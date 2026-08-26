@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-26 - local incident notes and redacted sharing
+
+**changed**: Completed parity item CP-019. Incident rows now support add, edit,
+delete, and encrypted device-only notes plus Android text sharing. The share copy
+contains monitor name, state, timing, duration, Kuma message, and optional note;
+it never sources connection metadata, and redacts URL and credential-like values
+found in the included text.
+
+**identity and load boundary**: The incident center makes one on-demand request
+for Kuma 2.5.3's newest 500 account-wide important heartbeat beans and merges
+those durable state transitions with the rolling live window. This stabilizes
+incident start identity after the ordinary 100-row window advances and improves
+incident/reliability history without polling. Notes are scoped by encrypted server,
+monitor, and durable down-transition time, capped at 500 entries and 2,000
+characters each, and excluded from portable backups.
+
+**verification**: Codec tests cover corruption, validation, deduplication, count,
+and text bounds. Parser tests cover the endpoint's exact camelCase `monitorID` and
+boolean `important` shape. Incident tests cover durable/live merging and shares
+containing injected URLs, authorization values, passwords, and tokens. Full unit
+tests, lint, and debug assembly passed. Android 17 QA against official Kuma 2.5.3
+confirmed the stable database transition time, add/edit/delete, encrypted-file
+creation, force-stop/relaunch persistence, and the native sharesheet preview.
+
 ### 2026-08-26 - pinned live-heartbeat panel
 
 **changed**: Completed parity item CP-018. The monitor overflow now opens a

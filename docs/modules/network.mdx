@@ -15,7 +15,8 @@ here so the rest of the app sees clean domain models.
 
 **file paths**
 - `app/src/main/java/dev/astoris/ursa/core/network/KumaClient.kt` - one Socket.IO
-  connection per server; auth, event wiring, pause/resume, getBeats.
+  connection per server; auth, event wiring, pause/resume, heartbeat history,
+  and server chart/important-transition queries.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
 - `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
@@ -30,9 +31,10 @@ here so the rest of the app sees clean domain models.
 - `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
   `login(u,p,token)`, `loginByToken(jwt)`,
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
-  `getChartData(id,hours)`,
+  `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `disconnect()`. Flows: `state`, `monitors`, `heartbeats`, `certs`.
-- `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `beatRow(s)`, `cert`, `tags`.
+- `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
+  `beatRow(s)`, `cert`, `tags`.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
   resolves a custom-domain or configured default status page through Kuma's
   public entry contract. Fetch combines page configuration, the latest 100
@@ -63,6 +65,10 @@ here so the rest of the app sees clean domain models.
   `avgPing`, and epoch-second `timestamp`. Thirty days uses a 720-hour request.
   Fleet loading is user-triggered, limited to four concurrent acknowledgements,
   and cancelled when its dashboard leaves composition; it is never polled.
+- The incident center requests one newest-first page of at most 500 account-wide
+  important heartbeats when opened. Those durable transition beans use camelCase
+  `monitorID`/boolean `important`, unlike `getMonitorBeats`; they are merged with
+  the live window and never polled in the background.
 - `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) - safe,
   and every acknowledgement has a 15-second upper bound so an inaccessible
   server cannot leave a UI action loading forever.

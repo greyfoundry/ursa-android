@@ -51,6 +51,11 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   down_count, end_time, retries }`
 - `getMonitorChartData(id, periodHours)` → `{ ok, data: [{ up, down, avgPing,
   minPing, maxPing, timestamp }] }` (⚠ NOT `ping/pingMin/pingMax`)
+- `monitorImportantHeartbeatListPaged(null, offset, count)` →
+  `{ ok, data: HeartbeatBean[] }`, newest first; these rows use camelCase
+  `monitorID` and boolean `important` like the live event, not `getMonitorBeats`
+  row casing. `null` selects all monitors, and 2.5.3 retains important state
+  transitions separately from the rolling live list.
 - `pauseMonitor(id)` / `resumeMonitor(id)` → `{ ok, msg, msgi18n }`
 - `getMonitor(id)` → full MonitorObject
 

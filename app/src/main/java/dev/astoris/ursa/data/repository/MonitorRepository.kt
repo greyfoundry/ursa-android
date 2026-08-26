@@ -131,6 +131,9 @@ class MonitorRepository(
     suspend fun beats(id: Int, hours: Int = 24): List<Heartbeat> =
         activeClient.value?.getBeats(id, hours) ?: emptyList()
 
+    /** One bounded account-wide page of durable transitions for the incident center. */
+    suspend fun importantBeats(): List<Heartbeat>? = activeClient.value?.getImportantBeats()
+
     /** Connect to a new server and log in; on success the JWT is persisted. */
     suspend fun addServerAndLogin(
         url: String,

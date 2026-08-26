@@ -78,6 +78,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val history by vm.beatHistory.collectAsStateWithLifecycle()
     val certs by vm.certs.collectAsStateWithLifecycle()
     val localEvents by vm.localEvents.collectAsStateWithLifecycle()
+    val incidentNotes by vm.incidentNotes.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
@@ -317,8 +318,12 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 MonitorOverlay.INCIDENTS -> FleetIncidentCenter(
                         monitors = monitors,
                         history = history,
+                        notes = incidentNotes,
+                        serverUrl = activeUrl,
+                        loadImportantHeartbeats = vm::importantHeartbeatHistory,
                         onClose = { overlay = null },
                         onIncidentClick = vm::select,
+                        onSaveNote = vm::saveIncidentNote,
                         modifier = Modifier.fillMaxSize(),
                     )
                 MonitorOverlay.CERTIFICATES -> CertificateDashboard(

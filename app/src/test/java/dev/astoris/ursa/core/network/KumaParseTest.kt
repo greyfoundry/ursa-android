@@ -72,6 +72,20 @@ class KumaParseTest {
         assertEquals(MonitorStatus.DOWN, hb.status)
     }
 
+    @Test fun importantHeartbeatPage_is_camelcase_bean_json() {
+        val rows = KumaParse.heartbeatRows(
+            Json.parseToJsonElement(
+                """[{"monitorID":3,"status":0,"time":"2026-08-25 19:26:16.694","msg":"TLS failed","ping":null,"important":true}]""",
+            ).jsonArray,
+        )
+
+        assertEquals(1, rows.size)
+        assertEquals(3, rows.single().monitorId)
+        assertEquals(MonitorStatus.DOWN, rows.single().status)
+        assertEquals("2026-08-25 19:26:16.694", rows.single().time)
+        assertTrue(rows.single().important)
+    }
+
     @Test fun beatRow_snakecase_with_int_important() {
         // getMonitorBeats rows are snake_case; important is 1/0, not a boolean
         val hb = KumaParse.beatRow(

@@ -20,6 +20,8 @@ import dev.astoris.ursa.core.storage.ConnectionBackupData
 import dev.astoris.ursa.core.storage.PortablePreferences
 import dev.astoris.ursa.core.storage.DynamicColorStore
 import dev.astoris.ursa.core.storage.EventLogStore
+import dev.astoris.ursa.core.storage.IncidentNote
+import dev.astoris.ursa.core.storage.IncidentNoteStore
 import dev.astoris.ursa.core.storage.LocalEvent
 import dev.astoris.ursa.core.storage.LocalEventKind
 import dev.astoris.ursa.core.storage.LockStore
@@ -110,6 +112,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val monitorPreferenceStore = MonitorPreferenceStore(app)
     private val certExpiryStore = CertExpiryStore(app)
     private val eventLogStore = EventLogStore(app)
+    private val incidentNoteStore = IncidentNoteStore(app)
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
@@ -125,6 +128,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val localEvents: StateFlow<List<LocalEvent>> =
         combine(eventLogStore.events, repo.activeUrl) { events, url ->
             events.filter { it.serverUrl == null || it.serverUrl == url }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val incidentNotes: StateFlow<List<IncidentNote>> =
+        combine(incidentNoteStore.notes, repo.activeUrl) { notes, url ->
+            notes.filter { it.serverUrl == url }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _login = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -401,6 +408,14 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun saveIncidentNote(monitorId: Int, startedAt: String?, text: String) {
+        val knownStart = startedAt?.takeIf { it.isNotBlank() } ?: return
+        viewModelScope.launch {
+            val url = repo.activeUrl.first() ?: return@launch
+            incidentNoteStore.save(url, monitorId, knownStart, text)
+        }
+    }
+
     fun select(id: Int) {
         _selectedId.value = id
         refetchBeats()
@@ -414,6 +429,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     /** On-demand 30-day server aggregates for the fleet summary; never polled in the background. */
     suspend fun fleetChartData(monitorIds: List<Int>): Map<Int, List<MonitorChartPoint>?> =
         repo.chartData(monitorIds, FLEET_SUMMARY_HOURS)
+
+    suspend fun importantHeartbeatHistory(): List<Heartbeat>? = repo.importantBeats()
 
     private fun refetchBeats() {
         val id = _selectedId.value ?: return
