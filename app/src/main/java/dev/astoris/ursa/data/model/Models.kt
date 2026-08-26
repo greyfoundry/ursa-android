@@ -42,6 +42,15 @@ data class Heartbeat(
     val important: Boolean,
 )
 
+/** One server-aggregated bucket from `getMonitorChartData`. Counts are check totals. */
+data class MonitorChartPoint(
+    val up: Long,
+    val down: Long,
+    val avgPing: Double?,
+    /** Kuma epoch timestamp in seconds at the start of the bucket. */
+    val timestamp: Long,
+)
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,

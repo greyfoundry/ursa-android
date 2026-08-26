@@ -41,6 +41,9 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/GlobalEventLog.kt` - newest-first combined timeline of Kuma
   heartbeat transitions and encrypted device-recorded actions/alerts, with state,
   maintenance, action, and alert filters plus monitor-detail deep links.
+- `.../ui/monitors/FleetAggregateDashboard.kt` - on-demand 30-day fleet uptime
+  and latency summary from server chart buckets, with explicit contributors,
+  exclusions, calculation method, per-monitor values, refresh, and detail links.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
@@ -115,6 +118,12 @@ navigation library for M1 - the screen set is small and state-driven).
   actually posted by URSA are encrypted locally, capped at 500 entries, retained
   for 90 days, and excluded from portable backups. UnifiedPush payloads do not
   identify their originating server, so those entries are provider-neutral.
+- The 30-day fleet summary asks Kuma for its own 720-hour aggregate buckets only
+  when opened or refreshed. Paused monitors are excluded before requests; active
+  monitors with empty or failed responses remain visible in coverage counts but
+  not the result. Each contributing monitor is weighted equally so a short check
+  interval cannot dominate the fleet. Per-monitor rows expose the inputs, and the
+  UI states Kuma's maintenance-as-up and pending-as-down semantics.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

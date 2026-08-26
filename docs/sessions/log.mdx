@@ -9,6 +9,29 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-26 - explainable 30-day fleet aggregate
+
+**changed**: Completed parity item CP-017. A new 30-day fleet dashboard loads
+Kuma's server-computed chart buckets on demand, then shows fleet uptime, average
+latency, contributor/exclusion counts, the calculation method, and a lowest-uptime-
+first monitor breakdown with detail deep links. Refresh repeats the bounded fetch;
+the dashboard never polls in the background.
+
+**correctness and load boundary**: Only active monitors are requested. Four
+Socket.IO acknowledgements run concurrently so large fleets do not flood Kuma.
+Empty and failed results are counted but excluded. Each contributing monitor's
+up/down checks produce its uptime, and its successful checks weight its own average
+latency; fleet values then equal-weight monitors so shorter check intervals cannot
+dominate. The UI explicitly states Kuma's maintenance-as-up and pending-as-down
+semantics and separately reports latency coverage.
+
+**verification**: Parser tests cover the exact 2.5.3 `up/down/avgPing/timestamp`
+shape and reject invalid buckets. Aggregate tests cover equal weighting, weighted
+per-monitor latency, paused/no-data/failure exclusion, down-only monitors, and empty
+results. Full unit tests, lint, and debug assembly passed. Android 17 QA against the
+live official Kuma 2.5.3 session loaded five genuine 720-hour results, confirmed
+coverage and `N/A` latency behavior, refreshed successfully, and deep-linked a row.
+
 ### 2026-08-26 - global operational event log
 
 **changed**: Completed parity item CP-016. The monitor overflow now opens a

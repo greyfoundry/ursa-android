@@ -36,6 +36,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.ServerConnection
@@ -410,6 +411,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         refetchBeats()
     }
 
+    /** On-demand 30-day server aggregates for the fleet summary; never polled in the background. */
+    suspend fun fleetChartData(monitorIds: List<Int>): Map<Int, List<MonitorChartPoint>?> =
+        repo.chartData(monitorIds, FLEET_SUMMARY_HOURS)
+
     private fun refetchBeats() {
         val id = _selectedId.value ?: return
         viewModelScope.launch { _beats.value = repo.beats(id, _beatRange.value.hours) }
@@ -418,6 +423,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun back() {
         _selectedId.value = null
         _beats.value = emptyList()
+    }
+
+    private companion object {
+        const val FLEET_SUMMARY_HOURS = 30 * 24
     }
 
     fun resetLogin() { _login.value = LoginUiState.Idle }

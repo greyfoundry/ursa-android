@@ -350,6 +350,27 @@
         <item quantity="other">The certificate for %1$s expires in %2$d days.</item>
     </plurals>
 
+    <!-- 30-day fleet aggregate -->
+    <string name="fleet_aggregate_title">30-day fleet</string>
+    <string name="fleet_aggregate_loading">Loading server aggregates…</string>
+    <string name="fleet_aggregate_uptime">Fleet uptime</string>
+    <string name="fleet_aggregate_latency">Average latency</string>
+    <plurals name="fleet_aggregate_coverage">
+        <item quantity="one">%1$d of %2$d active monitor contributes uptime data</item>
+        <item quantity="other">%1$d of %2$d active monitors contribute uptime data</item>
+    </plurals>
+    <string name="fleet_aggregate_excluded">Excluded: paused %1$d • no checks %2$d • unavailable %3$d</string>
+    <string name="fleet_aggregate_method">Each active monitor contributes equally. Kuma counts maintenance as up and pending as down.</string>
+    <plurals name="fleet_aggregate_latency_coverage">
+        <item quantity="one">Latency available for %1$d of %2$d contributing monitor.</item>
+        <item quantity="other">Latency available for %1$d of %2$d contributing monitors.</item>
+    </plurals>
+    <string name="fleet_aggregate_empty">No active monitor returned checks for this period</string>
+    <plurals name="fleet_aggregate_checks">
+        <item quantity="one">%d check</item>
+        <item quantity="other">%d checks</item>
+    </plurals>
+
     <!-- Status page viewer -->
     <string name="statuspage_title">Status pages</string>
     <string name="statuspage_intro">Keep public dashboards together for quick, account-free access.</string>

@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.network
 
 import dev.astoris.ursa.data.model.MonitorStatus
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -80,6 +81,24 @@ class KumaParseTest {
         assertEquals(MonitorStatus.UP, hb.status)
         assertEquals(167, hb.ping)
         assertTrue(hb.important)
+    }
+
+    @Test fun chartRows_parse_253_aggregate_shape_and_skip_invalid_rows() {
+        val rows = KumaParse.chartRows(
+            Json.parseToJsonElement(
+                """[{"up":57,"down":3,"avgPing":13.67,"minPing":8,"maxPing":42,"timestamp":1787612400},
+                    {"up":0,"down":4,"avgPing":null,"timestamp":1787616000},
+                    {"up":-1,"down":0,"avgPing":2,"timestamp":1787619600},
+                    {"up":1,"down":0,"avgPing":2}]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals(57L, rows.first().up)
+        assertEquals(3L, rows.first().down)
+        assertEquals(13.67, rows.first().avgPing!!, 0.001)
+        assertEquals(1787612400L, rows.first().timestamp)
+        assertNull(rows.last().avgPing)
     }
 
     @Test fun cert_extracts_validity_and_cns() {

@@ -3,15 +3,18 @@ package dev.astoris.ursa.core.network
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.MonitorStatus
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 /**
  * Pure normalization of Uptime Kuma wire payloads into domain models. Kept free of
@@ -86,6 +89,18 @@ object KumaParse {
 
     fun beatRows(arr: JsonArray): List<Heartbeat> =
         arr.mapNotNull { (it as? JsonObject)?.let(::beatRow) }
+
+    /** `getMonitorChartData` buckets, aggregated by Kuma's uptime calculator. */
+    fun chartRows(arr: JsonArray): List<MonitorChartPoint> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val timestamp = obj["timestamp"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null
+        val up = obj["up"]?.jsonPrimitive?.longOrNull ?: 0L
+        val down = obj["down"]?.jsonPrimitive?.longOrNull ?: 0L
+        if (up < 0L || down < 0L) return@mapNotNull null
+        val avgPing = obj["avgPing"]?.jsonPrimitive?.doubleOrNull
+            ?.takeIf { it.isFinite() && it >= 0.0 }
+        MonitorChartPoint(up, down, avgPing, timestamp)
+    }
 
     /**
      * `certInfo` payload: `{ valid, certInfo: { subject:{CN}, issuer:{CN}, validTo,

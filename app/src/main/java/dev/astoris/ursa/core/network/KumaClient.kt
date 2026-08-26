@@ -4,6 +4,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
 import io.socket.client.Ack
 import io.socket.client.IO
@@ -213,6 +214,16 @@ class KumaClient(
         val data = res.optJSONArray("data") ?: return emptyList()
         val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull() ?: return emptyList()
         return KumaParse.beatRows(arr)
+    }
+
+    /** Server-aggregated uptime and latency buckets, or null when the request failed. */
+    suspend fun getChartData(id: Int, hours: Int): List<MonitorChartPoint>? {
+        val res = emitAck("getMonitorChartData", id, hours) ?: return null
+        if (!res.optBoolean("ok")) return null
+        val data = res.optJSONArray("data") ?: return null
+        val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull()
+            ?: return null
+        return KumaParse.chartRows(arr)
     }
 
     fun disconnect() {

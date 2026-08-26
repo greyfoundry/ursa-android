@@ -12,10 +12,14 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +32,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * Single source of truth for the UI. Owns the active [KumaClient], bridges it to the
@@ -241,6 +248,31 @@ class MonitorRepository(
     suspend fun pause(id: Int): Boolean = activeClient.value?.pauseMonitor(id) ?: false
     suspend fun resume(id: Int): Boolean = activeClient.value?.resumeMonitor(id) ?: false
 
+    /** Fetch a fixed window on demand, with bounded concurrency for large fleets. */
+    suspend fun chartData(
+        monitorIds: List<Int>,
+        hours: Int,
+    ): Map<Int, List<MonitorChartPoint>?> {
+        val ids = monitorIds.distinct()
+        val client = activeClient.value ?: return ids.associateWith { null }
+        val permits = Semaphore(CHART_REQUEST_CONCURRENCY)
+        return supervisorScope {
+            ids.map { id ->
+                async {
+                    id to permits.withPermit {
+                        try {
+                            client.getChartData(id, hours)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                }
+            }.awaitAll().toMap()
+        }
+    }
+
     fun disconnect() {
         activeClient.value?.disconnect()
         activeClient.value = null
@@ -276,6 +308,7 @@ class MonitorRepository(
     }
 
     private companion object {
+        const val CHART_REQUEST_CONCURRENCY = 4
         const val TOKEN_REJECTED_MESSAGE =
             "Session token was rejected, expired, or the server did not respond"
     }
