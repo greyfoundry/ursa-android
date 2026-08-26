@@ -293,6 +293,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 onClick = { overlay = MonitorOverlay.FLEET_SUMMARY; moreOpen = false },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.pinned_live_title)) },
+                                onClick = { overlay = MonitorOverlay.PINNED_LIVE; moreOpen = false },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
                                 onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
                             )
@@ -344,6 +348,15 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     loadChartData = vm::fleetChartData,
                     onClose = { overlay = null },
                     onMonitorClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.PINNED_LIVE -> PinnedLivePanel(
+                    monitors = monitors,
+                    history = history,
+                    pinnedIds = favorites,
+                    onClose = { overlay = null },
+                    onMonitorClick = vm::select,
+                    onUnpin = vm::toggleFavorite,
                     modifier = Modifier.fillMaxSize(),
                 )
                 null -> if (monitors.isNotEmpty()) {
@@ -461,7 +474,14 @@ private fun MonitorFilterMenu(
 
 private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
 
-private enum class MonitorOverlay { INCIDENTS, CERTIFICATES, DOMAINS, EVENTS, FLEET_SUMMARY }
+private enum class MonitorOverlay {
+    INCIDENTS,
+    CERTIFICATES,
+    DOMAINS,
+    EVENTS,
+    FLEET_SUMMARY,
+    PINNED_LIVE,
+}
 
 private enum class MonitorSort {
     ATTENTION,

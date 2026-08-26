@@ -9,6 +9,24 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-26 - pinned live-heartbeat panel
+
+**changed**: Completed parity item CP-018. The monitor overflow now opens a
+compact live panel for the active server's favourite monitors. Attention states
+sort first, and each row shows current state, available latency, 16 recent checks,
+an immediate unpin action, and a monitor-detail deep link.
+
+**persistence and load boundary**: The panel deliberately reuses the existing
+per-server favourite-ID preference as its pin set. It stores no URL, monitor name,
+or heartbeat history and issues no request of its own; live state is projected
+from the same Socket.IO data already feeding the monitor list.
+
+**verification**: Pure tests cover stale/unpinned ID filtering, attention and
+paused ordering, bounded newest-sample selection, and the no-pin state. Full unit
+tests, lint, and debug assembly passed. Android 17 QA against the official Kuma
+2.5.3 session covered the empty state, healthy and failing live rows, accessibility
+summaries, immediate unpin, force-stop/relaunch persistence, and the detail link.
+
 ### 2026-08-26 - explainable 30-day fleet aggregate
 
 **changed**: Completed parity item CP-017. A new 30-day fleet dashboard loads

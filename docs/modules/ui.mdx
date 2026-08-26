@@ -44,6 +44,8 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/FleetAggregateDashboard.kt` - on-demand 30-day fleet uptime
   and latency summary from server chart buckets, with explicit contributors,
   exclusions, calculation method, per-monitor values, refresh, and detail links.
+- `.../ui/monitors/PinnedLivePanel.kt` - favourite-monitor live panel with
+  current state, latency, compact recent checks, unpin, and detail deep links.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
@@ -124,6 +126,10 @@ navigation library for M1 - the screen set is small and state-driven).
   not the result. Each contributing monitor is weighted equally so a short check
   interval cannot dominate the fleet. Per-monitor rows expose the inputs, and the
   UI states Kuma's maintenance-as-up and pending-as-down semantics.
+- The live panel reuses the active server's persisted favourite monitor IDs as
+  its pin set. It displays only heartbeat and status data already delivered over
+  the normal live connection, caps each compact strip at 16 checks, and adds no
+  background polling or new persisted monitor metadata.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

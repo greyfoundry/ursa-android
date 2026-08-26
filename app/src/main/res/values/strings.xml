@@ -371,6 +371,18 @@
         <item quantity="other">%d checks</item>
     </plurals>
 
+    <!-- Pinned live heartbeat panel -->
+    <string name="pinned_live_title">Live panel</string>
+    <string name="pinned_live_intro">Favorites are pinned here for this server. Recent checks update from Kuma\'s live connection.</string>
+    <string name="pinned_live_empty">No pinned monitors</string>
+    <string name="pinned_live_empty_desc">Open a monitor and add it to favorites to keep its recent checks here.</string>
+    <string name="pinned_live_unpin">Unpin</string>
+    <string name="pinned_live_time_unavailable">Latest check time unavailable</string>
+    <plurals name="pinned_live_count">
+        <item quantity="one">%d pinned monitor updating live</item>
+        <item quantity="other">%d pinned monitors updating live</item>
+    </plurals>
+
     <!-- Status page viewer -->
     <string name="statuspage_title">Status pages</string>
     <string name="statuspage_intro">Keep public dashboards together for quick, account-free access.</string>
