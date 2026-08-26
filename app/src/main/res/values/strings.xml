@@ -315,6 +315,41 @@
     </plurals>
     <string name="domain_tls_summary">%1$s • %2$s</string>
 
+    <!-- Global event log -->
+    <string name="event_log_title">Event log</string>
+    <string name="event_log_intro">Kuma transitions plus actions and alerts recorded on this device. Device events are encrypted and kept for 90 days.</string>
+    <string name="event_log_empty">No events in this view</string>
+    <string name="event_log_empty_desc">State changes appear after Kuma has reported a transition. Device actions and alerts appear as they happen.</string>
+    <string name="event_filter_state">State</string>
+    <string name="event_filter_maintenance">Maintenance</string>
+    <string name="event_filter_actions">Actions</string>
+    <string name="event_filter_alerts">Alerts</string>
+    <string name="event_down">Went down</string>
+    <string name="event_up">Went up</string>
+    <string name="event_recovered">Recovered</string>
+    <string name="event_pending">Check pending</string>
+    <string name="event_maintenance_started">Maintenance started</string>
+    <string name="event_maintenance_ended">Maintenance ended</string>
+    <string name="event_paused">Monitoring paused</string>
+    <string name="event_resumed">Monitoring resumed</string>
+    <string name="event_slow_response">Slow-response alert</string>
+    <string name="event_certificate_expiry">Certificate-expiry alert</string>
+    <string name="event_push_alert">Push notification</string>
+    <string name="event_source_kuma">Kuma history</string>
+    <string name="event_source_device">Recorded on this device</string>
+    <string name="event_slow_response_detail">%1$dms response, %2$dms limit</string>
+    <string name="monitor_fallback_name">Monitor %1$d</string>
+    <string name="slow_response_channel_name">Slow response</string>
+    <string name="slow_response_channel_desc">Alerts when a monitor is up but responding slowly</string>
+    <string name="slow_response_notification_title">Slow response</string>
+    <string name="slow_response_notification_text">%1$s responded in %2$dms (limit %3$dms).</string>
+    <string name="cert_expiry_notification_title">Certificate expiring</string>
+    <string name="cert_expiry_notification_today">The certificate for %1$s expires today.</string>
+    <plurals name="cert_expiry_notification_days">
+        <item quantity="one">The certificate for %1$s expires in %2$d day.</item>
+        <item quantity="other">The certificate for %1$s expires in %2$d days.</item>
+    </plurals>
+
     <!-- Status page viewer -->
     <string name="statuspage_title">Status pages</string>
     <string name="statuspage_intro">Keep public dashboards together for quick, account-free access.</string>

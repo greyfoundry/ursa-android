@@ -16,6 +16,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.CertExpiryUtil
+import dev.astoris.ursa.core.storage.EventLogStore
+import dev.astoris.ursa.core.storage.LocalEventKind
 import java.util.concurrent.TimeUnit
 
 /**
@@ -38,24 +40,43 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
 
         val now = System.currentTimeMillis()
         val entries = CertExpiryStore(applicationContext).loadAll()
+        val eventLogStore = EventLogStore(applicationContext)
         val manager = NotificationManagerCompat.from(applicationContext)
 
         for (entry in entries) {
             val days = CertExpiryUtil.daysUntil(entry.validToMillis, now)
             if (days in 0..CertExpiryUtil.DEFAULT_THRESHOLD_DAYS) {
                 val text = if (days == 0L) {
-                    "The certificate for ${entry.monitorName} expires today."
+                    applicationContext.getString(
+                        dev.astoris.ursa.R.string.cert_expiry_notification_today,
+                        entry.monitorName,
+                    )
                 } else {
-                    "The certificate for ${entry.monitorName} expires in $days day(s)."
+                    applicationContext.resources.getQuantityString(
+                        dev.astoris.ursa.R.plurals.cert_expiry_notification_days,
+                        days.toInt(),
+                        entry.monitorName,
+                        days.toInt(),
+                    )
                 }
                 val notification = Notification.Builder(applicationContext, CHANNEL_ID)
                     .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
-                    .setContentTitle("Certificate expiring")
+                    .setContentTitle(
+                        applicationContext.getString(dev.astoris.ursa.R.string.cert_expiry_notification_title),
+                    )
                     .setContentText(text)
                     .setStyle(Notification.BigTextStyle().bigText(text))
                     .setAutoCancel(true)
                     .build()
                 manager.notify("${entry.serverUrl}:${entry.monitorId}".hashCode(), notification)
+                eventLogStore.append(
+                    serverUrl = entry.serverUrl,
+                    monitorId = entry.monitorId,
+                    monitorName = entry.monitorName,
+                    kind = LocalEventKind.CERTIFICATE_EXPIRY,
+                    detail = text,
+                    atMillis = now,
+                )
             }
         }
         return Result.success()

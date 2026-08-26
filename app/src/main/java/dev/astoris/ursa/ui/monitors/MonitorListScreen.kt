@@ -77,6 +77,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
     val certs by vm.certs.collectAsStateWithLifecycle()
+    val localEvents by vm.localEvents.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
@@ -284,6 +285,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 onClick = { overlay = MonitorOverlay.DOMAINS; moreOpen = false },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.event_log_title)) },
+                                onClick = { overlay = MonitorOverlay.EVENTS; moreOpen = false },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
                                 onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
                             )
@@ -318,6 +323,14 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 MonitorOverlay.DOMAINS -> DomainDashboard(
                     monitors = monitors,
                     certs = certs,
+                    onClose = { overlay = null },
+                    onMonitorClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.EVENTS -> GlobalEventLog(
+                    monitors = monitors,
+                    history = history,
+                    localEvents = localEvents,
                     onClose = { overlay = null },
                     onMonitorClick = vm::select,
                     modifier = Modifier.fillMaxSize(),
@@ -437,7 +450,7 @@ private fun MonitorFilterMenu(
 
 private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
 
-private enum class MonitorOverlay { INCIDENTS, CERTIFICATES, DOMAINS }
+private enum class MonitorOverlay { INCIDENTS, CERTIFICATES, DOMAINS, EVENTS }
 
 private enum class MonitorSort {
     ATTENTION,

@@ -15,6 +15,8 @@ import androidx.work.WorkerParameters
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.EventLogStore
+import dev.astoris.ursa.core.storage.LocalEventKind
 import dev.astoris.ursa.core.storage.ResponseAlertStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -32,6 +34,7 @@ class ResponseAlertWorker(context: Context, params: WorkerParameters) :
 
     override suspend fun doWork(): Result {
         val store = ResponseAlertStore(applicationContext)
+        val eventLogStore = EventLogStore(applicationContext)
         if (!store.isEnabled()) return Result.success()
 
         // POST_NOTIFICATIONS is a runtime permission on API 33+; without it, do nothing.
@@ -51,7 +54,7 @@ class ResponseAlertWorker(context: Context, params: WorkerParameters) :
 
         for (conn in connections) {
             val token = conn.jwt ?: continue
-            val client = KumaClient(conn.url, conn.insecure)
+            val client = KumaClient(conn.url, conn.insecure, conn.headers)
             try {
                 client.connect()
                 if (!client.loginByToken(token)) continue
@@ -77,8 +80,22 @@ class ResponseAlertWorker(context: Context, params: WorkerParameters) :
                         continue
                     }
                     val name = names[monitorId]?.name ?: "Monitor $monitorId"
-                    ResponseAlertNotifier.notify(applicationContext, name, latest.ping ?: 0, threshold, key)
-                    store.markAlerted(key, now)
+                    val ping = latest.ping ?: 0
+                    if (ResponseAlertNotifier.notify(applicationContext, name, ping, threshold, key)) {
+                        eventLogStore.append(
+                            serverUrl = conn.url,
+                            monitorId = monitorId,
+                            monitorName = name,
+                            kind = LocalEventKind.SLOW_RESPONSE,
+                            detail = applicationContext.getString(
+                                dev.astoris.ursa.R.string.event_slow_response_detail,
+                                ping,
+                                threshold,
+                            ),
+                            atMillis = now,
+                        )
+                        store.markAlerted(key, now)
+                    }
                 }
             } catch (_: Exception) {
                 // A single unreachable server should not fail the whole run.

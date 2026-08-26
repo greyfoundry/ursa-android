@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-25
+last-updated: 2026-08-26
 owner: astoris
 status: stable
 ---
@@ -38,6 +38,9 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/DomainDashboard.kt` - host/port grouping for HTTP-family
   monitors, with attention/name sorting, active and paused status rollups, TLS
   coverage/worst-health summaries, and monitor-detail deep links.
+- `.../ui/monitors/GlobalEventLog.kt` - newest-first combined timeline of Kuma
+  heartbeat transitions and encrypted device-recorded actions/alerts, with state,
+  maintenance, action, and alert filters plus monitor-detail deep links.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
@@ -61,7 +64,7 @@ navigation library for M1 - the screen set is small and state-driven).
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
-  `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`,
+  `localEvents`, `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`,
   `savedStatusPages`, `selectedStatusPageId`;
   actions `login`, `loginWithSessionToken`, `testConnection`, `testSessionToken`,
   `switchTo`, `reauthenticate`,
@@ -106,6 +109,12 @@ navigation library for M1 - the screen set is small and state-driven).
   data before display, folds default ports, preserves non-default ports and IPv6,
   and excludes malformed or hostless addresses. TLS coverage counts only secure
   monitors and remains explicit when Kuma has not emitted every certificate.
+- The event log does not invent a timestamp for a current status or pause that
+  predates URSA's observation. State, recovery, and maintenance entries derive
+  from adjacent Kuma heartbeats. Successful pause/resume actions and notifications
+  actually posted by URSA are encrypted locally, capped at 500 entries, retained
+  for 90 days, and excluded from portable backups. UnifiedPush payloads do not
+  identify their originating server, so those entries are provider-neutral.
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in

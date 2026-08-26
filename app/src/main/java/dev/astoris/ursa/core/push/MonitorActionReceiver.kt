@@ -7,6 +7,8 @@ import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.EventLogStore
+import dev.astoris.ursa.core.storage.LocalEventKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,8 +56,17 @@ class MonitorActionReceiver : BroadcastReceiver() {
             // that follows is authorized. Bounded so we never hang the receiver.
             val authed = withTimeoutOrNull(AUTH_TIMEOUT_MS) { client.loginByToken(jwt) } == true
             if (authed) {
-                withTimeoutOrNull(ACTION_TIMEOUT_MS) {
+                val succeeded = withTimeoutOrNull(ACTION_TIMEOUT_MS) {
                     if (pause) client.pauseMonitor(id) else client.resumeMonitor(id)
+                } == true
+                if (succeeded) {
+                    EventLogStore(context).append(
+                        serverUrl = conn.url,
+                        monitorId = id,
+                        monitorName = client.monitors.value[id]?.name
+                            ?: context.getString(dev.astoris.ursa.R.string.monitor_fallback_name, id),
+                        kind = if (pause) LocalEventKind.PAUSED else LocalEventKind.RESUMED,
+                    )
                 }
             }
         } finally {

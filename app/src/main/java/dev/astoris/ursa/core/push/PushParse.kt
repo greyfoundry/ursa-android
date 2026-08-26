@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /** A rendered monitor notification: what to show in the system tray. */
 data class PushNotice(
     val monitorId: Int?,
+    val monitorName: String,
     val title: String,
     val body: String,
     val important: Boolean,
@@ -52,6 +53,7 @@ object PushParse {
 
         return PushNotice(
             monitorId = monitorId,
+            monitorName = name,
             title = "$name ${statusPhrase(status)}",
             body = message,
             important = important,

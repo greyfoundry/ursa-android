@@ -19,6 +19,9 @@ import dev.astoris.ursa.core.storage.ConnectionBackupCodec
 import dev.astoris.ursa.core.storage.ConnectionBackupData
 import dev.astoris.ursa.core.storage.PortablePreferences
 import dev.astoris.ursa.core.storage.DynamicColorStore
+import dev.astoris.ursa.core.storage.EventLogStore
+import dev.astoris.ursa.core.storage.LocalEvent
+import dev.astoris.ursa.core.storage.LocalEventKind
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorPreferenceStore
@@ -105,6 +108,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val cacheStore = MonitorCacheStore(app)
     private val monitorPreferenceStore = MonitorPreferenceStore(app)
     private val certExpiryStore = CertExpiryStore(app)
+    private val eventLogStore = EventLogStore(app)
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
@@ -117,6 +121,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         repo.connections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val activeUrl: StateFlow<String?> =
         repo.activeUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val localEvents: StateFlow<List<LocalEvent>> =
+        combine(eventLogStore.events, repo.activeUrl) { events, url ->
+            events.filter { it.serverUrl == null || it.serverUrl == url }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _login = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val login: StateFlow<LoginUiState> = _login.asStateFlow()
@@ -210,8 +218,22 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 val now = System.currentTimeMillis()
                 if (ResponseAlertUtil.shouldAlert(beat.status.code, beat.ping, threshold, alertStore.lastAlerted()[key], now)) {
                     val name = monitors.value.firstOrNull { it.id == beat.monitorId }?.name ?: "Monitor ${beat.monitorId}"
-                    ResponseAlertNotifier.notify(getApplication(), name, beat.ping ?: 0, threshold, key)
-                    alertStore.markAlerted(key, now)
+                    val ping = beat.ping ?: 0
+                    if (ResponseAlertNotifier.notify(getApplication(), name, ping, threshold, key)) {
+                        eventLogStore.append(
+                            serverUrl = url,
+                            monitorId = beat.monitorId,
+                            monitorName = name,
+                            kind = LocalEventKind.SLOW_RESPONSE,
+                            detail = getApplication<Application>().getString(
+                                dev.astoris.ursa.R.string.event_slow_response_detail,
+                                ping,
+                                threshold,
+                            ),
+                            atMillis = now,
+                        )
+                        alertStore.markAlerted(key, now)
+                    }
                 }
             }
         }
@@ -353,11 +375,22 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun pause(id: Int, onResult: (Boolean) -> Unit = {}) = viewModelScope.launch {
-        onResult(repo.pause(id))
+        val succeeded = repo.pause(id)
+        if (succeeded) recordMonitorAction(id, LocalEventKind.PAUSED)
+        onResult(succeeded)
     }
 
     fun resume(id: Int, onResult: (Boolean) -> Unit = {}) = viewModelScope.launch {
-        onResult(repo.resume(id))
+        val succeeded = repo.resume(id)
+        if (succeeded) recordMonitorAction(id, LocalEventKind.RESUMED)
+        onResult(succeeded)
+    }
+
+    private suspend fun recordMonitorAction(id: Int, kind: LocalEventKind) {
+        val url = repo.activeUrl.first() ?: return
+        val name = monitors.value.firstOrNull { it.id == id }?.name
+            ?: getApplication<Application>().getString(dev.astoris.ursa.R.string.monitor_fallback_name, id)
+        eventLogStore.append(url, id, name, kind)
     }
 
     fun toggleFavorite(id: Int) {

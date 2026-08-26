@@ -20,6 +20,7 @@ class PushParseTest {
                "msg":"[API] [🔴 Down] connect ECONNREFUSED"}"""
         )!!
         assertEquals(7, n.monitorId)
+        assertEquals("API", n.monitorName)
         assertEquals("API is Down", n.title)
         assertEquals("[API] [🔴 Down] connect ECONNREFUSED", n.body)
         assertTrue(n.important)

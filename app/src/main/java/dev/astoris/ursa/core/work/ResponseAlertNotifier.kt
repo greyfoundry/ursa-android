@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import dev.astoris.ursa.R
 
 /**
  * Builds and posts "slow response" notifications (#1813). Shared by the background
@@ -25,30 +26,31 @@ object ResponseAlertNotifier {
             mgr.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "Slow response",
+                    context.getString(R.string.slow_response_channel_name),
                     NotificationManager.IMPORTANCE_DEFAULT,
-                ).apply { description = "Alerts when a monitor is up but responding slowly" },
+                ).apply { description = context.getString(R.string.slow_response_channel_desc) },
             )
         }
     }
 
-    /** Post a slow-response notification. No-ops without POST_NOTIFICATIONS (API 33+). */
-    fun notify(context: Context, monitorName: String, pingMs: Int, thresholdMs: Int, monitorKey: String) {
+    /** Post a slow-response notification. Returns false without notification permission. */
+    fun notify(context: Context, monitorName: String, pingMs: Int, thresholdMs: Int, monitorKey: String): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            return
+            return false
         }
         ensureChannel(context)
-        val text = "$monitorName responded in ${pingMs}ms (limit ${thresholdMs}ms)."
+        val text = context.getString(R.string.slow_response_notification_text, monitorName, pingMs, thresholdMs)
         val notification = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
-            .setContentTitle("Slow response")
+            .setContentTitle(context.getString(R.string.slow_response_notification_title))
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(monitorKey.hashCode(), notification)
+        return true
     }
 }

@@ -13,6 +13,13 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.astoris.ursa.MainActivity
+import dev.astoris.ursa.core.storage.EventLogStore
+import dev.astoris.ursa.core.storage.LocalEventKind
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.PushService
 import org.unifiedpush.android.connector.data.PushEndpoint
@@ -28,6 +35,8 @@ import org.unifiedpush.android.connector.data.PushMessage
  */
 class UrsaPushService : PushService() {
 
+    private val eventScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
         Log.d(TAG, "New endpoint for instance=$instance")
         PushStore.setEndpoint(this, endpoint.url)
@@ -37,11 +46,23 @@ class UrsaPushService : PushService() {
         val raw = String(message.content, Charsets.UTF_8)
         val notice = PushParse.parse(raw) ?: PushNotice(
             monitorId = null,
+            monitorName = "Uptime Kuma",
             title = "Uptime Kuma",
             body = raw.take(240).ifBlank { "Monitor update" },
             important = false,
         )
-        notify(enrichWithDowntime(notice))
+        val enriched = enrichWithDowntime(notice)
+        if (notify(enriched)) {
+            eventScope.launch {
+                EventLogStore(this@UrsaPushService).append(
+                    serverUrl = null,
+                    monitorId = enriched.monitorId,
+                    monitorName = enriched.monitorName,
+                    kind = LocalEventKind.PUSH_ALERT,
+                    detail = enriched.body,
+                )
+            }
+        }
     }
 
     /** Append "Was down for X" to a recovery notification, using the locally tracked
@@ -69,7 +90,13 @@ class UrsaPushService : PushService() {
         PushStore.setEndpoint(this, null)
     }
 
-    private fun notify(notice: PushNotice) {
+    override fun onDestroy() {
+        eventScope.cancel()
+        super.onDestroy()
+    }
+
+    /** Returns true only when Android accepted the notification for posting. */
+    private fun notify(notice: PushNotice): Boolean {
         ensureChannel(this)
         val open = Intent()
         open.setClassName(packageName, MainActivity::class.java.name)
@@ -109,11 +136,12 @@ class UrsaPushService : PushService() {
             PackageManager.PERMISSION_GRANTED
         ) {
             Log.w(TAG, "POST_NOTIFICATIONS not granted; dropping notification")
-            return
+            return false
         }
         // Same monitor id replaces its previous notification.
         val id = notice.monitorId ?: notice.title.hashCode()
         NotificationManagerCompat.from(this).notify(id, notification)
+        return true
     }
 
     private fun monitorActionIntent(monitorId: Int, action: String): PendingIntent {

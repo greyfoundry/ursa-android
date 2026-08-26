@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-25
+last-updated: 2026-08-26
 owner: astoris
 status: in-flux
 ---
@@ -54,6 +54,11 @@ connection: push works while the app is closed.
   body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral
   Webhook to UnifiedPush path rather than depend on a third-party provider.
 - Same monitor id reuses its notification id, so a new status replaces the old one.
+- A notification that is actually posted is also appended to the encrypted,
+  bounded device event log. The webhook body has no trustworthy server identity,
+  so the entry remains provider-neutral rather than being assigned to a guessed
+  connection. Missing notification permission produces neither a notification nor
+  a false history entry.
 - Notification content and monitor actions use immutable PendingIntents with explicit
   app-owned activity/receiver components.
 - Notifications use the branded monochrome `ic_stat_ursa` small icon and

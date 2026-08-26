@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-25
+last-updated: 2026-08-26
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,31 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-08-26 - global operational event log
+
+**changed**: Completed parity item CP-016. The monitor overflow now opens a
+newest-first event log combining observed Kuma heartbeat transitions with pause,
+resume, slow-response, certificate-expiry, and UnifiedPush events that URSA can
+timestamp locally. Filters separate state, maintenance, actions, and alerts; rows
+for current-server monitors deep-link to detail.
+
+**privacy and correctness boundary**: The first available heartbeat is baseline,
+not a fabricated event. State and maintenance entries require adjacent Kuma
+heartbeats. Local entries are written only after an action succeeds or Android
+accepts a notification for posting, encrypted at rest, capped at 500 entries, kept
+for 90 days, and excluded from portable backups. Provider-neutral push payloads
+remain unassigned because the webhook does not identify the originating server.
+
+**additional fix**: Notification permission failure no longer starts the local
+slow-alert cooldown. Background slow-response checks now apply each connection's
+saved reverse-proxy headers.
+
+**verification**: Pure tests cover corrupt input, retention and size limits, text
+bounds, transition derivation, non-invention of first/repeated states, ordering,
+and filters. Full unit tests, lint, and debug assembly passed. Android 17 QA against
+the live official Kuma 2.5.3 session verified the combined timeline, filter layout,
+real pause/resume capture, retained action ordering, and monitor-detail deep links.
 
 ### 2026-08-25 - domain and host dashboard
 
