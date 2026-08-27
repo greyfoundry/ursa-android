@@ -20,9 +20,12 @@ connection: push works while the app is closed.
 - `.../core/push/PushParse.kt` - pure, tolerant parser of Kuma's webhook JSON
   (`{heartbeat, monitor, msg}`) → `PushNotice`. JVM-unit-tested (`PushParseTest`).
 - `.../core/push/PushStore.kt` - process-wide holder of the endpoint URL + chosen
-  distributor (SharedPreferences mirrored into StateFlows).
+  distributor plus privacy-safe diagnostic/test metadata (SharedPreferences
+  mirrored into StateFlows).
 - `.../core/push/KumaWebhook.kt` - validates the registered delivery endpoint and
   adds ntfy's required `up=1` query flag without discarding an existing query.
+- `.../core/push/PushDeliveryTest.kt` - creates and exactly matches the short,
+  random marker used to distinguish a requested Kuma test from unrelated pushes.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, show setup status, and remove it safely.
@@ -30,13 +33,15 @@ connection: push works while the app is closed.
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).
 - `PushParse.parse(raw): PushNotice?`.
-- `PushStore.endpoint` / `.distributor` (StateFlow), `load`/`setEndpoint`/
-  `setDistributor`/`clear`.
+- `PushStore.endpoint` / `.distributor` (StateFlow), `load`/`setDistributor`/
+  `clear`; `diagnostics` exposes timestamps and normalized result
+  categories without retaining endpoint copies or message contents.
 - `KumaWebhook.deliveryUrl(endpoint, distributor)` returns a validated HTTP(S)
   endpoint ready for Kuma, or null.
 - ViewModel: `pushEndpoint`, `pushDistributor`, `distributors`, `pushMode`;
   `enterPush`/`exitPush`/`refreshDistributors`/`registerPush`/`unregisterPush`,
-  plus managed Kuma setup state and create/update/remove actions.
+  plus local notification testing, managed Kuma setup state, and
+  create/update/test/remove actions.
 
 **depends on**
 - `org.unifiedpush.android:connector:3.3.4` (excludes JVM `tink`; we ship
@@ -63,6 +68,15 @@ connection: push works while the app is closed.
   a fleet-wide restart burst. No-op relations are skipped.
 - Removing managed setup deletes only marked providers. The UnifiedPush registration
   and endpoint remain on the device, ready for another server or manual setup.
+- "Test phone notification" exercises Android permission, app notification state,
+  channel state, and posting only. It never contacts Kuma or the distributor.
+- "Test through Kuma" sends a temporary marked Webhook config through Kuma's
+  `testNotification`. A random 12-character marker correlates the returning message;
+  it is cleared on match, failure, unregister, or disconnect and is never shown.
+- Diagnostics persist only last registration/message/error timestamps, normalized
+  registration failure categories, and test results. Payloads, monitor names,
+  endpoints, and server URLs are not retained. A delivery test does not add a fake
+  incident to the event log.
 - Kuma 2.5.1's Pinglet and SMS Gateway additions are separate outbound providers;
   the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
   body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral

@@ -124,6 +124,13 @@ monitor object when changing notification assignments; that potentially sensitiv
 object is held only for the acknowledgement round trip, never persisted or logged,
 and only its `notificationIDList` is changed.
 
+Push diagnostics retain timestamps, normalized registration error categories, and
+local/end-to-end test outcomes in the existing non-backed-up push preferences. They
+never persist message bodies, monitor names, server URLs, or a second endpoint copy.
+End-to-end testing uses a random short correlation marker; it is removed after a
+match, failed Kuma acknowledgement, unregister, or explicit disconnect. The matching
+push is rendered as fixed local copy and is excluded from operational event history.
+
 **PLATFORM.** The only exported component is the launcher activity (plus the
 AppWidget receiver and Quick Settings tile, which the platform requires to be
 exported and which only expose cached counts). No WebViews. `FLAG_SECURE` is applied

@@ -10,6 +10,7 @@ import dev.astoris.ursa.core.network.StatusPageAddressError
 import dev.astoris.ursa.core.network.StatusPageAddressResult
 import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.push.PushStore
+import dev.astoris.ursa.core.push.PushDeliveryTest
 import dev.astoris.ursa.core.push.KumaWebhook
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
@@ -46,6 +47,7 @@ import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.repository.MonitorRepository
 import org.unifiedpush.android.connector.UnifiedPush
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -193,10 +195,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     // --- Push (UnifiedPush) ---
     val pushEndpoint: StateFlow<String?> = PushStore.endpoint
     val pushDistributor: StateFlow<String?> = PushStore.distributor
+    val pushDiagnostics = PushStore.diagnostics
     private val _distributors = MutableStateFlow<List<String>>(emptyList())
     val distributors: StateFlow<List<String>> = _distributors.asStateFlow()
     private val _kumaPushSetup = MutableStateFlow<KumaPushSetupUiState>(KumaPushSetupUiState.Idle)
     val kumaPushSetup: StateFlow<KumaPushSetupUiState> = _kumaPushSetup.asStateFlow()
+    private val _kumaPushTestSending = MutableStateFlow(false)
+    val kumaPushTestSending: StateFlow<Boolean> = _kumaPushTestSending.asStateFlow()
 
     // Which bottom-nav tab is selected.
     private val _tab = MutableStateFlow(MainTab.MONITORS)
@@ -631,6 +636,34 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         UnifiedPush.removeDistributor(app)
         PushStore.clear(app)
         _kumaPushSetup.value = KumaPushSetupUiState.Idle
+    }
+
+    fun testLocalPushNotification() {
+        val app = getApplication<Application>()
+        PushStore.recordLocalTest(app, UrsaPushService.postLocalTest(app))
+    }
+
+    fun testKumaPushDelivery() {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return
+        if (setup.notificationId == null || !setup.endpointCurrent || _kumaPushTestSending.value) return
+        val token = UUID.randomUUID().toString().replace("-", "").take(12)
+        val notificationName = PushDeliveryTest.notificationName(token) ?: return
+        val app = getApplication<Application>()
+        if (!PushStore.beginDeliveryTest(app, token)) return
+        viewModelScope.launch {
+            _kumaPushTestSending.value = true
+            try {
+                if (!repo.testManagedPushDelivery(notificationName)) {
+                    PushStore.recordDeliveryTestRejected(app)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                PushStore.recordDeliveryTestRejected(app)
+            } finally {
+                _kumaPushTestSending.value = false
+            }
+        }
     }
 
     fun refreshKumaPushSetup() {

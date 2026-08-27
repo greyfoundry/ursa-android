@@ -209,6 +209,9 @@ class MonitorRepository(
         return allDeleted
     }
 
+    suspend fun testManagedPushDelivery(name: String): Boolean =
+        activeClient.value?.testManagedPushNotification(name) == true
+
     /** Connect to a new server and log in; on success the JWT is persisted. */
     suspend fun addServerAndLogin(
         url: String,

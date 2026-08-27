@@ -51,7 +51,11 @@ import dev.astoris.ursa.R
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
+import dev.astoris.ursa.core.push.PushLocalTestResult
+import dev.astoris.ursa.core.push.PushRegistrationError
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +68,8 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val endpoint by vm.pushEndpoint.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val kumaSetup by vm.kumaPushSetup.collectAsStateWithLifecycle()
+    val diagnostics by vm.pushDiagnostics.collectAsStateWithLifecycle()
+    val kumaTestSending by vm.kumaPushTestSending.collectAsStateWithLifecycle()
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -122,6 +128,58 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     )
                     Button(onClick = { permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }) {
                         Text(stringResource(R.string.push_allow_button))
+                    }
+                }
+            }
+
+            Section(stringResource(R.string.push_diagnostics_section)) {
+                Text(
+                    stringResource(R.string.push_diagnostics_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = vm::testLocalPushNotification) {
+                    Text(stringResource(R.string.push_test_local_button))
+                }
+                diagnostics.lastLocalTestResult?.let { result ->
+                    Text(
+                        stringResource(result.messageRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (result == PushLocalTestResult.POSTED) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                }
+                Card(Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        DiagnosticRow(
+                            stringResource(R.string.push_diagnostics_last_registration),
+                            diagnostics.lastRegistrationAtMs.diagnosticTimeOrNever(),
+                        )
+                        DiagnosticRow(
+                            stringResource(R.string.push_diagnostics_last_message),
+                            diagnostics.lastMessageAtMs.diagnosticTimeOrNever(),
+                        )
+                        val lastError = diagnostics.lastError
+                        val lastErrorAt = diagnostics.lastErrorAtMs
+                        val errorText = if (lastError != null && lastErrorAt != null) {
+                            stringResource(
+                                R.string.push_diagnostics_error_value,
+                                stringResource(lastError.messageRes),
+                                lastErrorAt.diagnosticTimeOrNever(),
+                            )
+                        } else {
+                            stringResource(R.string.push_diagnostics_never)
+                        }
+                        DiagnosticRow(
+                            stringResource(R.string.push_diagnostics_last_error),
+                            errorText,
+                        )
                     }
                 }
             }
@@ -337,6 +395,47 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     }
                                 }
                             }
+                            HorizontalDivider()
+                            Text(
+                                stringResource(R.string.push_test_kuma_title),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                stringResource(R.string.push_test_kuma_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(
+                                onClick = vm::testKumaPushDelivery,
+                                enabled = setup.notificationId != null &&
+                                    setup.endpointCurrent &&
+                                    !kumaTestSending,
+                            ) {
+                                Text(stringResource(R.string.push_test_kuma_button))
+                            }
+                            when {
+                                kumaTestSending -> Text(stringResource(R.string.push_test_kuma_sending))
+                                diagnostics.deliveryTestRequestedAtMs == null -> Unit
+                                diagnostics.deliveryTestRejectedAtMs.isAtOrAfter(
+                                    diagnostics.deliveryTestRequestedAtMs,
+                                ) -> Text(
+                                    stringResource(R.string.push_test_kuma_rejected),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                diagnostics.deliveryTestReceivedAtMs.isAtOrAfter(
+                                    diagnostics.deliveryTestRequestedAtMs,
+                                ) -> Text(
+                                    stringResource(
+                                        R.string.push_test_kuma_received,
+                                        diagnostics.deliveryTestReceivedAtMs.diagnosticTimeOrNever(),
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                else -> Text(
+                                    stringResource(R.string.push_test_kuma_waiting),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -372,6 +471,38 @@ private val KumaPushSetupError.messageRes: Int
         KumaPushSetupError.SAVE_FAILED -> R.string.push_kuma_save_failed
         KumaPushSetupError.DELETE_FAILED -> R.string.push_kuma_delete_failed
     }
+
+private val PushLocalTestResult.messageRes: Int
+    get() = when (this) {
+        PushLocalTestResult.POSTED -> R.string.push_test_local_posted
+        PushLocalTestResult.PERMISSION_REQUIRED -> R.string.push_test_local_permission
+        PushLocalTestResult.APP_NOTIFICATIONS_DISABLED -> R.string.push_test_local_app_disabled
+        PushLocalTestResult.CHANNEL_DISABLED -> R.string.push_test_local_channel_disabled
+    }
+
+private val PushRegistrationError.messageRes: Int
+    get() = when (this) {
+        PushRegistrationError.INTERNAL_ERROR -> R.string.push_diagnostics_error_internal
+        PushRegistrationError.NETWORK -> R.string.push_diagnostics_error_network
+        PushRegistrationError.ACTION_REQUIRED -> R.string.push_diagnostics_error_action
+        PushRegistrationError.VAPID_REQUIRED -> R.string.push_diagnostics_error_vapid
+    }
+
+@Composable
+private fun DiagnosticRow(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall)
+        Text(value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun Long?.diagnosticTimeOrNever(): String = this?.let { timestamp ->
+    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(timestamp))
+} ?: stringResource(R.string.push_diagnostics_never)
+
+private fun Long?.isAtOrAfter(reference: Long?): Boolean =
+    this != null && reference != null && this >= reference
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {

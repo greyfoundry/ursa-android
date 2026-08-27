@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-27 - push tests and privacy-safe diagnostics
+
+**changed**: Completed parity item CP-021. Notifications now has an Android-only
+test that checks runtime permission, app notification state, channel state, and
+posting without contacting Kuma or a distributor. A separate end-to-end action asks
+Kuma to send a temporary Webhook test and waits for the exact correlated message.
+The screen also shows last registration, received-message, and normalized
+registration-error times without displaying diagnostic payload data.
+
+**privacy and identity boundary**: Diagnostic persistence contains timestamps,
+enum result/error categories, and one random 12-character pending-test marker. It
+does not retain message bodies, monitor names, server URLs, or an extra endpoint
+copy. A matching test message is rendered with fixed copy, excluded from the event
+log, and clears its marker. Kuma test configs are not saved as providers.
+
+**verification**: Pure tests cover exact marker construction/matching and reject
+lookalikes. The full 97-test suite, zero-finding Android lint, debug assembly, and
+release assembly passed. Android 17 QA posted the local test on the real high-
+importance `ursa_monitors` channel. A signed official ntfy 1.25.2 F-Droid build then
+completed a live Kuma 2.5.3 -> Webhook -> ntfy -> URSA delivery in under two seconds;
+the exact test was matched, metadata survived force-stop/relaunch, and no crash was
+recorded. The marked provider, five monitor relations, endpoint registration,
+correlation marker, downloaded APK, and QA distributor were removed afterward.
+
 ### 2026-08-27 - one-tap Kuma UnifiedPush setup
 
 **changed**: Completed parity item CP-020. The Notifications screen can now create

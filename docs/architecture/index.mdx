@@ -33,8 +33,9 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
   preferences, event history, and incident notes) - DataStore with Tink
   AES-256-GCM at rest, master key in Android Keystore.
 - `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore,
-  KumaWebhook) - UnifiedPush receive path, delivery URL validation, and
-  notification rendering. See `docs/modules/push.mdx`.
+  KumaWebhook, PushDeliveryTest) - UnifiedPush receive path, delivery URL
+  validation, privacy-safe diagnostics/testing, and notification rendering.
+  See `docs/modules/push.mdx`.
 - `data.model` → `.../data/model/` - Models.kt + StatusPageModels.kt.
 - `data.repository` → `.../data/repository/MonitorRepository.kt`.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) -

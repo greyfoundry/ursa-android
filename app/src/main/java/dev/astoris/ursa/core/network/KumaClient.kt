@@ -247,19 +247,16 @@ class KumaClient(
 
     suspend fun saveManagedPushNotification(webhookUrl: String, isDefault: Boolean): Int? {
         val existingId = _managedPushNotifications.value.firstOrNull()?.id
-        val notification = JSONObject().apply {
-            put("name", ManagedPushNotification.MANAGED_NAME)
-            put("type", "webhook")
-            put("isDefault", isDefault)
-            put("applyExisting", false)
-            put("webhookURL", webhookUrl)
-            put("httpMethod", "post")
-            put("webhookContentType", "json")
-            put(ManagedPushNotification.MANAGED_MARKER, true)
-        }
+        val notification = managedPushNotification(webhookUrl, isDefault)
         val res = emitAck("addNotification", notification, existingId ?: JSONObject.NULL) ?: return null
         if (!res.optBoolean("ok")) return null
         return res.optInt("id").takeIf { it > 0 } ?: existingId
+    }
+
+    suspend fun testManagedPushNotification(name: String): Boolean {
+        val managed = _managedPushNotifications.value.firstOrNull() ?: return false
+        val notification = managedPushNotification(managed.webhookUrl, managed.isDefault, name)
+        return emitAck("testNotification", notification)?.optBoolean("ok") == true
     }
 
     suspend fun deleteManagedPushNotification(id: Int): Boolean =
@@ -294,6 +291,21 @@ class KumaClient(
         val res = emitAck("getMonitor", monitorId) ?: return null
         if (!res.optBoolean("ok")) return null
         return res.optJSONObject("monitor")
+    }
+
+    private fun managedPushNotification(
+        webhookUrl: String,
+        isDefault: Boolean,
+        name: String = ManagedPushNotification.MANAGED_NAME,
+    ) = JSONObject().apply {
+        put("name", name)
+        put("type", "webhook")
+        put("isDefault", isDefault)
+        put("applyExisting", false)
+        put("webhookURL", webhookUrl)
+        put("httpMethod", "post")
+        put("webhookContentType", "json")
+        put(ManagedPushNotification.MANAGED_MARKER, true)
     }
 
     /** Server-aggregated uptime and latency buckets, or null when the request failed. */

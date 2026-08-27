@@ -64,6 +64,10 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   retained by 2.5.3.
 - `deleteNotification(notificationID)` returns `{ ok, msg }`; Kuma removes the
   associated monitor-notification relations.
+- `testNotification(fullNotificationConfig)` returns `{ ok, msg }` after the
+  provider completes its send. For Webhook, 2.5.3 posts
+  `{ heartbeat: null, monitor: null, msg: "<notification name> Testing" }` and
+  does not save the temporary config.
 - `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
   is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
   restarts the edited monitor, so bulk callers should update sequentially.

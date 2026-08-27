@@ -33,7 +33,8 @@ here so the rest of the app sees clean domain models.
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
-  notification relation reads/updates, and `disconnect()`. Flows: `state`,
+  notification relation reads/updates, `testManagedPushNotification`, and
+  `disconnect()`. Flows: `state`,
   `monitors`, `heartbeats`, `certs`, and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
   `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`.
@@ -73,7 +74,8 @@ here so the rest of the app sees clean domain models.
   the live window and never polled in the background.
 - `notificationList` contains double-encoded provider config. The adapter retains
   only Webhook rows with URSA's exact management marker. Create/update uses
-  `addNotification`; removal uses `deleteNotification`.
+  `addNotification`; removal uses `deleteNotification`; delivery testing uses a
+  temporary config with `testNotification` and does not persist it on Kuma.
 - Kuma exposes notification relations only inside the full result of `getMonitor`.
   Relation updates therefore round-trip the complete object through `editMonitor`
   while changing only `notificationIDList`. That potentially sensitive raw object
