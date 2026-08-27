@@ -9,6 +9,17 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-27 - Glance 1.2.0 maintenance update
+
+**changed**: Updated the home-screen widget runtime from AndroidX Glance 1.1.1
+to the stable 1.2.0 release. This clears the remaining Android lint dependency
+advisory and brings the widget onto the current performance and bug-fix line.
+
+**verification**: All 101 unit tests passed with zero failures, Android lint
+reported zero issues, and debug/release assemblies completed. The updated debug
+APK installed over retained data on Android 17, reopened the saved session, and
+remained registered with Android's AppWidget service and manifest receiver.
+
 ### 2026-08-27 - server-scoped per-monitor push modes
 
 **changed**: Completed parity item CP-022. Each monitor on a current managed Kuma
