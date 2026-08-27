@@ -2,10 +2,12 @@ package dev.astoris.ursa.core.network
 
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
+import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.MonitorStatus
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -77,6 +79,31 @@ object KumaParse {
     /** Bean-serialized heartbeat arrays such as `monitorImportantHeartbeatListPaged`. */
     fun heartbeatRows(arr: JsonArray): List<Heartbeat> =
         arr.mapNotNull { (it as? JsonObject)?.let(::heartbeat) }
+
+    /** Keeps only webhook providers explicitly marked as managed by URSA. */
+    fun managedPushNotifications(arr: JsonArray): List<ManagedPushNotification> =
+        arr.mapNotNull { value ->
+            val obj = value as? JsonObject ?: return@mapNotNull null
+            val id = obj["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+            val rawConfig = obj["config"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            val config = runCatching { Json.parseToJsonElement(rawConfig).jsonObject }.getOrNull()
+                ?: return@mapNotNull null
+            if (
+                config[ManagedPushNotification.MANAGED_MARKER]?.jsonPrimitive?.booleanOrNull != true
+            ) return@mapNotNull null
+            if (config["type"]?.jsonPrimitive?.contentOrNull != "webhook") return@mapNotNull null
+            val webhookUrl = config["webhookURL"]?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            ManagedPushNotification(
+                id = id,
+                name = obj["name"]?.jsonPrimitive?.contentOrNull
+                    ?: config["name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                webhookUrl = webhookUrl,
+                isDefault = obj["isDefault"]?.jsonPrimitive?.booleanOrNull
+                    ?: config["isDefault"]?.jsonPrimitive?.booleanOrNull
+                    ?: false,
+            )
+        }.sortedBy(ManagedPushNotification::id)
 
     /** `getMonitorBeats` rows - SNAKE_CASE, `important` is 1/0 not a boolean. */
     fun beatRow(obj: JsonObject): Heartbeat? {

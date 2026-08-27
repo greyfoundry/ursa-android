@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-26
+last-updated: 2026-08-27
 owner: astoris
 status: stable
 ---
@@ -32,9 +32,11 @@ here so the rest of the app sees clean domain models.
   `login(u,p,token)`, `loginByToken(jwt)`,
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
-  `disconnect()`. Flows: `state`, `monitors`, `heartbeats`, `certs`.
+  `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
+  notification relation reads/updates, and `disconnect()`. Flows: `state`,
+  `monitors`, `heartbeats`, `certs`, and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
-  `beatRow(s)`, `cert`, `tags`.
+  `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
   resolves a custom-domain or configured default status page through Kuma's
   public entry contract. Fetch combines page configuration, the latest 100
@@ -69,6 +71,13 @@ here so the rest of the app sees clean domain models.
   important heartbeats when opened. Those durable transition beans use camelCase
   `monitorID`/boolean `important`, unlike `getMonitorBeats`; they are merged with
   the live window and never polled in the background.
+- `notificationList` contains double-encoded provider config. The adapter retains
+  only Webhook rows with URSA's exact management marker. Create/update uses
+  `addNotification`; removal uses `deleteNotification`.
+- Kuma exposes notification relations only inside the full result of `getMonitor`.
+  Relation updates therefore round-trip the complete object through `editMonitor`
+  while changing only `notificationIDList`. That potentially sensitive raw object
+  stays inside the client method and is never persisted or logged.
 - `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) - safe,
   and every acknowledgement has a 15-second upper bound so an inaccessible
   server cannot leave a UI action loading forever.

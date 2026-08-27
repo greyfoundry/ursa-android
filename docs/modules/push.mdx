@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-26
+last-updated: 2026-08-27
 owner: astoris
 status: in-flux
 ---
@@ -21,16 +21,22 @@ connection: push works while the app is closed.
   (`{heartbeat, monitor, msg}`) → `PushNotice`. JVM-unit-tested (`PushParseTest`).
 - `.../core/push/PushStore.kt` - process-wide holder of the endpoint URL + chosen
   distributor (SharedPreferences mirrored into StateFlows).
+- `.../core/push/KumaWebhook.kt` - validates the registered delivery endpoint and
+  adds ntfy's required `up=1` query flag without discarding an existing query.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
-  show the endpoint with a copy button, disconnect.
+  show/copy the endpoint, create or update the marked Kuma Webhook provider,
+  select existing monitors/default use, show setup status, and remove it safely.
 
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).
 - `PushParse.parse(raw): PushNotice?`.
 - `PushStore.endpoint` / `.distributor` (StateFlow), `load`/`setEndpoint`/
   `setDistributor`/`clear`.
+- `KumaWebhook.deliveryUrl(endpoint, distributor)` returns a validated HTTP(S)
+  endpoint ready for Kuma, or null.
 - ViewModel: `pushEndpoint`, `pushDistributor`, `distributors`, `pushMode`;
-  `enterPush`/`exitPush`/`refreshDistributors`/`registerPush`/`unregisterPush`.
+  `enterPush`/`exitPush`/`refreshDistributors`/`registerPush`/`unregisterPush`,
+  plus managed Kuma setup state and create/update/remove actions.
 
 **depends on**
 - `org.unifiedpush.android:connector:3.3.4` (excludes JVM `tink`; we ship
@@ -47,8 +53,16 @@ connection: push works while the app is closed.
   tolerantly, render-only, never acted upon.
 - `POST_NOTIFICATIONS` is a runtime permission on API 33+; the service drops the
   notification (logs a warning) if it isn't granted. `PushScreen` requests it.
-- ntfy endpoints need `?up=1` appended so ntfy forwards Kuma's raw bytes - surfaced
-  as a hint on the endpoint screen.
+- ntfy endpoints need `up=1` so ntfy forwards Kuma's raw bytes. Managed setup adds
+  it automatically and preserves any existing endpoint query parameters.
+- URSA only edits or removes Webhook providers whose double-encoded config contains
+  the exact `ursaManaged: true` marker. The provider is named `URSA UnifiedPush`;
+  unrelated user notification providers are not surfaced to the managed setup path.
+- Existing-monitor assignment reads are capped at four concurrent requests. Writes
+  run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
+  a fleet-wide restart burst. No-op relations are skipped.
+- Removing managed setup deletes only marked providers. The UnifiedPush registration
+  and endpoint remain on the device, ready for another server or manual setup.
 - Kuma 2.5.1's Pinglet and SMS Gateway additions are separate outbound providers;
   the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
   body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral

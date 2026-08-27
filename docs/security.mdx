@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-26
+last-updated: 2026-08-27
 owner: astoris
 status: in-flux
 ---
@@ -117,6 +117,13 @@ retains hostname verification; first use remains the trust decision. Cleartext r
 a tracked risk (see backlog). Static certificate pinning is not applicable - URSA
 connects to arbitrary servers the user names, not a fixed backend.
 
+Managed UnifiedPush setup sends the device's delivery endpoint only to the active
+Kuma server the user already authenticated to. URSA marks its dedicated Webhook
+provider and will not edit or remove unmarked providers. Kuma requires a complete
+monitor object when changing notification assignments; that potentially sensitive
+object is held only for the acknowledgement round trip, never persisted or logged,
+and only its `notificationIDList` is changed.
+
 **PLATFORM.** The only exported component is the launcher activity (plus the
 AppWidget receiver and Quick Settings tile, which the platform requires to be
 exported and which only expose cached counts). No WebViews. `FLAG_SECURE` is applied
@@ -137,7 +144,9 @@ commit. Untrusted server input is parsed in one tolerant,
 unit-tested adapter (`KumaParse`) that isolates Kuma's wire quirks.
 
 **PRIVACY.** URSA collects nothing and phones no one home. The only network peers
-are the user's own server and (M3) the user's chosen push distributor.
+are the user's own server and the user's chosen push distributor. The delivery
+endpoint necessarily lives in the marked provider on that Kuma server so Kuma can
+send notifications; it is excluded from portable backups and app logs.
 
 **RESILIENCE - out of scope, deliberately.** URSA holds no third-party secrets and
 has no fraud/DRM surface; a rooted attacker on the user's own device reading their

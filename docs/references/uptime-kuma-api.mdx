@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-25
+last-updated: 2026-08-27
 owner: astoris
 status: stable
 source: verified from Uptime Kuma 2.5.3 source and a live 2.5.3 container
@@ -58,6 +58,15 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   transitions separately from the rolling live list.
 - `pauseMonitor(id)` / `resumeMonitor(id)` → `{ ok, msg, msgi18n }`
 - `getMonitor(id)` → full MonitorObject
+- `addNotification(config, notificationID|null)` returns `{ ok, id }`. Webhook
+  config includes `name`, `type=webhook`, `isDefault`, `webhookURL`,
+  `httpMethod=post`, and `webhookContentType=json`; unknown config keys are
+  retained by 2.5.3.
+- `deleteNotification(notificationID)` returns `{ ok, msg }`; Kuma removes the
+  associated monitor-notification relations.
+- `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
+  is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
+  restarts the edited monitor, so bulk callers should update sequentially.
 
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
@@ -92,6 +101,9 @@ routes; normalized live payload shapes used by URSA are unchanged.
   inside object payloads are numbers. Normalize both forms at the adapter boundary.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
   JSON string *inside* the JSON - parse twice.
+- **Sensitive full monitor shape**: authenticated `getMonitor` includes fields
+  needed to edit every monitor type and may include credentials. Keep it ephemeral,
+  never log/store it, preserve unknown fields, and mutate only the intended field.
 - **Public incident overlap**: a pinned active incident is returned by both the
   main page endpoint and incident history. De-duplicate by numeric incident ID.
 - Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON

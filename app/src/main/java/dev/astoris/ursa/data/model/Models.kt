@@ -51,6 +51,19 @@ data class MonitorChartPoint(
     val timestamp: Long,
 )
 
+/** The deliberately marked webhook provider URSA manages on the active Kuma server. */
+data class ManagedPushNotification(
+    val id: Int,
+    val name: String,
+    val webhookUrl: String,
+    val isDefault: Boolean,
+) {
+    companion object {
+        const val MANAGED_NAME = "URSA UnifiedPush"
+        const val MANAGED_MARKER = "ursaManaged"
+    }
+}
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,

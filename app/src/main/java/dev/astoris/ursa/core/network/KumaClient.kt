@@ -3,6 +3,7 @@ package dev.astoris.ursa.core.network
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
+import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -61,6 +62,12 @@ class KumaClient(
     private val _certs = MutableStateFlow<Map<Int, CertInfo>>(emptyMap())
     val certs: StateFlow<Map<Int, CertInfo>> = _certs.asStateFlow()
 
+    private val _managedPushNotifications = MutableStateFlow<List<ManagedPushNotification>>(emptyList())
+    val managedPushNotifications: StateFlow<List<ManagedPushNotification>> =
+        _managedPushNotifications.asStateFlow()
+    private val _notificationListReady = MutableStateFlow(false)
+    val notificationListReady: StateFlow<Boolean> = _notificationListReady.asStateFlow()
+
     /** Recent heartbeat history per monitor, for the list sparklines. Seeded by
      *  `heartbeatList` on connect and appended from live `heartbeat` events. */
     private val _beatHistory = MutableStateFlow<Map<Int, List<Heartbeat>>>(emptyMap())
@@ -111,6 +118,12 @@ class KumaClient(
 
         s.on("monitorList") { args ->
             args.jsonAt(0)?.let { _monitors.value = KumaParse.monitorList(it) }
+        }
+        s.on("notificationList") { args ->
+            args.jsonArrayAt(0)?.let {
+                _managedPushNotifications.value = KumaParse.managedPushNotifications(it)
+                _notificationListReady.value = true
+            }
         }
         s.on("updateMonitorIntoList") { args ->
             args.jsonAt(0)?.let { obj ->
@@ -232,6 +245,57 @@ class KumaClient(
         return KumaParse.heartbeatRows(arr).sortedBy(Heartbeat::time)
     }
 
+    suspend fun saveManagedPushNotification(webhookUrl: String, isDefault: Boolean): Int? {
+        val existingId = _managedPushNotifications.value.firstOrNull()?.id
+        val notification = JSONObject().apply {
+            put("name", ManagedPushNotification.MANAGED_NAME)
+            put("type", "webhook")
+            put("isDefault", isDefault)
+            put("applyExisting", false)
+            put("webhookURL", webhookUrl)
+            put("httpMethod", "post")
+            put("webhookContentType", "json")
+            put(ManagedPushNotification.MANAGED_MARKER, true)
+        }
+        val res = emitAck("addNotification", notification, existingId ?: JSONObject.NULL) ?: return null
+        if (!res.optBoolean("ok")) return null
+        return res.optInt("id").takeIf { it > 0 } ?: existingId
+    }
+
+    suspend fun deleteManagedPushNotification(id: Int): Boolean =
+        emitAck("deleteNotification", id)?.optBoolean("ok") == true
+
+    /** Notification IDs attached to a monitor. Sensitive monitor fields never leave this method. */
+    suspend fun monitorNotificationIds(monitorId: Int): Set<Int>? {
+        val monitor = rawMonitor(monitorId) ?: return null
+        val ids = monitor.optJSONObject("notificationIDList") ?: return emptySet()
+        return ids.keys().asSequence().mapNotNull { key ->
+            key.toIntOrNull()?.takeIf { ids.optBoolean(key) }
+        }.toSet()
+    }
+
+    /** Updates only the notification relation while round-tripping Kuma's complete monitor object. */
+    suspend fun setMonitorNotification(
+        monitorId: Int,
+        notificationId: Int,
+        enabled: Boolean,
+    ): Boolean {
+        val monitor = rawMonitor(monitorId) ?: return false
+        val ids = monitor.optJSONObject("notificationIDList") ?: JSONObject().also {
+            monitor.put("notificationIDList", it)
+        }
+        val alreadyEnabled = ids.optBoolean(notificationId.toString())
+        if (alreadyEnabled == enabled) return true
+        if (enabled) ids.put(notificationId.toString(), true) else ids.remove(notificationId.toString())
+        return emitAck("editMonitor", monitor)?.optBoolean("ok") == true
+    }
+
+    private suspend fun rawMonitor(monitorId: Int): JSONObject? {
+        val res = emitAck("getMonitor", monitorId) ?: return null
+        if (!res.optBoolean("ok")) return null
+        return res.optJSONObject("monitor")
+    }
+
     /** Server-aggregated uptime and latency buckets, or null when the request failed. */
     suspend fun getChartData(id: Int, hours: Int): List<MonitorChartPoint>? {
         val res = emitAck("getMonitorChartData", id, hours) ?: return null
@@ -247,6 +311,8 @@ class KumaClient(
         socket?.off()
         socket = null
         jwt = null
+        _managedPushNotifications.value = emptyList()
+        _notificationListReady.value = false
         _state.value = ConnectionState.Disconnected
     }
 

@@ -464,8 +464,35 @@
     <string name="push_selected">Selected</string>
     <string name="push_use">Use</string>
     <string name="push_section_endpoint">Your endpoint</string>
-    <string name="push_endpoint_desc">Paste this URL into a Webhook notification in Uptime Kuma (Settings -&gt; Notifications -&gt; Webhook), then attach it to your monitors.</string>
-    <string name="push_ntfy_hint">ntfy users: append ?up=1 to the URL so ntfy forwards Kuma\'s raw body.</string>
+    <string name="push_endpoint_desc">URSA can configure this endpoint on the connected Kuma server below. Copy it for manual setup on another server.</string>
+    <string name="push_ntfy_hint">Managed ntfy setup adds the required ?up=1 raw-body flag automatically.</string>
     <string name="push_copy">Copy</string>
     <string name="push_disconnect">Disconnect</string>
+    <string name="push_kuma_section">Kuma setup</string>
+    <string name="push_kuma_desc">Create one dedicated Webhook provider and choose which existing monitors use it. URSA preserves every other provider and monitor setting.</string>
+    <string name="push_kuma_check">Check setup</string>
+    <string name="push_kuma_loading">Checking Kuma configuration…</string>
+    <string name="push_kuma_retry">Retry</string>
+    <string name="push_kuma_not_configured">Not configured on this server</string>
+    <string name="push_kuma_update_needed">Configured endpoint needs updating</string>
+    <string name="push_kuma_configured">Configured on this server</string>
+    <string name="push_kuma_saved">Kuma setup saved</string>
+    <string name="push_kuma_default">Use for new monitors by default</string>
+    <string name="push_kuma_default_desc">Kuma will preselect this provider when a monitor is created.</string>
+    <string name="push_kuma_existing">Existing monitors</string>
+    <string name="push_kuma_all">All</string>
+    <string name="push_kuma_none">None</string>
+    <plurals name="push_kuma_partial">
+        <item quantity="one">Could not verify %1$d monitor assignment. Saving will retry it.</item>
+        <item quantity="other">Could not verify %1$d monitor assignments. Saving will retry them.</item>
+    </plurals>
+    <string name="push_kuma_create">Create on Kuma</string>
+    <string name="push_kuma_update">Save changes</string>
+    <string name="push_kuma_remove">Remove</string>
+    <string name="push_kuma_remove_title">Remove Kuma webhook?</string>
+    <string name="push_kuma_remove_desc">This removes only the Webhook provider marked as managed by URSA. Your UnifiedPush registration stays connected.</string>
+    <string name="push_kuma_invalid_endpoint">The UnifiedPush endpoint is not a valid HTTP or HTTPS URL.</string>
+    <string name="push_kuma_server_unavailable">Kuma did not return its notification configuration. Reconnect and try again.</string>
+    <string name="push_kuma_save_failed">Kuma could not save the managed Webhook provider.</string>
+    <string name="push_kuma_delete_failed">Kuma could not remove the managed Webhook provider.</string>
 </resources>

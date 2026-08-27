@@ -11,6 +11,7 @@ import dev.astoris.ursa.core.storage.MonitorSnapshot
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
+import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -33,8 +34,20 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+
+data class ManagedPushAssignments(
+    val notification: ManagedPushNotification?,
+    val selectedMonitorIds: Set<Int>,
+    val unavailableMonitorIds: Set<Int>,
+)
+
+data class ManagedPushSaveResult(
+    val notificationId: Int,
+    val failedMonitorIds: Set<Int>,
+)
 
 /**
  * Single source of truth for the UI. Owns the active [KumaClient], bridges it to the
@@ -133,6 +146,68 @@ class MonitorRepository(
 
     /** One bounded account-wide page of durable transitions for the incident center. */
     suspend fun importantBeats(): List<Heartbeat>? = activeClient.value?.getImportantBeats()
+
+    suspend fun managedPushAssignments(monitorIds: List<Int>): ManagedPushAssignments? {
+        val client = activeClient.value ?: return null
+        if (
+            withTimeoutOrNull(NOTIFICATION_LIST_TIMEOUT_MS) {
+                client.notificationListReady.first { it }
+            } != true
+        ) {
+            return null
+        }
+        val notification = client.managedPushNotifications.value.firstOrNull()
+            ?: return ManagedPushAssignments(null, emptySet(), emptySet())
+        val permits = Semaphore(NOTIFICATION_READ_CONCURRENCY)
+        val assignments = supervisorScope {
+            monitorIds.distinct().map { id ->
+                async {
+                    id to permits.withPermit {
+                        try {
+                            client.monitorNotificationIds(id)?.contains(notification.id)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                }
+            }.awaitAll().toMap()
+        }
+        return ManagedPushAssignments(
+            notification = notification,
+            selectedMonitorIds = assignments.filterValues { it == true }.keys,
+            unavailableMonitorIds = assignments.filterValues { it == null }.keys,
+        )
+    }
+
+    /** Saves the managed webhook, then applies assignments sequentially to avoid a fleet restart burst. */
+    suspend fun saveManagedPushSetup(
+        webhookUrl: String,
+        isDefault: Boolean,
+        selectedMonitorIds: Set<Int>,
+        monitorIds: List<Int>,
+    ): ManagedPushSaveResult? {
+        val client = activeClient.value ?: return null
+        val notificationId = client.saveManagedPushNotification(webhookUrl, isDefault) ?: return null
+        val failed = mutableSetOf<Int>()
+        monitorIds.distinct().forEach { monitorId ->
+            val enabled = monitorId in selectedMonitorIds
+            if (!client.setMonitorNotification(monitorId, notificationId, enabled)) failed += monitorId
+        }
+        return ManagedPushSaveResult(notificationId, failed)
+    }
+
+    suspend fun deleteManagedPushSetup(): Boolean {
+        val client = activeClient.value ?: return false
+        val managed = client.managedPushNotifications.value
+        if (managed.isEmpty()) return false
+        var allDeleted = true
+        managed.forEach { notification ->
+            if (!client.deleteManagedPushNotification(notification.id)) allDeleted = false
+        }
+        return allDeleted
+    }
 
     /** Connect to a new server and log in; on success the JWT is persisted. */
     suspend fun addServerAndLogin(
@@ -312,6 +387,8 @@ class MonitorRepository(
 
     private companion object {
         const val CHART_REQUEST_CONCURRENCY = 4
+        const val NOTIFICATION_READ_CONCURRENCY = 4
+        const val NOTIFICATION_LIST_TIMEOUT_MS = 5_000L
         const val TOKEN_REJECTED_MESSAGE =
             "Session token was rejected, expired, or the server did not respond"
     }

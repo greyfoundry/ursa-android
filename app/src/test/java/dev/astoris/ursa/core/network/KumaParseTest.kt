@@ -86,6 +86,23 @@ class KumaParseTest {
         assertTrue(rows.single().important)
     }
 
+    @Test fun managedPushNotifications_ignoreUnmarkedAndOtherProviders() {
+        val rows = KumaParse.managedPushNotifications(
+            Json.parseToJsonElement(
+                """[
+                    {"id":4,"name":"Personal webhook","isDefault":false,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://other.example\"}"},
+                    {"id":9,"name":"URSA UnifiedPush","isDefault":true,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://push.example/topic?up=1\",\"ursaManaged\":true}"},
+                    {"id":10,"name":"Marked mail","isDefault":false,"config":"{\"type\":\"smtp\",\"ursaManaged\":true}"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(1, rows.size)
+        assertEquals(9, rows.single().id)
+        assertEquals("https://push.example/topic?up=1", rows.single().webhookUrl)
+        assertTrue(rows.single().isDefault)
+    }
+
     @Test fun beatRow_snakecase_with_int_important() {
         // getMonitorBeats rows are snake_case; important is 1/0, not a boolean
         val hb = KumaParse.beatRow(

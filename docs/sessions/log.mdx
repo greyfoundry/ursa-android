@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-26
+last-updated: 2026-08-27
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,28 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-08-27 - one-tap Kuma UnifiedPush setup
+
+**changed**: Completed parity item CP-020. The Notifications screen can now create
+or update one marked `URSA UnifiedPush` Webhook provider on the active Kuma server,
+set its default-for-new-monitors flag, select any existing monitors, report partial
+assignment failures, refresh status, and remove only marked providers after
+confirmation. ntfy delivery URLs receive the required `up=1` flag automatically.
+
+**safety and load boundary**: Unmarked notification providers are ignored. The
+active server's notification list is awaited with a five-second bound; assignment
+reads use at most four concurrent requests, while writes run sequentially because
+Kuma restarts an edited monitor. Full monitor objects required by `editMonitor`
+remain ephemeral inside the network client and only `notificationIDList` changes.
+The setup stores no additional local secret and never logs provider config.
+
+**verification**: Unit tests cover URL validation/ntfy query preservation and exact
+marked-provider parsing. Full unit tests, lint, debug/release assembly, and repository
+policy checks passed. Android 17 QA against official Kuma 2.5.3 verified create,
+default and per-monitor updates, force-stop/relaunch recovery, full-row checkbox
+semantics, confirmed removal, and zero remaining notification/provider relations in
+the disposable server database. The temporary fake QA endpoint was removed afterward.
 
 ### 2026-08-26 - local incident notes and redacted sharing
 

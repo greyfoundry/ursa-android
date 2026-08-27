@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-26
+last-updated: 2026-08-27
 owner: astoris
 status: in-flux
 ---
@@ -23,6 +23,7 @@ Kuma server ──Socket.IO──▶ core.network (adapter: parse/normalize wire
 
 core.storage (DataStore+Tink)  ── credentials/JWT ──▶ core.network (login/loginByToken)
 distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──▶ system notification
+core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhook provider
 ```
 
 **layers (M1 implemented unless noted)**
@@ -31,8 +32,9 @@ distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──�
 - `core.storage` → `.../core/storage/` (ConnectionStore, encrypted caches,
   preferences, event history, and incident notes) - DataStore with Tink
   AES-256-GCM at rest, master key in Android Keystore.
-- `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore) -
-  UnifiedPush receive path + notification rendering. See `docs/modules/push.mdx`.
+- `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore,
+  KumaWebhook) - UnifiedPush receive path, delivery URL validation, and
+  notification rendering. See `docs/modules/push.mdx`.
 - `data.model` → `.../data/model/` - Models.kt + StatusPageModels.kt.
 - `data.repository` → `.../data/repository/MonitorRepository.kt`.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) -

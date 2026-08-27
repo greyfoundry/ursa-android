@@ -10,6 +10,7 @@ import dev.astoris.ursa.core.network.StatusPageAddressError
 import dev.astoris.ursa.core.network.StatusPageAddressResult
 import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.push.PushStore
+import dev.astoris.ursa.core.push.KumaWebhook
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
@@ -92,6 +93,22 @@ sealed interface StatusPageFormResult {
     data class ValidationError(val error: StatusPageAddressError) : StatusPageFormResult
     data object NoDiscoverablePage : StatusPageFormResult
     data class NetworkError(val message: String) : StatusPageFormResult
+}
+
+enum class KumaPushSetupError { INVALID_ENDPOINT, SERVER_UNAVAILABLE, SAVE_FAILED, DELETE_FAILED }
+
+sealed interface KumaPushSetupUiState {
+    data object Idle : KumaPushSetupUiState
+    data object Loading : KumaPushSetupUiState
+    data class Ready(
+        val notificationId: Int?,
+        val endpointCurrent: Boolean,
+        val isDefault: Boolean,
+        val selectedMonitorIds: Set<Int>,
+        val unavailableMonitorIds: Set<Int> = emptySet(),
+        val recentlySaved: Boolean = false,
+    ) : KumaPushSetupUiState
+    data class Error(val reason: KumaPushSetupError) : KumaPushSetupUiState
 }
 
 private sealed interface StatusPageResolution {
@@ -178,6 +195,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val pushDistributor: StateFlow<String?> = PushStore.distributor
     private val _distributors = MutableStateFlow<List<String>>(emptyList())
     val distributors: StateFlow<List<String>> = _distributors.asStateFlow()
+    private val _kumaPushSetup = MutableStateFlow<KumaPushSetupUiState>(KumaPushSetupUiState.Idle)
+    val kumaPushSetup: StateFlow<KumaPushSetupUiState> = _kumaPushSetup.asStateFlow()
 
     // Which bottom-nav tab is selected.
     private val _tab = MutableStateFlow(MainTab.MONITORS)
@@ -458,7 +477,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- Tab navigation ---
     fun selectTab(t: MainTab) {
-        if (t == MainTab.NOTIFICATIONS) refreshDistributors()
+        if (t == MainTab.NOTIFICATIONS) {
+            refreshDistributors()
+            refreshKumaPushSetup()
+        }
         _tab.value = t
     }
     // Deep-link entry points (app shortcuts) map onto tabs.
@@ -608,6 +630,70 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         UnifiedPush.unregister(app)
         UnifiedPush.removeDistributor(app)
         PushStore.clear(app)
+        _kumaPushSetup.value = KumaPushSetupUiState.Idle
+    }
+
+    fun refreshKumaPushSetup() {
+        val endpoint = pushEndpoint.value ?: run {
+            _kumaPushSetup.value = KumaPushSetupUiState.Idle
+            return
+        }
+        val deliveryUrl = KumaWebhook.deliveryUrl(endpoint, pushDistributor.value) ?: run {
+            _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.INVALID_ENDPOINT)
+            return
+        }
+        viewModelScope.launch {
+            _kumaPushSetup.value = KumaPushSetupUiState.Loading
+            val ids = monitors.value.map(Monitor::id)
+            val snapshot = repo.managedPushAssignments(ids) ?: run {
+                _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SERVER_UNAVAILABLE)
+                return@launch
+            }
+            val notification = snapshot.notification
+            _kumaPushSetup.value = KumaPushSetupUiState.Ready(
+                notificationId = notification?.id,
+                endpointCurrent = notification?.webhookUrl == deliveryUrl,
+                isDefault = notification?.isDefault ?: true,
+                selectedMonitorIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds,
+                unavailableMonitorIds = snapshot.unavailableMonitorIds,
+            )
+        }
+    }
+
+    fun saveKumaPushSetup(selectedMonitorIds: Set<Int>, isDefault: Boolean) {
+        val endpoint = pushEndpoint.value
+        val deliveryUrl = endpoint?.let { KumaWebhook.deliveryUrl(it, pushDistributor.value) }
+        if (deliveryUrl == null) {
+            _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.INVALID_ENDPOINT)
+            return
+        }
+        viewModelScope.launch {
+            _kumaPushSetup.value = KumaPushSetupUiState.Loading
+            val ids = monitors.value.map(Monitor::id)
+            val result = repo.saveManagedPushSetup(deliveryUrl, isDefault, selectedMonitorIds, ids)
+            if (result == null) {
+                _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SAVE_FAILED)
+                return@launch
+            }
+            val snapshot = repo.managedPushAssignments(ids)
+            val unavailable = result.failedMonitorIds + snapshot?.unavailableMonitorIds.orEmpty()
+            _kumaPushSetup.value = KumaPushSetupUiState.Ready(
+                notificationId = result.notificationId,
+                endpointCurrent = true,
+                isDefault = isDefault,
+                selectedMonitorIds = snapshot?.selectedMonitorIds ?: (selectedMonitorIds - result.failedMonitorIds),
+                unavailableMonitorIds = unavailable,
+                recentlySaved = true,
+            )
+        }
+    }
+
+    fun deleteKumaPushSetup() {
+        viewModelScope.launch {
+            _kumaPushSetup.value = KumaPushSetupUiState.Loading
+            if (repo.deleteManagedPushSetup()) refreshKumaPushSetup()
+            else _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.DELETE_FAILED)
+        }
     }
 
     // --- Lock actions ---
