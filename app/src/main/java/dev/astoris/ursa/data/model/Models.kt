@@ -57,10 +57,24 @@ data class ManagedPushNotification(
     val name: String,
     val webhookUrl: String,
     val isDefault: Boolean,
+    val serverId: String?,
+    val schemaVersion: Int?,
 ) {
     companion object {
         const val MANAGED_NAME = "URSA UnifiedPush"
         const val MANAGED_MARKER = "ursaManaged"
+        const val SERVER_ID_FIELD = "ursaServerId"
+        const val SCHEMA_FIELD = "ursaSchemaVersion"
+        const val CURRENT_SCHEMA = 1
+        private val serverIdPattern = Regex("^[a-f0-9]{32}$")
+
+        fun isValidServerId(value: String?): Boolean =
+            value != null && serverIdPattern.matches(value)
+
+        fun customWebhookBody(serverId: String): String? {
+            if (!isValidServerId(serverId)) return null
+            return """{"heartbeat":{{ heartbeatJSON | json }},"monitor":{{ monitorJSON | json }},"msg":{{ msg | json }},"ursaServerId":"$serverId"}"""
+        }
     }
 }
 

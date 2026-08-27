@@ -91,7 +91,7 @@ class KumaParseTest {
             Json.parseToJsonElement(
                 """[
                     {"id":4,"name":"Personal webhook","isDefault":false,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://other.example\"}"},
-                    {"id":9,"name":"URSA UnifiedPush","isDefault":true,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://push.example/topic?up=1\",\"ursaManaged\":true}"},
+                    {"id":9,"name":"URSA UnifiedPush","isDefault":true,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://push.example/topic?up=1\",\"ursaManaged\":true,\"ursaServerId\":\"0123456789abcdef0123456789abcdef\",\"ursaSchemaVersion\":1}"},
                     {"id":10,"name":"Marked mail","isDefault":false,"config":"{\"type\":\"smtp\",\"ursaManaged\":true}"}
                 ]""",
             ).jsonArray,
@@ -101,6 +101,19 @@ class KumaParseTest {
         assertEquals(9, rows.single().id)
         assertEquals("https://push.example/topic?up=1", rows.single().webhookUrl)
         assertTrue(rows.single().isDefault)
+        assertEquals("0123456789abcdef0123456789abcdef", rows.single().serverId)
+        assertEquals(1, rows.single().schemaVersion)
+    }
+
+    @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {
+        val row = KumaParse.managedPushNotifications(
+            Json.parseToJsonElement(
+                """[{"id":9,"name":"URSA UnifiedPush","config":"{\"type\":\"webhook\",\"webhookURL\":\"https://push.example/topic\",\"ursaManaged\":true}"}]""",
+            ).jsonArray,
+        ).single()
+
+        assertNull(row.serverId)
+        assertNull(row.schemaVersion)
     }
 
     @Test fun beatRow_snakecase_with_int_important() {

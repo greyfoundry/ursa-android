@@ -474,7 +474,7 @@
     <string name="push_kuma_loading">Checking Kuma configuration…</string>
     <string name="push_kuma_retry">Retry</string>
     <string name="push_kuma_not_configured">Not configured on this server</string>
-    <string name="push_kuma_update_needed">Configured endpoint needs updating</string>
+    <string name="push_kuma_update_needed">Configured Webhook needs updating</string>
     <string name="push_kuma_configured">Configured on this server</string>
     <string name="push_kuma_saved">Kuma setup saved</string>
     <string name="push_kuma_default">Use for new monitors by default</string>
@@ -495,6 +495,18 @@
     <string name="push_kuma_server_unavailable">Kuma did not return its notification configuration. Reconnect and try again.</string>
     <string name="push_kuma_save_failed">Kuma could not save the managed Webhook provider.</string>
     <string name="push_kuma_delete_failed">Kuma could not remove the managed Webhook provider.</string>
+    <string name="push_alert_modes_title">Per-monitor alerts</string>
+    <string name="push_alert_modes_desc">Choose which transitions can notify this phone. These settings stay on this device.</string>
+    <string name="push_alert_modes_update_needed">Save the Kuma setup first to enable server-scoped alert modes.</string>
+    <string name="push_alert_mode_dialog_title">Alerts for %1$s</string>
+    <string name="push_alert_mode_muted">Muted</string>
+    <string name="push_alert_mode_muted_desc">Receive no alert notifications for this monitor.</string>
+    <string name="push_alert_mode_down_only">Down only</string>
+    <string name="push_alert_mode_down_only_desc">Notify only when the monitor goes down.</string>
+    <string name="push_alert_mode_down_recovery">Down and recovery</string>
+    <string name="push_alert_mode_down_recovery_desc">Notify when the monitor goes down and when it recovers.</string>
+    <string name="push_alert_mode_all">All transitions</string>
+    <string name="push_alert_mode_all_desc">Notify for every status sent by Kuma, including maintenance and pending.</string>
     <string name="push_diagnostics_section">Push diagnostics</string>
     <string name="push_diagnostics_desc">The local test checks Android only. Registration and message history stores timestamps and error categories, never endpoints or message contents.</string>
     <string name="push_diagnostics_last_registration">Last registration</string>

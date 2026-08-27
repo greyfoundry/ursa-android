@@ -70,6 +70,19 @@ class PushParseTest {
         assertEquals(1, PushParse.parse("""{"heartbeat":{"monitorID":1,"status":1}}""")!!.status)
     }
 
+    @Test fun managed_webhook_exposes_only_valid_server_scope() {
+        val id = "0123456789abcdef0123456789abcdef"
+        val scoped = PushParse.parse(
+            """{"heartbeat":{"monitorID":7,"status":0},"ursaServerId":"$id"}""",
+        )!!
+        val invalid = PushParse.parse(
+            """{"heartbeat":{"monitorID":7,"status":0},"ursaServerId":"not-valid"}""",
+        )!!
+
+        assertEquals(id, scoped.serverId)
+        assertNull(invalid.serverId)
+    }
+
     @Test fun formats_downtime() {
         assertEquals("less than a minute", PushParse.formatDowntime(30_000))
         assertEquals("1m", PushParse.formatDowntime(90_000))

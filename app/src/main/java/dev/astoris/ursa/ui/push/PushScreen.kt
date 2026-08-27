@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -25,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.push.PushAlertMode
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
@@ -70,9 +73,11 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val kumaSetup by vm.kumaPushSetup.collectAsStateWithLifecycle()
     val diagnostics by vm.pushDiagnostics.collectAsStateWithLifecycle()
     val kumaTestSending by vm.kumaPushTestSending.collectAsStateWithLifecycle()
+    val alertModes by vm.pushAlertModes.collectAsStateWithLifecycle()
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
     var confirmRemove by remember { mutableStateOf(false) }
+    var modeMonitorId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(endpoint) {
         if (endpoint != null) vm.refreshKumaPushSetup()
@@ -276,12 +281,12 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     stringResource(
                                         when {
                                             setup.notificationId == null -> R.string.push_kuma_not_configured
-                                            !setup.endpointCurrent -> R.string.push_kuma_update_needed
+                                            !setup.configurationCurrent -> R.string.push_kuma_update_needed
                                             else -> R.string.push_kuma_configured
                                         },
                                     ),
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = if (setup.notificationId != null && setup.endpointCurrent) {
+                                    color = if (setup.notificationId != null && setup.configurationCurrent) {
                                         MaterialTheme.colorScheme.primary
                                     } else MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(12.dp),
@@ -397,6 +402,41 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             }
                             HorizontalDivider()
                             Text(
+                                stringResource(R.string.push_alert_modes_title),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                stringResource(R.string.push_alert_modes_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (!setup.configurationCurrent) {
+                                Text(
+                                    stringResource(R.string.push_alert_modes_update_needed),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                monitors.forEach { monitor ->
+                                    val mode = alertModes[monitor.id] ?: PushAlertMode.ALL_TRANSITIONS
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            monitor.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        TextButton(onClick = { modeMonitorId = monitor.id }) {
+                                            Text(stringResource(mode.labelRes))
+                                        }
+                                    }
+                                }
+                            }
+                            HorizontalDivider()
+                            Text(
                                 stringResource(R.string.push_test_kuma_title),
                                 style = MaterialTheme.typography.titleSmall,
                             )
@@ -408,7 +448,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             OutlinedButton(
                                 onClick = vm::testKumaPushDelivery,
                                 enabled = setup.notificationId != null &&
-                                    setup.endpointCurrent &&
+                                    setup.configurationCurrent &&
                                     !kumaTestSending,
                             ) {
                                 Text(stringResource(R.string.push_test_kuma_button))
@@ -462,7 +502,72 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             },
         )
     }
+    val modeMonitor = modeMonitorId?.let { id -> monitors.firstOrNull { it.id == id } }
+    if (modeMonitor != null) {
+        val selectedMode = alertModes[modeMonitor.id] ?: PushAlertMode.ALL_TRANSITIONS
+        AlertDialog(
+            onDismissRequest = { modeMonitorId = null },
+            title = {
+                Text(stringResource(R.string.push_alert_mode_dialog_title, modeMonitor.name))
+            },
+            text = {
+                Column {
+                    PushAlertMode.entries.forEach { mode ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = mode == selectedMode,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        vm.setPushAlertMode(modeMonitor.id, mode)
+                                        modeMonitorId = null
+                                    },
+                                )
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = mode == selectedMode, onClick = null)
+                            Column(
+                                Modifier
+                                    .padding(start = 8.dp)
+                                    .weight(1f),
+                            ) {
+                                Text(stringResource(mode.labelRes))
+                                Text(
+                                    stringResource(mode.descriptionRes),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { modeMonitorId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
 }
+
+private val PushAlertMode.labelRes: Int
+    get() = when (this) {
+        PushAlertMode.MUTED -> R.string.push_alert_mode_muted
+        PushAlertMode.DOWN_ONLY -> R.string.push_alert_mode_down_only
+        PushAlertMode.DOWN_AND_RECOVERY -> R.string.push_alert_mode_down_recovery
+        PushAlertMode.ALL_TRANSITIONS -> R.string.push_alert_mode_all
+    }
+
+private val PushAlertMode.descriptionRes: Int
+    get() = when (this) {
+        PushAlertMode.MUTED -> R.string.push_alert_mode_muted_desc
+        PushAlertMode.DOWN_ONLY -> R.string.push_alert_mode_down_only_desc
+        PushAlertMode.DOWN_AND_RECOVERY -> R.string.push_alert_mode_down_recovery_desc
+        PushAlertMode.ALL_TRANSITIONS -> R.string.push_alert_mode_all_desc
+    }
 
 private val KumaPushSetupError.messageRes: Int
     get() = when (this) {

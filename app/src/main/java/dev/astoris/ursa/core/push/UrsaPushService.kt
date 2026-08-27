@@ -62,6 +62,15 @@ class UrsaPushService : PushService() {
         } else {
             enrichWithDowntime(notice)
         }
+        if (
+            !deliveryTest &&
+            !PushAlertPolicy.shouldNotify(
+                PushAlertModeStore(this).mode(enriched.serverId, enriched.monitorId),
+                enriched.status,
+            )
+        ) {
+            return
+        }
         if (postNotification(this, enriched) == PushLocalTestResult.POSTED && !deliveryTest) {
             eventScope.launch {
                 EventLogStore(this@UrsaPushService).append(

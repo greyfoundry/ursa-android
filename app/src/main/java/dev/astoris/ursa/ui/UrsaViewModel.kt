@@ -11,6 +11,8 @@ import dev.astoris.ursa.core.network.StatusPageAddressResult
 import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.PushDeliveryTest
+import dev.astoris.ursa.core.push.PushAlertMode
+import dev.astoris.ursa.core.push.PushAlertModeStore
 import dev.astoris.ursa.core.push.KumaWebhook
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
@@ -39,6 +41,7 @@ import dev.astoris.ursa.ui.monitors.HeartbeatRange
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
+import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -104,7 +107,8 @@ sealed interface KumaPushSetupUiState {
     data object Loading : KumaPushSetupUiState
     data class Ready(
         val notificationId: Int?,
-        val endpointCurrent: Boolean,
+        val serverId: String?,
+        val configurationCurrent: Boolean,
         val isDefault: Boolean,
         val selectedMonitorIds: Set<Int>,
         val unavailableMonitorIds: Set<Int> = emptySet(),
@@ -202,6 +206,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val kumaPushSetup: StateFlow<KumaPushSetupUiState> = _kumaPushSetup.asStateFlow()
     private val _kumaPushTestSending = MutableStateFlow(false)
     val kumaPushTestSending: StateFlow<Boolean> = _kumaPushTestSending.asStateFlow()
+    private val pushAlertModeStore = PushAlertModeStore(app)
+    private val _pushAlertModes = MutableStateFlow<Map<Int, PushAlertMode>>(emptyMap())
+    val pushAlertModes: StateFlow<Map<Int, PushAlertMode>> = _pushAlertModes.asStateFlow()
 
     // Which bottom-nav tab is selected.
     private val _tab = MutableStateFlow(MainTab.MONITORS)
@@ -636,6 +643,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         UnifiedPush.removeDistributor(app)
         PushStore.clear(app)
         _kumaPushSetup.value = KumaPushSetupUiState.Idle
+        _pushAlertModes.value = emptyMap()
     }
 
     fun testLocalPushNotification() {
@@ -645,7 +653,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun testKumaPushDelivery() {
         val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return
-        if (setup.notificationId == null || !setup.endpointCurrent || _kumaPushTestSending.value) return
+        if (setup.notificationId == null || !setup.configurationCurrent || _kumaPushTestSending.value) return
         val token = UUID.randomUUID().toString().replace("-", "").take(12)
         val notificationName = PushDeliveryTest.notificationName(token) ?: return
         val app = getApplication<Application>()
@@ -669,10 +677,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshKumaPushSetup() {
         val endpoint = pushEndpoint.value ?: run {
             _kumaPushSetup.value = KumaPushSetupUiState.Idle
+            _pushAlertModes.value = emptyMap()
             return
         }
         val deliveryUrl = KumaWebhook.deliveryUrl(endpoint, pushDistributor.value) ?: run {
             _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.INVALID_ENDPOINT)
+            _pushAlertModes.value = emptyMap()
             return
         }
         viewModelScope.launch {
@@ -680,16 +690,22 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             val ids = monitors.value.map(Monitor::id)
             val snapshot = repo.managedPushAssignments(ids) ?: run {
                 _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SERVER_UNAVAILABLE)
+                _pushAlertModes.value = emptyMap()
                 return@launch
             }
             val notification = snapshot.notification
+            val serverId = notification?.serverId
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = notification?.id,
-                endpointCurrent = notification?.webhookUrl == deliveryUrl,
+                serverId = serverId,
+                configurationCurrent = notification?.webhookUrl == deliveryUrl &&
+                    notification.schemaVersion == ManagedPushNotification.CURRENT_SCHEMA &&
+                    ManagedPushNotification.isValidServerId(serverId),
                 isDefault = notification?.isDefault ?: true,
                 selectedMonitorIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds,
                 unavailableMonitorIds = snapshot.unavailableMonitorIds,
             )
+            _pushAlertModes.value = pushAlertModeStore.modes(serverId, ids)
         }
     }
 
@@ -712,19 +728,34 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             val unavailable = result.failedMonitorIds + snapshot?.unavailableMonitorIds.orEmpty()
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = result.notificationId,
-                endpointCurrent = true,
+                serverId = result.serverId,
+                configurationCurrent = true,
                 isDefault = isDefault,
                 selectedMonitorIds = snapshot?.selectedMonitorIds ?: (selectedMonitorIds - result.failedMonitorIds),
                 unavailableMonitorIds = unavailable,
                 recentlySaved = true,
             )
+            _pushAlertModes.value = pushAlertModeStore.modes(result.serverId, ids)
         }
     }
 
+    fun setPushAlertMode(monitorId: Int, mode: PushAlertMode) {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return
+        if (!setup.configurationCurrent) return
+        val serverId = setup.serverId ?: return
+        if (!pushAlertModeStore.setMode(serverId, monitorId, mode)) return
+        _pushAlertModes.value = _pushAlertModes.value + (monitorId to mode)
+    }
+
     fun deleteKumaPushSetup() {
+        val serverId = (_kumaPushSetup.value as? KumaPushSetupUiState.Ready)?.serverId
         viewModelScope.launch {
             _kumaPushSetup.value = KumaPushSetupUiState.Loading
-            if (repo.deleteManagedPushSetup()) refreshKumaPushSetup()
+            if (repo.deleteManagedPushSetup()) {
+                pushAlertModeStore.clearServer(serverId)
+                _pushAlertModes.value = emptyMap()
+                refreshKumaPushSetup()
+            }
             else _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.DELETE_FAILED)
         }
     }

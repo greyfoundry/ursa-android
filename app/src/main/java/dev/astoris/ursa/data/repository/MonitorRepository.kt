@@ -46,6 +46,7 @@ data class ManagedPushAssignments(
 
 data class ManagedPushSaveResult(
     val notificationId: Int,
+    val serverId: String,
     val failedMonitorIds: Set<Int>,
 )
 
@@ -189,13 +190,14 @@ class MonitorRepository(
         monitorIds: List<Int>,
     ): ManagedPushSaveResult? {
         val client = activeClient.value ?: return null
-        val notificationId = client.saveManagedPushNotification(webhookUrl, isDefault) ?: return null
+        val notification = client.saveManagedPushNotification(webhookUrl, isDefault) ?: return null
+        val serverId = notification.serverId ?: return null
         val failed = mutableSetOf<Int>()
         monitorIds.distinct().forEach { monitorId ->
             val enabled = monitorId in selectedMonitorIds
-            if (!client.setMonitorNotification(monitorId, notificationId, enabled)) failed += monitorId
+            if (!client.setMonitorNotification(monitorId, notification.id, enabled)) failed += monitorId
         }
-        return ManagedPushSaveResult(notificationId, failed)
+        return ManagedPushSaveResult(notification.id, serverId, failed)
     }
 
     suspend fun deleteManagedPushSetup(): Boolean {

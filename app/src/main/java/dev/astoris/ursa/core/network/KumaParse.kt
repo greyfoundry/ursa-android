@@ -102,6 +102,11 @@ object KumaParse {
                 isDefault = obj["isDefault"]?.jsonPrimitive?.booleanOrNull
                     ?: config["isDefault"]?.jsonPrimitive?.booleanOrNull
                     ?: false,
+                serverId = config[ManagedPushNotification.SERVER_ID_FIELD]
+                    ?.jsonPrimitive?.contentOrNull
+                    ?.takeIf(ManagedPushNotification::isValidServerId),
+                schemaVersion = config[ManagedPushNotification.SCHEMA_FIELD]
+                    ?.jsonPrimitive?.intOrNull,
             )
         }.sortedBy(ManagedPushNotification::id)
 

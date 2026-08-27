@@ -26,9 +26,12 @@ connection: push works while the app is closed.
   adds ntfy's required `up=1` query flag without discarding an existing query.
 - `.../core/push/PushDeliveryTest.kt` - creates and exactly matches the short,
   random marker used to distinguish a requested Kuma test from unrelated pushes.
+- `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
+  for muted, down-only, down-and-recovery, or all-transition alerts.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
-  select existing monitors/default use, show setup status, and remove it safely.
+  select existing monitors/default use, configure per-monitor alert modes, show
+  setup status, and remove it safely.
 
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).
@@ -41,7 +44,7 @@ connection: push works while the app is closed.
 - ViewModel: `pushEndpoint`, `pushDistributor`, `distributors`, `pushMode`;
   `enterPush`/`exitPush`/`refreshDistributors`/`registerPush`/`unregisterPush`,
   plus local notification testing, managed Kuma setup state, and
-  create/update/test/remove actions.
+  create/update/test/remove actions and per-monitor alert-mode state.
 
 **depends on**
 - `org.unifiedpush.android:connector:3.3.4` (excludes JVM `tink`; we ship
@@ -63,6 +66,15 @@ connection: push works while the app is closed.
 - URSA only edits or removes Webhook providers whose double-encoded config contains
   the exact `ursaManaged: true` marker. The provider is named `URSA UnifiedPush`;
   unrelated user notification providers are not surfaced to the managed setup path.
+- Managed providers use Kuma's custom Webhook body with Liquid's JSON filter and a
+  random 32-hex `ursaServerId`. The scope is not a credential and is never shown;
+  it prevents identical monitor IDs on different saved servers from sharing an
+  alert policy. Legacy managed providers must be saved once to gain this scope.
+- Per-monitor modes are non-sensitive device preferences keyed by server scope and
+  monitor ID. Muted posts nothing; down-only accepts status 0; down-and-recovery
+  accepts 0 and 1; all-transitions also accepts pending, maintenance, and unknown
+  legacy payloads. Manual or legacy Webhooks without a valid scope default to all
+  transitions so an upgrade cannot silently suppress alerts.
 - Existing-monitor assignment reads are capped at four concurrent requests. Writes
   run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
   a fleet-wide restart burst. No-op relations are skipped.
@@ -81,7 +93,9 @@ connection: push works while the app is closed.
   the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
   body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral
   Webhook to UnifiedPush path rather than depend on a third-party provider.
-- Same monitor id reuses its notification id, so a new status replaces the old one.
+- The same monitor ID reuses its notification ID, so a new status replaces the old
+  one. Alert-policy lookup is server-scoped even though the displayed notification
+  remains provider-neutral.
 - A notification that is actually posted is also appended to the encrypted,
   bounded device event log. The webhook body has no trustworthy server identity,
   so the entry remains provider-neutral rather than being assigned to a guessed

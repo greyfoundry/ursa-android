@@ -9,6 +9,31 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-27 - server-scoped per-monitor push modes
+
+**changed**: Completed parity item CP-022. Each monitor on a current managed Kuma
+Webhook can now use one of four device-side alert modes: muted, down-only,
+down-and-recovery, or all transitions. The compact selector sits separately from
+Kuma's provider-assignment checkboxes, applies immediately, and persists across
+process restarts.
+
+**identity and compatibility boundary**: Managed providers now use Kuma 2.5.3's
+custom Liquid Webhook body to include a random 32-hex server scope alongside the
+standard heartbeat, monitor, and message fields. Policies are keyed by that scope
+and monitor ID, so identical numeric IDs on different servers cannot collide. The
+scope contains no connection metadata. Legacy and manual Webhooks without a valid
+scope retain all-transition behavior so upgrading cannot silently suppress alerts;
+removing the managed provider clears its local policy entries.
+
+**verification**: The 101-test suite covers every status/mode combination, managed
+template fields, scope validation, config parsing, and push parsing. Android lint,
+debug assembly, and release assembly passed. Android 17 QA against official Kuma 2.5.3
+and the signed ntfy 1.25.2 F-Droid build verified custom-provider persistence,
+accessible mode selection, process-restart persistence, muted/down-only/recovery/
+maintenance decisions, Kuma's correlated end-to-end test, and background delivery.
+The marked provider, monitor relations, endpoint, test marker, mode entries,
+temporary APK, and QA distributor were removed afterward.
+
 ### 2026-08-27 - push tests and privacy-safe diagnostics
 
 **changed**: Completed parity item CP-021. Notifications now has an Android-only

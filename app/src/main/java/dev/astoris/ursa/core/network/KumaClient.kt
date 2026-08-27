@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.json.JSONObject
+import java.util.UUID
 import kotlin.coroutines.resume
 
 enum class ConnectionState {
@@ -245,17 +246,32 @@ class KumaClient(
         return KumaParse.heartbeatRows(arr).sortedBy(Heartbeat::time)
     }
 
-    suspend fun saveManagedPushNotification(webhookUrl: String, isDefault: Boolean): Int? {
-        val existingId = _managedPushNotifications.value.firstOrNull()?.id
-        val notification = managedPushNotification(webhookUrl, isDefault)
+    suspend fun saveManagedPushNotification(
+        webhookUrl: String,
+        isDefault: Boolean,
+    ): ManagedPushNotification? {
+        val existing = _managedPushNotifications.value.firstOrNull()
+        val serverId = existing?.serverId?.takeIf(ManagedPushNotification::isValidServerId)
+            ?: UUID.randomUUID().toString().replace("-", "")
+        val notification = managedPushNotification(webhookUrl, isDefault, serverId)
+        val existingId = existing?.id
         val res = emitAck("addNotification", notification, existingId ?: JSONObject.NULL) ?: return null
         if (!res.optBoolean("ok")) return null
-        return res.optInt("id").takeIf { it > 0 } ?: existingId
+        val id = res.optInt("id").takeIf { it > 0 } ?: existingId ?: return null
+        return ManagedPushNotification(
+            id = id,
+            name = ManagedPushNotification.MANAGED_NAME,
+            webhookUrl = webhookUrl,
+            isDefault = isDefault,
+            serverId = serverId,
+            schemaVersion = ManagedPushNotification.CURRENT_SCHEMA,
+        )
     }
 
     suspend fun testManagedPushNotification(name: String): Boolean {
         val managed = _managedPushNotifications.value.firstOrNull() ?: return false
-        val notification = managedPushNotification(managed.webhookUrl, managed.isDefault, name)
+        val serverId = managed.serverId?.takeIf(ManagedPushNotification::isValidServerId) ?: return false
+        val notification = managedPushNotification(managed.webhookUrl, managed.isDefault, serverId, name)
         return emitAck("testNotification", notification)?.optBoolean("ok") == true
     }
 
@@ -296,6 +312,7 @@ class KumaClient(
     private fun managedPushNotification(
         webhookUrl: String,
         isDefault: Boolean,
+        serverId: String,
         name: String = ManagedPushNotification.MANAGED_NAME,
     ) = JSONObject().apply {
         put("name", name)
@@ -304,8 +321,11 @@ class KumaClient(
         put("applyExisting", false)
         put("webhookURL", webhookUrl)
         put("httpMethod", "post")
-        put("webhookContentType", "json")
+        put("webhookContentType", "custom")
+        put("webhookCustomBody", ManagedPushNotification.customWebhookBody(serverId))
         put(ManagedPushNotification.MANAGED_MARKER, true)
+        put(ManagedPushNotification.SERVER_ID_FIELD, serverId)
+        put(ManagedPushNotification.SCHEMA_FIELD, ManagedPushNotification.CURRENT_SCHEMA)
     }
 
     /** Server-aggregated uptime and latency buckets, or null when the request failed. */

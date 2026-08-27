@@ -59,15 +59,19 @@ endpoint. Passing one to `loginByToken` is rejected by design.
 - `pauseMonitor(id)` / `resumeMonitor(id)` → `{ ok, msg, msgi18n }`
 - `getMonitor(id)` → full MonitorObject
 - `addNotification(config, notificationID|null)` returns `{ ok, id }`. Webhook
-  config includes `name`, `type=webhook`, `isDefault`, `webhookURL`,
-  `httpMethod=post`, and `webhookContentType=json`; unknown config keys are
-  retained by 2.5.3.
+  config includes `name`, `type=webhook`, `isDefault`, `webhookURL`, and
+  `httpMethod=post`. `webhookContentType=json` sends Kuma's standard body;
+  `webhookContentType=custom` renders `webhookCustomBody` through Liquid. In
+  2.5.3 the template context exposes `heartbeatJSON`, `monitorJSON`, and `msg`,
+  and Liquid's `| json` filter produces JSON-safe values. Unknown config keys are
+  retained.
 - `deleteNotification(notificationID)` returns `{ ok, msg }`; Kuma removes the
   associated monitor-notification relations.
 - `testNotification(fullNotificationConfig)` returns `{ ok, msg }` after the
-  provider completes its send. For Webhook, 2.5.3 posts
-  `{ heartbeat: null, monitor: null, msg: "<notification name> Testing" }` and
-  does not save the temporary config.
+  provider completes its send. A standard Webhook posts
+  `{ heartbeat: null, monitor: null, msg: "<notification name> Testing" }`;
+  a custom Webhook renders the same null monitor/heartbeat values through its
+  template. Kuma does not save the temporary config.
 - `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
   is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
   restarts the edited monitor, so bulk callers should update sequentially.
