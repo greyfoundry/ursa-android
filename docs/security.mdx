@@ -117,6 +117,11 @@ retains hostname verification; first use remains the trust decision. Cleartext r
 a tracked risk (see backlog). Static certificate pinning is not applicable - URSA
 connects to arbitrary servers the user names, not a fixed backend.
 
+Server web links are reconstructed from a validated HTTP(S) origin and optional
+reverse-proxy base path. They reject embedded user info, queries, fragments,
+traversal, and encoded separators, show the exact destination before launch, and
+never include the encrypted JWT or custom access headers.
+
 Managed UnifiedPush setup sends the device's delivery endpoint only to the active
 Kuma server the user already authenticated to. URSA marks its dedicated Webhook
 provider and will not edit or remove unmarked providers. Kuma requires a complete

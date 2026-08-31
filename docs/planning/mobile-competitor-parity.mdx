@@ -397,7 +397,7 @@ copy, and an update to this ledger.
 | CP-034 | pending | Server-synced groups, tags, folders, and ordering | KumaAlert | Edit membership/order using Kuma events; avoid client-only order divergence. |
 | CP-035 | pending | Maintenance CRUD | KumaAlert, KumaCheck | All Kuma 2.5.3 strategies, timezone clarity, affected monitors, pause/resume, and delete. |
 | CP-036 | pending | Local service discovery | Manager | Optional mDNS/Bonjour discovery to prefill a new monitor; never scan without a user action. |
-| CP-037 | pending | Safe server web links | PocketKuma, Homelab Dashboard | External browser only, explicit destination, never append or inject authentication material. |
+| CP-037 | complete | Safe server web links | PocketKuma, Homelab Dashboard | Monitor detail exposes a confirmed external-browser link to Kuma's canonical dashboard route. The exact destination is shown first; only validated HTTP(S) server bases are accepted, and session tokens, credentials, queries, fragments, and access headers never enter the link. |
 
 ### Phase 5 - Android surfaces and product polish
 

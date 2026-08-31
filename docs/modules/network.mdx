@@ -26,6 +26,8 @@ here so the rest of the app sees clean domain models.
   Kuma-slug validation/normalization.
 - `.../core/network/FaviconCache.kt` - bounded best-effort monitor favicon fetcher;
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
+- `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
+  confirmed external-browser dashboard and monitor links.
 
 **exports**
 - `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
@@ -47,6 +49,9 @@ here so the rest of the app sees clean domain models.
   base and slug from `/status/<slug>` and `/api/status-page/<slug>` URLs.
 - `FaviconCache.get(context, monitorUrl): ImageBitmap?` - only accepts a small image
   from the monitor's own HTTP(S) origin, otherwise returns null for the status-circle fallback.
+- `ServerWebLink.dashboard/monitor` - preserves a valid reverse-proxy base path while
+  rejecting non-HTTP schemes, embedded credentials, traversal, encoded separators,
+  queries, and fragments.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.

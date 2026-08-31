@@ -618,4 +618,9 @@
     <string name="push_test_kuma_received">Matching test received at %1$s.</string>
     <string name="push_test_kuma_notification_title">Kuma delivery test</string>
     <string name="push_test_kuma_notification_body">Kuma, the distributor, and Android delivery are working.</string>
+    <string name="action_open_in_kuma">Open in Uptime Kuma</string>
+    <string name="open_in_kuma_title">Open external site?</string>
+    <string name="open_in_kuma_message">This opens the exact address below in your browser. Sign-in details and access headers are never included.</string>
+    <string name="open_in_kuma_chooser">Open Uptime Kuma in browser</string>
+    <string name="action_open_browser">Open browser</string>
 </resources>

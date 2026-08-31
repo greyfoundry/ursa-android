@@ -9,6 +9,17 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-31 - Safe external Kuma monitor links (CP-037)
+
+**changed**: Verified Uptime Kuma 2.5.3's canonical monitor route from the
+archived source. Added pure, tested link construction that preserves reverse-proxy
+base paths and rejects unsafe or ambiguous server addresses. Monitor detail now
+has an overflow action with an explicit destination confirmation and launches the
+Android browsable external-view contract without credentials, session tokens, or
+access headers.
+
+**verification**: focused JVM suite 3 tests, 0 failures.
+
 ### 2026-08-31 - event channels, transition dedup, and persistent fleet status
 
 **changed**: Completed CP-028 and CP-029, and completed the locally actionable
