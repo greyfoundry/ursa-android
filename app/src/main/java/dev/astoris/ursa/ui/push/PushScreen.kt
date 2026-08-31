@@ -60,6 +60,8 @@ import dev.astoris.ursa.core.push.PushAlertMode
 import dev.astoris.ursa.core.push.PushAlertTiming
 import dev.astoris.ursa.core.push.PushSeverity
 import dev.astoris.ursa.core.push.PushQuietHours
+import dev.astoris.ursa.core.push.PushEventPolicy
+import dev.astoris.ursa.core.work.CertExpiryWorker
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
@@ -89,6 +91,8 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val severities by vm.pushSeverities.collectAsStateWithLifecycle()
     val alertTimings by vm.pushAlertTimings.collectAsStateWithLifecycle()
     val quietHours by vm.pushQuietHours.collectAsStateWithLifecycle()
+    val eventPreferences by vm.pushEventPreferences.collectAsStateWithLifecycle()
+    val overallStatusEnabled by vm.overallStatusEnabled.collectAsStateWithLifecycle()
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -288,6 +292,55 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
             }
 
+            Section(stringResource(R.string.push_event_types_title)) {
+                EventPreferenceRow(
+                    title = stringResource(R.string.push_event_recovery),
+                    description = stringResource(R.string.push_event_recovery_desc),
+                    checked = eventPreferences.recoveryEnabled,
+                    onChecked = {
+                        vm.setPushEventPreferences(eventPreferences.copy(recoveryEnabled = it))
+                    },
+                )
+                EventPreferenceRow(
+                    title = stringResource(R.string.push_event_maintenance),
+                    description = stringResource(R.string.push_event_maintenance_desc),
+                    checked = eventPreferences.maintenanceEnabled,
+                    onChecked = {
+                        vm.setPushEventPreferences(eventPreferences.copy(maintenanceEnabled = it))
+                    },
+                )
+                EventPreferenceRow(
+                    title = stringResource(R.string.push_event_certificate),
+                    description = stringResource(R.string.push_event_certificate_desc),
+                    checked = eventPreferences.certificateEnabled,
+                    onChecked = {
+                        vm.setPushEventPreferences(eventPreferences.copy(certificateEnabled = it))
+                    },
+                )
+                EventPreferenceRow(
+                    title = stringResource(R.string.push_event_update),
+                    description = stringResource(R.string.push_event_update_desc),
+                    checked = eventPreferences.updateEnabled,
+                    onChecked = {
+                        vm.setPushEventPreferences(eventPreferences.copy(updateEnabled = it))
+                    },
+                )
+            }
+
+            Section(stringResource(R.string.overall_status_title)) {
+                EventPreferenceRow(
+                    title = stringResource(R.string.overall_status_enable),
+                    description = stringResource(R.string.overall_status_desc),
+                    checked = overallStatusEnabled,
+                    onChecked = vm::setOverallStatusEnabled,
+                )
+                Text(
+                    stringResource(R.string.overall_status_cost),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             Section(stringResource(R.string.push_channels_title)) {
                 Text(
                     stringResource(R.string.push_channels_desc),
@@ -297,9 +350,27 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 PushSeverity.entries.forEach { severity ->
                     OutlinedButton(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = { openChannelSettings(context, severity) },
+                        onClick = {
+                            openChannelSettings(
+                                context,
+                                dev.astoris.ursa.core.push.PushSeverityPolicy.route(severity).channelId,
+                            )
+                        },
                     ) {
                         Text(stringResource(R.string.push_channels_configure, stringResource(severity.labelRes)))
+                    }
+                }
+                listOf(
+                    R.string.push_event_recovery to PushEventPolicy.RECOVERY_ROUTE.channelId,
+                    R.string.push_event_maintenance to PushEventPolicy.MAINTENANCE_ROUTE.channelId,
+                    R.string.push_event_certificate to CertExpiryWorker.CHANNEL_ID,
+                    R.string.push_event_update to PushEventPolicy.UPDATE_ROUTE.channelId,
+                ).forEach { (labelRes, channelId) ->
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { openChannelSettings(context, channelId) },
+                    ) {
+                        Text(stringResource(R.string.push_channels_configure, stringResource(labelRes)))
                     }
                 }
             }
@@ -810,6 +881,31 @@ private fun QuietDayRow(
     }
 }
 
+@Composable
+private fun EventPreferenceRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onChecked),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Column(Modifier.weight(1f)) {
+            Text(title)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 private fun showTimePicker(context: Context, initialMinute: Int, onPicked: (Int) -> Unit) {
     val safeMinute = initialMinute.coerceIn(0, PushQuietHours.MINUTES_PER_DAY - 1)
     TimePickerDialog(
@@ -830,10 +926,10 @@ private fun formatMinute(context: Context, minute: Int): String {
     return android.text.format.DateFormat.getTimeFormat(context).format(calendar.time)
 }
 
-private fun openChannelSettings(context: Context, severity: PushSeverity) {
+private fun openChannelSettings(context: Context, channelId: String) {
     val channelIntent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
         .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        .putExtra(Settings.EXTRA_CHANNEL_ID, dev.astoris.ursa.core.push.PushSeverityPolicy.route(severity).channelId)
+        .putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
     try {
         context.startActivity(channelIntent)
     } catch (_: ActivityNotFoundException) {

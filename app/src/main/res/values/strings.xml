@@ -458,6 +458,9 @@
     <string name="push_channel_critical">Critical monitor alerts</string>
     <string name="push_channel_standard">Standard monitor alerts</string>
     <string name="push_channel_silent">Silent monitor alerts</string>
+    <string name="push_channel_recovery">Monitor recoveries</string>
+    <string name="push_channel_maintenance">Maintenance alerts</string>
+    <string name="push_channel_updates">Update alerts</string>
     <string name="push_channel_description">Status notifications from your Uptime Kuma servers</string>
     <string name="push_action_acknowledge">Acknowledge</string>
     <string name="push_action_snooze_hour">Snooze 1 hour</string>
@@ -471,6 +474,49 @@
     <string name="push_channels_title">Alert sounds</string>
     <string name="push_channels_desc">Choose any sound, vibration pattern, or visibility Android offers for each alert level. These choices stay in system settings.</string>
     <string name="push_channels_configure">Configure %1$s alerts</string>
+    <string name="push_event_types_title">Alert types</string>
+    <string name="push_event_recovery">Recoveries</string>
+    <string name="push_event_recovery_desc">Notify when a down monitor becomes healthy again.</string>
+    <string name="push_event_maintenance">Maintenance</string>
+    <string name="push_event_maintenance_desc">Notify when Kuma reports a maintenance transition.</string>
+    <string name="push_event_certificate">Certificate expiry</string>
+    <string name="push_event_certificate_desc">Use locally cached TLS dates for daily expiry reminders.</string>
+    <string name="push_event_update">Updates</string>
+    <string name="push_event_update_desc">Allow notices from the manual app update checker.</string>
+    <string name="overall_status_channel">Persistent overall status</string>
+    <string name="overall_status_channel_desc">Optional live fleet counts while URSA is closed</string>
+    <string name="overall_status_connecting">Connecting to Uptime Kuma…</string>
+    <string name="overall_status_sign_in">Open URSA to sign in</string>
+    <string name="overall_status_healthy">All monitors healthy</string>
+    <plurals name="overall_status_down_title">
+        <item quantity="one">%1$d monitor down</item>
+        <item quantity="other">%1$d monitors down</item>
+    </plurals>
+    <plurals name="overall_status_pending_title">
+        <item quantity="one">%1$d monitor pending</item>
+        <item quantity="other">%1$d monitors pending</item>
+    </plurals>
+    <string name="overall_status_counts">%1$s · %2$s · %3$s · %4$s</string>
+    <plurals name="overall_status_up_count">
+        <item quantity="one">%1$d up</item>
+        <item quantity="other">%1$d up</item>
+    </plurals>
+    <plurals name="overall_status_down_count">
+        <item quantity="one">%1$d down</item>
+        <item quantity="other">%1$d down</item>
+    </plurals>
+    <plurals name="overall_status_pending_count">
+        <item quantity="one">%1$d pending</item>
+        <item quantity="other">%1$d pending</item>
+    </plurals>
+    <plurals name="overall_status_maintenance_count">
+        <item quantity="one">%1$d maintenance</item>
+        <item quantity="other">%1$d maintenance</item>
+    </plurals>
+    <string name="overall_status_title">Persistent status</string>
+    <string name="overall_status_enable">Keep live fleet status visible</string>
+    <string name="overall_status_desc">Shows up, down, pending, and maintenance counts in an ongoing notification.</string>
+    <string name="overall_status_cost">This keeps a direct connection to the active Kuma server and uses more battery. Turn it off when you only need push alerts.</string>
     <string name="push_refresh">Refresh</string>
     <string name="push_intro">Get a notification the moment a monitor goes down, over UnifiedPush, with no relay server and no Google services.</string>
     <string name="push_section_allow">1. Allow notifications</string>

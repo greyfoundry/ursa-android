@@ -39,6 +39,12 @@ connection: push works while the app is closed.
   one-hour snooze notification actions.
 - `.../core/push/PushQuietHours.kt` / `PushQuietHoursStore.kt` - local weekly
   schedule that routes delivery-time alerts to the existing silent channel.
+- `.../core/push/PushEventPolicy.kt` / `PushEventPreferencesStore.kt` - recovery,
+  maintenance, certificate, and update opt-ins plus stable event-channel routes.
+- `.../core/push/PushTransitionStore.kt` - server-scoped two-minute exact-transition
+  de-duplication; real status changes always pass.
+- `.../core/push/OverallStatusService.kt` - optional special-use foreground service
+  that keeps a direct authenticated socket and an ongoing live fleet notification.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, configure per-monitor alert modes and
@@ -113,6 +119,20 @@ connection: push works while the app is closed.
   critical, standard, and silent channels. The Notifications screen links directly
   to each channel. URSA stores no content URI and never recreates a channel, so a
   user's custom choice survives app updates and remains under system control.
+- Recovery and maintenance have separate stable channels and independent opt-ins.
+  Certificate reminders can also be disabled; their existing daily worker exits
+  without reading cached certificate details when disabled. The update opt-in and
+  channel are ready for the CP-044 manual update checker; no network lookup is made
+  by this alert-policy layer.
+- Managed push transitions keep only status and timestamp under the random server
+  scope and monitor ID. An exact same-status delivery inside two minutes is ignored;
+  status changes always deliver, including down -> recovery -> down, and the window
+  is anchored to the first delivery rather than extended by duplicates.
+- Persistent status is explicit opt-in. It runs a visible `specialUse` foreground
+  service with a separate low-importance channel, maintains a direct Socket.IO
+  connection to the active saved server, and shows up/down/pending/maintenance
+  counts with an app content intent. The UI states its battery cost. Turning it off
+  stops the service and socket immediately; push delivery does not depend on it.
 - Existing-monitor assignment reads are capped at four concurrent requests. Writes
   run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
   a fleet-wide restart burst. No-op relations are skipped.

@@ -79,16 +79,33 @@ class UrsaPushService : PushService() {
         ) {
             return
         }
+        val eventPreferences = PushEventPreferencesStore(this).load()
+        if (!deliveryTest && !PushEventPolicy.shouldNotify(enriched.status, eventPreferences)) return
+        if (
+            !deliveryTest &&
+            !PushTransitionStore(this).shouldDeliver(
+                enriched.serverId,
+                enriched.monitorId,
+                enriched.status,
+            )
+        ) {
+            return
+        }
         val configuredSeverity = policyStore.severity(enriched.serverId, enriched.monitorId)
-        val severity = if (deliveryTest) configuredSeverity else PushQuietHoursPolicy.effectiveSeverity(
+        val quietSeverity = if (deliveryTest) configuredSeverity else PushQuietHoursPolicy.effectiveSeverity(
             configuredSeverity,
             PushQuietHoursStore(this).load(),
         )
+        val eventRoute = if (quietSeverity == PushSeverity.SILENT) {
+            PushSeverityPolicy.route(PushSeverity.SILENT)
+        } else {
+            PushEventPolicy.route(enriched.status, configuredSeverity)
+        }
         val result = when {
             !deliveryTest && enriched.status == 0 && managedIdentity != null -> PushAlertWorker.beginDown(
                 context = this,
                 notice = enriched,
-                severity = severity,
+                severity = configuredSeverity,
                 timing = policyStore.timing(enriched.serverId, enriched.monitorId),
                 snoozedUntilMillis = policyStore.snoozedUntil(enriched.serverId, enriched.monitorId),
             )
@@ -96,9 +113,15 @@ class UrsaPushService : PushService() {
                 this,
                 enriched,
                 idOverride = managedIdentity.notificationId,
-                severity = severity,
+                severity = configuredSeverity,
+                routeOverride = eventRoute,
             )
-            else -> postNotification(this, enriched, severity = severity)
+            else -> postNotification(
+                this,
+                enriched,
+                severity = configuredSeverity,
+                routeOverride = eventRoute,
+            )
         }
         if (result == PushLocalTestResult.POSTED && !deliveryTest) {
             eventScope.launch {
@@ -169,9 +192,10 @@ class UrsaPushService : PushService() {
             notice: PushNotice,
             idOverride: Int? = null,
             severity: PushSeverity = PushSeverity.CRITICAL,
+            routeOverride: PushChannelRoute? = null,
         ): PushLocalTestResult {
             ensureChannel(context)
-            val route = PushSeverityPolicy.route(severity)
+            val route = routeOverride ?: PushSeverityPolicy.route(severity)
             if (
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -297,12 +321,17 @@ class UrsaPushService : PushService() {
         fun ensureChannel(context: Context) {
             val mgr = context.getSystemService(NotificationManager::class.java)
             val channels = listOf(
-                PushSeverity.CRITICAL to dev.astoris.ursa.R.string.push_channel_critical,
-                PushSeverity.STANDARD to dev.astoris.ursa.R.string.push_channel_standard,
-                PushSeverity.SILENT to dev.astoris.ursa.R.string.push_channel_silent,
+                PushSeverityPolicy.route(PushSeverity.CRITICAL) to
+                    dev.astoris.ursa.R.string.push_channel_critical,
+                PushSeverityPolicy.route(PushSeverity.STANDARD) to
+                    dev.astoris.ursa.R.string.push_channel_standard,
+                PushSeverityPolicy.route(PushSeverity.SILENT) to
+                    dev.astoris.ursa.R.string.push_channel_silent,
+                PushEventPolicy.RECOVERY_ROUTE to dev.astoris.ursa.R.string.push_channel_recovery,
+                PushEventPolicy.MAINTENANCE_ROUTE to dev.astoris.ursa.R.string.push_channel_maintenance,
+                PushEventPolicy.UPDATE_ROUTE to dev.astoris.ursa.R.string.push_channel_updates,
             )
-            channels.forEach { (severity, nameRes) ->
-                val route = PushSeverityPolicy.route(severity)
+            channels.forEach { (route, nameRes) ->
                 if (mgr.getNotificationChannel(route.channelId) == null) {
                     val importance = when {
                         route.highPriority -> NotificationManager.IMPORTANCE_HIGH

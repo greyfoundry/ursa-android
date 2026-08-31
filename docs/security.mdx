@@ -142,6 +142,11 @@ notification IDs are derived from a truncated hash rather than exposing server s
 Custom channel sounds remain wholly owned by Android settings; URSA persists no
 sound URI or media permission.
 
+Exact-transition de-duplication persists only the managed provider's random scope,
+monitor ID, numeric status, and timestamp in non-backed-up private preferences. It
+contains no endpoint, server address, monitor name, or message. Recovery and
+maintenance channel preferences are non-sensitive booleans.
+
 **PLATFORM.** The only exported component is the launcher activity (plus the
 AppWidget receiver and Quick Settings tile, which the platform requires to be
 exported and which only expose cached counts). No WebViews. `FLAG_SECURE` is applied
@@ -153,6 +158,11 @@ UnifiedPush connector ships its own internal receiver that forwards to it - so t
 is no exported push surface. The acknowledge/snooze receiver is also non-exported
 and is reachable only through immutable, explicit app-created PendingIntents. The push body is treated as untrusted input: parsed
 tolerantly by `PushParse` and only rendered into a notification, never acted upon.
+The optional persistent-status service is non-exported and user-started. Android 14+
+sees its declared `specialUse` type and free-form subtype; the required foreground
+permissions are normal/app-op permissions with no runtime data grant. Its ongoing
+notification is both the feature and the platform disclosure. It reuses the encrypted
+saved session only in memory and connects solely to the selected self-hosted server.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; Dependabot checks

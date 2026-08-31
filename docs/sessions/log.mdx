@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-31 - event channels, transition dedup, and persistent fleet status
+
+**changed**: Completed CP-028 and CP-029, and completed the locally actionable
+portion of CP-027. Recovery and maintenance now have independent opt-ins and stable
+channels; certificate reminders can be disabled; update policy has its own opt-in
+and channel ready for the CP-044 producer. Managed pushes suppress only an exact
+same-status duplicate inside two minutes, preserving every genuine status change.
+
+**persistent-mode boundary**: The optional overall-status toggle starts a visible,
+non-exported `specialUse` foreground service with its own low-importance channel.
+It keeps a direct authenticated socket to the active server, updates live fleet
+counts, opens URSA when tapped, and states its battery cost. Turning it off stops
+the service and connection immediately. UnifiedPush remains independent.
+
+**verification**: Policy tests cover category mapping, opt-outs, stable channel
+routes, exact duplicate suppression, expiry/clock rollback, and down -> recovery ->
+down preservation. Fleet-summary tests cover inactive-monitor exclusion and state
+priority. Android 17 accepted foreground type `0x40000000`, showed the service as
+foreground, and updated the notification to live 2-up/2-down/1-pending counts with
+no crash; the mode was disabled after the test. Full unit, lint, and assembly gates
+followed.
+
 ### 2026-08-31 - quiet hours and system-owned custom alert sounds
 
 **changed**: Completed parity items CP-025 and CP-026. A device-wide weekly quiet

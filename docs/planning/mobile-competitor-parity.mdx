@@ -382,9 +382,9 @@ copy, and an update to this ledger.
 | CP-024 | complete | Delay, repeat, acknowledgement, and snooze | KumaAlert, RawMon | Per-monitor 0/1/5/10-minute delay, bounded 5/15/30-minute repeats (max five), acknowledgement, one-hour snooze, encrypted pending payloads, and recovery cancellation. |
 | CP-025 | complete | Quiet hours and DND-aware guidance | KumaAlert | Weekly same-day/overnight schedule routes alerts to the silent channel at delivery time; Android DND remains authoritative and linked without policy-access claims. |
 | CP-026 | complete | Custom sounds | KumaAlert | Direct settings for each stable Android alert channel; system-owned sounds/vibration persist without app-held content URIs or channel recreation. |
-| CP-027 | pending | Recovery, maintenance, certificate, and update alerts | KumaAlert | Separate opt-ins and channels; deduplicate server push and local worker events. |
-| CP-028 | pending | Persistent overall-status notification | OpenKuma, Uptiminger, RawMon, KumaCheck | Optional foreground mode with clear battery cost, status counts, and app deep link. |
-| CP-029 | pending | Flap suppression and event deduplication | KumaCheck | Transition identity/window prevents repeated notifications while preserving genuine recoveries. |
+| CP-027 | partial | Recovery, maintenance, certificate, and update alerts | KumaAlert | Recovery/maintenance opt-ins and channels plus certificate opt-out are complete. Update preference/channel are ready; CP-044 supplies the update-check producer and cross-source update dedup. |
+| CP-028 | complete | Persistent overall-status notification | OpenKuma, Uptiminger, RawMon, KumaCheck | Explicit special-use foreground mode with battery disclosure, live direct connection, fleet counts, stable low channel, and app content intent. |
+| CP-029 | complete | Flap suppression and event deduplication | KumaCheck | Server-scoped two-minute exact-transition window suppresses repeats while down -> recovery -> down remains deliverable. |
 
 ### Phase 4 - server management
 

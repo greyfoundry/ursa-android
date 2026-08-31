@@ -18,6 +18,7 @@ import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.CertExpiryUtil
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
+import dev.astoris.ursa.core.push.PushEventPreferencesStore
 import java.util.concurrent.TimeUnit
 
 /**
@@ -29,6 +30,9 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        if (!PushEventPreferencesStore(applicationContext).load().certificateEnabled) {
+            return Result.success()
+        }
         // POST_NOTIFICATIONS is a runtime permission on API 33+; without it, do nothing.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -86,7 +90,7 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
         const val CHANNEL_ID = "ursa_cert_expiry"
         private const val WORK_NAME = "cert_expiry_check"
 
-        private fun ensureChannel(context: Context) {
+        fun ensureChannel(context: Context) {
             val mgr = context.getSystemService(NotificationManager::class.java)
             if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
                 mgr.createNotificationChannel(

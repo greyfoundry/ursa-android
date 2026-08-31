@@ -104,11 +104,15 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
             store.save(alert)
             return when (val decision = PushAlertLifecycle.onDown(timing, now, snoozedUntilMillis)) {
                 PushAlertDecision.Deliver -> {
+                    val deliverySeverity = PushQuietHoursPolicy.effectiveSeverity(
+                        severity,
+                        PushQuietHoursStore(context).load(),
+                    )
                     val result = UrsaPushService.postNotification(
                         context,
                         notice,
                         idOverride = identity.notificationId,
-                        severity = severity,
+                        severity = deliverySeverity,
                     )
                     if (result == PushLocalTestResult.POSTED) {
                         val delivered = alert.copy(deliveredCount = 1)

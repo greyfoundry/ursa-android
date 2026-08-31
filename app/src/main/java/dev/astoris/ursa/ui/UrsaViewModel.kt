@@ -18,6 +18,11 @@ import dev.astoris.ursa.core.push.PushAlertWorker
 import dev.astoris.ursa.core.push.PushSeverity
 import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushQuietHoursStore
+import dev.astoris.ursa.core.push.PushEventPreferences
+import dev.astoris.ursa.core.push.PushEventPreferencesStore
+import dev.astoris.ursa.core.push.PushTransitionStore
+import dev.astoris.ursa.core.push.OverallStatusService
+import dev.astoris.ursa.core.push.OverallStatusStore
 import dev.astoris.ursa.core.push.KumaWebhook
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
@@ -221,6 +226,11 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val pushQuietHoursStore = PushQuietHoursStore(app)
     private val _pushQuietHours = MutableStateFlow(pushQuietHoursStore.load())
     val pushQuietHours: StateFlow<PushQuietHours> = _pushQuietHours.asStateFlow()
+    private val pushEventPreferencesStore = PushEventPreferencesStore(app)
+    private val _pushEventPreferences = MutableStateFlow(pushEventPreferencesStore.load())
+    val pushEventPreferences: StateFlow<PushEventPreferences> = _pushEventPreferences.asStateFlow()
+    private val _overallStatusEnabled = MutableStateFlow(OverallStatusStore(app).enabled())
+    val overallStatusEnabled: StateFlow<Boolean> = _overallStatusEnabled.asStateFlow()
 
     // Which bottom-nav tab is selected.
     private val _tab = MutableStateFlow(MainTab.MONITORS)
@@ -251,6 +261,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         DynamicColorStore.load(getApplication())
         if (LockStore.enabled.value) _locked.value = true // start locked if enabled
         CertExpiryWorker.schedule(getApplication()) // daily TLS-expiry reminder
+        CertExpiryWorker.ensureChannel(getApplication())
+        OverallStatusService.ensureChannel(getApplication())
+        OverallStatusService.restoreIfEnabled(getApplication())
         ResponseAlertWorker.schedule(getApplication()) // periodic slow-response check (#1813)
         viewModelScope.launch {
             _slowAlertEnabled.value = alertStore.isEnabled()
@@ -337,6 +350,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 val r = repo.addServerAndLogin(normalized, username, password, token, insecure, alias, headers)
             ) {
                 is LoginResult.Success -> {
+                    OverallStatusService.refreshIfEnabled(getApplication())
                     onSuccess()
                     LoginUiState.Idle
                 }
@@ -361,6 +375,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 val result = repo.addServerByToken(normalized, sessionToken.trim(), insecure, alias, headers)
             ) {
                 is LoginResult.Success -> {
+                    OverallStatusService.refreshIfEnabled(getApplication())
                     onSuccess()
                     LoginUiState.Idle
                 }
@@ -370,7 +385,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun switchTo(conn: ServerConnection) = viewModelScope.launch { repo.switchTo(conn) }
+    fun switchTo(conn: ServerConnection) = viewModelScope.launch {
+        repo.switchTo(conn)
+        OverallStatusService.refreshIfEnabled(getApplication())
+    }
 
     fun testConnection(
         url: String,
@@ -418,6 +436,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun removeConnection(url: String) {
         viewModelScope.launch {
             val fallback = repo.removeServer(url)
+            OverallStatusService.refreshIfEnabled(getApplication())
             _hasSession.value = fallback?.jwt != null
             if (fallback == null) {
                 _addingConnection.value = false
@@ -796,6 +815,16 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _pushQuietHours.value = safeSchedule
     }
 
+    fun setPushEventPreferences(preferences: PushEventPreferences) {
+        pushEventPreferencesStore.save(preferences)
+        _pushEventPreferences.value = preferences
+    }
+
+    fun setOverallStatusEnabled(enabled: Boolean) {
+        OverallStatusService.setEnabled(getApplication(), enabled)
+        _overallStatusEnabled.value = enabled
+    }
+
     fun deleteKumaPushSetup() {
         val serverId = (_kumaPushSetup.value as? KumaPushSetupUiState.Ready)?.serverId
         viewModelScope.launch {
@@ -807,6 +836,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 pushAlertModeStore.clearServer(serverId)
+                PushTransitionStore(getApplication()).clearServer(serverId)
                 _pushAlertModes.value = emptyMap()
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
