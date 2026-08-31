@@ -379,7 +379,7 @@ copy, and an update to this ledger.
 | CP-021 | complete | Push test and diagnostics | KumaAlert, KumaCheck | Test local channel and end-to-end Kuma delivery separately; show last registration/message/error without secrets. |
 | CP-022 | complete | Per-monitor mute and alert mode | KumaAlert, KumaCheck | Down-only, down-and-recovery, all supported transitions, or muted. |
 | CP-023 | complete | Severity and Android channels | KumaAlert, SignalNest | User-selectable severity mapped to stable Android channels and vibration/sound behaviour. |
-| CP-024 | pending | Delay, repeat, acknowledgement, and snooze | KumaAlert, RawMon | Delayed first alert, bounded escalation schedule, repeat-until-ack, and explicit snooze expiry. |
+| CP-024 | complete | Delay, repeat, acknowledgement, and snooze | KumaAlert, RawMon | Per-monitor 0/1/5/10-minute delay, bounded 5/15/30-minute repeats (max five), acknowledgement, one-hour snooze, encrypted pending payloads, and recovery cancellation. |
 | CP-025 | pending | Quiet hours and DND-aware guidance | KumaAlert | Per-day quiet schedule; never silently claim to bypass system policy without granted access. |
 | CP-026 | pending | Custom sounds | KumaAlert | System picker and per-severity assignment; retain silent option. |
 | CP-027 | pending | Recovery, maintenance, certificate, and update alerts | KumaAlert | Separate opt-ins and channels; deduplicate server push and local worker events. |

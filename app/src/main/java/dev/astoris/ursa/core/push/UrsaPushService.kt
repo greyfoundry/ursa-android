@@ -63,6 +63,13 @@ class UrsaPushService : PushService() {
         } else {
             enrichWithDowntime(notice)
         }
+        val managedIdentity = PushAlertWork.identity(enriched.serverId, enriched.monitorId)
+        if (!deliveryTest && enriched.status == 1 && managedIdentity != null) {
+            val serverId = enriched.serverId ?: return
+            val monitorId = enriched.monitorId ?: return
+            policyStore.setSnoozedUntil(serverId, monitorId, null)
+            PushAlertWorker.cancel(this, serverId, monitorId)
+        }
         if (
             !deliveryTest &&
             !PushAlertPolicy.shouldNotify(
@@ -73,7 +80,23 @@ class UrsaPushService : PushService() {
             return
         }
         val severity = policyStore.severity(enriched.serverId, enriched.monitorId)
-        if (postNotification(this, enriched, severity = severity) == PushLocalTestResult.POSTED && !deliveryTest) {
+        val result = when {
+            !deliveryTest && enriched.status == 0 && managedIdentity != null -> PushAlertWorker.beginDown(
+                context = this,
+                notice = enriched,
+                severity = severity,
+                timing = policyStore.timing(enriched.serverId, enriched.monitorId),
+                snoozedUntilMillis = policyStore.snoozedUntil(enriched.serverId, enriched.monitorId),
+            )
+            managedIdentity != null -> postNotification(
+                this,
+                enriched,
+                idOverride = managedIdentity.notificationId,
+                severity = severity,
+            )
+            else -> postNotification(this, enriched, severity = severity)
+        }
+        if (result == PushLocalTestResult.POSTED && !deliveryTest) {
             eventScope.launch {
                 EventLogStore(this@UrsaPushService).append(
                     serverUrl = null,
@@ -137,7 +160,7 @@ class UrsaPushService : PushService() {
         )
 
         /** Returns the exact reason a local notification was or was not posted. */
-        private fun postNotification(
+        internal fun postNotification(
             context: Context,
             notice: PushNotice,
             idOverride: Int? = null,
@@ -187,7 +210,36 @@ class UrsaPushService : PushService() {
                     },
                 )
 
-            notice.monitorId?.let { monitorId ->
+            val alertServerId = notice.serverId
+            val alertMonitorId = notice.monitorId
+            val managedIdentity = PushAlertWork.identity(alertServerId, alertMonitorId)
+            if (
+                notice.status == 0 &&
+                managedIdentity != null &&
+                alertServerId != null &&
+                alertMonitorId != null
+            ) {
+                builder.addAction(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    context.getString(dev.astoris.ursa.R.string.push_action_acknowledge),
+                    alertActionIntent(
+                        context,
+                        alertServerId,
+                        alertMonitorId,
+                        PushAlertActionReceiver.ACTION_ACKNOWLEDGE,
+                    ),
+                )
+                builder.addAction(
+                    android.R.drawable.ic_lock_idle_alarm,
+                    context.getString(dev.astoris.ursa.R.string.push_action_snooze_hour),
+                    alertActionIntent(
+                        context,
+                        alertServerId,
+                        alertMonitorId,
+                        PushAlertActionReceiver.ACTION_SNOOZE,
+                    ),
+                )
+            } else notice.monitorId?.let { monitorId ->
                 builder.addAction(
                     android.R.drawable.ic_media_pause,
                     "Pause",
@@ -202,6 +254,25 @@ class UrsaPushService : PushService() {
             val id = idOverride ?: notice.monitorId ?: notice.title.hashCode()
             notifications.notify(id, builder.build())
             return PushLocalTestResult.POSTED
+        }
+
+        private fun alertActionIntent(
+            context: Context,
+            serverId: String,
+            monitorId: Int,
+            action: String,
+        ): PendingIntent {
+            val intent = Intent()
+            intent.setClassName(context.packageName, PushAlertActionReceiver::class.java.name)
+            intent.action = action
+            intent.putExtra(PushAlertActionReceiver.EXTRA_SERVER_ID, serverId)
+            intent.putExtra(PushAlertActionReceiver.EXTRA_MONITOR_ID, monitorId)
+            return PendingIntent.getBroadcast(
+                context,
+                "$serverId:$monitorId:$action".hashCode(),
+                intent,
+                PendingIntent.FLAG_IMMUTABLE,
+            )
         }
 
         private fun monitorActionIntent(context: Context, monitorId: Int, action: String): PendingIntent {

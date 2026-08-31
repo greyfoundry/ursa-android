@@ -33,6 +33,11 @@
             android:name=".core.push.MonitorActionReceiver"
             android:exported="false" />
 
+        <!-- Handles acknowledge/snooze actions from app-created notifications only. -->
+        <receiver
+            android:name=".core.push.PushAlertActionReceiver"
+            android:exported="false" />
+
         <!-- Home-screen widget. Exported as required by the AppWidget framework;
              it only receives system APPWIDGET broadcasts and shows cached counts. -->
         <receiver

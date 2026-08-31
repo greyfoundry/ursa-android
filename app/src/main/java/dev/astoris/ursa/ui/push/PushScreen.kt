@@ -51,6 +51,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.push.PushAlertMode
+import dev.astoris.ursa.core.push.PushAlertTiming
 import dev.astoris.ursa.core.push.PushSeverity
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
@@ -76,11 +77,13 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val kumaTestSending by vm.kumaPushTestSending.collectAsStateWithLifecycle()
     val alertModes by vm.pushAlertModes.collectAsStateWithLifecycle()
     val severities by vm.pushSeverities.collectAsStateWithLifecycle()
+    val alertTimings by vm.pushAlertTimings.collectAsStateWithLifecycle()
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
     var confirmRemove by remember { mutableStateOf(false) }
     var modeMonitorId by remember { mutableStateOf<Int?>(null) }
     var severityMonitorId by remember { mutableStateOf<Int?>(null) }
+    var timingMonitorId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(endpoint) {
         if (endpoint != null) vm.refreshKumaPushSetup()
@@ -423,6 +426,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 monitors.forEach { monitor ->
                                     val mode = alertModes[monitor.id] ?: PushAlertMode.ALL_TRANSITIONS
                                     val severity = severities[monitor.id] ?: PushSeverity.CRITICAL
+                                    val timing = alertTimings[monitor.id] ?: PushAlertTiming()
                                     Row(
                                         Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -439,6 +443,9 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                             }
                                             TextButton(onClick = { severityMonitorId = monitor.id }) {
                                                 Text(stringResource(severity.labelRes))
+                                            }
+                                            TextButton(onClick = { timingMonitorId = monitor.id }) {
+                                                Text(timing.summary())
                                             }
                                         }
                                     }
@@ -614,6 +621,93 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             },
         )
     }
+    val timingMonitor = timingMonitorId?.let { id -> monitors.firstOrNull { it.id == id } }
+    if (timingMonitor != null) {
+        val selectedTiming = alertTimings[timingMonitor.id] ?: PushAlertTiming()
+        AlertDialog(
+            onDismissRequest = { timingMonitorId = null },
+            title = { Text(stringResource(R.string.push_timing_dialog_title, timingMonitor.name)) },
+            text = {
+                Column {
+                    TimingChoices(
+                        title = stringResource(R.string.push_timing_delay),
+                        choices = PushAlertTiming.FIRST_DELAY_CHOICES,
+                        selected = selectedTiming.firstDelayMinutes,
+                        label = { minutes -> minutes.minuteChoice(R.string.push_timing_immediate) },
+                        onSelect = { vm.setPushAlertTiming(timingMonitor.id, selectedTiming.copy(firstDelayMinutes = it)) },
+                    )
+                    TimingChoices(
+                        title = stringResource(R.string.push_timing_repeat),
+                        choices = PushAlertTiming.REPEAT_CHOICES,
+                        selected = selectedTiming.repeatMinutes,
+                        label = { minutes -> minutes.minuteChoice(R.string.push_timing_off) },
+                        onSelect = {
+                            vm.setPushAlertTiming(
+                                timingMonitor.id,
+                                selectedTiming.copy(
+                                    repeatMinutes = it,
+                                    maxRepeats = if (it > 0 && selectedTiming.maxRepeats == 0) 1
+                                    else selectedTiming.maxRepeats,
+                                ),
+                            )
+                        },
+                    )
+                    if (selectedTiming.repeatMinutes > 0) {
+                        TimingChoices(
+                            title = stringResource(R.string.push_timing_repeat_count),
+                            choices = PushAlertTiming.REPEAT_COUNT_CHOICES.filter { it > 0 },
+                            selected = selectedTiming.maxRepeats.coerceAtLeast(1),
+                            label = { it.toString() },
+                            onSelect = { vm.setPushAlertTiming(timingMonitor.id, selectedTiming.copy(maxRepeats = it)) },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { timingMonitorId = null }) {
+                    Text(stringResource(R.string.action_done))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun TimingChoices(
+    title: String,
+    choices: List<Int>,
+    selected: Int,
+    label: @Composable (Int) -> String,
+    onSelect: (Int) -> Unit,
+) {
+    Text(title, style = MaterialTheme.typography.titleSmall)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        choices.forEach { value ->
+            TextButton(onClick = { onSelect(value) }, modifier = Modifier.weight(1f)) {
+                Text(
+                    label(value),
+                    color = if (value == selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Int.minuteChoice(zeroLabel: Int): String =
+    if (this == 0) stringResource(zeroLabel) else stringResource(R.string.push_timing_minutes, this)
+
+@Composable
+private fun PushAlertTiming.summary(): String = when {
+    firstDelayMinutes == 0 && repeatMinutes == 0 -> stringResource(R.string.push_timing_default)
+    repeatMinutes == 0 -> stringResource(R.string.push_timing_delay_summary, firstDelayMinutes)
+    else -> pluralStringResource(
+        R.plurals.push_timing_repeat_summary,
+        maxRepeats,
+        repeatMinutes,
+        maxRepeats,
+    )
 }
 
 private val PushAlertMode.labelRes: Int

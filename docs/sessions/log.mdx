@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-31 - delayed, repeating, acknowledged, and snoozed push alerts
+
+**changed**: Completed parity item CP-024. Managed monitors can keep immediate
+delivery or use a 1, 5, or 10-minute first-alert delay, then optionally repeat at
+5, 15, or 30-minute intervals with a hard maximum of five repeats. Down
+notifications expose acknowledge and one-hour snooze actions. Recovery cancels
+pending work before transition filtering, preventing stale reminders under a
+down-only policy.
+
+**security and compatibility boundary**: Rendered pending notification content is
+encrypted under the existing Keystore-backed Tink AEAD. WorkManager receives only
+an opaque random alert ID; its tags and notification IDs use a truncated hash of
+the managed server scope and monitor ID. Actions target a non-exported receiver
+through immutable PendingIntents. Existing preferences default to immediate,
+non-repeating behavior, and unscoped manual Webhooks stay on that compatible path.
+
+**verification**: Pure lifecycle tests cover immediate and delayed delivery,
+snooze precedence and expiry, recovery/acknowledgement cancellation, exact repeat
+bounds, corrupt timing fallback, encrypted-payload codec validation, and stable
+cross-server work identity. Full unit, lint, assembly, and Android 17 verification
+followed.
+
 ### 2026-08-31 - per-monitor severity and stable Android channels
 
 **changed**: Completed parity item CP-023. Each managed monitor now has a separate

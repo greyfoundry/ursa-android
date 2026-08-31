@@ -27,11 +27,20 @@ connection: push works while the app is closed.
 - `.../core/push/PushDeliveryTest.kt` - creates and exactly matches the short,
   random marker used to distinguish a requested Kuma test from unrelated pushes.
 - `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
-  for transition modes and critical, standard, or silent delivery severity.
+  for transition modes, severity, bounded timing, and snooze expiry.
+- `.../core/push/PushAlertLifecycle.kt` - pure delay/repeat/acknowledgement policy
+  plus privacy-safe WorkManager and notification identities.
+- `.../core/push/PushPendingAlertStore.kt` - encrypted rendered payloads for
+  delayed and repeating alerts; active pointers contain only random server scope,
+  monitor ID, and opaque alert ID.
+- `.../core/push/PushAlertWorker.kt` - one-shot scheduled delivery and bounded
+  repeat chaining. WorkManager input contains only an opaque alert ID.
+- `.../core/push/PushAlertActionReceiver.kt` - non-exported acknowledge and
+  one-hour snooze notification actions.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, configure per-monitor alert modes and
-  delivery severity, show setup status, and remove it safely.
+  delivery severity and timing, show setup status, and remove it safely.
 
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).
@@ -81,6 +90,17 @@ connection: push works while the app is closed.
   vibration; silent defaults to low importance without sound or vibration. Android
   system settings remain authoritative after channel creation. Existing records
   default to critical so upgrades preserve the previous alert strength.
+- Managed down alerts may be immediate or delayed by 1, 5, or 10 minutes, then
+  optionally repeat every 5, 15, or 30 minutes up to 1, 3, or 5 times. Defaults
+  remain immediate with no repeat. Timing preferences contain no notification
+  content. Rendered pending content is encrypted with the same Keystore-backed
+  AEAD as other private local state, while WorkManager receives only a random ID.
+- Recovery always cancels delayed/repeating work and clears an active snooze before
+  transition filtering, so a down-only policy cannot leave a stale down reminder.
+  Acknowledge cancels the active alert; snooze hides it and schedules it once for
+  one hour later. Both actions use immutable PendingIntents targeting a non-exported
+  receiver. Manual and legacy Webhooks stay immediate because they lack the server
+  scope required for collision-safe per-monitor policy.
 - Existing-monitor assignment reads are capped at four concurrent requests. Writes
   run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
   a fleet-wide restart burst. No-op relations are skipped.
@@ -99,9 +119,9 @@ connection: push works while the app is closed.
   the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
   body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral
   Webhook to UnifiedPush path rather than depend on a third-party provider.
-- The same monitor ID reuses its notification ID, so a new status replaces the old
-  one. Alert-policy lookup is server-scoped even though the displayed notification
-  remains provider-neutral.
+- Managed alerts derive a stable, hashed notification ID from server scope and
+  monitor ID, so a new status replaces the old one without colliding across servers.
+  Manual legacy payloads retain the previous monitor-ID fallback.
 - A notification that is actually posted is also appended to the encrypted,
   bounded device event log. The webhook body has no trustworthy server identity,
   so the entry remains provider-neutral rather than being assigned to a guessed

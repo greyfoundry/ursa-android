@@ -34,6 +34,7 @@
     <string name="action_sign_out">Sign out</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_save">Save</string>
+    <string name="action_done">Done</string>
     <string name="connection_status">Connection: %1$s</string>
     <string name="connection_offline">Offline</string>
     <string name="connection_connecting">Connecting</string>
@@ -458,6 +459,8 @@
     <string name="push_channel_standard">Standard monitor alerts</string>
     <string name="push_channel_silent">Silent monitor alerts</string>
     <string name="push_channel_description">Status notifications from your Uptime Kuma servers</string>
+    <string name="push_action_acknowledge">Acknowledge</string>
+    <string name="push_action_snooze_hour">Snooze 1 hour</string>
     <string name="push_refresh">Refresh</string>
     <string name="push_intro">Get a notification the moment a monitor goes down, over UnifiedPush, with no relay server and no Google services.</string>
     <string name="push_section_allow">1. Allow notifications</string>
@@ -519,6 +522,19 @@
     <string name="push_severity_standard_desc">Normal alert with sound and no vibration.</string>
     <string name="push_severity_silent">Silent</string>
     <string name="push_severity_silent_desc">Low-priority alert without sound or vibration.</string>
+    <string name="push_timing_dialog_title">Alert timing for %1$s</string>
+    <string name="push_timing_delay">Initial delay</string>
+    <string name="push_timing_repeat">Repeat every</string>
+    <string name="push_timing_repeat_count">Maximum repeats</string>
+    <string name="push_timing_immediate">Now</string>
+    <string name="push_timing_off">Off</string>
+    <string name="push_timing_minutes">%1$d min</string>
+    <string name="push_timing_default">No delay or repeats</string>
+    <string name="push_timing_delay_summary">Delay %1$d min</string>
+    <plurals name="push_timing_repeat_summary">
+        <item quantity="one">Every %1$d min · once</item>
+        <item quantity="other">Every %1$d min · %2$d times</item>
+    </plurals>
     <string name="push_diagnostics_section">Push diagnostics</string>
     <string name="push_diagnostics_desc">The local test checks Android only. Registration and message history stores timestamps and error categories, never endpoints or message contents.</string>
     <string name="push_diagnostics_last_registration">Last registration</string>

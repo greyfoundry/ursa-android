@@ -40,11 +40,29 @@ class PushAlertPolicyTest {
         val serverId = "0123456789abcdef0123456789abcdef"
         assertEquals("$serverId:42", PushAlertPreferenceKey.mode(serverId, 42))
         assertEquals("severity:$serverId:42", PushAlertPreferenceKey.severity(serverId, 42))
+        assertEquals("timing:$serverId:42", PushAlertPreferenceKey.timing(serverId, 42))
+        assertEquals("snooze:$serverId:42", PushAlertPreferenceKey.snooze(serverId, 42))
         assertTrue(PushAlertPreferenceKey.belongsToServer("$serverId:42", serverId))
         assertTrue(PushAlertPreferenceKey.belongsToServer("severity:$serverId:42", serverId))
+        assertTrue(PushAlertPreferenceKey.belongsToServer("timing:$serverId:42", serverId))
+        assertTrue(PushAlertPreferenceKey.belongsToServer("snooze:$serverId:42", serverId))
         assertFalse(PushAlertPreferenceKey.belongsToServer("other:$serverId:42", serverId))
         assertNull(PushAlertPreferenceKey.mode("not-valid", 42))
         assertNull(PushAlertPreferenceKey.severity(serverId, 0))
+        assertNull(PushAlertPreferenceKey.timing(serverId, 0))
+        assertNull(PushAlertPreferenceKey.snooze("not-valid", 42))
+    }
+
+    @Test
+    fun timingCodecFallsBackSafelyForMissingOrMalformedPreferences() {
+        assertEquals(PushAlertTiming(), PushAlertTimingCodec.decode(null))
+        assertEquals(PushAlertTiming(), PushAlertTimingCodec.decode(""))
+        assertEquals(PushAlertTiming(), PushAlertTimingCodec.decode("5:bad:3"))
+        assertEquals(PushAlertTiming(), PushAlertTimingCodec.decode("2:2:2"))
+
+        val timing = PushAlertTiming(firstDelayMinutes = 5, repeatMinutes = 15, maxRepeats = 3)
+        assertEquals("5:15:3", PushAlertTimingCodec.encode(timing))
+        assertEquals(timing, PushAlertTimingCodec.decode("5:15:3"))
     }
 
     @Test
