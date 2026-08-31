@@ -131,12 +131,16 @@ End-to-end testing uses a random short correlation marker; it is removed after a
 match, failed Kuma acknowledgement, unregister, or explicit disconnect. The matching
 push is rendered as fixed local copy and is excluded from operational event history.
 Per-monitor transition modes, delivery severities, alert timing, and snooze expiry
-are non-sensitive preferences scoped by the managed provider's random server ID and
-monitor ID. They contain no server address, endpoint, credential, or notification
-content. Delayed/repeating rendered alerts can contain infrastructure detail, so
+are non-sensitive preferences scoped by the managed provider's random server ID
+and monitor ID. The device-wide quiet-hours schedule is a separate non-sensitive
+preference. These settings contain no server address, endpoint, credential, or
+notification content. Delayed/repeating rendered alerts can contain infrastructure
+detail, so
 they are encrypted with the same Keystore-backed Tink AEAD as other private local
 state. WorkManager receives only an opaque random alert ID; work tags and system
 notification IDs are derived from a truncated hash rather than exposing server scope.
+Custom channel sounds remain wholly owned by Android settings; URSA persists no
+sound URI or media permission.
 
 **PLATFORM.** The only exported component is the launcher activity (plus the
 AppWidget receiver and Quick Settings tile, which the platform requires to be

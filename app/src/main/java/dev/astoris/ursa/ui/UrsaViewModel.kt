@@ -16,6 +16,8 @@ import dev.astoris.ursa.core.push.PushAlertModeStore
 import dev.astoris.ursa.core.push.PushAlertTiming
 import dev.astoris.ursa.core.push.PushAlertWorker
 import dev.astoris.ursa.core.push.PushSeverity
+import dev.astoris.ursa.core.push.PushQuietHours
+import dev.astoris.ursa.core.push.PushQuietHoursStore
 import dev.astoris.ursa.core.push.KumaWebhook
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
@@ -216,6 +218,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val pushSeverities: StateFlow<Map<Int, PushSeverity>> = _pushSeverities.asStateFlow()
     private val _pushAlertTimings = MutableStateFlow<Map<Int, PushAlertTiming>>(emptyMap())
     val pushAlertTimings: StateFlow<Map<Int, PushAlertTiming>> = _pushAlertTimings.asStateFlow()
+    private val pushQuietHoursStore = PushQuietHoursStore(app)
+    private val _pushQuietHours = MutableStateFlow(pushQuietHoursStore.load())
+    val pushQuietHours: StateFlow<PushQuietHours> = _pushQuietHours.asStateFlow()
 
     // Which bottom-nav tab is selected.
     private val _tab = MutableStateFlow(MainTab.MONITORS)
@@ -783,6 +788,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         val safeTiming = timing.normalized()
         if (!pushAlertModeStore.setTiming(serverId, monitorId, safeTiming)) return
         _pushAlertTimings.value = _pushAlertTimings.value + (monitorId to safeTiming)
+    }
+
+    fun setPushQuietHours(schedule: PushQuietHours) {
+        val safeSchedule = schedule.normalized()
+        pushQuietHoursStore.save(safeSchedule)
+        _pushQuietHours.value = safeSchedule
     }
 
     fun deleteKumaPushSetup() {

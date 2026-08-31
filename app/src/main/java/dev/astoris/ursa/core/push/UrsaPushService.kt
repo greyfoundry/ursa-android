@@ -79,7 +79,11 @@ class UrsaPushService : PushService() {
         ) {
             return
         }
-        val severity = policyStore.severity(enriched.serverId, enriched.monitorId)
+        val configuredSeverity = policyStore.severity(enriched.serverId, enriched.monitorId)
+        val severity = if (deliveryTest) configuredSeverity else PushQuietHoursPolicy.effectiveSeverity(
+            configuredSeverity,
+            PushQuietHoursStore(this).load(),
+        )
         val result = when {
             !deliveryTest && enriched.status == 0 && managedIdentity != null -> PushAlertWorker.beginDown(
                 context = this,

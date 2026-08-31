@@ -461,6 +461,16 @@
     <string name="push_channel_description">Status notifications from your Uptime Kuma servers</string>
     <string name="push_action_acknowledge">Acknowledge</string>
     <string name="push_action_snooze_hour">Snooze 1 hour</string>
+    <string name="push_quiet_hours_title">Quiet hours</string>
+    <string name="push_quiet_hours_enable">Silence alerts on a schedule</string>
+    <string name="push_quiet_hours_desc">Alerts still arrive through the silent channel, so incidents are never discarded.</string>
+    <string name="push_quiet_hours_from">From %1$s</string>
+    <string name="push_quiet_hours_until">Until %1$s</string>
+    <string name="push_quiet_hours_dnd_desc">Android Do Not Disturb controls the final interruption policy. URSA does not request permission to bypass it.</string>
+    <string name="push_quiet_hours_dnd_button">Open Do Not Disturb settings</string>
+    <string name="push_channels_title">Alert sounds</string>
+    <string name="push_channels_desc">Choose any sound, vibration pattern, or visibility Android offers for each alert level. These choices stay in system settings.</string>
+    <string name="push_channels_configure">Configure %1$s alerts</string>
     <string name="push_refresh">Refresh</string>
     <string name="push_intro">Get a notification the moment a monitor goes down, over UnifiedPush, with no relay server and no Google services.</string>
     <string name="push_section_allow">1. Allow notifications</string>

@@ -18,11 +18,15 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val alertId = inputData.getString(INPUT_ALERT_ID) ?: return Result.success()
         val store = PushPendingAlertStore(applicationContext)
         val alert = store.load(alertId)?.takeIf(store::isActive) ?: return Result.success()
+        val deliverySeverity = PushQuietHoursPolicy.effectiveSeverity(
+            alert.severity,
+            PushQuietHoursStore(applicationContext).load(),
+        )
         val result = UrsaPushService.postNotification(
             context = applicationContext,
             notice = alert.asNotice(),
             idOverride = PushAlertWork.identity(alert.serverId, alert.monitorId)?.notificationId,
-            severity = alert.severity,
+            severity = deliverySeverity,
         )
         if (result != PushLocalTestResult.POSTED) return Result.success()
 

@@ -380,8 +380,8 @@ copy, and an update to this ledger.
 | CP-022 | complete | Per-monitor mute and alert mode | KumaAlert, KumaCheck | Down-only, down-and-recovery, all supported transitions, or muted. |
 | CP-023 | complete | Severity and Android channels | KumaAlert, SignalNest | User-selectable severity mapped to stable Android channels and vibration/sound behaviour. |
 | CP-024 | complete | Delay, repeat, acknowledgement, and snooze | KumaAlert, RawMon | Per-monitor 0/1/5/10-minute delay, bounded 5/15/30-minute repeats (max five), acknowledgement, one-hour snooze, encrypted pending payloads, and recovery cancellation. |
-| CP-025 | pending | Quiet hours and DND-aware guidance | KumaAlert | Per-day quiet schedule; never silently claim to bypass system policy without granted access. |
-| CP-026 | pending | Custom sounds | KumaAlert | System picker and per-severity assignment; retain silent option. |
+| CP-025 | complete | Quiet hours and DND-aware guidance | KumaAlert | Weekly same-day/overnight schedule routes alerts to the silent channel at delivery time; Android DND remains authoritative and linked without policy-access claims. |
+| CP-026 | complete | Custom sounds | KumaAlert | Direct settings for each stable Android alert channel; system-owned sounds/vibration persist without app-held content URIs or channel recreation. |
 | CP-027 | pending | Recovery, maintenance, certificate, and update alerts | KumaAlert | Separate opt-ins and channels; deduplicate server push and local worker events. |
 | CP-028 | pending | Persistent overall-status notification | OpenKuma, Uptiminger, RawMon, KumaCheck | Optional foreground mode with clear battery cost, status counts, and app deep link. |
 | CP-029 | pending | Flap suppression and event deduplication | KumaCheck | Transition identity/window prevents repeated notifications while preserving genuine recoveries. |

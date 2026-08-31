@@ -1,9 +1,14 @@
 package dev.astoris.ursa.ui.push
 
 import android.Manifest
+import android.app.TimePickerDialog
+import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -53,6 +59,7 @@ import dev.astoris.ursa.R
 import dev.astoris.ursa.core.push.PushAlertMode
 import dev.astoris.ursa.core.push.PushAlertTiming
 import dev.astoris.ursa.core.push.PushSeverity
+import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
@@ -60,6 +67,9 @@ import dev.astoris.ursa.core.push.PushLocalTestResult
 import dev.astoris.ursa.core.push.PushRegistrationError
 import kotlinx.coroutines.launch
 import java.text.DateFormat
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Calendar
 import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +88,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val alertModes by vm.pushAlertModes.collectAsStateWithLifecycle()
     val severities by vm.pushSeverities.collectAsStateWithLifecycle()
     val alertTimings by vm.pushAlertTimings.collectAsStateWithLifecycle()
+    val quietHours by vm.pushQuietHours.collectAsStateWithLifecycle()
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -191,6 +202,104 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             stringResource(R.string.push_diagnostics_last_error),
                             errorText,
                         )
+                    }
+                }
+            }
+
+            Section(stringResource(R.string.push_quiet_hours_title)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = quietHours.enabled,
+                            role = Role.Checkbox,
+                            onValueChange = { vm.setPushQuietHours(quietHours.copy(enabled = it)) },
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = quietHours.enabled, onCheckedChange = null)
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.push_quiet_hours_enable))
+                        Text(
+                            stringResource(R.string.push_quiet_hours_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (quietHours.enabled) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                showTimePicker(context, quietHours.startMinute) { minute ->
+                                    vm.setPushQuietHours(quietHours.copy(startMinute = minute))
+                                }
+                            },
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.push_quiet_hours_from,
+                                    formatMinute(context, quietHours.startMinute),
+                                ),
+                            )
+                        }
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                showTimePicker(context, quietHours.endMinute) { minute ->
+                                    vm.setPushQuietHours(quietHours.copy(endMinute = minute))
+                                }
+                            },
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.push_quiet_hours_until,
+                                    formatMinute(context, quietHours.endMinute),
+                                ),
+                            )
+                        }
+                    }
+                    QuietDayRow(
+                        days = DayOfWeek.entries.take(5),
+                        schedule = quietHours,
+                        onChange = vm::setPushQuietHours,
+                    )
+                    QuietDayRow(
+                        days = DayOfWeek.entries.drop(5),
+                        schedule = quietHours,
+                        onChange = vm::setPushQuietHours,
+                    )
+                }
+                Text(
+                    stringResource(R.string.push_quiet_hours_dnd_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = {
+                        context.startActivity(Intent(ACTION_ZEN_MODE_SETTINGS))
+                    },
+                ) {
+                    Text(stringResource(R.string.push_quiet_hours_dnd_button))
+                }
+            }
+
+            Section(stringResource(R.string.push_channels_title)) {
+                Text(
+                    stringResource(R.string.push_channels_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PushSeverity.entries.forEach { severity ->
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { openChannelSettings(context, severity) },
+                    ) {
+                        Text(stringResource(R.string.push_channels_configure, stringResource(severity.labelRes)))
                     }
                 }
             }
@@ -671,6 +780,71 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         )
     }
 }
+
+@Composable
+private fun QuietDayRow(
+    days: List<DayOfWeek>,
+    schedule: PushQuietHours,
+    onChange: (PushQuietHours) -> Unit,
+) {
+    val locale = LocalLocale.current.platformLocale
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        days.forEach { day ->
+            val selected = schedule.includes(day)
+            TextButton(
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    val bit = PushQuietHours.dayMask(day)
+                    val nextMask = if (selected) schedule.daysMask and bit.inv()
+                    else schedule.daysMask or bit
+                    onChange(schedule.copy(daysMask = nextMask))
+                },
+            ) {
+                Text(
+                    day.getDisplayName(TextStyle.SHORT, locale),
+                    color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun showTimePicker(context: Context, initialMinute: Int, onPicked: (Int) -> Unit) {
+    val safeMinute = initialMinute.coerceIn(0, PushQuietHours.MINUTES_PER_DAY - 1)
+    TimePickerDialog(
+        context,
+        { _, hour, minute -> onPicked(hour * 60 + minute) },
+        safeMinute / 60,
+        safeMinute % 60,
+        android.text.format.DateFormat.is24HourFormat(context),
+    ).show()
+}
+
+private fun formatMinute(context: Context, minute: Int): String {
+    val safeMinute = minute.coerceIn(0, PushQuietHours.MINUTES_PER_DAY - 1)
+    val calendar = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, safeMinute / 60)
+        set(Calendar.MINUTE, safeMinute % 60)
+    }
+    return android.text.format.DateFormat.getTimeFormat(context).format(calendar.time)
+}
+
+private fun openChannelSettings(context: Context, severity: PushSeverity) {
+    val channelIntent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        .putExtra(Settings.EXTRA_CHANNEL_ID, dev.astoris.ursa.core.push.PushSeverityPolicy.route(severity).channelId)
+    try {
+        context.startActivity(channelIntent)
+    } catch (_: ActivityNotFoundException) {
+        context.startActivity(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+        )
+    }
+}
+
+private const val ACTION_ZEN_MODE_SETTINGS = "android.settings.ZEN_MODE_SETTINGS"
 
 @Composable
 private fun TimingChoices(

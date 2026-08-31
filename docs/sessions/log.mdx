@@ -9,6 +9,25 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-31 - quiet hours and system-owned custom alert sounds
+
+**changed**: Completed parity items CP-025 and CP-026. A device-wide weekly quiet
+schedule supports selected days plus same-day or overnight time windows. Alerts
+inside the window still arrive but use the existing silent channel, evaluated at
+actual delivery time for immediate, delayed, and repeated work. The screen links
+to Android Do Not Disturb settings and to each stable severity channel for custom
+sound, vibration, and visibility choices.
+
+**platform boundary**: URSA never discards a quiet-hours incident, requests DND
+policy access, stores a sound content URI, or recreates a channel. Android remains
+the source of truth for final interruption policy and persists the user's channel
+customizations across app updates.
+
+**verification**: Pure tests cover disabled, same-day, overnight, day-mask,
+boundary, and malformed-schedule behavior. Existing severity-route tests protect
+the three stable channel IDs. Full unit, lint, assembly, and Android 17 UI checks
+followed.
+
 ### 2026-08-31 - delayed, repeating, acknowledged, and snoozed push alerts
 
 **changed**: Completed parity item CP-024. Managed monitors can keep immediate

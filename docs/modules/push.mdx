@@ -37,6 +37,8 @@ connection: push works while the app is closed.
   repeat chaining. WorkManager input contains only an opaque alert ID.
 - `.../core/push/PushAlertActionReceiver.kt` - non-exported acknowledge and
   one-hour snooze notification actions.
+- `.../core/push/PushQuietHours.kt` / `PushQuietHoursStore.kt` - local weekly
+  schedule that routes delivery-time alerts to the existing silent channel.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, configure per-monitor alert modes and
@@ -101,6 +103,16 @@ connection: push works while the app is closed.
   one hour later. Both actions use immutable PendingIntents targeting a non-exported
   receiver. Manual and legacy Webhooks stay immediate because they lack the server
   scope required for collision-safe per-monitor policy.
+- Quiet hours are a device-wide weekly push schedule with configurable start/end
+  times and selected days. Same-day and overnight windows are supported. Alerts
+  are never discarded: the effective severity becomes silent at actual delivery
+  time, including delayed or repeated work. Android Do Not Disturb remains
+  authoritative and the UI links to its settings without requesting policy access
+  or claiming that URSA can bypass it.
+- Custom sounds and vibration are delegated to Android's settings for the stable
+  critical, standard, and silent channels. The Notifications screen links directly
+  to each channel. URSA stores no content URI and never recreates a channel, so a
+  user's custom choice survives app updates and remains under system control.
 - Existing-monitor assignment reads are capped at four concurrent requests. Writes
   run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
   a fleet-wide restart burst. No-op relations are skipped.
