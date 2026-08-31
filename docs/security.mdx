@@ -129,6 +129,12 @@ monitor object when changing notification assignments; that potentially sensitiv
 object is held only for the acknowledgement round trip, never persisted or logged,
 and only its `notificationIDList` is changed.
 
+Monitor editing follows the same bounded full-object round trip. The UI receives
+only common typed fields; the freshly fetched raw object, including advanced or
+sensitive fields, remains inside the network adapter, is never persisted or logged,
+and is patched without dropping unknown fields. Deletion requires an explicit
+named-target confirmation, with group-child removal as a separate opt-in.
+
 Push diagnostics retain timestamps, normalized registration error categories, and
 local/end-to-end test outcomes in the existing non-backed-up push preferences. They
 never persist message bodies, monitor names, server URLs, or a second endpoint copy.

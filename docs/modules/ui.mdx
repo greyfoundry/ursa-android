@@ -49,6 +49,8 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume,
   and a confirmed external-browser link to the monitor's Kuma dashboard.
+- `.../ui/monitors/MonitorEditorScreen.kt` - typed create/common-edit form with
+  inline validation, explicit active state, server errors, and no raw JSON surface.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
   plus a low-cost native Canvas chart with touch and accessibility exploration.
 - `.../ui/statuspage/StatusPageScreen.kt` - unlimited encrypted local public-page
@@ -75,7 +77,8 @@ navigation library for M1 - the screen set is small and state-driven).
   actions `login`, `loginWithSessionToken`, `testConnection`, `testSessionToken`,
   `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
-  `pause`/`resume`, `toggleFavorite`, and saved status-page CRUD/order/open/refresh.
+  `pause`/`resume`, monitor create/edit/delete, `toggleFavorite`, and saved
+  status-page CRUD/order/open/refresh.
 
 **depends on**
 - `data/repository`, `core/network` (StatusPageClient), Compose Material 3,

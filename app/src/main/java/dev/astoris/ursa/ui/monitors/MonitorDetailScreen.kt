@@ -84,12 +84,15 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
     var actionInFlight by remember(monitor.id) { mutableStateOf(false) }
     var moreOpen by remember(monitor.id) { mutableStateOf(false) }
     var confirmBrowserOpen by remember(monitor.id) { mutableStateOf(false) }
+    var confirmDelete by remember(monitor.id) { mutableStateOf(false) }
+    var deleteChildren by remember(monitor.id) { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val pausedMessage = stringResource(R.string.monitor_paused)
     val pauseFailedMessage = stringResource(R.string.monitor_pause_failed)
     val resumedMessage = stringResource(R.string.monitor_resumed)
     val resumeFailedMessage = stringResource(R.string.monitor_resume_failed)
+    val deleteFailedMessage = stringResource(R.string.monitor_delete_failed)
     LaunchedEffect(monitor.id) { overrideText = vm.monitorThresholdMs(monitor.id)?.toString() ?: "" }
 
     BackHandler { vm.back() }
@@ -118,11 +121,25 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
                         }
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_edit_monitor)) },
+                                onClick = {
+                                    moreOpen = false
+                                    vm.editMonitor(monitor.id)
+                                },
+                            )
+                            DropdownMenuItem(
                                 enabled = browserUrl != null,
                                 text = { Text(stringResource(R.string.action_open_in_kuma)) },
                                 onClick = {
                                     moreOpen = false
                                     confirmBrowserOpen = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_delete_monitor)) },
+                                onClick = {
+                                    moreOpen = false
+                                    confirmDelete = true
                                 },
                             )
                         }
@@ -268,6 +285,49 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
                 Button(onClick = { confirmBrowserOpen = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
+            },
+        )
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { if (!actionInFlight) confirmDelete = false },
+            title = { Text(stringResource(R.string.monitor_delete_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.monitor_delete_message, monitor.name))
+                    if (monitor.type == "group") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Checkbox(
+                                checked = deleteChildren,
+                                onCheckedChange = { deleteChildren = it },
+                            )
+                            Text(stringResource(R.string.monitor_delete_children))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !actionInFlight,
+                    onClick = {
+                        actionInFlight = true
+                        vm.deleteMonitor(monitor.id, deleteChildren) { result ->
+                            actionInFlight = false
+                            if (!result.ok) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(result.message ?: deleteFailedMessage)
+                                }
+                            }
+                        }
+                    },
+                ) { Text(stringResource(R.string.action_delete_monitor)) }
+            },
+            dismissButton = {
+                Button(
+                    enabled = !actionInFlight,
+                    onClick = { confirmDelete = false },
+                ) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }

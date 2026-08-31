@@ -221,6 +221,56 @@ class KumaClient(
     suspend fun pauseMonitor(id: Int): Boolean = emitAck("pauseMonitor", id)?.optBoolean("ok") == true
     suspend fun resumeMonitor(id: Int): Boolean = emitAck("resumeMonitor", id)?.optBoolean("ok") == true
 
+    suspend fun monitorDraft(id: Int): MonitorDraft? {
+        val raw = rawMonitor(id) ?: return null
+        val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull() ?: return null
+        return MonitorDraftCodec.from(json)
+    }
+
+    /** Creates a supported monitor or safely patches common fields on any known Kuma 2.5.3 type. */
+    suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult {
+        MonitorDraftCodec.validate(draft)?.let { error ->
+            return MonitorMutationResult(false, message = error.name)
+        }
+        val payload = if (draft.isNew) {
+            MonitorDraftCodec.newPayload(draft)
+        } else {
+            val raw = rawMonitor(draft.id ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE"))
+                ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE")
+            val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
+                ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE")
+            MonitorDraftCodec.applyToExisting(json, draft)
+        }
+        val event = if (draft.isNew) "add" else "editMonitor"
+        val response = emitAck(event, JSONObject(payload.toString()))
+            ?: return MonitorMutationResult(false, message = "Server did not respond within 15 seconds")
+        if (!response.optBoolean("ok")) {
+            return MonitorMutationResult(false, message = response.optString("msg").ifBlank { "Save failed" })
+        }
+        val id = response.optInt("monitorID").takeIf { it > 0 } ?: draft.id
+        if (!draft.isNew && id != null) {
+            val originalActive = _monitors.value[id]?.active
+            if (originalActive != null && originalActive != draft.active) {
+                val activeChanged = if (draft.active) resumeMonitor(id) else pauseMonitor(id)
+                if (!activeChanged) {
+                    return MonitorMutationResult(false, id, "Saved, but the active state could not be changed")
+                }
+            }
+        }
+        return MonitorMutationResult(true, id)
+    }
+
+    suspend fun deleteMonitor(id: Int, deleteChildren: Boolean = false): MonitorMutationResult {
+        if (id <= 0) return MonitorMutationResult(false, message = "Invalid monitor")
+        val response = emitAck("deleteMonitor", id, deleteChildren)
+            ?: return MonitorMutationResult(false, message = "Server did not respond within 15 seconds")
+        return if (response.optBoolean("ok")) {
+            MonitorMutationResult(true, id)
+        } else {
+            MonitorMutationResult(false, id, response.optString("msg").ifBlank { "Delete failed" })
+        }
+    }
+
     /** Recent heartbeat history for the detail view. Rows are snake_case (see KumaParse). */
     suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> {
         val res = emitAck("getMonitorBeats", id, hours) ?: return emptyList()

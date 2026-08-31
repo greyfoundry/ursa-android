@@ -9,6 +9,23 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-31 - Native monitor CRUD and safe common editing (CP-030)
+
+**changed**: Added the verified 33-type Uptime Kuma 2.5.3 catalogue, typed
+monitor drafts, common create flows, safe existing-monitor common edits, active
+state control, named destructive confirmation, and group-child deletion choice.
+Existing edits fetch the full object immediately before save and retain every
+advanced, sensitive, unknown, and future field inside the network adapter.
+
+**live verification**: Against the local Kuma 2.5.3 instance, created
+`URSA_CRUD_QA`, renamed it to `URSA_CRUD_QA_EDITED`, confirmed the updated live
+detail, then deleted it through URSA and confirmed it disappeared from the live
+monitor list. Android 17 crash buffer remained empty.
+
+**coverage boundary**: CP-030 is complete. CP-031 is partial: all 33 existing
+types can be common-edited safely; native creation currently covers HTTP(S), TCP
+port, ping, DNS, push, group, and manual while advanced type-specific forms remain.
+
 ### 2026-08-31 - Safe external Kuma monitor links (CP-037)
 
 **changed**: Verified Uptime Kuma 2.5.3's canonical monitor route from the

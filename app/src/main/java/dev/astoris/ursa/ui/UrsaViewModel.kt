@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.MonitorDraft
+import dev.astoris.ursa.core.network.MonitorMutationResult
 import dev.astoris.ursa.core.network.ResolvedStatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddressError
@@ -127,6 +129,14 @@ sealed interface KumaPushSetupUiState {
     data class Error(val reason: KumaPushSetupError) : KumaPushSetupUiState
 }
 
+sealed interface MonitorEditorUiState {
+    data object Idle : MonitorEditorUiState
+    data object Loading : MonitorEditorUiState
+    data class Ready(val draft: MonitorDraft) : MonitorEditorUiState
+    data class Saving(val draft: MonitorDraft) : MonitorEditorUiState
+    data class Error(val draft: MonitorDraft?, val message: String) : MonitorEditorUiState
+}
+
 private sealed interface StatusPageResolution {
     data class Success(
         val address: ResolvedStatusPageAddress,
@@ -186,6 +196,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val selectedMonitor: StateFlow<Monitor?> =
         combine(_selectedId, monitors) { id, list -> list.firstOrNull { it.id == id } }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val _monitorEditor = MutableStateFlow<MonitorEditorUiState>(MonitorEditorUiState.Idle)
+    val monitorEditor: StateFlow<MonitorEditorUiState> = _monitorEditor.asStateFlow()
 
     private val _beats = MutableStateFlow<List<Heartbeat>>(emptyList())
     val beats: StateFlow<List<Heartbeat>> = _beats.asStateFlow()
@@ -454,6 +466,44 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         val succeeded = repo.resume(id)
         if (succeeded) recordMonitorAction(id, LocalEventKind.RESUMED)
         onResult(succeeded)
+    }
+
+    fun createMonitor() {
+        _monitorEditor.value = MonitorEditorUiState.Ready(MonitorDraft.create())
+    }
+
+    fun editMonitor(id: Int) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            _monitorEditor.value = repo.monitorDraft(id)?.let(MonitorEditorUiState::Ready)
+                ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
+        }
+    }
+
+    fun saveMonitor(draft: MonitorDraft) {
+        _monitorEditor.value = MonitorEditorUiState.Saving(draft)
+        viewModelScope.launch {
+            val result = repo.saveMonitor(draft)
+            _monitorEditor.value = if (result.ok) {
+                MonitorEditorUiState.Idle
+            } else {
+                MonitorEditorUiState.Error(draft, result.message ?: "Save failed")
+            }
+        }
+    }
+
+    fun closeMonitorEditor() {
+        _monitorEditor.value = MonitorEditorUiState.Idle
+    }
+
+    fun deleteMonitor(
+        id: Int,
+        deleteChildren: Boolean = false,
+        onResult: (MonitorMutationResult) -> Unit = {},
+    ) = viewModelScope.launch {
+        val result = repo.deleteMonitor(id, deleteChildren)
+        if (result.ok) back()
+        onResult(result)
     }
 
     private suspend fun recordMonitorAction(id: Int, kind: LocalEventKind) {

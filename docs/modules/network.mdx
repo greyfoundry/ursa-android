@@ -28,6 +28,8 @@ here so the rest of the app sees clean domain models.
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
 - `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
   confirmed external-browser dashboard and monitor links.
+- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.3 type catalogue,
+  typed common-field validation, safe patching, and create defaults.
 
 **exports**
 - `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
@@ -35,8 +37,8 @@ here so the rest of the app sees clean domain models.
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
-  notification relation reads/updates, `testManagedPushNotification`, and
-  `disconnect()`. Flows: `state`,
+  notification relation reads/updates, `testManagedPushNotification`, monitor
+  draft load/save/delete, and `disconnect()`. Flows: `state`,
   `monitors`, `heartbeats`, `certs`, and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
   `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`.
@@ -52,6 +54,9 @@ here so the rest of the app sees clean domain models.
 - `ServerWebLink.dashboard/monitor` - preserves a valid reverse-proxy base path while
   rejecting non-HTTP schemes, embedded credentials, traversal, encoded separators,
   queries, and fragments.
+- `MonitorDraftCodec` - maps a full monitor response to a bounded common
+  editor model, patches a newly fetched full object without removing unknown
+  fields, and builds typed defaults for common create flows.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
@@ -85,6 +90,10 @@ here so the rest of the app sees clean domain models.
   Relation updates therefore round-trip the complete object through `editMonitor`
   while changing only `notificationIDList`. That potentially sensitive raw object
   stays inside the client method and is never persisted or logged.
+- Existing monitor edits also fetch the full object immediately before saving and
+  change only fields present in the typed common editor. Credentials, advanced
+  settings, and fields introduced by future Kuma versions never leave the network
+  adapter and are preserved in the round trip.
 - `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) - safe,
   and every acknowledgement has a 15-second upper bound so an inaccessible
   server cannot leave a UI action loading forever.

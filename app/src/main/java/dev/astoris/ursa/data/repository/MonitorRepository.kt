@@ -2,6 +2,8 @@ package dev.astoris.ursa.data.repository
 
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.KumaClient
+import dev.astoris.ursa.core.network.MonitorDraft
+import dev.astoris.ursa.core.network.MonitorMutationResult
 import dev.astoris.ursa.core.storage.CertExpiry
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.CertExpiryUtil
@@ -330,6 +332,12 @@ class MonitorRepository(
 
     suspend fun pause(id: Int): Boolean = activeClient.value?.pauseMonitor(id) ?: false
     suspend fun resume(id: Int): Boolean = activeClient.value?.resumeMonitor(id) ?: false
+    suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
+    suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult =
+        activeClient.value?.saveMonitor(draft) ?: MonitorMutationResult(false, message = "Server unavailable")
+    suspend fun deleteMonitor(id: Int, deleteChildren: Boolean = false): MonitorMutationResult =
+        activeClient.value?.deleteMonitor(id, deleteChildren)
+            ?: MonitorMutationResult(false, id, "Server unavailable")
 
     /** Fetch a fixed window on demand, with bounded concurrency for large fleets. */
     suspend fun chartData(

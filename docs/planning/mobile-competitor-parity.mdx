@@ -390,8 +390,8 @@ copy, and an update to this ledger.
 
 | ID | Status | Capability | Evidence sources | Acceptance boundary |
 | --- | --- | --- | --- | --- |
-| CP-030 | pending | Create/edit/delete monitors | KumaAlert, Manager, PocketKuma, KumaCheck, Uptiminger | Typed, validated forms; preserve unknown fields; destructive confirmation; no raw JSON primary editor. |
-| CP-031 | pending | Current Uptime Kuma monitor-type coverage | KumaAlert, Manager, PocketKuma | Derive forms from verified 2.5.3 contracts; unsupported types get safe common-field editing without data loss. |
+| CP-030 | complete | Create/edit/delete monitors | KumaAlert, Manager, PocketKuma, KumaCheck, Uptiminger | Typed validation covers common create flows; every existing 2.5.3 type supports safe common-field editing through a fresh full-object round trip that preserves unknown fields. Deletion names the target, warns that heartbeat history is removed, and gives groups an explicit child-deletion choice. No raw JSON editor is exposed. Live create/edit/delete passed against Kuma 2.5.3. |
+| CP-031 | partial | Current Uptime Kuma monitor-type coverage | KumaAlert, Manager, PocketKuma | The verified 2.5.3 catalogue contains 33 types and all can be safely common-edited without data loss. Native creation currently covers HTTP(S), TCP port, ping, DNS, push, group, and manual; advanced type-specific create fields remain. |
 | CP-032 | pending | Notification-channel assignment | KumaAlert, Manager | List existing Kuma notification providers, assign per monitor, and support default-enabled notification. |
 | CP-033 | pending | Bulk pause/resume and selection | Manager | Scope by selection/filter and require confirmation for fleet-wide changes. |
 | CP-034 | pending | Server-synced groups, tags, folders, and ordering | KumaAlert | Edit membership/order using Kuma events; avoid client-only order divergence. |

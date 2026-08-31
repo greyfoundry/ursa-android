@@ -30,6 +30,7 @@ import dev.astoris.ursa.ui.connections.LoginScreen
 import dev.astoris.ursa.ui.connections.ConnectionManagerScreen
 import dev.astoris.ursa.ui.lock.LockScreen
 import dev.astoris.ursa.ui.monitors.MonitorDetailScreen
+import dev.astoris.ursa.ui.monitors.MonitorEditorScreen
 import dev.astoris.ursa.ui.statuspage.StatusPageScreen
 
 @Composable
@@ -42,6 +43,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val connectionManagerMode by vm.connectionManagerMode.collectAsStateWithLifecycle()
     val addingConnection by vm.addingConnection.collectAsStateWithLifecycle()
     val editingConnection by vm.editingConnection.collectAsStateWithLifecycle()
+    val monitorEditor by vm.monitorEditor.collectAsStateWithLifecycle()
 
     // Re-lock when the app goes to the background (if the lock is enabled).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -65,6 +67,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
         )
         connectionManagerMode -> ConnectionManagerScreen(vm)
         !hasSession -> LoginScreen(vm)
+        monitorEditor !is MonitorEditorUiState.Idle -> MonitorEditorScreen(vm)
         selected != null -> MonitorDetailScreen(vm, selected!!)
         else -> MainShell(vm)
     }

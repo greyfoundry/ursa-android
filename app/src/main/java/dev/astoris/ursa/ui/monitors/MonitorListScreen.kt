@@ -274,6 +274,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         }
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.monitor_add_title)) },
+                                onClick = { vm.createMonitor(); moreOpen = false },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.incident_center_title)) },
                                 onClick = { overlay = MonitorOverlay.INCIDENTS; moreOpen = false },
                             )
