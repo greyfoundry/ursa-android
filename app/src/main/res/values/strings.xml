@@ -454,6 +454,10 @@
     <string name="statuspage_no_recent_checks">No recent checks</string>
 
     <!-- Push notifications screen -->
+    <string name="push_channel_critical">Critical monitor alerts</string>
+    <string name="push_channel_standard">Standard monitor alerts</string>
+    <string name="push_channel_silent">Silent monitor alerts</string>
+    <string name="push_channel_description">Status notifications from your Uptime Kuma servers</string>
     <string name="push_refresh">Refresh</string>
     <string name="push_intro">Get a notification the moment a monitor goes down, over UnifiedPush, with no relay server and no Google services.</string>
     <string name="push_section_allow">1. Allow notifications</string>
@@ -496,7 +500,7 @@
     <string name="push_kuma_save_failed">Kuma could not save the managed Webhook provider.</string>
     <string name="push_kuma_delete_failed">Kuma could not remove the managed Webhook provider.</string>
     <string name="push_alert_modes_title">Per-monitor alerts</string>
-    <string name="push_alert_modes_desc">Choose which transitions can notify this phone. These settings stay on this device.</string>
+    <string name="push_alert_modes_desc">Choose which transitions notify this phone and how strongly Android should signal them. These settings stay on this device.</string>
     <string name="push_alert_modes_update_needed">Save the Kuma setup first to enable server-scoped alert modes.</string>
     <string name="push_alert_mode_dialog_title">Alerts for %1$s</string>
     <string name="push_alert_mode_muted">Muted</string>
@@ -507,6 +511,14 @@
     <string name="push_alert_mode_down_recovery_desc">Notify when the monitor goes down and when it recovers.</string>
     <string name="push_alert_mode_all">All transitions</string>
     <string name="push_alert_mode_all_desc">Notify for every status sent by Kuma, including maintenance and pending.</string>
+    <string name="push_severity_dialog_title">Severity for %1$s</string>
+    <string name="push_severity_dialog_desc">Android keeps each level in a stable channel, so you can fine-tune it later in system settings.</string>
+    <string name="push_severity_critical">Critical</string>
+    <string name="push_severity_critical_desc">High-priority alert with sound and vibration.</string>
+    <string name="push_severity_standard">Standard</string>
+    <string name="push_severity_standard_desc">Normal alert with sound and no vibration.</string>
+    <string name="push_severity_silent">Silent</string>
+    <string name="push_severity_silent_desc">Low-priority alert without sound or vibration.</string>
     <string name="push_diagnostics_section">Push diagnostics</string>
     <string name="push_diagnostics_desc">The local test checks Android only. Registration and message history stores timestamps and error categories, never endpoints or message contents.</string>
     <string name="push_diagnostics_last_registration">Last registration</string>
@@ -522,7 +534,7 @@
     <string name="push_test_local_posted">Android accepted the test notification.</string>
     <string name="push_test_local_permission">Notification permission is required.</string>
     <string name="push_test_local_app_disabled">Notifications are disabled for URSA in Android settings.</string>
-    <string name="push_test_local_channel_disabled">The Monitor alerts channel is disabled in Android settings.</string>
+    <string name="push_test_local_channel_disabled">The selected monitor-alert channel is disabled in Android settings.</string>
     <string name="push_test_local_notification_title">URSA notification test</string>
     <string name="push_test_local_notification_body">Android notifications are working. No Kuma or distributor was contacted.</string>
     <string name="push_test_kuma_title">End-to-end Kuma delivery</string>

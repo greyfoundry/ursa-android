@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-27
+last-updated: 2026-08-31
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,24 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-08-31 - per-monitor severity and stable Android channels
+
+**changed**: Completed parity item CP-023. Each managed monitor now has a separate
+critical, standard, or silent delivery severity in addition to its transition
+mode. The setting is device-local and server-scoped, defaults to the previous
+critical behavior, and is editable beside the existing per-monitor mode.
+
+**channel boundary**: Critical, standard, and silent use stable Android channel
+IDs with high/sound/vibration, default/sound/no-forced-vibration, and
+low/no-sound/no-vibration defaults respectively. Critical uses a new channel ID
+because Android correctly preserves an already-created legacy channel's behavior;
+the old channel is left untouched rather than overriding user settings.
+
+**verification**: Focused tests cover every stable route, upgrade/corrupt-value
+fallback, and server-scoped preference keys. Android 17 created all three channels
+with the expected importance, sound, and vibration settings, and the local test
+posted on the new critical channel. Full-suite and lint verification followed.
 
 ### 2026-08-27 - Glance 1.2.0 maintenance update
 
@@ -429,7 +447,9 @@ header values are never logged or rendered in summaries.
 **verification**: Added focused normalization/injection tests and exercised the
 form on the emulator. A temporary Socket.IO server returned login success only
 when the expected custom header arrived in its handshake; URSA's connection test
-passed through that gate. The temporary container was then removed.
+passed through that gate. A later issue #40 audit repeated the check against
+official Kuma 2.5.3 behind a Pangolin-style header gate and verified both polling
+and WebSocket upgrade. The temporary containers were then removed.
 
 ### 2026-08-25 - imported Kuma session authentication
 

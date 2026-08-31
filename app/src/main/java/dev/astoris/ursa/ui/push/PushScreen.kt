@@ -51,6 +51,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.push.PushAlertMode
+import dev.astoris.ursa.core.push.PushSeverity
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
@@ -74,10 +75,12 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val diagnostics by vm.pushDiagnostics.collectAsStateWithLifecycle()
     val kumaTestSending by vm.kumaPushTestSending.collectAsStateWithLifecycle()
     val alertModes by vm.pushAlertModes.collectAsStateWithLifecycle()
+    val severities by vm.pushSeverities.collectAsStateWithLifecycle()
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
     var confirmRemove by remember { mutableStateOf(false) }
     var modeMonitorId by remember { mutableStateOf<Int?>(null) }
+    var severityMonitorId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(endpoint) {
         if (endpoint != null) vm.refreshKumaPushSetup()
@@ -419,6 +422,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             } else {
                                 monitors.forEach { monitor ->
                                     val mode = alertModes[monitor.id] ?: PushAlertMode.ALL_TRANSITIONS
+                                    val severity = severities[monitor.id] ?: PushSeverity.CRITICAL
                                     Row(
                                         Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -429,8 +433,13 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                             style = MaterialTheme.typography.bodyMedium,
                                             modifier = Modifier.weight(1f),
                                         )
-                                        TextButton(onClick = { modeMonitorId = monitor.id }) {
-                                            Text(stringResource(mode.labelRes))
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            TextButton(onClick = { modeMonitorId = monitor.id }) {
+                                                Text(stringResource(mode.labelRes))
+                                            }
+                                            TextButton(onClick = { severityMonitorId = monitor.id }) {
+                                                Text(stringResource(severity.labelRes))
+                                            }
                                         }
                                     }
                                 }
@@ -551,6 +560,60 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             },
         )
     }
+    val severityMonitor = severityMonitorId?.let { id -> monitors.firstOrNull { it.id == id } }
+    if (severityMonitor != null) {
+        val selectedSeverity = severities[severityMonitor.id] ?: PushSeverity.CRITICAL
+        AlertDialog(
+            onDismissRequest = { severityMonitorId = null },
+            title = {
+                Text(stringResource(R.string.push_severity_dialog_title, severityMonitor.name))
+            },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.push_severity_dialog_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    PushSeverity.entries.forEach { severity ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = severity == selectedSeverity,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        vm.setPushSeverity(severityMonitor.id, severity)
+                                        severityMonitorId = null
+                                    },
+                                )
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = severity == selectedSeverity, onClick = null)
+                            Column(
+                                Modifier
+                                    .padding(start = 8.dp)
+                                    .weight(1f),
+                            ) {
+                                Text(stringResource(severity.labelRes))
+                                Text(
+                                    stringResource(severity.descriptionRes),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { severityMonitorId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
 }
 
 private val PushAlertMode.labelRes: Int
@@ -567,6 +630,20 @@ private val PushAlertMode.descriptionRes: Int
         PushAlertMode.DOWN_ONLY -> R.string.push_alert_mode_down_only_desc
         PushAlertMode.DOWN_AND_RECOVERY -> R.string.push_alert_mode_down_recovery_desc
         PushAlertMode.ALL_TRANSITIONS -> R.string.push_alert_mode_all_desc
+    }
+
+private val PushSeverity.labelRes: Int
+    get() = when (this) {
+        PushSeverity.CRITICAL -> R.string.push_severity_critical
+        PushSeverity.STANDARD -> R.string.push_severity_standard
+        PushSeverity.SILENT -> R.string.push_severity_silent
+    }
+
+private val PushSeverity.descriptionRes: Int
+    get() = when (this) {
+        PushSeverity.CRITICAL -> R.string.push_severity_critical_desc
+        PushSeverity.STANDARD -> R.string.push_severity_standard_desc
+        PushSeverity.SILENT -> R.string.push_severity_silent_desc
     }
 
 private val KumaPushSetupError.messageRes: Int

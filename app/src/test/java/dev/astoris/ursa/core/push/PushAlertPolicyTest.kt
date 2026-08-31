@@ -1,6 +1,7 @@
 package dev.astoris.ursa.core.push
 
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -8,6 +9,43 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PushAlertPolicyTest {
+
+    @Test
+    fun severitiesRouteToStableAndroidChannelBehavior() {
+        assertEquals(
+            PushChannelRoute("ursa_monitors_critical", highPriority = true, sound = true, vibration = true),
+            PushSeverityPolicy.route(PushSeverity.CRITICAL),
+        )
+        assertEquals(
+            PushChannelRoute("ursa_monitors_standard", highPriority = false, sound = true, vibration = false),
+            PushSeverityPolicy.route(PushSeverity.STANDARD),
+        )
+        assertEquals(
+            PushChannelRoute("ursa_monitors_silent", highPriority = false, sound = false, vibration = false),
+            PushSeverityPolicy.route(PushSeverity.SILENT),
+        )
+    }
+
+    @Test
+    fun missingOrInvalidSavedSeverityKeepsExistingCriticalBehavior() {
+        assertEquals(PushSeverity.CRITICAL, PushSeverityPolicy.decode(null))
+        assertEquals(PushSeverity.CRITICAL, PushSeverityPolicy.decode(""))
+        assertEquals(PushSeverity.CRITICAL, PushSeverityPolicy.decode("future-value"))
+        assertEquals(PushSeverity.STANDARD, PushSeverityPolicy.decode("STANDARD"))
+        assertEquals(PushSeverity.SILENT, PushSeverityPolicy.decode("SILENT"))
+    }
+
+    @Test
+    fun preferenceKeysKeepModeAndSeverityScopedToOneManagedServer() {
+        val serverId = "0123456789abcdef0123456789abcdef"
+        assertEquals("$serverId:42", PushAlertPreferenceKey.mode(serverId, 42))
+        assertEquals("severity:$serverId:42", PushAlertPreferenceKey.severity(serverId, 42))
+        assertTrue(PushAlertPreferenceKey.belongsToServer("$serverId:42", serverId))
+        assertTrue(PushAlertPreferenceKey.belongsToServer("severity:$serverId:42", serverId))
+        assertFalse(PushAlertPreferenceKey.belongsToServer("other:$serverId:42", serverId))
+        assertNull(PushAlertPreferenceKey.mode("not-valid", 42))
+        assertNull(PushAlertPreferenceKey.severity(serverId, 0))
+    }
 
     @Test
     fun modesApplyOnlyTheirDocumentedTransitions() {

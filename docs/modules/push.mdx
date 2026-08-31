@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-27
+last-updated: 2026-08-31
 owner: astoris
 status: in-flux
 ---
@@ -27,11 +27,11 @@ connection: push works while the app is closed.
 - `.../core/push/PushDeliveryTest.kt` - creates and exactly matches the short,
   random marker used to distinguish a requested Kuma test from unrelated pushes.
 - `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
-  for muted, down-only, down-and-recovery, or all-transition alerts.
+  for transition modes and critical, standard, or silent delivery severity.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
-  select existing monitors/default use, configure per-monitor alert modes, show
-  setup status, and remove it safely.
+  select existing monitors/default use, configure per-monitor alert modes and
+  delivery severity, show setup status, and remove it safely.
 
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).
@@ -75,6 +75,12 @@ connection: push works while the app is closed.
   accepts 0 and 1; all-transitions also accepts pending, maintenance, and unknown
   legacy payloads. Manual or legacy Webhooks without a valid scope default to all
   transitions so an upgrade cannot silently suppress alerts.
+- Per-monitor severity uses the same server scope. Critical, standard, and silent
+  map to stable Android channels. Critical defaults to high importance with sound
+  and vibration; standard defaults to normal importance with sound and no forced
+  vibration; silent defaults to low importance without sound or vibration. Android
+  system settings remain authoritative after channel creation. Existing records
+  default to critical so upgrades preserve the previous alert strength.
 - Existing-monitor assignment reads are capped at four concurrent requests. Writes
   run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
   a fleet-wide restart burst. No-op relations are skipped.

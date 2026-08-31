@@ -52,6 +52,7 @@ class UrsaPushService : PushService() {
             important = false,
         )
         val deliveryTest = PushStore.recordMessage(this, notice.body)
+        val policyStore = PushAlertModeStore(this)
         val enriched = if (deliveryTest) {
             notice.copy(
                 monitorName = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_title),
@@ -65,13 +66,14 @@ class UrsaPushService : PushService() {
         if (
             !deliveryTest &&
             !PushAlertPolicy.shouldNotify(
-                PushAlertModeStore(this).mode(enriched.serverId, enriched.monitorId),
+                policyStore.mode(enriched.serverId, enriched.monitorId),
                 enriched.status,
             )
         ) {
             return
         }
-        if (postNotification(this, enriched) == PushLocalTestResult.POSTED && !deliveryTest) {
+        val severity = policyStore.severity(enriched.serverId, enriched.monitorId)
+        if (postNotification(this, enriched, severity = severity) == PushLocalTestResult.POSTED && !deliveryTest) {
             eventScope.launch {
                 EventLogStore(this@UrsaPushService).append(
                     serverUrl = null,
@@ -119,7 +121,7 @@ class UrsaPushService : PushService() {
 
     companion object {
         private const val TAG = "UrsaPush"
-        const val CHANNEL_ID = "ursa_monitors"
+        const val CHANNEL_ID = "ursa_monitors_critical"
         private const val LOCAL_TEST_NOTIFICATION_ID = 0x55525341
 
         fun postLocalTest(context: Context): PushLocalTestResult = postNotification(
@@ -139,8 +141,10 @@ class UrsaPushService : PushService() {
             context: Context,
             notice: PushNotice,
             idOverride: Int? = null,
+            severity: PushSeverity = PushSeverity.CRITICAL,
         ): PushLocalTestResult {
             ensureChannel(context)
+            val route = PushSeverityPolicy.route(severity)
             if (
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -154,7 +158,7 @@ class UrsaPushService : PushService() {
                 return PushLocalTestResult.APP_NOTIFICATIONS_DISABLED
             }
             val channel = context.getSystemService(NotificationManager::class.java)
-                .getNotificationChannel(CHANNEL_ID)
+                .getNotificationChannel(route.channelId)
             if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
                 return PushLocalTestResult.CHANNEL_DISABLED
             }
@@ -168,14 +172,20 @@ class UrsaPushService : PushService() {
                 open,
                 PendingIntent.FLAG_IMMUTABLE,
             )
-            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            val builder = NotificationCompat.Builder(context, route.channelId)
                 .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
                 .setContentTitle(notice.title)
                 .setContentText(notice.body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(notice.body))
                 .setAutoCancel(true)
                 .setContentIntent(contentIntent)
-                .apply { if (notice.important) setPriority(NotificationCompat.PRIORITY_HIGH) }
+                .setPriority(
+                    when {
+                        route.highPriority -> NotificationCompat.PRIORITY_HIGH
+                        !route.sound -> NotificationCompat.PRIORITY_LOW
+                        else -> NotificationCompat.PRIORITY_DEFAULT
+                    },
+                )
 
             notice.monitorId?.let { monitorId ->
                 builder.addAction(
@@ -211,14 +221,27 @@ class UrsaPushService : PushService() {
         /** Idempotent channel creation; minSdk 26 so channels always exist. */
         fun ensureChannel(context: Context) {
             val mgr = context.getSystemService(NotificationManager::class.java)
-            if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
-                mgr.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID,
-                        "Monitor alerts",
-                        NotificationManager.IMPORTANCE_HIGH,
-                    ).apply { description = "Up/down notifications from your Uptime Kuma servers" },
-                )
+            val channels = listOf(
+                PushSeverity.CRITICAL to dev.astoris.ursa.R.string.push_channel_critical,
+                PushSeverity.STANDARD to dev.astoris.ursa.R.string.push_channel_standard,
+                PushSeverity.SILENT to dev.astoris.ursa.R.string.push_channel_silent,
+            )
+            channels.forEach { (severity, nameRes) ->
+                val route = PushSeverityPolicy.route(severity)
+                if (mgr.getNotificationChannel(route.channelId) == null) {
+                    val importance = when {
+                        route.highPriority -> NotificationManager.IMPORTANCE_HIGH
+                        !route.sound -> NotificationManager.IMPORTANCE_LOW
+                        else -> NotificationManager.IMPORTANCE_DEFAULT
+                    }
+                    mgr.createNotificationChannel(
+                        NotificationChannel(route.channelId, context.getString(nameRes), importance).apply {
+                            description = context.getString(dev.astoris.ursa.R.string.push_channel_description)
+                            enableVibration(route.vibration)
+                            if (!route.sound) setSound(null, null)
+                        },
+                    )
+                }
             }
         }
     }
