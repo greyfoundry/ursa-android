@@ -3,6 +3,7 @@ package dev.astoris.ursa.core.network
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.MonitorStatus
@@ -152,4 +153,22 @@ object KumaParse {
             daysRemaining = info?.get("daysRemaining")?.jsonPrimitive?.intOrNull,
         )
     }
+
+    /** Exposes only fields needed for monitor assignment; provider secrets stay in the adapter. */
+    fun notifications(arr: JsonArray): List<KumaNotification> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val id = obj["id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+        val name = obj["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
+            ?: return@mapNotNull null
+        val rawConfig = obj["config"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+        val type = runCatching { Json.parseToJsonElement(rawConfig).jsonObject }
+            .getOrNull()?.get("type")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+            ?: return@mapNotNull null
+        KumaNotification(
+            id = id,
+            name = name,
+            type = type,
+            isDefault = obj["isDefault"]?.jsonPrimitive?.booleanOrNull ?: false,
+        )
+    }.sortedWith(compareByDescending<KumaNotification>(KumaNotification::isDefault).thenBy { it.name.lowercase() })
 }

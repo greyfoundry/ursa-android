@@ -54,6 +54,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -206,6 +207,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     val certs: StateFlow<Map<Int, CertInfo>> = repo.certs
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
+    val notifications: StateFlow<List<KumaNotification>> = repo.notifications
 
     private val statusClient = StatusPageClient()
     private val statusPageStore = StatusPageStore(app)
@@ -469,7 +471,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun createMonitor() {
-        _monitorEditor.value = MonitorEditorUiState.Ready(MonitorDraft.create())
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            _monitorEditor.value = MonitorEditorUiState.Ready(repo.newMonitorDraft())
+        }
     }
 
     fun editMonitor(id: Int) {

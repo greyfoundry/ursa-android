@@ -78,6 +78,14 @@ data class ManagedPushNotification(
     }
 }
 
+/** Assignment-safe notification metadata; provider configuration never leaves the network adapter. */
+data class KumaNotification(
+    val id: Int,
+    val name: String,
+    val type: String,
+    val isDefault: Boolean,
+)
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,

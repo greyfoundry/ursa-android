@@ -4,6 +4,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -66,6 +67,8 @@ class KumaClient(
     private val _managedPushNotifications = MutableStateFlow<List<ManagedPushNotification>>(emptyList())
     val managedPushNotifications: StateFlow<List<ManagedPushNotification>> =
         _managedPushNotifications.asStateFlow()
+    private val _notifications = MutableStateFlow<List<KumaNotification>>(emptyList())
+    val notifications: StateFlow<List<KumaNotification>> = _notifications.asStateFlow()
     private val _notificationListReady = MutableStateFlow(false)
     val notificationListReady: StateFlow<Boolean> = _notificationListReady.asStateFlow()
 
@@ -122,6 +125,7 @@ class KumaClient(
         }
         s.on("notificationList") { args ->
             args.jsonArrayAt(0)?.let {
+                _notifications.value = KumaParse.notifications(it)
                 _managedPushNotifications.value = KumaParse.managedPushNotifications(it)
                 _notificationListReady.value = true
             }
@@ -394,6 +398,7 @@ class KumaClient(
         socket = null
         jwt = null
         _managedPushNotifications.value = emptyList()
+        _notifications.value = emptyList()
         _notificationListReady.value = false
         _state.value = ConnectionState.Disconnected
     }

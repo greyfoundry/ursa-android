@@ -14,6 +14,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -110,6 +111,10 @@ class MonitorRepository(
     /** Live heartbeats from the active server, for real-time slow-response checks. */
     val heartbeats: Flow<Heartbeat> = activeClient
         .flatMapLatest { client -> client?.heartbeats ?: emptyFlow() }
+
+    val notifications: StateFlow<List<KumaNotification>> = activeClient
+        .flatMapLatest { client -> client?.notifications ?: flowOf(emptyList()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         // Persist every live update as the new snapshot for the active server, and
@@ -333,6 +338,20 @@ class MonitorRepository(
     suspend fun pause(id: Int): Boolean = activeClient.value?.pauseMonitor(id) ?: false
     suspend fun resume(id: Int): Boolean = activeClient.value?.resumeMonitor(id) ?: false
     suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
+    suspend fun newMonitorDraft(): MonitorDraft {
+        val client = activeClient.value
+        if (client != null) {
+            withTimeoutOrNull(NOTIFICATION_LIST_TIMEOUT_MS) {
+                client.notificationListReady.first { it }
+            }
+        }
+        return MonitorDraft.create().copy(
+            notificationIds = client?.notifications?.value.orEmpty()
+                .filter(KumaNotification::isDefault)
+                .map(KumaNotification::id)
+                .toSet(),
+        )
+    }
     suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult =
         activeClient.value?.saveMonitor(draft) ?: MonitorMutationResult(false, message = "Server unavailable")
     suspend fun deleteMonitor(id: Int, deleteChildren: Boolean = false): MonitorMutationResult =

@@ -39,7 +39,8 @@ here so the rest of the app sees clean domain models.
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
   notification relation reads/updates, `testManagedPushNotification`, monitor
   draft load/save/delete, and `disconnect()`. Flows: `state`,
-  `monitors`, `heartbeats`, `certs`, and marked managed notifications.
+  `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
+  and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
   `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
@@ -57,6 +58,9 @@ here so the rest of the app sees clean domain models.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded common
   editor model, patches a newly fetched full object without removing unknown
   fields, and builds typed defaults for common create flows.
+- `KumaParse.notifications` returns only provider ID, name, type, and default
+  status. The double-encoded provider configuration is parsed only far enough to
+  identify its type and is then discarded.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.

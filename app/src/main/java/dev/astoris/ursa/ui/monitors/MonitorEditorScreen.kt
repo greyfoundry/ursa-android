@@ -40,6 +40,7 @@ import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
+import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.ui.MonitorEditorUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 
@@ -47,6 +48,7 @@ import dev.astoris.ursa.ui.UrsaViewModel
 @Composable
 fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val state by vm.monitorEditor.collectAsStateWithLifecycle()
+    val notifications by vm.notifications.collectAsStateWithLifecycle()
     val stateDraft = when (val current = state) {
         is MonitorEditorUiState.Ready -> current.draft
         is MonitorEditorUiState.Saving -> current.draft
@@ -91,6 +93,7 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 onDraftChange = { draft = it },
                 saving = saving,
                 serverError = serverError,
+                notifications = notifications,
                 onCancel = vm::closeMonitorEditor,
                 onSave = { vm.saveMonitor(draft) },
                 modifier = Modifier.padding(padding),
@@ -106,6 +109,7 @@ private fun MonitorForm(
     onDraftChange: (MonitorDraft) -> Unit,
     saving: Boolean,
     serverError: String?,
+    notifications: List<KumaNotification>,
     onCancel: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -152,6 +156,7 @@ private fun MonitorForm(
                                         resendIntervalSeconds = draft.resendIntervalSeconds,
                                         maxRetries = draft.maxRetries,
                                         active = draft.active,
+                                        notificationIds = draft.notificationIds,
                                     ),
                                 )
                                 typeMenuOpen = false
@@ -229,6 +234,50 @@ private fun MonitorForm(
                 onCheckedChange = { onDraftChange(draft.copy(active = it)) },
             )
             Text(stringResource(R.string.monitor_active_label))
+        }
+        Text(stringResource(R.string.monitor_notifications_title), style = MaterialTheme.typography.titleSmall)
+        if (notifications.isEmpty()) {
+            Text(
+                stringResource(R.string.monitor_notifications_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text(
+                stringResource(R.string.monitor_notifications_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val defaultSuffix = stringResource(R.string.monitor_notification_default_suffix)
+            notifications.forEach { notification ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = notification.id in draft.notificationIds,
+                        onCheckedChange = { checked ->
+                            onDraftChange(
+                                draft.copy(
+                                    notificationIds = if (checked) {
+                                        draft.notificationIds + notification.id
+                                    } else {
+                                        draft.notificationIds - notification.id
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                    Column {
+                        Text(notification.name)
+                        Text(
+                            buildString {
+                                append(notification.type)
+                                if (notification.isDefault) append(defaultSuffix)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
         validation?.let { Text(validationMessage(it), color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -79,6 +79,7 @@ data class MonitorDraft(
     val resendIntervalSeconds: Int = 0,
     val maxRetries: Int = 0,
     val active: Boolean = true,
+    val notificationIds: Set<Int> = emptySet(),
 ) {
     val isNew: Boolean get() = id == null
 
@@ -121,6 +122,10 @@ object MonitorDraftCodec {
             resendIntervalSeconds = raw.int("resendInterval") ?: 0,
             maxRetries = raw.int("maxretries") ?: 0,
             active = raw["active"]?.jsonPrimitive?.booleanOrNull ?: raw.int("active") != 0,
+            notificationIds = (raw["notificationIDList"] as? JsonObject)?.entries
+                ?.mapNotNull { (key, value) ->
+                    key.toIntOrNull()?.takeIf { value.jsonPrimitive.booleanOrNull == true }
+                }?.toSet().orEmpty(),
         )
     }
 
@@ -156,6 +161,7 @@ object MonitorDraftCodec {
         values["resendInterval"] = JsonPrimitive(draft.resendIntervalSeconds)
         values["maxretries"] = JsonPrimitive(draft.maxRetries)
         values["active"] = JsonPrimitive(draft.active)
+        values["notificationIDList"] = notificationIdObject(draft.notificationIds)
         applyEndpoint(values, draft)
         return JsonObject(values)
     }
@@ -173,7 +179,7 @@ object MonitorDraftCodec {
             put("resendInterval", draft.resendIntervalSeconds)
             put("maxretries", draft.maxRetries)
             put("retryOnlyOnStatusCodeFailure", false)
-            put("notificationIDList", JsonObject(emptyMap()))
+            put("notificationIDList", notificationIdObject(draft.notificationIds))
             put("ignoreTls", false)
             put("upsideDown", false)
             put("expiryNotification", false)
@@ -215,6 +221,10 @@ object MonitorDraftCodec {
             values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
         }
     }
+
+    private fun notificationIdObject(ids: Set<Int>): JsonObject = JsonObject(
+        ids.filter { it > 0 }.sorted().associate { it.toString() to JsonPrimitive(true) },
+    )
 
     private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
     private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull

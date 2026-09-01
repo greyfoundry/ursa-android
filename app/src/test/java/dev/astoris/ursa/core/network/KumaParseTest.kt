@@ -1,6 +1,7 @@
 package dev.astoris.ursa.core.network
 
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.model.KumaNotification
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -103,6 +104,22 @@ class KumaParseTest {
         assertTrue(rows.single().isDefault)
         assertEquals("0123456789abcdef0123456789abcdef", rows.single().serverId)
         assertEquals(1, rows.single().schemaVersion)
+    }
+
+    @Test fun notificationsExposeOnlyAssignmentMetadata() {
+        val rows = KumaParse.notifications(
+            Json.parseToJsonElement(
+                """[
+                    {"id":4,"name":"Ops email","isDefault":true,"config":"{\"type\":\"smtp\",\"password\":\"secret\"}"},
+                    {"id":9,"name":"Webhook","isDefault":false,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://private.example\"}"},
+                    {"id":0,"name":"Invalid","config":"{}"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals(KumaNotification(4, "Ops email", "smtp", true), rows.first())
+        assertEquals("webhook", rows.last().type)
     }
 
     @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {

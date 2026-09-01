@@ -25,7 +25,8 @@ class MonitorDraftCodecTest {
             """{
                 "id":7,"type":"http","name":"Old","description":"before","url":"https://old.example",
                 "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
-                "headers":"{\"X-Secret\":\"value\"}","basic_auth_pass":"hidden","futureField":{"x":1}
+                "headers":"{\"X-Secret\":\"value\"}","basic_auth_pass":"hidden","futureField":{"x":1},
+                "notificationIDList":{"4":true,"9":false}
             }""",
         ).jsonObject
         val draft = MonitorDraftCodec.from(raw)!!.copy(
@@ -35,6 +36,7 @@ class MonitorDraftCodecTest {
             intervalSeconds = 30,
             retryIntervalSeconds = 15,
             maxRetries = 2,
+            notificationIds = setOf(9),
         )
 
         val updated = MonitorDraftCodec.applyToExisting(raw, draft)
@@ -44,6 +46,8 @@ class MonitorDraftCodecTest {
         assertEquals("hidden", updated["basic_auth_pass"]!!.jsonPrimitive.content)
         assertEquals("value", Json.parseToJsonElement(updated["headers"]!!.jsonPrimitive.content).jsonObject["X-Secret"]!!.jsonPrimitive.content)
         assertEquals(1, updated["futureField"]!!.jsonObject["x"]!!.jsonPrimitive.content.toInt())
+        assertEquals(setOf("9"), updated["notificationIDList"]!!.jsonObject.keys)
+        assertEquals(true, updated["notificationIDList"]!!.jsonObject["9"]!!.jsonPrimitive.content.toBoolean())
     }
 
     @Test

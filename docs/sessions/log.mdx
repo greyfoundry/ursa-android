@@ -9,6 +9,18 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-08-31 - Monitor notification assignment (CP-032)
+
+**changed**: Monitor create/edit now lists the active Kuma server's notification
+providers, preselects server-default providers for new monitors, and saves exact
+per-monitor assignments through the existing full-object edit path. The empty
+provider state is explicit.
+
+**security boundary**: Only ID, name, type, and default status enter app state.
+Provider configuration, destinations, tokens, and passwords are discarded in the
+network parser. Focused parser/draft tests cover metadata filtering, default
+selection inputs, and exact relation replacement.
+
 ### 2026-08-31 - Native monitor CRUD and safe common editing (CP-030)
 
 **changed**: Added the verified 33-type Uptime Kuma 2.5.3 catalogue, typed

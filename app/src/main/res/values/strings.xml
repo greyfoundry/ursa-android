@@ -639,6 +639,10 @@
     <string name="monitor_retry_interval_label">Retry interval (seconds)</string>
     <string name="monitor_retries_label">Retries before down</string>
     <string name="monitor_active_label">Start monitor after saving</string>
+    <string name="monitor_notifications_title">Server notifications</string>
+    <string name="monitor_notifications_desc">Choose the notification providers Uptime Kuma should use for this monitor.</string>
+    <string name="monitor_notifications_empty">No notification providers are configured on this Uptime Kuma server.</string>
+    <string name="monitor_notification_default_suffix"> · default</string>
     <string name="monitor_error_name">Enter a monitor name.</string>
     <string name="monitor_error_type">This monitor type cannot be created here yet.</string>
     <string name="monitor_error_endpoint">Enter the monitor address.</string>
