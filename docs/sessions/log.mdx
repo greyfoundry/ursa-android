@@ -9,6 +9,17 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-01 - Confirmed bulk monitor actions (CP-033)
+
+**changed**: Added a discoverable monitor-management mode with explicit selection,
+filter-scoped Select/Clear visible controls, and confirmed bulk pause/resume. Whole-
+fleet confirmations are called out separately, already-correct monitor states are
+skipped, calls are serialized, and partial failures stay selected for retry.
+
+**verification**: Pure planning tests cover state filtering, stale IDs, fleet scope,
+and the empty-fleet guard. The UI reports applied and failed counts without hiding a
+partial result.
+
 ### 2026-08-31 - Monitor notification assignment (CP-032)
 
 **changed**: Monitor create/edit now lists the active Kuma server's notification

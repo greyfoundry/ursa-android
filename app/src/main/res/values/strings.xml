@@ -657,4 +657,28 @@
     <string name="monitor_delete_message">%1$s and its heartbeat history will be permanently deleted from this server.</string>
     <string name="monitor_delete_children">Also delete every monitor inside this group</string>
     <string name="monitor_delete_failed">The monitor could not be deleted.</string>
+    <string name="bulk_manage_monitors">Manage monitors</string>
+    <plurals name="bulk_monitors_selected">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <string name="bulk_select_visible">Select visible</string>
+    <string name="bulk_clear_visible">Clear visible</string>
+    <string name="bulk_confirm_title">%1$s monitors?</string>
+    <plurals name="bulk_confirm_fleet">
+        <item quantity="one">%1$s the only monitor on this server?</item>
+        <item quantity="other">%1$s all %2$d monitors on this server?</item>
+    </plurals>
+    <plurals name="bulk_confirm_selected">
+        <item quantity="one">%1$s the selected monitor?</item>
+        <item quantity="other">%1$s %2$d selected monitors?</item>
+    </plurals>
+    <plurals name="bulk_monitors_updated">
+        <item quantity="one">%1$d monitor updated.</item>
+        <item quantity="other">%1$d monitors updated.</item>
+    </plurals>
+    <plurals name="bulk_monitors_partial">
+        <item quantity="one">%1$d updated; %2$d monitor failed. The failed monitor remains selected.</item>
+        <item quantity="other">%1$d updated; %2$d monitors failed. Failed monitors remain selected.</item>
+    </plurals>
 </resources>

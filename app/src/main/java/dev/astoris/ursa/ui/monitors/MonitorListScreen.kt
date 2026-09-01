@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +31,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -38,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +54,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -67,6 +75,7 @@ import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.UptimeRing
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,7 +101,14 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var moreOpen by remember { mutableStateOf(false) }
     var overlay by remember { mutableStateOf<MonitorOverlay?>(null) }
     var sortMode by remember { mutableStateOf(MonitorSort.ATTENTION) }
+    var bulkMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var pendingBulkAction by remember { mutableStateOf<BulkMonitorAction?>(null) }
+    var bulkInFlight by remember { mutableStateOf(false) }
     val searchFocusRequester = remember { FocusRequester() }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
     val favorites by vm.favorites.collectAsStateWithLifecycle()
 
     val activeMonitors = monitors.filter { it.active }
@@ -113,9 +129,16 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
         }
         .sortedWith(sortMode.comparator(favorites))
+    val pausePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.PAUSE)
+    val resumePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.RESUME)
+
+    LaunchedEffect(monitors) {
+        selectedIds = selectedIds.intersect(monitors.mapTo(mutableSetOf(), Monitor::id))
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -233,49 +256,68 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = stringResource(R.string.monitors_title),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = { searchActive = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_search),
-                            contentDescription = stringResource(R.string.action_search),
+                    if (bulkMode) {
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.bulk_monitors_selected,
+                                selectedIds.size,
+                                selectedIds.size,
+                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
                         )
-                    }
-                    MonitorFilterMenu(
-                        filterOpen = filterOpen,
-                        onFilterOpenChange = { filterOpen = it },
-                        statusFilter = statusFilter,
-                        tagFilter = tagFilter,
-                        activityFilter = activityFilter,
-                        availableTags = availableTags,
-                        onAll = {
-                            statusFilter = null
-                            tagFilter = null
-                            activityFilter = MonitorActivityFilter.ALL
-                        },
-                        onActive = { activityFilter = MonitorActivityFilter.ACTIVE },
-                        onPaused = {
-                            activityFilter = MonitorActivityFilter.PAUSED
-                            statusFilter = null
-                        },
-                        onStatus = { statusFilter = it },
-                        onTag = { tagFilter = if (tagFilter == it) null else it },
-                    )
-                    Box {
-                        IconButton(onClick = { moreOpen = true }) {
+                        TextButton(
+                            onClick = { bulkMode = false; selectedIds = emptySet() },
+                            enabled = !bulkInFlight,
+                        ) { Text(stringResource(R.string.action_cancel)) }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.monitors_title),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { searchActive = true }) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_more_vertical),
-                                contentDescription = stringResource(R.string.action_more),
+                                painter = painterResource(R.drawable.ic_search),
+                                contentDescription = stringResource(R.string.action_search),
                             )
                         }
-                        DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                        MonitorFilterMenu(
+                            filterOpen = filterOpen,
+                            onFilterOpenChange = { filterOpen = it },
+                            statusFilter = statusFilter,
+                            tagFilter = tagFilter,
+                            activityFilter = activityFilter,
+                            availableTags = availableTags,
+                            onAll = {
+                                statusFilter = null
+                                tagFilter = null
+                                activityFilter = MonitorActivityFilter.ALL
+                            },
+                            onActive = { activityFilter = MonitorActivityFilter.ACTIVE },
+                            onPaused = {
+                                activityFilter = MonitorActivityFilter.PAUSED
+                                statusFilter = null
+                            },
+                            onStatus = { statusFilter = it },
+                            onTag = { tagFilter = if (tagFilter == it) null else it },
+                        )
+                        Box {
+                            IconButton(onClick = { moreOpen = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_more_vertical),
+                                    contentDescription = stringResource(R.string.action_more),
+                                )
+                            }
+                            DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.monitor_add_title)) },
                                 onClick = { vm.createMonitor(); moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.bulk_manage_monitors)) },
+                                onClick = { bulkMode = true; selectedIds = emptySet(); moreOpen = false },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.incident_center_title)) },
@@ -313,9 +355,40 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 text = { Text(stringResource(R.string.action_sort_name)) },
                                 onClick = { sortMode = MonitorSort.NAME; moreOpen = false },
                             )
+                            }
                         }
                     }
                 }
+                }
+            }
+            if (overlay == null && bulkMode) {
+                val shownIds = shown.mapTo(mutableSetOf(), Monitor::id)
+                val allShownSelected = shownIds.isNotEmpty() && shownIds.all { it in selectedIds }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = {
+                            selectedIds = if (allShownSelected) selectedIds - shownIds else selectedIds + shownIds
+                        },
+                        enabled = shownIds.isNotEmpty() && !bulkInFlight,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (allShownSelected) R.string.bulk_clear_visible else R.string.bulk_select_visible,
+                            ),
+                        )
+                    }
+                    TextButton(
+                        onClick = { pendingBulkAction = BulkMonitorAction.PAUSE },
+                        enabled = pausePlan.targetIds.isNotEmpty() && !bulkInFlight,
+                    ) { Text(stringResource(R.string.action_pause)) }
+                    TextButton(
+                        onClick = { pendingBulkAction = BulkMonitorAction.RESUME },
+                        enabled = resumePlan.targetIds.isNotEmpty() && !bulkInFlight,
+                    ) { Text(stringResource(R.string.action_resume)) }
                 }
             }
             when (overlay) {
@@ -403,12 +476,98 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         MonitorRow(
                             monitor = monitor,
                             beats = history[monitor.id].orEmpty(),
-                            onClick = { vm.select(monitor.id) },
+                            selected = selectedIds.contains(monitor.id).takeIf { bulkMode },
+                            onClick = {
+                                if (bulkMode) {
+                                    selectedIds = if (monitor.id in selectedIds) {
+                                        selectedIds - monitor.id
+                                    } else {
+                                        selectedIds + monitor.id
+                                    }
+                                } else {
+                                    vm.select(monitor.id)
+                                }
+                            },
                         )
                     }
                 }
             }
         }
+    }
+
+    pendingBulkAction?.let { action ->
+        val plan = if (action == BulkMonitorAction.PAUSE) pausePlan else resumePlan
+        val actionLabel = stringResource(
+            if (action == BulkMonitorAction.PAUSE) R.string.action_pause else R.string.action_resume,
+        )
+        AlertDialog(
+            onDismissRequest = { if (!bulkInFlight) pendingBulkAction = null },
+            title = { Text(stringResource(R.string.bulk_confirm_title, actionLabel)) },
+            text = {
+                Text(
+                    if (plan.fleetWide) {
+                        pluralStringResource(
+                            R.plurals.bulk_confirm_fleet,
+                            plan.targetIds.size,
+                            actionLabel,
+                            plan.targetIds.size,
+                        )
+                    } else {
+                        pluralStringResource(
+                            R.plurals.bulk_confirm_selected,
+                            plan.targetIds.size,
+                            actionLabel,
+                            plan.targetIds.size,
+                        )
+                    },
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        bulkInFlight = true
+                        vm.setMonitorsActive(
+                            ids = plan.targetIds.toSet(),
+                            active = action == BulkMonitorAction.RESUME,
+                        ) { result ->
+                            bulkInFlight = false
+                            pendingBulkAction = null
+                            selectedIds = result.failedIds
+                            if (result.failedIds.isEmpty()) {
+                                bulkMode = false
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = resources.getQuantityString(
+                                            R.plurals.bulk_monitors_updated,
+                                            result.succeededIds.size,
+                                            result.succeededIds.size,
+                                        ),
+                                    )
+                                }
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = resources.getQuantityString(
+                                            R.plurals.bulk_monitors_partial,
+                                            result.failedIds.size,
+                                            result.succeededIds.size,
+                                            result.failedIds.size,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    enabled = !bulkInFlight && plan.targetIds.isNotEmpty(),
+                ) { Text(actionLabel) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingBulkAction = null },
+                    enabled = !bulkInFlight,
+                ) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 }
 
@@ -659,7 +818,12 @@ private fun MonitorLeadingIcon(monitor: Monitor) {
 }
 
 @Composable
-private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> Unit) {
+private fun MonitorRow(
+    monitor: Monitor,
+    beats: List<Heartbeat>,
+    selected: Boolean?,
+    onClick: () -> Unit,
+) {
     UrsaPressableCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -671,6 +835,9 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            selected?.let {
+                Checkbox(checked = it, onCheckedChange = null)
+            }
             MonitorLeadingIcon(monitor)
             Column(Modifier.weight(1f)) {
                 Text(monitor.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)

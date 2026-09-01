@@ -62,6 +62,7 @@ import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.repository.MonitorRepository
+import dev.astoris.ursa.data.repository.BulkMonitorUpdateResult
 import org.unifiedpush.android.connector.UnifiedPush
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -468,6 +469,17 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         val succeeded = repo.resume(id)
         if (succeeded) recordMonitorAction(id, LocalEventKind.RESUMED)
         onResult(succeeded)
+    }
+
+    fun setMonitorsActive(
+        ids: Set<Int>,
+        active: Boolean,
+        onResult: (BulkMonitorUpdateResult) -> Unit,
+    ) = viewModelScope.launch {
+        val result = repo.setActive(ids, active)
+        val eventKind = if (active) LocalEventKind.RESUMED else LocalEventKind.PAUSED
+        result.succeededIds.forEach { recordMonitorAction(it, eventKind) }
+        onResult(result)
     }
 
     fun createMonitor() {

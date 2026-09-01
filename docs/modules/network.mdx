@@ -38,7 +38,8 @@ here so the rest of the app sees clean domain models.
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
   notification relation reads/updates, `testManagedPushNotification`, monitor
-  draft load/save/delete, and `disconnect()`. Flows: `state`,
+  draft load/save/delete, sequential bulk active-state changes, and `disconnect()`.
+  Flows: `state`,
   `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
   and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,

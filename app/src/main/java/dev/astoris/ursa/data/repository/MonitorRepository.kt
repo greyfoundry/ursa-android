@@ -53,6 +53,11 @@ data class ManagedPushSaveResult(
     val failedMonitorIds: Set<Int>,
 )
 
+data class BulkMonitorUpdateResult(
+    val succeededIds: Set<Int>,
+    val failedIds: Set<Int>,
+)
+
 /**
  * Single source of truth for the UI. Owns the active [KumaClient], bridges it to the
  * persisted [ConnectionStore], and exposes monitors/state as StateFlows that follow
@@ -337,6 +342,17 @@ class MonitorRepository(
 
     suspend fun pause(id: Int): Boolean = activeClient.value?.pauseMonitor(id) ?: false
     suspend fun resume(id: Int): Boolean = activeClient.value?.resumeMonitor(id) ?: false
+    /** Applies a fleet action sequentially so a large selection cannot burst-restart Kuma. */
+    suspend fun setActive(ids: Set<Int>, active: Boolean): BulkMonitorUpdateResult {
+        val client = activeClient.value
+        val succeeded = mutableSetOf<Int>()
+        val failed = mutableSetOf<Int>()
+        ids.filter { it > 0 }.sorted().forEach { id ->
+            val ok = client != null && if (active) client.resumeMonitor(id) else client.pauseMonitor(id)
+            if (ok) succeeded += id else failed += id
+        }
+        return BulkMonitorUpdateResult(succeeded, failed)
+    }
     suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
     suspend fun newMonitorDraft(): MonitorDraft {
         val client = activeClient.value
