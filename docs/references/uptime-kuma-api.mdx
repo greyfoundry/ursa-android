@@ -84,6 +84,15 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   emitted for sibling ordering (descending after active state), but 2.5.3 has no
   authenticated event that mutates monitor weight; clients must not invent a
   local-only order.
+- `maintenanceList` is an ID-keyed object of maintenance JSON. Detail editing uses
+  `getMaintenance(id)` and `getMonitorMaintenance(id)`. Create/edit returns a
+  `maintenanceID`, after which `addMonitorMaintenance(id, [{ id }])` replaces the
+  affected-monitor relation. `pauseMaintenance`, `resumeMaintenance`, and
+  `deleteMaintenance` are separate acknowledged events.
+- Maintenance strategies are `manual`, `single`, `cron`, `recurring-interval`,
+  `recurring-weekday`, and `recurring-day-of-month`. Payloads use `dateRange`,
+  `{ hours, minutes }` `timeRange` entries, `timezoneOption`, `intervalDay`,
+  `weekdays`, `daysOfMonth`, `cron`, and `durationMinutes`.
 
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.

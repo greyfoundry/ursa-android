@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">URSA</string>
     <string name="startup_loading">Loading URSA</string>
 
@@ -35,6 +35,9 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_save">Save</string>
     <string name="action_done">Done</string>
+    <string name="action_add">Add</string>
+    <string name="action_close">Close</string>
+    <string name="action_delete">Delete</string>
     <string name="connection_status">Connection: %1$s</string>
     <string name="connection_offline">Offline</string>
     <string name="connection_connecting">Connecting</string>
@@ -662,6 +665,45 @@
     <string name="monitor_delete_message">%1$s and its heartbeat history will be permanently deleted from this server.</string>
     <string name="monitor_delete_children">Also delete every monitor inside this group</string>
     <string name="monitor_delete_failed">The monitor could not be deleted.</string>
+    <string name="maintenance_loading">Loading maintenance…</string>
+    <string name="maintenance_empty">No maintenance windows are configured on this server.</string>
+    <string name="maintenance_summary">%1$s · %2$s</string>
+    <string name="maintenance_timezone_value">Timezone: %1$s</string>
+    <string name="maintenance_delete_title">Delete maintenance?</string>
+    <string name="maintenance_delete_message">%1$s will be permanently deleted from this server.</string>
+    <string name="maintenance_add_title">Add maintenance</string>
+    <string name="maintenance_edit_title">Edit maintenance</string>
+    <string name="maintenance_title_label">Title</string>
+    <string name="maintenance_strategy_label">Strategy</string>
+    <string name="maintenance_strategy_manual">Manual</string>
+    <string name="maintenance_strategy_single">Single window</string>
+    <string name="maintenance_strategy_cron">Cron expression</string>
+    <string name="maintenance_strategy_interval">Recurring interval</string>
+    <string name="maintenance_strategy_weekdays">Recurring weekdays</string>
+    <string name="maintenance_strategy_days">Recurring days of month</string>
+    <string name="maintenance_manual_desc">Starts and stops when this maintenance is resumed or paused.</string>
+    <string name="maintenance_cron_label">Cron expression</string>
+    <string name="maintenance_duration_label">Duration (minutes)</string>
+    <string name="maintenance_interval_label">Repeat every (days)</string>
+    <string name="maintenance_weekdays_label">Weekdays</string>
+    <string name="maintenance_days_label" tools:ignore="Typos">Days (1-31, or lastDay1)</string>
+    <string name="maintenance_timezone_label">Timezone (SAME_AS_SERVER, UTC, or IANA name)</string>
+    <string name="maintenance_timezone_resolved">Server resolves this as %1$s</string>
+    <string name="maintenance_active_label">Active after saving</string>
+    <string name="maintenance_monitors_title">Affected monitors</string>
+    <string name="maintenance_monitors_empty">No monitors are available.</string>
+    <string name="maintenance_start_date_label">Start date/time (YYYY-MM-DDTHH:mm)</string>
+    <string name="maintenance_end_date_label">End date/time (YYYY-MM-DDTHH:mm)</string>
+    <string name="maintenance_start_time_label">Start time (HH:mm)</string>
+    <string name="maintenance_end_time_label">End time (HH:mm)</string>
+    <string name="maintenance_error_title">Enter a title.</string>
+    <string name="maintenance_error_dates">Enter both start and end date/time values.</string>
+    <string name="maintenance_error_cron">Enter a cron expression.</string>
+    <string name="maintenance_error_duration">Duration must be at least one minute.</string>
+    <string name="maintenance_error_interval">Repeat interval must be between 1 and 3650 days.</string>
+    <string name="maintenance_error_weekdays">Choose at least one weekday.</string>
+    <string name="maintenance_error_days">Choose at least one day of the month.</string>
+    <string name="maintenance_error_times">Use 24-hour times in HH:mm format.</string>
     <string name="bulk_manage_monitors">Manage monitors</string>
     <string name="action_sort_server">Sort: server order</string>
     <plurals name="bulk_monitors_selected">

@@ -9,6 +9,21 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-01 - Native maintenance management (CP-035)
+
+**changed**: Added live maintenance-list handling and a native list/editor for all
+six Uptime Kuma 2.5.3 strategies. Create/edit round-trips the exact schedule fields
+and replaces the affected-monitor relation; pause, resume, and confirmed delete use
+their dedicated server events. New single windows start with a local now-to-one-hour
+range, while configured and resolved timezone values remain visible.
+
+**verification**: Codec tests cover a source-shaped recurring weekday response,
+cron payloads, sorted monitor relations, and per-strategy validation. The adapter
+keeps server validation authoritative for cron syntax and IANA timezone names.
+Live 2.5.3 QA created a manual window assigned to one monitor, reloaded the
+assignment, paused and resumed it, confirmed inactive-string normalization, and
+deleted it; the server database returned to zero maintenance rows.
+
 ### 2026-09-01 - Server-backed groups and tags (CP-034)
 
 **changed**: Monitor snapshots now retain Kuma parent, weight, and exact tag

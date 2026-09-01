@@ -73,6 +73,8 @@ class KumaClient(
     val notifications: StateFlow<List<KumaNotification>> = _notifications.asStateFlow()
     private val _notificationListReady = MutableStateFlow(false)
     val notificationListReady: StateFlow<Boolean> = _notificationListReady.asStateFlow()
+    private val _maintenances = MutableStateFlow<Map<Int, MaintenanceDraft>>(emptyMap())
+    val maintenances: StateFlow<Map<Int, MaintenanceDraft>> = _maintenances.asStateFlow()
 
     /** Recent heartbeat history per monitor, for the list sparklines. Seeded by
      *  `heartbeatList` on connect and appended from live `heartbeat` events. */
@@ -131,6 +133,9 @@ class KumaClient(
                 _managedPushNotifications.value = KumaParse.managedPushNotifications(it)
                 _notificationListReady.value = true
             }
+        }
+        s.on("maintenanceList") { args ->
+            args.jsonAt(0)?.let { _maintenances.value = MaintenanceCodec.list(it) }
         }
         s.on("updateMonitorIntoList") { args ->
             args.jsonAt(0)?.let { obj ->
@@ -310,6 +315,49 @@ class KumaClient(
         }
     }
 
+    suspend fun maintenanceDraft(id: Int): MaintenanceDraft? {
+        val response = emitAck("getMaintenance", id) ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONObject("maintenance") ?: return null
+        val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull() ?: return null
+        val draft = MaintenanceCodec.from(json) ?: return null
+        val relations = emitAck("getMonitorMaintenance", id) ?: return null
+        if (!relations.optBoolean("ok")) return null
+        val monitors = relations.optJSONArray("monitors") ?: org.json.JSONArray()
+        val ids = (0 until monitors.length()).mapNotNull { index ->
+            monitors.optJSONObject(index)?.optInt("id")?.takeIf { it > 0 }
+        }.toSet()
+        return draft.copy(monitorIds = ids)
+    }
+
+    suspend fun saveMaintenance(draft: MaintenanceDraft): MonitorMutationResult {
+        MaintenanceCodec.validate(draft)?.let { return MonitorMutationResult(false, message = it.name) }
+        val event = if (draft.isNew) "addMaintenance" else "editMaintenance"
+        val response = emitAck(event, JSONObject(MaintenanceCodec.payload(draft).toString()))
+            ?: return MonitorMutationResult(false, message = "Server did not respond within 15 seconds")
+        if (!response.optBoolean("ok")) {
+            return MonitorMutationResult(false, draft.id, response.optString("msg").ifBlank { "Save failed" })
+        }
+        val id = response.optInt("maintenanceID").takeIf { it > 0 } ?: draft.id
+            ?: return MonitorMutationResult(false, message = "Maintenance ID missing")
+        val monitors = org.json.JSONArray(MaintenanceCodec.monitorRelationPayload(draft.monitorIds).toString())
+        val relation = emitAck("addMonitorMaintenance", id, monitors)
+        return if (relation?.optBoolean("ok") == true) {
+            MonitorMutationResult(true, id)
+        } else {
+            MonitorMutationResult(false, id, "Saved, but affected monitors could not be updated")
+        }
+    }
+
+    suspend fun pauseMaintenance(id: Int): Boolean =
+        emitAck("pauseMaintenance", id)?.optBoolean("ok") == true
+
+    suspend fun resumeMaintenance(id: Int): Boolean =
+        emitAck("resumeMaintenance", id)?.optBoolean("ok") == true
+
+    suspend fun deleteMaintenance(id: Int): Boolean =
+        emitAck("deleteMaintenance", id)?.optBoolean("ok") == true
+
     /** Recent heartbeat history for the detail view. Rows are snake_case (see KumaParse). */
     suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> {
         val res = emitAck("getMonitorBeats", id, hours) ?: return emptyList()
@@ -434,6 +482,7 @@ class KumaClient(
         jwt = null
         _managedPushNotifications.value = emptyList()
         _notifications.value = emptyList()
+        _maintenances.value = emptyMap()
         _notificationListReady.value = false
         _state.value = ConnectionState.Disconnected
     }

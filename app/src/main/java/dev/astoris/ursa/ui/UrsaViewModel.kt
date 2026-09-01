@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.MonitorDraft
+import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
 import dev.astoris.ursa.core.network.ResolvedStatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddress
@@ -78,6 +79,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 sealed interface LoginUiState {
     data object Idle : LoginUiState
@@ -140,6 +143,14 @@ sealed interface MonitorEditorUiState {
     data class Error(val draft: MonitorDraft?, val message: String) : MonitorEditorUiState
 }
 
+sealed interface MaintenanceEditorUiState {
+    data object Idle : MaintenanceEditorUiState
+    data object Loading : MaintenanceEditorUiState
+    data class Ready(val draft: MaintenanceDraft) : MaintenanceEditorUiState
+    data class Saving(val draft: MaintenanceDraft) : MaintenanceEditorUiState
+    data class Error(val draft: MaintenanceDraft?, val message: String) : MaintenanceEditorUiState
+}
+
 private sealed interface StatusPageResolution {
     data class Success(
         val address: ResolvedStatusPageAddress,
@@ -162,6 +173,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
+    val maintenances: StateFlow<List<MaintenanceDraft>> = repo.maintenances
     val state: StateFlow<ConnectionState> = repo.state
     val lastUpdated: StateFlow<Long?> = repo.lastUpdated
     val showingCache: StateFlow<Boolean> = repo.showingCache
@@ -212,6 +224,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val notifications: StateFlow<List<KumaNotification>> = repo.notifications
     private val _serverTags = MutableStateFlow<List<KumaTag>>(emptyList())
     val serverTags: StateFlow<List<KumaTag>> = _serverTags.asStateFlow()
+    private val _maintenanceEditor = MutableStateFlow<MaintenanceEditorUiState>(MaintenanceEditorUiState.Idle)
+    val maintenanceEditor: StateFlow<MaintenanceEditorUiState> = _maintenanceEditor.asStateFlow()
 
     private val statusClient = StatusPageClient()
     private val statusPageStore = StatusPageStore(app)
@@ -517,6 +531,46 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun closeMonitorEditor() {
         _monitorEditor.value = MonitorEditorUiState.Idle
         _serverTags.value = emptyList()
+    }
+
+    fun createMaintenance() {
+        val start = LocalDateTime.now().withSecond(0).withNano(0)
+        val format = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+        _maintenanceEditor.value = MaintenanceEditorUiState.Ready(
+            MaintenanceDraft.create().copy(
+                startDate = start.format(format),
+                endDate = start.plusHours(1).format(format),
+            ),
+        )
+    }
+
+    fun editMaintenance(id: Int) {
+        _maintenanceEditor.value = MaintenanceEditorUiState.Loading
+        viewModelScope.launch {
+            _maintenanceEditor.value = repo.maintenanceDraft(id)?.let(MaintenanceEditorUiState::Ready)
+                ?: MaintenanceEditorUiState.Error(null, "Maintenance details are unavailable")
+        }
+    }
+
+    fun saveMaintenance(draft: MaintenanceDraft) {
+        _maintenanceEditor.value = MaintenanceEditorUiState.Saving(draft)
+        viewModelScope.launch {
+            val result = repo.saveMaintenance(draft)
+            _maintenanceEditor.value = if (result.ok) MaintenanceEditorUiState.Idle
+            else MaintenanceEditorUiState.Error(draft, result.message ?: "Save failed")
+        }
+    }
+
+    fun closeMaintenanceEditor() {
+        _maintenanceEditor.value = MaintenanceEditorUiState.Idle
+    }
+
+    fun setMaintenanceActive(id: Int, active: Boolean, onResult: (Boolean) -> Unit) = viewModelScope.launch {
+        onResult(if (active) repo.resumeMaintenance(id) else repo.pauseMaintenance(id))
+    }
+
+    fun deleteMaintenance(id: Int, onResult: (Boolean) -> Unit) = viewModelScope.launch {
+        onResult(repo.deleteMaintenance(id))
     }
 
     fun deleteMonitor(

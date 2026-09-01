@@ -3,6 +3,7 @@ package dev.astoris.ursa.data.repository
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.network.MonitorDraft
+import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
 import dev.astoris.ursa.core.storage.CertExpiry
 import dev.astoris.ursa.core.storage.CertExpiryStore
@@ -120,6 +121,11 @@ class MonitorRepository(
 
     val notifications: StateFlow<List<KumaNotification>> = activeClient
         .flatMapLatest { client -> client?.notifications ?: flowOf(emptyList()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val maintenances: StateFlow<List<MaintenanceDraft>> = activeClient
+        .flatMapLatest { client -> client?.maintenances ?: flowOf(emptyMap()) }
+        .map { rows -> rows.values.sortedBy { it.title.lowercase() } }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
@@ -356,6 +362,12 @@ class MonitorRepository(
     }
     suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
     suspend fun serverTags(): List<KumaTag>? = activeClient.value?.serverTags()
+    suspend fun maintenanceDraft(id: Int): MaintenanceDraft? = activeClient.value?.maintenanceDraft(id)
+    suspend fun saveMaintenance(draft: MaintenanceDraft): MonitorMutationResult =
+        activeClient.value?.saveMaintenance(draft) ?: MonitorMutationResult(false, message = "Server unavailable")
+    suspend fun pauseMaintenance(id: Int): Boolean = activeClient.value?.pauseMaintenance(id) == true
+    suspend fun resumeMaintenance(id: Int): Boolean = activeClient.value?.resumeMaintenance(id) == true
+    suspend fun deleteMaintenance(id: Int): Boolean = activeClient.value?.deleteMaintenance(id) == true
     suspend fun newMonitorDraft(): MonitorDraft {
         val client = activeClient.value
         if (client != null) {

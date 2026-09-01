@@ -321,6 +321,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 onClick = { bulkMode = true; selectedIds = emptySet(); moreOpen = false },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.status_maintenance)) },
+                                onClick = { overlay = MonitorOverlay.MAINTENANCE; moreOpen = false },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.incident_center_title)) },
                                 onClick = { overlay = MonitorOverlay.INCIDENTS; moreOpen = false },
                             )
@@ -397,6 +401,11 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
             }
             when (overlay) {
+                MonitorOverlay.MAINTENANCE -> MaintenanceScreen(
+                    vm = vm,
+                    onClose = { overlay = null },
+                    modifier = Modifier.fillMaxSize(),
+                )
                 MonitorOverlay.INCIDENTS -> FleetIncidentCenter(
                         monitors = monitors,
                         history = history,
@@ -650,6 +659,7 @@ private fun MonitorFilterMenu(
 private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
 
 private enum class MonitorOverlay {
+    MAINTENANCE,
     INCIDENTS,
     CERTIFICATES,
     DOMAINS,
