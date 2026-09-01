@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-31
+last-updated: 2026-09-01
 owner: astoris
 status: in-flux
 ---
@@ -32,7 +32,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 
 | Category | Status | Where |
 |---|---|---|
-| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `StatusPageStore.kt`, `EventLogStore.kt`, `IncidentNoteStore.kt`, `FaviconStore.kt`, `PushPendingAlertStore.kt` |
+| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `StatusPageStore.kt`, `EventLogStore.kt`, `IncidentNoteStore.kt`, `FaviconStore.kt`, `PushPendingAlertStore.kt`, `WidgetStore.kt` |
 | STORAGE-2 no data leakage | met | `FLAG_SECURE`; cloud backup and device transfer excluded |
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
@@ -69,6 +69,13 @@ Saved public pages retain only a local name, base URL, slug, certificate-trust
 choice, favourite flag, and order. They do not copy session tokens or access
 headers. When a page base exactly matches a saved server, the request temporarily
 inherits that server's encrypted headers in memory.
+
+Home-widget configuration and public-page widget snapshots use a separate encrypted
+DataStore. Per-widget records contain only the selected source identifier and monitor
+IDs; private rows reuse the encrypted monitor cache. JWTs and reverse-proxy headers
+remain solely in `ConnectionStore` and are resolved in memory for a manual refresh.
+The exported system configuration activity validates the supplied widget ID against
+URSA's exact provider before reading storage and applies `FLAG_SECURE` in release.
 
 The optional favicon cache is also encrypted with the same Keystore-backed AEAD and
 lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small image

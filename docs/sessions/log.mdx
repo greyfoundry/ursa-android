@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-31
+last-updated: 2026-09-01
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,24 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-01 - Detailed configurable widgets (CP-038)
+
+**changed**: Replaced the count-only widget with exact-size private-server and
+public-page layouts. Each instance stores its source and up to six chosen monitors
+in an encrypted DataStore, shows status, latency, uptime, recent public checks, and
+cache age, offers an immediate secure refresh, and deep-links to a validated saved
+server monitor or public page. The system editor supports initial setup and later
+reconfiguration; public snapshots and private monitor caches remain encrypted, and
+headers/JWTs are resolved only from `ConnectionStore` at refresh time.
+
+**verified**: Focused model tests cover selected-order preservation, bounded defaults,
+and bounded public heartbeat history. Android 17 QA verified retained-data rendering,
+exact-size row adaptation, manual refresh without crashes, valid-ID edit state with
+three preserved selections, and navigation to the exact private monitor detail. The
+emulator's widget service retained its original provider resource across repeated
+same-package debug upgrades, so clean-install automatic editor launch remains covered
+by the compiled provider contract rather than this retained-data launcher instance.
 
 ### 2026-09-01 - Local service discovery (CP-036)
 

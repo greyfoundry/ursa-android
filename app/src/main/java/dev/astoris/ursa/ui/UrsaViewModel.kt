@@ -80,6 +80,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -621,6 +622,35 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun select(id: Int) {
         _selectedId.value = id
         refetchBeats()
+    }
+
+    fun openMonitorDeepLink(serverUrl: String?, monitorId: Int) {
+        if (monitorId <= 0) return
+        viewModelScope.launch {
+            startupReady.first { it }
+            val connection = serverUrl?.takeIf { it.length <= 2_048 }?.let { requested ->
+                store.snapshot().firstOrNull { it.url == requested }
+            }
+            if (serverUrl != null && connection == null) return@launch
+            if (connection != null && repo.activeUrl.first() != connection.url) repo.switchTo(connection)
+            val monitor = withTimeoutOrNull(10_000L) {
+                monitors.first { list -> list.any { it.id == monitorId } }.first { it.id == monitorId }
+            } ?: return@launch
+            _statusPageMode.value = false
+            _selectedId.value = monitor.id
+            refetchBeats()
+        }
+    }
+
+    fun openStatusPageDeepLink(pageId: String) {
+        if (pageId.isBlank() || pageId.length > 100) return
+        viewModelScope.launch {
+            startupReady.first { it }
+            val page = statusPageStore.pages.first().firstOrNull { it.id == pageId } ?: return@launch
+            _selectedId.value = null
+            _statusPageMode.value = true
+            openStatusPage(page)
+        }
     }
 
     fun setBeatRange(range: HeartbeatRange) {

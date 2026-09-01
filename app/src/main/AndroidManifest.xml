@@ -33,6 +33,17 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- System-launched AppWidget configuration. It validates the supplied
+             pending or committed widget ID against URSA's exact provider before
+             reading any encrypted configuration. -->
+        <activity
+            android:name=".ui.widget.MonitorWidgetConfigActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Handles Pause/Resume actions on a monitor notification. NOT exported:
              only the app's own notification PendingIntents trigger it. -->
         <receiver
@@ -45,7 +56,7 @@
             android:exported="false" />
 
         <!-- Home-screen widget. Exported as required by the AppWidget framework;
-             it only receives system APPWIDGET broadcasts and shows cached counts. -->
+             it only receives system APPWIDGET broadcasts and renders encrypted cache data. -->
         <receiver
             android:name=".ui.widget.MonitorWidgetReceiver"
             android:exported="true">

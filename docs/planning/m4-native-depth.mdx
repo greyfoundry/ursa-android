@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-04
+last-updated: 2026-09-01
 owner: astoris
 status: in-flux
 ---
@@ -32,9 +32,12 @@ code-only and verifiable by logic/unit tests until a device is available.
    encrypted `CertExpiryStore`; a daily `CertExpiryWorker` (WorkManager, no network)
    notifies when a cert is within 14 days of expiry. Pure `CertExpiryUtil`
    (resolve/daysUntil/codec) unit-tested.
-5. ~~**Home-screen widget** (Jetpack Glance)~~ **DONE (2026-07-04)** - `MonitorWidget`
-   shows cached up/down counts, taps to open. Preview image still a deferred asset;
-   visual check needs a device.
+5. ~~**Home-screen widget** (Jetpack Glance)~~ **DONE (expanded 2026-09-01)** -
+   `MonitorWidget` uses exact-size layouts with encrypted per-instance configuration
+   for private servers or public pages, up to six chosen rows, latency/uptime/recent
+   checks, manual secure refresh, freshness guidance, reconfiguration metadata, and
+   validated deep links. Android 17 QA covered rendering, refresh, editing, resizing,
+   and private monitor navigation.
 6. ~~**Quick Settings tile**~~ **DONE (2026-07-04)** - `StatusTileService` shows
    all-up / N-down from cache, opens app on tap; inline vector icon.
 7. ~~**App shortcuts**~~ **DONE (2026-07-04)** - Push and Settings shortcuts
@@ -42,15 +45,13 @@ code-only and verifiable by logic/unit tests until a device is available.
 8. ~~**i18n sweep**~~ **DONE (2026-07-04)** - all screen strings extracted to
    `res/values/strings.xml`; every screen uses `stringResource`. Ready for translations.
 
-**M4 code complete.** All eight built, unit-tested where logic allows, CI green.
-Remaining before a release: the deferred asset list (icons/graphics/screenshots) and
-an on-device QA pass of every flow, both to be done when a device is available.
+**M4 complete.** All eight are built and unit-tested where logic allows. Assets and
+the main device flows have been exercised on Android 17; release-specific screenshot
+and store-metadata refreshes remain part of release polish.
 
 ## deferred (needs assets or a device)
 
-- Launcher icon, notification small icon, widget preview image, F-Droid graphics,
-  screenshots (an asset list will be provided).
-- On-device QA pass of all flows, and cutting the first tagged release.
+- Widget preview image and release-specific F-Droid/repository screenshots.
 
 ## sub-milestone 1: offline last-known status (design)
 

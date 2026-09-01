@@ -1,5 +1,24 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">URSA</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_no_data">No cached data yet. Tap to open URSA.</string>
+    <string name="widget_updated">Updated %1$s ago</string>
+    <string name="widget_uptime_24h">24-hour uptime</string>
+    <string name="widget_recent_checks">Recent checks</string>
+    <string name="widget_config_title">Set up URSA widget</string>
+    <string name="widget_config_source">Data source</string>
+    <string name="widget_config_private">Private server</string>
+    <string name="widget_config_public">Public page</string>
+    <string name="widget_config_refresh_guidance">Android redraw timing varies. Live data updates while URSA is open; Refresh runs an immediate secure update.</string>
+    <string name="widget_config_no_servers">Add a private server in URSA first.</string>
+    <string name="widget_config_no_pages">Save a public status page in URSA first.</string>
+    <string name="widget_config_choose_source">Choose a server or page</string>
+    <string name="widget_config_rows">Monitor rows: %1$d of %2$d</string>
+    <string name="widget_config_loading">Loading monitor choices</string>
+    <string name="widget_config_private_empty">Open this server in URSA once to cache its monitors.</string>
+    <string name="widget_config_public_empty">No saved public status page is available.</string>
+    <string name="widget_config_load_failed">This public page could not be loaded.</string>
+    <string name="widget_config_add">Save widget</string>
     <string name="startup_loading">Loading URSA</string>
 
     <!-- App shortcuts (long-press launcher icon) -->

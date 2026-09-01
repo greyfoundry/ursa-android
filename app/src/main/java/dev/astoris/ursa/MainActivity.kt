@@ -53,6 +53,10 @@ class MainActivity : FragmentActivity() {
         when (intent?.data?.host) {
             "push" -> vm.enterPush()
             "settings" -> vm.enterSettings()
+            "monitor" -> intent.data?.pathSegments?.firstOrNull()?.toIntOrNull()?.let { id ->
+                vm.openMonitorDeepLink(intent.getStringExtra("server_url"), id)
+            }
+            "status-page" -> intent.data?.pathSegments?.firstOrNull()?.let(vm::openStatusPageDeepLink)
         }
     }
 }

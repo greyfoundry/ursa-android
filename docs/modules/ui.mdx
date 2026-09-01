@@ -75,7 +75,11 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/components/` - reusable product surfaces. `UrsaPressableCard` provides
   GPU-only tactile press feedback without list-row layout animation.
 - `.../ui/settings/SettingsScreen.kt`, `.../ui/lock/`, `.../ui/push/PushScreen.kt`,
-  `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, widget, QS tile.
+  `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, QS tile, and
+  exact-size Glance widgets. Widgets choose up to six rows from a private server
+  or saved public page, retain encrypted per-instance configuration/snapshots,
+  show status/latency/uptime/recent checks, refresh on demand, and deep-link back
+  to their validated server or page.
 
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
@@ -86,7 +90,7 @@ navigation library for M1 - the screen set is small and state-driven).
   `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
   `pause`/`resume`, monitor create/edit/delete, `toggleFavorite`, and saved
-  status-page CRUD/order/open/refresh.
+  status-page CRUD/order/open/refresh, plus validated widget deep-link entry points.
 
 **depends on**
 - `data/repository`, `core/network` (StatusPageClient), Compose Material 3,
@@ -108,6 +112,10 @@ navigation library for M1 - the screen set is small and state-driven).
   saved server inherits that server's encrypted headers only at request time.
 - Connection summaries show only the number of encrypted access headers. Header
   values are masked during entry and never rendered after save.
+- Widget configuration and cached public-page rows are encrypted by `WidgetStore`.
+  Private widgets reuse the encrypted monitor cache; neither widget store duplicates
+  JWTs or access-header values. Refresh resolves the matching saved connection only
+  in memory, and widget deep links accept only saved exact server/page identifiers.
 - Portable backups merge servers by normalized URL. They include connections,
   access headers, favorites, dynamic-colour choice, and slow-alert preferences;
   session JWTs require an explicit opt-in. Device-bound lock keys, push endpoints,
