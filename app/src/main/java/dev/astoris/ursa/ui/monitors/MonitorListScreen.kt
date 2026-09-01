@@ -100,7 +100,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var filterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
     var overlay by remember { mutableStateOf<MonitorOverlay?>(null) }
-    var sortMode by remember { mutableStateOf(MonitorSort.ATTENTION) }
+    var sortMode by remember { mutableStateOf(MonitorSort.SERVER) }
     var bulkMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var pendingBulkAction by remember { mutableStateOf<BulkMonitorAction?>(null) }
@@ -117,7 +117,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val pendingCount = activeMonitors.count { it.status == MonitorStatus.PENDING }
     val pausedCount = monitors.count { !it.active }
     val availableTags = monitors.flatMap { it.tags }.distinct().sorted()
-    val shown = monitors
+    val visibleIds = monitors
         .filter { m ->
                 (query.isBlank() || m.name.contains(query, ignoreCase = true)) &&
                 (statusFilter == null || m.status == statusFilter) &&
@@ -127,8 +127,9 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     MonitorActivityFilter.PAUSED -> !m.active
                     MonitorActivityFilter.ALL -> true
                 }
-        }
-        .sortedWith(sortMode.comparator(favorites))
+        }.mapTo(mutableSetOf(), Monitor::id)
+    val shown = monitorHierarchy(monitors, sortMode.comparator(favorites))
+        .filter { it.monitor.id in visibleIds }
     val pausePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.PAUSE)
     val resumePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.RESUME)
 
@@ -344,6 +345,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 onClick = { overlay = MonitorOverlay.PINNED_LIVE; moreOpen = false },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_sort_server)) },
+                                onClick = { sortMode = MonitorSort.SERVER; moreOpen = false },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
                                 onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
                             )
@@ -362,7 +367,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
             }
             if (overlay == null && bulkMode) {
-                val shownIds = shown.mapTo(mutableSetOf(), Monitor::id)
+                val shownIds = shown.mapTo(mutableSetOf()) { it.monitor.id }
                 val allShownSelected = shownIds.isNotEmpty() && shownIds.all { it in selectedIds }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
@@ -472,11 +477,13 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(shown, key = { it.id }) { monitor ->
+                    items(shown, key = { it.monitor.id }) { row ->
+                        val monitor = row.monitor
                         MonitorRow(
                             monitor = monitor,
                             beats = history[monitor.id].orEmpty(),
                             selected = selectedIds.contains(monitor.id).takeIf { bulkMode },
+                            depth = row.depth,
                             onClick = {
                                 if (bulkMode) {
                                     selectedIds = if (monitor.id in selectedIds) {
@@ -652,11 +659,15 @@ private enum class MonitorOverlay {
 }
 
 private enum class MonitorSort {
+    SERVER,
     ATTENTION,
     FAVORITES,
     NAME;
 
     fun comparator(favorites: Set<Int>): Comparator<Monitor> = when (this) {
+        SERVER -> compareBy<Monitor> { !it.active }
+            .thenByDescending(Monitor::weight)
+            .thenBy { it.name.lowercase() }
         ATTENTION -> compareBy<Monitor> { it.status.attentionPriority }
             .thenBy { if (it.id in favorites) 0 else 1 }
             .thenBy { it.name.lowercase() }
@@ -822,11 +833,12 @@ private fun MonitorRow(
     monitor: Monitor,
     beats: List<Heartbeat>,
     selected: Boolean?,
+    depth: Int,
     onClick: () -> Unit,
 ) {
     UrsaPressableCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(start = (depth.coerceAtMost(4) * 16).dp),
     ) {
         Row(
             modifier = Modifier

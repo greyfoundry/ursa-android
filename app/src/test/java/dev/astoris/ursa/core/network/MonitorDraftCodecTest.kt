@@ -26,7 +26,8 @@ class MonitorDraftCodecTest {
                 "id":7,"type":"http","name":"Old","description":"before","url":"https://old.example",
                 "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
                 "headers":"{\"X-Secret\":\"value\"}","basic_auth_pass":"hidden","futureField":{"x":1},
-                "notificationIDList":{"4":true,"9":false}
+                "notificationIDList":{"4":true,"9":false},"parent":3,
+                "tags":[{"tag_id":4,"monitor_id":7,"name":"Prod","color":"#e74c3c","value":"eu"}]
             }""",
         ).jsonObject
         val draft = MonitorDraftCodec.from(raw)!!.copy(
@@ -37,6 +38,7 @@ class MonitorDraftCodecTest {
             retryIntervalSeconds = 15,
             maxRetries = 2,
             notificationIds = setOf(9),
+            parentId = 5,
         )
 
         val updated = MonitorDraftCodec.applyToExisting(raw, draft)
@@ -48,6 +50,8 @@ class MonitorDraftCodecTest {
         assertEquals(1, updated["futureField"]!!.jsonObject["x"]!!.jsonPrimitive.content.toInt())
         assertEquals(setOf("9"), updated["notificationIDList"]!!.jsonObject.keys)
         assertEquals(true, updated["notificationIDList"]!!.jsonObject["9"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals(5, updated["parent"]!!.jsonPrimitive.content.toInt())
+        assertEquals("eu", draft.tagAssignments.single().value)
     }
 
     @Test
@@ -58,6 +62,11 @@ class MonitorDraftCodecTest {
         assertEquals("GET", http["method"]!!.jsonPrimitive.content)
         assertEquals("200-299", http["accepted_statuscodes"]!!.jsonArray.single().jsonPrimitive.content)
         assertEquals(60, http["interval"]!!.jsonPrimitive.content.toInt())
+
+        val grouped = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("manual").copy(name = "Worker", parentId = 8),
+        )
+        assertEquals(8, grouped["parent"]!!.jsonPrimitive.content.toInt())
 
         val push = MonitorDraftCodec.newPayload(
             MonitorDraft.create("push").copy(name = "Heartbeat"),

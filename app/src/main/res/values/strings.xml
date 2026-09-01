@@ -643,6 +643,11 @@
     <string name="monitor_notifications_desc">Choose the notification providers Uptime Kuma should use for this monitor.</string>
     <string name="monitor_notifications_empty">No notification providers are configured on this Uptime Kuma server.</string>
     <string name="monitor_notification_default_suffix"> · default</string>
+    <string name="monitor_group_label">Group</string>
+    <string name="monitor_group_none">Top level</string>
+    <string name="monitor_tags_title">Server tags</string>
+    <string name="monitor_tags_desc">Choose existing Uptime Kuma tags. Existing tag values are preserved.</string>
+    <string name="monitor_tags_empty">No tags are configured on this Uptime Kuma server.</string>
     <string name="monitor_error_name">Enter a monitor name.</string>
     <string name="monitor_error_type">This monitor type cannot be created here yet.</string>
     <string name="monitor_error_endpoint">Enter the monitor address.</string>
@@ -658,6 +663,7 @@
     <string name="monitor_delete_children">Also delete every monitor inside this group</string>
     <string name="monitor_delete_failed">The monitor could not be deleted.</string>
     <string name="bulk_manage_monitors">Manage monitors</string>
+    <string name="action_sort_server">Sort: server order</string>
     <plurals name="bulk_monitors_selected">
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>

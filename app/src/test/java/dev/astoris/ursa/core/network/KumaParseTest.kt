@@ -23,13 +23,17 @@ class KumaParseTest {
 
     @Test fun monitor_parses_core_fields() {
         val m = KumaParse.monitor(
-            obj("""{"id":2,"name":"down-test","url":"http://127.0.0.1:9","type":"http","active":true,"tags":[]}""")
+            obj("""{"id":2,"name":"down-test","url":"http://127.0.0.1:9","type":"http","active":true,"parent":7,"weight":42,"tags":[{"tag_id":3,"monitor_id":2,"name":"prod","color":"#e74c3c","value":"eu"}]}""")
         )!!
         assertEquals(2, m.id)
         assertEquals("down-test", m.name)
         assertEquals("http://127.0.0.1:9", m.url)
         assertEquals("http", m.type)
         assertTrue(m.active)
+        assertEquals(7, m.parentId)
+        assertEquals(42, m.weight)
+        assertEquals(listOf("prod"), m.tags)
+        assertEquals("eu", m.tagAssignments.single().value)
     }
 
     @Test fun monitor_null_url_becomes_null_and_inactive() {
@@ -45,6 +49,17 @@ class KumaParseTest {
     @Test fun tags_extracted_by_name() {
         val tags = KumaParse.tags(obj("""{"tags":[{"name":"prod"},{"name":"db"}]}"""))
         assertEquals(listOf("prod", "db"), tags)
+    }
+
+    @Test fun tagDefinitionsParseOnlyValidServerMetadata() {
+        val tags = KumaParse.tagDefinitions(
+            Json.parseToJsonElement(
+                """[{"id":4,"name":"Production","color":"#e74c3c"},{"id":0,"name":"Invalid","color":"#000000"}]""",
+            ).jsonArray,
+        )
+
+        assertEquals(1, tags.size)
+        assertEquals("Production", tags.single().name)
     }
 
     @Test fun monitorList_is_keyed_by_id() {

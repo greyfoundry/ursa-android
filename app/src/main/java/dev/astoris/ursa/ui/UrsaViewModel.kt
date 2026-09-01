@@ -55,6 +55,7 @@ import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -209,6 +210,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val certs: StateFlow<Map<Int, CertInfo>> = repo.certs
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
     val notifications: StateFlow<List<KumaNotification>> = repo.notifications
+    private val _serverTags = MutableStateFlow<List<KumaTag>>(emptyList())
+    val serverTags: StateFlow<List<KumaTag>> = _serverTags.asStateFlow()
 
     private val statusClient = StatusPageClient()
     private val statusPageStore = StatusPageStore(app)
@@ -485,6 +488,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun createMonitor() {
         _monitorEditor.value = MonitorEditorUiState.Loading
         viewModelScope.launch {
+            _serverTags.value = repo.serverTags().orEmpty()
             _monitorEditor.value = MonitorEditorUiState.Ready(repo.newMonitorDraft())
         }
     }
@@ -492,6 +496,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun editMonitor(id: Int) {
         _monitorEditor.value = MonitorEditorUiState.Loading
         viewModelScope.launch {
+            _serverTags.value = repo.serverTags().orEmpty()
             _monitorEditor.value = repo.monitorDraft(id)?.let(MonitorEditorUiState::Ready)
                 ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
         }
@@ -511,6 +516,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun closeMonitorEditor() {
         _monitorEditor.value = MonitorEditorUiState.Idle
+        _serverTags.value = emptyList()
     }
 
     fun deleteMonitor(

@@ -41,6 +41,9 @@ import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaTag
+import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorTagAssignment
 import dev.astoris.ursa.ui.MonitorEditorUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 
@@ -49,6 +52,8 @@ import dev.astoris.ursa.ui.UrsaViewModel
 fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val state by vm.monitorEditor.collectAsStateWithLifecycle()
     val notifications by vm.notifications.collectAsStateWithLifecycle()
+    val serverTags by vm.serverTags.collectAsStateWithLifecycle()
+    val monitors by vm.monitors.collectAsStateWithLifecycle()
     val stateDraft = when (val current = state) {
         is MonitorEditorUiState.Ready -> current.draft
         is MonitorEditorUiState.Saving -> current.draft
@@ -94,6 +99,8 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 saving = saving,
                 serverError = serverError,
                 notifications = notifications,
+                serverTags = serverTags,
+                monitors = monitors,
                 onCancel = vm::closeMonitorEditor,
                 onSave = { vm.saveMonitor(draft) },
                 modifier = Modifier.padding(padding),
@@ -110,6 +117,8 @@ private fun MonitorForm(
     saving: Boolean,
     serverError: String?,
     notifications: List<KumaNotification>,
+    serverTags: List<KumaTag>,
+    monitors: List<Monitor>,
     onCancel: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -117,6 +126,8 @@ private fun MonitorForm(
     val option = MonitorTypeCatalog.find(draft.type)
     val validation = MonitorDraftCodec.validate(draft)
     var typeMenuOpen by remember { mutableStateOf(false) }
+    var groupMenuOpen by remember { mutableStateOf(false) }
+    val parentGroups = eligibleParentGroups(monitors, draft.id)
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -157,6 +168,8 @@ private fun MonitorForm(
                                         maxRetries = draft.maxRetries,
                                         active = draft.active,
                                         notificationIds = draft.notificationIds,
+                                        parentId = draft.parentId,
+                                        tagAssignments = draft.tagAssignments,
                                     ),
                                 )
                                 typeMenuOpen = false
@@ -212,6 +225,31 @@ private fun MonitorForm(
             minLines = 2,
             modifier = Modifier.fillMaxWidth(),
         )
+        ExposedDropdownMenuBox(expanded = groupMenuOpen, onExpandedChange = { groupMenuOpen = it }) {
+            val parentName = parentGroups.firstOrNull { it.id == draft.parentId }?.name
+            OutlinedTextField(
+                value = parentName ?: stringResource(R.string.monitor_group_none),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(R.string.monitor_group_label)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(groupMenuOpen) },
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
+            )
+            ExposedDropdownMenu(expanded = groupMenuOpen, onDismissRequest = { groupMenuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.monitor_group_none)) },
+                    onClick = { onDraftChange(draft.copy(parentId = null)); groupMenuOpen = false },
+                )
+                parentGroups.forEach { group ->
+                    DropdownMenuItem(
+                        text = { Text(group.name) },
+                        onClick = { onDraftChange(draft.copy(parentId = group.id)); groupMenuOpen = false },
+                    )
+                }
+            }
+        }
         NumberField(
             value = draft.intervalSeconds,
             onValueChange = { onDraftChange(draft.copy(intervalSeconds = it ?: 0)) },
@@ -275,6 +313,55 @@ private fun MonitorForm(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+            }
+        }
+        Text(stringResource(R.string.monitor_tags_title), style = MaterialTheme.typography.titleSmall)
+        if (serverTags.isEmpty()) {
+            Text(
+                stringResource(R.string.monitor_tags_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text(
+                stringResource(R.string.monitor_tags_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            serverTags.forEach { tag ->
+                val assignments = draft.tagAssignments.filter { it.tagId == tag.id }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = assignments.isNotEmpty(),
+                        onCheckedChange = { checked ->
+                            onDraftChange(
+                                draft.copy(
+                                    tagAssignments = if (checked) {
+                                        draft.tagAssignments + MonitorTagAssignment(
+                                            tagId = tag.id,
+                                            monitorId = draft.id ?: 0,
+                                            name = tag.name,
+                                            color = tag.color,
+                                        )
+                                    } else {
+                                        draft.tagAssignments.filterNot { it.tagId == tag.id }
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                    Column {
+                        Text(tag.name)
+                        assignments.map(MonitorTagAssignment::value).filter(String::isNotBlank)
+                            .takeIf(List<String>::isNotEmpty)?.let { values ->
+                                Text(
+                                    values.joinToString(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                     }
                 }
             }

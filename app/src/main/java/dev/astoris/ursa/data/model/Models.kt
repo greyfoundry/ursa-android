@@ -26,10 +26,28 @@ data class Monitor(
     val type: String,
     val active: Boolean,
     val tags: List<String> = emptyList(),
+    val tagAssignments: List<MonitorTagAssignment> = emptyList(),
+    val parentId: Int? = null,
+    val weight: Int = 0,
     val status: MonitorStatus = MonitorStatus.PENDING,
     val ping: Int? = null,
     val avgPing: Int? = null,
     val uptime24h: Double? = null,
+)
+
+@Serializable
+data class MonitorTagAssignment(
+    val tagId: Int,
+    val monitorId: Int,
+    val name: String,
+    val color: String,
+    val value: String = "",
+)
+
+data class KumaTag(
+    val id: Int,
+    val name: String,
+    val color: String,
 )
 
 /** A single heartbeat (the live `heartbeat` event; camelCase on the wire). */

@@ -13,6 +13,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.net.URI
 import java.util.UUID
+import dev.astoris.ursa.data.model.MonitorTagAssignment
 
 enum class MonitorEndpointKind { NONE, URL, HOST, HOST_PORT }
 
@@ -80,6 +81,8 @@ data class MonitorDraft(
     val maxRetries: Int = 0,
     val active: Boolean = true,
     val notificationIds: Set<Int> = emptySet(),
+    val parentId: Int? = null,
+    val tagAssignments: List<MonitorTagAssignment> = emptyList(),
 ) {
     val isNew: Boolean get() = id == null
 
@@ -126,6 +129,8 @@ object MonitorDraftCodec {
                 ?.mapNotNull { (key, value) ->
                     key.toIntOrNull()?.takeIf { value.jsonPrimitive.booleanOrNull == true }
                 }?.toSet().orEmpty(),
+            parentId = raw.int("parent"),
+            tagAssignments = KumaParse.tagAssignments(raw),
         )
     }
 
@@ -162,6 +167,7 @@ object MonitorDraftCodec {
         values["maxretries"] = JsonPrimitive(draft.maxRetries)
         values["active"] = JsonPrimitive(draft.active)
         values["notificationIDList"] = notificationIdObject(draft.notificationIds)
+        values["parent"] = draft.parentId?.let(::JsonPrimitive) ?: JsonNull
         applyEndpoint(values, draft)
         return JsonObject(values)
     }
@@ -171,7 +177,7 @@ object MonitorDraftCodec {
             put("type", draft.type)
             put("name", draft.name.trim())
             put("description", draft.description.trim())
-            put("parent", JsonNull)
+            put("parent", draft.parentId?.let(::JsonPrimitive) ?: JsonNull)
             put("url", "")
             put("method", "GET")
             put("interval", draft.intervalSeconds)

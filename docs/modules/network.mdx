@@ -38,7 +38,8 @@ here so the rest of the app sees clean domain models.
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
   notification relation reads/updates, `testManagedPushNotification`, monitor
-  draft load/save/delete, sequential bulk active-state changes, and `disconnect()`.
+  draft load/save/delete, group membership, tag definition/assignment calls,
+  sequential bulk active-state changes, and `disconnect()`.
   Flows: `state`,
   `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
   and marked managed notifications.
@@ -62,6 +63,9 @@ here so the rest of the app sees clean domain models.
 - `KumaParse.notifications` returns only provider ID, name, type, and default
   status. The double-encoded provider configuration is parsed only far enough to
   identify its type and is then discarded.
+- Monitor parsing retains server `parent`, `weight`, and tag-assignment metadata.
+  Tag changes use Kuma's relation events after the full monitor save; values are
+  retained so removals use the server's exact assignment key.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.

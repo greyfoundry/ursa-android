@@ -27,7 +27,8 @@ navigation library for M1 - the screen set is small and state-driven).
   confirmed removal of encrypted saved-server sessions, plus password-encrypted
   document export/import.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
-  filter-scoped multi-selection with confirmed bulk pause/resume,
+  server-weighted nested groups/folders, filter-scoped multi-selection with
+  confirmed bulk pause/resume,
   and attention/favourite/name sorting.
 - `.../ui/monitors/FleetIncidentCenter.kt` - active-first outage transitions
   across monitors with all/active/resolved filters and detail deep links, plus
@@ -52,7 +53,8 @@ navigation library for M1 - the screen set is small and state-driven).
   and a confirmed external-browser link to the monitor's Kuma dashboard.
 - `.../ui/monitors/MonitorEditorScreen.kt` - typed create/common-edit form with
   inline validation, explicit active state, per-monitor server-notification
-  assignments, server errors, and no raw JSON surface.
+  assignments, server-backed group membership and existing-tag assignments,
+  server errors, and no raw JSON surface.
 - `.../ui/monitors/ResponseTimeChart.kt` - pure response-sample/statistics helpers
   plus a low-cost native Canvas chart with touch and accessibility exploration.
 - `.../ui/statuspage/StatusPageScreen.kt` - unlimited encrypted local public-page

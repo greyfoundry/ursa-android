@@ -9,6 +9,18 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-01 - Server-backed groups and tags (CP-034)
+
+**changed**: Monitor snapshots now retain Kuma parent, weight, and exact tag
+assignment metadata. The list renders nested groups in server sibling order, and
+monitor create/edit can change group membership and assign or remove existing tags.
+
+**contract boundary**: Uptime Kuma 2.5.3 has authenticated tag-relation events and
+full-object parent edits, but no event that mutates monitor weight. URSA honors the
+server's weight and exposes a server-order sort instead of persisting a conflicting
+local order. Hierarchy tests cover nesting, weight, cycle safety, and descendant
+exclusion; parser/draft tests cover the wire fields and value preservation.
+
 ### 2026-09-01 - Confirmed bulk monitor actions (CP-033)
 
 **changed**: Added a discoverable monitor-management mode with explicit selection,

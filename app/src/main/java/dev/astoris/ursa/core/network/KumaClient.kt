@@ -5,9 +5,11 @@ import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
+import dev.astoris.ursa.data.model.MonitorTagAssignment
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -231,18 +233,30 @@ class KumaClient(
         return MonitorDraftCodec.from(json)
     }
 
+    suspend fun serverTags(): List<KumaTag>? {
+        val response = emitAck("getTags") ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONArray("tags") ?: return emptyList()
+        val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
+            ?: return null
+        return KumaParse.tagDefinitions(json)
+    }
+
     /** Creates a supported monitor or safely patches common fields on any known Kuma 2.5.3 type. */
     suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult {
         MonitorDraftCodec.validate(draft)?.let { error ->
             return MonitorMutationResult(false, message = error.name)
         }
+        val currentTags: List<MonitorTagAssignment>
         val payload = if (draft.isNew) {
+            currentTags = emptyList()
             MonitorDraftCodec.newPayload(draft)
         } else {
             val raw = rawMonitor(draft.id ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE"))
                 ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE")
             val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
                 ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE")
+            currentTags = KumaParse.tagAssignments(json)
             MonitorDraftCodec.applyToExisting(json, draft)
         }
         val event = if (draft.isNew) "add" else "editMonitor"
@@ -252,6 +266,9 @@ class KumaClient(
             return MonitorMutationResult(false, message = response.optString("msg").ifBlank { "Save failed" })
         }
         val id = response.optInt("monitorID").takeIf { it > 0 } ?: draft.id
+        if (id != null && !reconcileMonitorTags(id, currentTags, draft.tagAssignments)) {
+            return MonitorMutationResult(false, id, "Saved, but tag assignments could not be fully updated")
+        }
         if (!draft.isNew && id != null) {
             val originalActive = _monitors.value[id]?.active
             if (originalActive != null && originalActive != draft.active) {
@@ -262,6 +279,24 @@ class KumaClient(
             }
         }
         return MonitorMutationResult(true, id)
+    }
+
+    private suspend fun reconcileMonitorTags(
+        monitorId: Int,
+        current: List<MonitorTagAssignment>,
+        desired: List<MonitorTagAssignment>,
+    ): Boolean {
+        fun MonitorTagAssignment.key() = tagId to value
+        val currentByKey = current.associateBy(MonitorTagAssignment::key)
+        val desiredByKey = desired.filter { it.tagId > 0 }.associateBy(MonitorTagAssignment::key)
+        var ok = true
+        (currentByKey.keys - desiredByKey.keys).forEach { key ->
+            if (emitAck("deleteMonitorTag", key.first, monitorId, key.second)?.optBoolean("ok") != true) ok = false
+        }
+        (desiredByKey.keys - currentByKey.keys).forEach { key ->
+            if (emitAck("addMonitorTag", key.first, monitorId, key.second)?.optBoolean("ok") != true) ok = false
+        }
+        return ok
     }
 
     suspend fun deleteMonitor(id: Int, deleteChildren: Boolean = false): MonitorMutationResult {

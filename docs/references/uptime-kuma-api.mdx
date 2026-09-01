@@ -75,6 +75,15 @@ endpoint. Passing one to `loginByToken` is rejected by design.
 - `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
   is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
   restarts the edited monitor, so bulk callers should update sequentially.
+- `getTags()` returns `{ ok, tags: [{ id, name, color }] }`.
+  `addMonitorTag(tagID, monitorID, value)` and
+  `deleteMonitorTag(tagID, monitorID, value)` update assignments and push an
+  `updateMonitorIntoList` event. The exact value is part of the delete key.
+- Group/folder membership is the full monitor object's nullable `parent` field.
+  Kuma rejects assigning a group below one of its descendants. `weight` is
+  emitted for sibling ordering (descending after active state), but 2.5.3 has no
+  authenticated event that mutates monitor weight; clients must not invent a
+  local-only order.
 
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.

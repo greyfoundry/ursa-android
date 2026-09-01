@@ -4,9 +4,11 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.model.MonitorTagAssignment
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -49,6 +51,7 @@ object KumaParse {
 
     fun monitor(obj: JsonObject): Monitor? {
         val id = obj["id"]?.jsonPrimitive?.intOrNull ?: return null
+        val assignments = tagAssignments(obj)
         return Monitor(
             id = id,
             name = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
@@ -56,13 +59,42 @@ object KumaParse {
             type = obj["type"]?.jsonPrimitive?.contentOrNull ?: "",
             active = obj["active"]?.jsonPrimitive?.booleanOrNull ?: true,
             tags = tags(obj),
+            tagAssignments = assignments,
+            parentId = obj["parent"]?.jsonPrimitive?.intOrNull,
+            weight = obj["weight"]?.jsonPrimitive?.intOrNull ?: 0,
         )
     }
 
     fun tags(obj: JsonObject): List<String> =
         obj["tags"]?.jsonArray?.mapNotNull { el ->
-            (el as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull?.ifEmpty { null }
-        } ?: emptyList()
+            (el as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull?.trim()?.ifEmpty { null }
+        }?.distinct().orEmpty()
+
+    fun tagAssignments(obj: JsonObject): List<MonitorTagAssignment> {
+        val monitorId = obj["id"]?.jsonPrimitive?.intOrNull ?: 0
+        return obj["tags"]?.jsonArray?.mapNotNull { el ->
+            val tag = el as? JsonObject ?: return@mapNotNull null
+            val tagId = tag["tag_id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 }
+                ?: return@mapNotNull null
+            val name = tag["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+                ?: return@mapNotNull null
+            MonitorTagAssignment(
+                tagId = tagId,
+                monitorId = tag["monitor_id"]?.jsonPrimitive?.intOrNull ?: monitorId,
+                name = name,
+                color = tag["color"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                value = tag["value"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            )
+        }.orEmpty()
+    }
+
+    fun tagDefinitions(arr: JsonArray): List<KumaTag> = arr.mapNotNull { el ->
+        val tag = el as? JsonObject ?: return@mapNotNull null
+        val id = tag["id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+        val name = tag["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        KumaTag(id, name, tag["color"]?.jsonPrimitive?.contentOrNull.orEmpty())
+    }.sortedBy { it.name.lowercase() }
 
     /** `heartbeat` event (object, camelCase). */
     fun heartbeat(obj: JsonObject): Heartbeat? {

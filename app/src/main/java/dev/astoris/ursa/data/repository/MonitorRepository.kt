@@ -15,6 +15,7 @@ import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -354,6 +355,7 @@ class MonitorRepository(
         return BulkMonitorUpdateResult(succeeded, failed)
     }
     suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
+    suspend fun serverTags(): List<KumaTag>? = activeClient.value?.serverTags()
     suspend fun newMonitorDraft(): MonitorDraft {
         val client = activeClient.value
         if (client != null) {
