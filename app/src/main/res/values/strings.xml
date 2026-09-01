@@ -637,6 +637,16 @@
     <string name="monitor_url_label">URL</string>
     <string name="monitor_host_label">Host</string>
     <string name="monitor_port_label">Port</string>
+    <string name="monitor_discovery_title">Local service</string>
+    <string name="monitor_discovery_desc">Choose HTTP or HTTPS to find a service on this network. Discovery starts only when you tap a button.</string>
+    <string name="monitor_discovery_http">Find HTTP</string>
+    <string name="monitor_discovery_https">Find HTTPS</string>
+    <string name="monitor_discovery_searching">Looking for services. Android 17 shows a private system picker.</string>
+    <string name="monitor_discovery_choose">Choose a discovered service</string>
+    <string name="monitor_discovery_resolving">Resolving %1$s</string>
+    <string name="monitor_discovery_start_failed">Local service discovery could not start.</string>
+    <string name="monitor_discovery_resolve_failed">That service could not be resolved.</string>
+    <string name="monitor_discovery_invalid">That service did not provide a usable address and port.</string>
     <string name="monitor_description_label">Description</string>
     <string name="monitor_interval_label">Check interval (seconds)</string>
     <string name="monitor_retry_interval_label">Retry interval (seconds)</string>
@@ -686,7 +696,7 @@
     <string name="maintenance_duration_label">Duration (minutes)</string>
     <string name="maintenance_interval_label">Repeat every (days)</string>
     <string name="maintenance_weekdays_label">Weekdays</string>
-    <string name="maintenance_days_label" tools:ignore="Typos">Days (1-31, or lastDay1)</string>
+    <string name="maintenance_days_label" tools:ignore="Typos">Days (1&#8211;31, or lastDay1)</string>
     <string name="maintenance_timezone_label">Timezone (SAME_AS_SERVER, UTC, or IANA name)</string>
     <string name="maintenance_timezone_resolved">Server resolves this as %1$s</string>
     <string name="maintenance_active_label">Active after saving</string>

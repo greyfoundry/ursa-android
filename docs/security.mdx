@@ -122,6 +122,12 @@ reverse-proxy base path. They reject embedded user info, queries, fragments,
 traversal, and encoded separators, show the exact destination before launch, and
 never include the encrypted JWT or custom access headers.
 
+Optional local-service discovery does not request Android 17's broad local-network
+permission. It uses the system DNS-SD picker, which reveals and grants only the
+service the user selects. Older Android releases scan only after an explicit tap,
+only while the monitor editor is open, and release multicast access on every exit.
+URSA consumes only the resolved IP address and port; advertised TXT data is ignored.
+
 Managed UnifiedPush setup sends the device's delivery endpoint only to the active
 Kuma server the user already authenticated to. URSA marks its dedicated Webhook
 provider and will not edit or remove unmarked providers. Kuma requires a complete

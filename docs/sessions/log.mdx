@@ -9,6 +9,19 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-01 - Local service discovery (CP-036)
+
+**changed**: Added user-triggered HTTP and HTTPS DNS-SD discovery to the
+new-monitor editor. Android 17 uses the system service picker without broad
+`ACCESS_LOCAL_NETWORK`; older devices show names from a foreground-only scan.
+Selection safely prefills URL, host, and port fields. IPv6 scopes and unsafe host
+delimiters are normalized or rejected, and TXT records are ignored.
+
+**verified**: All 153 JVM tests, debug assembly, and Android lint passed; the only
+lint notice is the tracked newer-AGP availability warning. Android 17 emulator QA
+confirmed the OS-owned picker opens from the HTTP action, names URSA in its
+disclosure, and returns the form to idle after dismissal.
+
 ### 2026-09-01 - Native maintenance management (CP-035)
 
 **changed**: Added live maintenance-list handling and a native list/editor for all

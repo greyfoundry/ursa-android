@@ -19,11 +19,13 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.MonitorDraft
+import dev.astoris.ursa.core.network.LocalServiceDiscoveryError
+import dev.astoris.ursa.core.network.LocalServiceDiscoveryState
+import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEndpointKind
@@ -54,6 +59,7 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val notifications by vm.notifications.collectAsStateWithLifecycle()
     val serverTags by vm.serverTags.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
+    val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
     val stateDraft = when (val current = state) {
         is MonitorEditorUiState.Ready -> current.draft
         is MonitorEditorUiState.Saving -> current.draft
@@ -62,6 +68,16 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     }
     var draft by remember(stateDraft?.id, stateDraft?.type) {
         mutableStateOf(stateDraft ?: MonitorDraft.create())
+    }
+    LaunchedEffect(discoveryState) {
+        val selected = (discoveryState as? LocalServiceDiscoveryState.Selected)?.address ?: return@LaunchedEffect
+        draft = when (MonitorTypeCatalog.find(draft.type)?.endpointKind) {
+            MonitorEndpointKind.URL -> draft.copy(endpoint = selected.url)
+            MonitorEndpointKind.HOST -> draft.copy(endpoint = selected.host)
+            MonitorEndpointKind.HOST_PORT -> draft.copy(endpoint = selected.host, port = selected.port)
+            else -> draft
+        }
+        vm.consumeLocalServiceSelection()
     }
     val saving = state is MonitorEditorUiState.Saving
     val serverError = (state as? MonitorEditorUiState.Error)?.message
@@ -101,6 +117,10 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 notifications = notifications,
                 serverTags = serverTags,
                 monitors = monitors,
+                discoveryState = discoveryState,
+                onDiscover = vm::discoverLocalService,
+                onSelectService = vm::selectLocalService,
+                onStopDiscovery = vm::stopLocalServiceDiscovery,
                 onCancel = vm::closeMonitorEditor,
                 onSave = { vm.saveMonitor(draft) },
                 modifier = Modifier.padding(padding),
@@ -119,6 +139,10 @@ private fun MonitorForm(
     notifications: List<KumaNotification>,
     serverTags: List<KumaTag>,
     monitors: List<Monitor>,
+    discoveryState: LocalServiceDiscoveryState,
+    onDiscover: (LocalServiceProtocol) -> Unit,
+    onSelectService: (String) -> Unit,
+    onStopDiscovery: () -> Unit,
     onCancel: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -217,6 +241,57 @@ private fun MonitorForm(
                 label = stringResource(R.string.monitor_port_label),
                 maxDigits = 5,
             )
+        }
+        if (draft.isNew && option?.endpointKind != MonitorEndpointKind.NONE) {
+            Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.monitor_discovery_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = { onDiscover(LocalServiceProtocol.HTTP) },
+                    enabled = discoveryState !is LocalServiceDiscoveryState.Resolving,
+                ) { Text(stringResource(R.string.monitor_discovery_http)) }
+                OutlinedButton(
+                    onClick = { onDiscover(LocalServiceProtocol.HTTPS) },
+                    enabled = discoveryState !is LocalServiceDiscoveryState.Resolving,
+                ) { Text(stringResource(R.string.monitor_discovery_https)) }
+            }
+            when (discoveryState) {
+                is LocalServiceDiscoveryState.Discovering -> {
+                    Text(
+                        stringResource(
+                            if (discoveryState.candidates.isEmpty()) {
+                                R.string.monitor_discovery_searching
+                            } else {
+                                R.string.monitor_discovery_choose
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    discoveryState.candidates.forEach { service ->
+                        OutlinedButton(
+                            onClick = { onSelectService(service.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(service.name) }
+                    }
+                    OutlinedButton(onClick = onStopDiscovery) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                }
+                is LocalServiceDiscoveryState.Resolving -> Text(
+                    stringResource(R.string.monitor_discovery_resolving, discoveryState.name),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                is LocalServiceDiscoveryState.Error -> Text(
+                    localDiscoveryError(discoveryState.reason),
+                    color = MaterialTheme.colorScheme.error,
+                )
+                LocalServiceDiscoveryState.Idle,
+                is LocalServiceDiscoveryState.Selected -> Unit
+            }
         }
         OutlinedTextField(
             value = draft.description,
@@ -403,5 +478,14 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.PORT_REQUIRED -> R.string.monitor_error_port
         MonitorDraftError.INVALID_INTERVAL -> R.string.monitor_error_interval
         MonitorDraftError.INVALID_RETRIES -> R.string.monitor_error_retries
+    },
+)
+
+@Composable
+private fun localDiscoveryError(error: LocalServiceDiscoveryError): String = stringResource(
+    when (error) {
+        LocalServiceDiscoveryError.START_FAILED -> R.string.monitor_discovery_start_failed
+        LocalServiceDiscoveryError.RESOLVE_FAILED -> R.string.monitor_discovery_resolve_failed
+        LocalServiceDiscoveryError.INVALID_ADDRESS -> R.string.monitor_discovery_invalid
     },
 )

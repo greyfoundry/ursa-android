@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.LocalServiceDiscovery
+import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
@@ -171,6 +173,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val eventLogStore = EventLogStore(app)
     private val incidentNoteStore = IncidentNoteStore(app)
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
+    private val localServiceDiscovery = LocalServiceDiscovery(app)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
     val maintenances: StateFlow<List<MaintenanceDraft>> = repo.maintenances
@@ -213,6 +216,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private val _monitorEditor = MutableStateFlow<MonitorEditorUiState>(MonitorEditorUiState.Idle)
     val monitorEditor: StateFlow<MonitorEditorUiState> = _monitorEditor.asStateFlow()
+    val localServiceDiscoveryState = localServiceDiscovery.state
 
     private val _beats = MutableStateFlow<List<Heartbeat>>(emptyList())
     val beats: StateFlow<List<Heartbeat>> = _beats.asStateFlow()
@@ -529,9 +533,18 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun closeMonitorEditor() {
+        localServiceDiscovery.stop()
         _monitorEditor.value = MonitorEditorUiState.Idle
         _serverTags.value = emptyList()
     }
+
+    fun discoverLocalService(protocol: LocalServiceProtocol) = localServiceDiscovery.start(protocol)
+
+    fun selectLocalService(candidateId: String) = localServiceDiscovery.select(candidateId)
+
+    fun consumeLocalServiceSelection() = localServiceDiscovery.consumeSelection()
+
+    fun stopLocalServiceDiscovery() = localServiceDiscovery.stop()
 
     fun createMaintenance() {
         val start = LocalDateTime.now().withSecond(0).withNano(0)
@@ -1149,6 +1162,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        localServiceDiscovery.stop()
         repo.disconnect()
         statusClient.close()
     }

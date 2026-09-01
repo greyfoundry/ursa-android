@@ -30,6 +30,9 @@ here so the rest of the app sees clean domain models.
   confirmed external-browser dashboard and monitor links.
 - `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.3 type catalogue,
   typed common-field validation, safe patching, and create defaults.
+- `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
+  API 37 uses the system service picker without broad LAN permission, while older
+  devices show a foreground result list and resolve only the selected service.
 
 **exports**
 - `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
