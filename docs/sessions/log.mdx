@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-01
+last-updated: 2026-09-02
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,22 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-02 - Adaptive tablet and glance display (CP-039)
+
+**changed**: Added an 840dp monitor list-detail layout that retains the fleet list
+while selection populates the adjacent detail pane. Settings now offers an opt-in
+always-on glance display with a bounded attention-first monitor list, fleet counts,
+cached-data age, a visible exit action, and explicit power/OLED burn-in guidance.
+The display restores the previous Android keep-screen-on flag when it closes and
+does not use lock-task pinning.
+
+**verified**: All 160 JVM tests pass, including the width breakpoint,
+operational-state counts, pending/no-active edge cases, attention ordering, and
+the 12-row bound. Android 17 QA verified the warning flow, live cached fleet
+rendering, active keep-screen-on flag, flag removal on exit, expanded empty-detail
+state, and selected detail with the monitor list retained. The emulator display
+override was reset afterward.
 
 ### 2026-09-01 - Detailed configurable widgets (CP-038)
 

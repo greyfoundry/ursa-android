@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.text.KeyboardOptions
@@ -19,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +52,7 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
     val canDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    var showKioskWarning by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -57,7 +62,9 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
+        Column(
+            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        ) {
             OutlinedButton(onClick = { vm.enterConnectionManager() }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.servers_title), style = MaterialTheme.typography.labelLarge)
@@ -74,6 +81,17 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     Text(stringResource(R.string.statuspage_title), style = MaterialTheme.typography.labelLarge)
                     Text(
                         stringResource(R.string.settings_status_pages_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = { showKioskWarning = true }, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.settings_kiosk_title), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.settings_kiosk_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -179,5 +197,26 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 Text(stringResource(R.string.action_sign_out))
             }
         }
+    }
+
+    if (showKioskWarning) {
+        AlertDialog(
+            onDismissRequest = { showKioskWarning = false },
+            title = { Text(stringResource(R.string.kiosk_warning_title)) },
+            text = { Text(stringResource(R.string.kiosk_warning_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showKioskWarning = false
+                        vm.enterKioskMode()
+                    },
+                ) { Text(stringResource(R.string.kiosk_open)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showKioskWarning = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
 }

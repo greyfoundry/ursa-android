@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-26
+last-updated: 2026-09-02
 owner: astoris
 status: stable
 ---
@@ -18,7 +18,9 @@ navigation library for M1 - the screen set is small and state-driven).
   status-page state, pause/resume, and per-server favourites.
 - `.../ui/UrsaApp.kt` - root; holds a minimal startup loading bridge while the
   encrypted saved-session route is restored, then routes server manager /
-  status-page / login / detail / list.
+  status-page / login / detail / list or the opt-in always-on glance display.
+- `.../ui/AdaptiveLayout.kt` - pure expanded-width decision and bounded,
+  attention-first fleet summary for tablet and glance-display surfaces.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
   imported session-token authentication, conditional 2FA, connection test, and
   explicit self-signed-certificate choice. Its collapsed access-header editor
@@ -50,7 +52,12 @@ navigation library for M1 - the screen set is small and state-driven).
   current state, latency, compact recent checks, unpin, and detail deep links.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume,
-  and a confirmed external-browser link to the monitor's Kuma dashboard.
+  and a confirmed external-browser link to the monitor's Kuma dashboard. At
+  840dp and wider it occupies the detail pane beside the retained monitor list.
+- `.../ui/monitors/KioskScreen.kt` - opt-in fleet glance display with a bounded
+  attention-first list, status counts, cached-data age, and a visible exit action.
+  It keeps the screen awake only while composed and does not enter Android lock-task
+  mode.
 - `.../ui/monitors/MonitorEditorScreen.kt` - typed create/common-edit form with
   inline validation, explicit active state, per-monitor server-notification
   assignments, server-backed group membership and existing-tag assignments,
@@ -90,7 +97,8 @@ navigation library for M1 - the screen set is small and state-driven).
   `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
   `pause`/`resume`, monitor create/edit/delete, `toggleFavorite`, and saved
-  status-page CRUD/order/open/refresh, plus validated widget deep-link entry points.
+  status-page CRUD/order/open/refresh, glance-display entry/exit, plus validated
+  widget deep-link entry points.
 
 **depends on**
 - `data/repository`, `core/network` (StatusPageClient), Compose Material 3,
@@ -101,6 +109,10 @@ navigation library for M1 - the screen set is small and state-driven).
 - Routing is a `when` on state, not a nav graph. System back is handled per-screen
   with `BackHandler` (detail → list, server form → server manager, status
   page → login).
+- Expanded mode begins at 840dp. Monitor selection replaces the right-pane empty
+  prompt without removing the list; phone selection remains a full-screen detail.
+  The glance display deliberately stays escapable, warns before keeping the screen
+  awake, and restores the prior `keepScreenOn` value on exit.
 - Startup routing remains behind the one-way `startupReady` gate until encrypted
   saved connections have been read and any selected client has been activated.
   It does not wait for the network authentication acknowledgement. Routing then

@@ -2,6 +2,7 @@ package dev.astoris.ursa.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -31,6 +32,7 @@ import dev.astoris.ursa.ui.connections.ConnectionManagerScreen
 import dev.astoris.ursa.ui.lock.LockScreen
 import dev.astoris.ursa.ui.monitors.MonitorDetailScreen
 import dev.astoris.ursa.ui.monitors.MonitorEditorScreen
+import dev.astoris.ursa.ui.monitors.KioskScreen
 import dev.astoris.ursa.ui.statuspage.StatusPageScreen
 
 @Composable
@@ -44,6 +46,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val addingConnection by vm.addingConnection.collectAsStateWithLifecycle()
     val editingConnection by vm.editingConnection.collectAsStateWithLifecycle()
     val monitorEditor by vm.monitorEditor.collectAsStateWithLifecycle()
+    val kioskMode by vm.kioskMode.collectAsStateWithLifecycle()
 
     // Re-lock when the app goes to the background (if the lock is enabled).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -55,21 +58,25 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    when {
-        locked -> LockScreen(vm)
-        !startupReady -> StartupLoadingScreen()
-        statusPageMode -> StatusPageScreen(vm)
-        connectionManagerMode && addingConnection -> LoginScreen(
-            vm = vm,
-            initialConnection = editingConnection,
-            onBack = { vm.cancelAddingConnection() },
-            onConnected = { vm.finishAddingConnection() },
-        )
-        connectionManagerMode -> ConnectionManagerScreen(vm)
-        !hasSession -> LoginScreen(vm)
-        monitorEditor !is MonitorEditorUiState.Idle -> MonitorEditorScreen(vm)
-        selected != null -> MonitorDetailScreen(vm, selected!!)
-        else -> MainShell(vm)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val expanded = AdaptiveLayout.isExpanded(maxWidth.value)
+        when {
+            locked -> LockScreen(vm)
+            !startupReady -> StartupLoadingScreen()
+            statusPageMode -> StatusPageScreen(vm)
+            connectionManagerMode && addingConnection -> LoginScreen(
+                vm = vm,
+                initialConnection = editingConnection,
+                onBack = { vm.cancelAddingConnection() },
+                onConnected = { vm.finishAddingConnection() },
+            )
+            connectionManagerMode -> ConnectionManagerScreen(vm)
+            !hasSession -> LoginScreen(vm)
+            monitorEditor !is MonitorEditorUiState.Idle -> MonitorEditorScreen(vm)
+            kioskMode -> KioskScreen(vm)
+            selected != null && !expanded -> MonitorDetailScreen(vm, selected!!)
+            else -> MainShell(vm, expanded, selected)
+        }
     }
 }
 

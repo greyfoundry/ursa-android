@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -14,14 +15,18 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.ui.monitors.MonitorDetailScreen
 import dev.astoris.ursa.ui.monitors.MonitorListScreen
 import dev.astoris.ursa.ui.push.PushScreen
 import dev.astoris.ursa.ui.settings.SettingsScreen
@@ -33,7 +38,7 @@ import dev.astoris.ursa.ui.theme.UrsaMotion
  * screen supplies its own top bar.
  */
 @Composable
-fun MainShell(vm: UrsaViewModel) {
+fun MainShell(vm: UrsaViewModel, expanded: Boolean = false, selected: Monitor? = null) {
     val tab by vm.tab.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -57,7 +62,28 @@ fun MainShell(vm: UrsaViewModel) {
                 label = "main destination",
             ) { destination ->
                 when (destination) {
-                    MainTab.MONITORS -> MonitorListScreen(vm)
+                    MainTab.MONITORS -> if (expanded) {
+                        Row(Modifier.fillMaxSize()) {
+                            MonitorListScreen(vm, Modifier.weight(0.43f))
+                            VerticalDivider()
+                            if (selected == null) {
+                                Box(
+                                    Modifier.weight(0.57f).fillMaxSize(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.tablet_choose_monitor),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            } else {
+                                MonitorDetailScreen(vm, selected, Modifier.weight(0.57f), showBack = false)
+                            }
+                        }
+                    } else {
+                        MonitorListScreen(vm)
+                    }
                     MainTab.NOTIFICATIONS -> PushScreen(vm)
                     MainTab.SETTINGS -> SettingsScreen(vm)
                 }

@@ -67,7 +67,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier = Modifier) {
+fun MonitorDetailScreen(
+    vm: UrsaViewModel,
+    monitor: Monitor,
+    modifier: Modifier = Modifier,
+    showBack: Boolean = true,
+) {
     val beats by vm.beats.collectAsStateWithLifecycle()
     val certs by vm.certs.collectAsStateWithLifecycle()
     val cert = certs[monitor.id]
@@ -104,11 +109,13 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
             TopAppBar(
                 title = { Text(monitor.name) },
                 navigationIcon = {
-                    IconButton(onClick = { vm.back() }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_arrow_back),
-                            contentDescription = stringResource(R.string.action_back),
-                        )
+                    if (showBack) {
+                        IconButton(onClick = { vm.back() }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_arrow_back),
+                                contentDescription = stringResource(R.string.action_back),
+                            )
+                        }
                     }
                 },
                 actions = {

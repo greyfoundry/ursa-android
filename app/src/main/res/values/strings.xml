@@ -188,6 +188,8 @@
     <string name="settings_title">Settings</string>
     <string name="settings_servers_desc">Add or switch servers</string>
     <string name="settings_status_pages_desc">Save and open public dashboards</string>
+    <string name="settings_kiosk_title">Glance display</string>
+    <string name="settings_kiosk_desc">Open a clean always-on fleet view for a wall tablet or desk display.</string>
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>
@@ -199,6 +201,35 @@
     <string name="settings_dynamic_color">Material You colors</string>
     <string name="settings_dynamic_color_desc">Use your wallpaper colors instead of the Uptime Kuma palette.</string>
     <string name="settings_dynamic_color_unavailable">Available on Android 12 and newer.</string>
+
+    <!-- Adaptive tablet and glance display -->
+    <string name="tablet_choose_monitor">Choose a monitor to see its details</string>
+    <string name="kiosk_warning_title">Keep this screen awake?</string>
+    <string name="kiosk_warning_body">The glance display prevents screen timeout while it is open. This increases power use and can cause burn-in on OLED screens. Keep the device powered, lower brightness, and exit when the display is not needed.</string>
+    <string name="kiosk_open">Open display</string>
+    <string name="kiosk_exit">Exit display</string>
+    <string name="kiosk_all_operational">All monitored services operational</string>
+    <string name="kiosk_no_active">No active monitors</string>
+    <string name="kiosk_maintenance_active">Maintenance in progress</string>
+    <string name="kiosk_cached_at">Showing last-known data from %1$s</string>
+    <string name="kiosk_monitors_title">Monitor status</string>
+    <string name="kiosk_metric_up">Up</string>
+    <string name="kiosk_metric_down">Down</string>
+    <string name="kiosk_metric_pending">Pending</string>
+    <string name="kiosk_metric_maintenance">Maintenance</string>
+    <string name="kiosk_metric_paused">Paused</string>
+    <plurals name="kiosk_monitors_down">
+        <item quantity="one">%d monitor needs attention</item>
+        <item quantity="other">%d monitors need attention</item>
+    </plurals>
+    <plurals name="kiosk_monitors_pending">
+        <item quantity="one">%d monitor is pending</item>
+        <item quantity="other">%d monitors are pending</item>
+    </plurals>
+    <plurals name="kiosk_showing_rows">
+        <item quantity="one">Showing %1$d of %2$d monitor, with attention states first.</item>
+        <item quantity="other">Showing %1$d of %2$d monitors, with attention states first.</item>
+    </plurals>
 
     <!-- App lock -->
     <string name="lock_title">URSA is locked</string>

@@ -272,6 +272,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     // Which bottom-nav tab is selected.
     private val _tab = MutableStateFlow(MainTab.MONITORS)
     val tab: StateFlow<MainTab> = _tab.asStateFlow()
+    private val _kioskMode = MutableStateFlow(false)
+    val kioskMode: StateFlow<Boolean> = _kioskMode.asStateFlow()
 
     private val _connectionManagerMode = MutableStateFlow(false)
     val connectionManagerMode: StateFlow<Boolean> = _connectionManagerMode.asStateFlow()
@@ -637,6 +639,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 monitors.first { list -> list.any { it.id == monitorId } }.first { it.id == monitorId }
             } ?: return@launch
             _statusPageMode.value = false
+            _tab.value = MainTab.MONITORS
             _selectedId.value = monitor.id
             refetchBeats()
         }
@@ -683,6 +686,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun logout() {
         repo.disconnect()
         _hasSession.value = false
+        _kioskMode.value = false
         _selectedId.value = null
         _beats.value = emptyList()
         _login.value = LoginUiState.Idle
@@ -699,6 +703,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     // Deep-link entry points (app shortcuts) map onto tabs.
     fun enterPush() = selectTab(MainTab.NOTIFICATIONS)
     fun enterSettings() = selectTab(MainTab.SETTINGS)
+    fun enterKioskMode() { _kioskMode.value = true }
+    fun exitKioskMode() { _kioskMode.value = false }
 
     fun enterConnectionManager() {
         resetLogin()
