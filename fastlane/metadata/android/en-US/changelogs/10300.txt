@@ -1,0 +1,8 @@
+URSA 1.3.0 adds complete monitoring workflows on phone and Wear OS.
+
+* Added encrypted custom headers for Pangolin, Cloudflare Access, and other proxies.
+* Added monitor and maintenance management, bulk actions, groups, tags, and alerts.
+* Added incident, certificate, domain, event, aggregate, and pinned-live fleet views.
+* Added advanced filters, saved views, secure backups, and improved connection help.
+* Added a Wear OS dashboard, monitor details, tile, complications, and optional pairing.
+* Refreshed the interface and verified compatibility through Uptime Kuma 2.5.3.

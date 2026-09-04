@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.3.0](https://github.com/greyfoundry/ursa-android/compare/v1.2.3...v1.3.0) (2026-09-04)
+
 ### Added
 
 * Encrypted per-server custom access headers for Pangolin, Cloudflare Access, and

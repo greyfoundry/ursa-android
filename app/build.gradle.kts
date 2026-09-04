@@ -24,8 +24,8 @@ android {
         // Literal versionName/versionCode so F-Droid's parser can read them for
         // auto-update (it cannot evaluate variables or arithmetic). Update both
         // by hand for each release (major*10000 + minor*100 + patch).
-        versionCode = 10203
-        versionName = "1.2.3"
+        versionCode = 10300
+        versionName = "1.3.0"
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise
