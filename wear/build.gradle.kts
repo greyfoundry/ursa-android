@@ -58,10 +58,12 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
 
-    // Wear Tiles + ProtoLayout (all FOSS androidx, no Google Play Services).
+    // Wear surfaces plus the Data Layer receiver used for explicit phone pairing.
     implementation(libs.androidx.wear.tiles)
     implementation(libs.androidx.wear.protolayout)
     implementation(libs.androidx.wear.protolayout.material)
+    implementation(libs.androidx.wear.watchface.complications.data.source.ktx)
+    implementation(libs.play.services.wearable)
     implementation(libs.guava) // ListenableFuture for TileService responses
 
     // networking: Ktor to poll a public Kuma status page (no auth, no GMS)
@@ -70,4 +72,10 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.tink.android)
+    implementation(libs.socket.io.client) {
+        exclude(group = "org.json", module = "json")
+    }
+
+    testImplementation(libs.junit)
 }

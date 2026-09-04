@@ -87,6 +87,10 @@ navigation library for M1 - the screen set is small and state-driven).
   or saved public page, retain encrypted per-instance configuration/snapshots,
   show status/latency/uptime/recent checks, refresh on demand, and deep-link back
   to their validated server or page.
+- `.../core/wear/WearSessionBridge.kt` plus the conditional `src/wearBridge`
+  implementation - explicit phone-to-watch session handoff for GitHub builds. The
+  F-Droid build omits the transport dependency and pairing control. See
+  `docs/modules/wear.mdx`.
 
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
@@ -132,6 +136,9 @@ navigation library for M1 - the screen set is small and state-driven).
   access headers, favorites, dynamic-colour choice, and slow-alert preferences;
   session JWTs require an explicit opt-in. Device-bound lock keys, push endpoints,
   cached monitor data, and alert cooldown timestamps are never exported.
+- Wear pairing is explicit and available only when the conditional Data Layer sender
+  is present. It sends the active JWT and up to eight access headers to reachable
+  same-signed watch apps after confirmation. Self-signed connections are refused.
 - Fleet reliability statistics merge the rolling live heartbeat window with one
   bounded on-demand page of Kuma's durable important transitions. Outages that
   overlap a selected window contribute only their

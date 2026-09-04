@@ -16,6 +16,7 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ./gradlew.bat assembleDebug --no-daemon     # -> app/build/outputs/apk/debug/app-debug.apk
 ./gradlew.bat testDebugUnitTest --no-daemon # unit tests
 ./gradlew.bat :app:lintDebug --no-daemon    # must pass before commit
+./gradlew.bat :wear:testDebugUnitTest :wear:lintDebug :wear:assembleDebug --no-daemon
 ```
 
 **run**
@@ -32,7 +33,8 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
    baseline validator, and immutable Action-pin validator. Merge only after the
    hosted checks pass.
 3. Create the `vX.Y.Z` tag and GitHub release from the release merge commit.
-4. Run the **Release artifacts** workflow with that existing tag. It builds and
+4. Run the **Release artifacts** workflow with that existing tag. It builds the
+   phone app with `-PursaWearBridge=true` and
    uploads signed phone and watch APKs, a CycloneDX SBOM, checksums, and provenance.
 5. Download the assets and verify the checksums, APK signatures/version metadata,
    and attestations. F-Droid discovers the version tag automatically.
@@ -49,5 +51,8 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 - First build downloads Gradle 9.4.1 (~130 MB) + AGP/deps - slow once, cached
   after.
 - Use `--no-daemon` in CI/headless to avoid lingering daemons on Windows.
+- Plain `:app:assembleRelease` is the F-Droid-compatible phone build and does not
+  resolve Play Services. Only GitHub release builds enable the optional Wear Data
+  Layer sender. The separately distributed Wear APK includes the receiver.
 - lint caches results; if a `local.properties`-style fix seems ignored, rerun
   with `--rerun-tasks`.

@@ -190,6 +190,20 @@
     <string name="settings_status_pages_desc">Save and open public dashboards</string>
     <string name="settings_kiosk_title">Glance display</string>
     <string name="settings_kiosk_desc">Open a clean always-on fleet view for a wall tablet or desk display.</string>
+    <string name="settings_wear_pair">Pair Wear OS</string>
+    <string name="settings_wear_desc">Send this server session to the paired URSA watch app.</string>
+    <string name="settings_wear_no_session">Sign in to a saved server before pairing.</string>
+    <string name="settings_wear_self_signed">Watch actions do not support self-signed server certificates.</string>
+    <string name="settings_wear_confirm_title">Send private session to your watch?</string>
+    <string name="settings_wear_confirm_body">URSA will send the active server session and any access headers locally to the same signed app on reachable paired watches. The watch encrypts them on receipt. Public monitoring works without this.</string>
+    <string name="settings_wear_send">Send</string>
+    <string name="settings_wear_sending">Looking for your watch…</string>
+    <plurals name="settings_wear_sent">
+        <item quantity="one">Sent to %1$d reachable watch.</item>
+        <item quantity="other">Sent to %1$d reachable watches.</item>
+    </plurals>
+    <string name="settings_wear_no_watch">No reachable paired URSA watch was found.</string>
+    <string name="settings_wear_failed">The watch session could not be sent.</string>
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>

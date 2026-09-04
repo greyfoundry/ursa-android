@@ -9,6 +9,31 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-04 - Full Wear OS companion and complications (CP-040)
+
+**changed**: Expanded the count-only Wear tile into a standalone public status-page
+dashboard with attention-first monitors, live latency and 24-hour uptime, groups,
+tags, validated monitor detail routes, and shared fleet wording across the app, tile,
+and SHORT_TEXT/LONG_TEXT complications. Private pause/resume is optional and confirmed.
+The phone sends its active session and up to eight access headers through an explicit
+same-signed Wear Data Layer handoff; the watch revalidates the bounded payload and
+encrypts it with Tink and Android Keystore. Credentials are never typed on-watch.
+
+**distribution boundary**: GitHub phone releases opt into the Data Layer sender with
+`-PursaWearBridge=true`. Default and F-Droid phone builds contain no Play Services
+dependency and hide the pairing control. The separately distributed Wear APK includes
+the receiver. Self-signed private actions are refused because the phone's ephemeral
+certificate trust cannot be transferred safely; public viewing still works.
+
+**verified**: Wear parser/security tests cover base paths, tags, metrics, ordering,
+header injection/bounds, encryption tampering, payload validation, and action events.
+Wear tests, lint, and assembly pass. Android 16 Wear QA verified a credential-free
+setup screen, clean dashboard/detail rendering, encrypted token storage, registered
+tile/complication services, and live Kuma pause/resume. Android 17 phone QA verified
+the conditional pairing control, disclosure, and safe no-watch failure. Two independent
+AVDs cannot establish a real Data Layer pair, so that transport remains a physical-pair
+QA caveat. Temporary Kuma page/group/tag data was removed and monitor 1 is active.
+
 ### 2026-09-02 - Adaptive tablet and glance display (CP-039)
 
 **changed**: Added an 840dp monitor list-detail layout that retains the fleet list

@@ -32,11 +32,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.WearPairingError
+import dev.astoris.ursa.ui.WearPairingUiState
 import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,9 +53,11 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val dynamicColorEnabled by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val wearPairing by vm.wearPairing.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
     val canDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     var showKioskWarning by remember { mutableStateOf(false) }
+    var showWearConfirmation by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -95,6 +100,36 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            if (vm.wearBridgeAvailable) {
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = {
+                        vm.clearWearPairingResult()
+                        showWearConfirmation = true
+                    },
+                    enabled = wearPairing != WearPairingUiState.Sending &&
+                        activeConnection?.jwt?.isNotBlank() == true && activeConnection.insecure.not(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.settings_wear_pair), style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            stringResource(
+                                when {
+                                    activeConnection == null || activeConnection.jwt.isNullOrBlank() ->
+                                        R.string.settings_wear_no_session
+                                    activeConnection.insecure -> R.string.settings_wear_self_signed
+                                    else -> R.string.settings_wear_desc
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        WearPairingResult(wearPairing)
+                    }
                 }
             }
 
@@ -219,4 +254,51 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             },
         )
     }
+
+    if (showWearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showWearConfirmation = false },
+            title = { Text(stringResource(R.string.settings_wear_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_wear_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showWearConfirmation = false
+                        vm.sendActiveSessionToWear()
+                    },
+                ) { Text(stringResource(R.string.settings_wear_send)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWearConfirmation = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun WearPairingResult(state: WearPairingUiState) {
+    val message = when (state) {
+        WearPairingUiState.Idle -> return
+        WearPairingUiState.Sending -> stringResource(R.string.settings_wear_sending)
+        is WearPairingUiState.Success -> pluralStringResource(
+            R.plurals.settings_wear_sent,
+            state.watchCount,
+            state.watchCount,
+        )
+        is WearPairingUiState.Error -> stringResource(
+            when (state.reason) {
+                WearPairingError.NO_ACTIVE_SESSION -> R.string.settings_wear_no_session
+                WearPairingError.SELF_SIGNED_UNSUPPORTED -> R.string.settings_wear_self_signed
+                WearPairingError.NO_REACHABLE_WATCH -> R.string.settings_wear_no_watch
+                WearPairingError.TRANSFER_FAILED -> R.string.settings_wear_failed
+            },
+        )
+    }
+    Text(
+        message,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.primary,
+    )
 }

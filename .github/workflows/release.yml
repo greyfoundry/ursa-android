@@ -72,12 +72,12 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease :wear:assembleRelease --no-daemon --stacktrace
+        run: ./gradlew :app:assembleRelease :wear:assembleRelease -PursaWearBridge=true --no-daemon --stacktrace
 
       - name: Name the APKs after the tag
         id: apk
         run: |
-          cp app/build/outputs/apk/release/app-release.apk "ursa-${TAG}.apk"
+          cp app/build-wear-bridge/outputs/apk/release/app-release.apk "ursa-${TAG}.apk"
           cp wear/build/outputs/apk/release/wear-release.apk "ursa-wear-${TAG}.apk"
           echo "path=ursa-${TAG}.apk" >> "$GITHUB_OUTPUT"
           echo "wear=ursa-wear-${TAG}.apk" >> "$GITHUB_OUTPUT"

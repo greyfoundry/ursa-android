@@ -52,6 +52,10 @@ import dev.astoris.ursa.core.work.CertExpiryWorker
 import dev.astoris.ursa.core.work.ResponseAlertNotifier
 import dev.astoris.ursa.core.work.ResponseAlertWorker
 import dev.astoris.ursa.core.work.ResponseAlertUtil
+import dev.astoris.ursa.core.wear.WearSessionBridge
+import dev.astoris.ursa.core.wear.WearSessionSendError
+import dev.astoris.ursa.core.wear.WearSessionSendResult
+import dev.astoris.ursa.core.wear.WearSessionTransfer
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
@@ -98,6 +102,20 @@ sealed interface ConnectionTestUiState {
     data object Success : ConnectionTestUiState
     data object NeedsTwoFactor : ConnectionTestUiState
     data class Error(val message: String) : ConnectionTestUiState
+}
+
+enum class WearPairingError {
+    NO_ACTIVE_SESSION,
+    SELF_SIGNED_UNSUPPORTED,
+    NO_REACHABLE_WATCH,
+    TRANSFER_FAILED,
+}
+
+sealed interface WearPairingUiState {
+    data object Idle : WearPairingUiState
+    data object Sending : WearPairingUiState
+    data class Success(val watchCount: Int) : WearPairingUiState
+    data class Error(val reason: WearPairingError) : WearPairingUiState
 }
 
 sealed interface ConnectionBackupResult {
@@ -200,6 +218,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val login: StateFlow<LoginUiState> = _login.asStateFlow()
     private val _connectionTest = MutableStateFlow<ConnectionTestUiState>(ConnectionTestUiState.Idle)
     val connectionTest: StateFlow<ConnectionTestUiState> = _connectionTest.asStateFlow()
+    val wearBridgeAvailable: Boolean = WearSessionBridge.isAvailable
+    private val _wearPairing = MutableStateFlow<WearPairingUiState>(WearPairingUiState.Idle)
+    val wearPairing: StateFlow<WearPairingUiState> = _wearPairing.asStateFlow()
 
     /** True once a server session exists; keeps the list visible across reconnects. */
     private val _hasSession = MutableStateFlow(false)
@@ -1058,6 +1079,47 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun setLockEnabled(enabled: Boolean) {
         LockStore.setEnabled(getApplication(), enabled)
         if (!enabled) _locked.value = false
+    }
+
+    fun sendActiveSessionToWear() {
+        if (!wearBridgeAvailable || _wearPairing.value == WearPairingUiState.Sending) return
+        viewModelScope.launch {
+            _wearPairing.value = WearPairingUiState.Sending
+            val active = store.activeUrl.first()
+            val connection = store.snapshot().firstOrNull { it.url == active }
+            if (connection == null || connection.jwt.isNullOrBlank()) {
+                _wearPairing.value = WearPairingUiState.Error(WearPairingError.NO_ACTIVE_SESSION)
+                return@launch
+            }
+            if (connection.insecure) {
+                _wearPairing.value = WearPairingUiState.Error(WearPairingError.SELF_SIGNED_UNSUPPORTED)
+                return@launch
+            }
+            val transfer = WearSessionTransfer.from(connection)
+            if (transfer == null) {
+                _wearPairing.value = WearPairingUiState.Error(WearPairingError.NO_ACTIVE_SESSION)
+                return@launch
+            }
+            _wearPairing.value = when (
+                val result = withContext(Dispatchers.IO) {
+                    WearSessionBridge.send(getApplication(), transfer)
+                }
+            ) {
+                is WearSessionSendResult.Success -> WearPairingUiState.Success(result.watchCount)
+                is WearSessionSendResult.Failure -> WearPairingUiState.Error(
+                    when (result.reason) {
+                        WearSessionSendError.NO_REACHABLE_WATCH -> WearPairingError.NO_REACHABLE_WATCH
+                        WearSessionSendError.TRANSFER_FAILED -> WearPairingError.TRANSFER_FAILED
+                    },
+                )
+            }
+        }
+    }
+
+    fun clearWearPairingResult() {
+        if (_wearPairing.value != WearPairingUiState.Sending) {
+            _wearPairing.value = WearPairingUiState.Idle
+        }
     }
 
     fun enterStatusPage() { _statusPageMode.value = true }

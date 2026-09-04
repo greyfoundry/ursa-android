@@ -53,8 +53,9 @@ whenever you pull your phone out.
   told how long it was down when it recovers), routed through
   [UnifiedPush](https://unifiedpush.org) (e.g. ntfy). No Firebase, no Google Play
   Services, no relay server to run or pay for.
-- ⌚ **Wear OS tile** - an at-a-glance "all clear / N down" tile on your watch, and your
-  alerts (with Pause/Resume) show up on your wrist. Fully FOSS, no Google services.
+- ⌚ **Wear OS companion** - a standalone status dashboard with monitor details,
+  latency, uptime, groups, tags, a tile, complications, and optional paired
+  Pause/Resume controls. The phone's F-Droid build remains free of Google services.
 - 🖥️ **All your servers, one app** - connect multiple Uptime Kuma instances and switch
   between them.
 - ⏯️ **Pause and resume** - silence a monitor during maintenance without opening a
@@ -85,7 +86,7 @@ walks you through your first connection, and
 covers getting alerts on your phone.
 
 **Got a Wear OS watch?** There's a separate `ursa-wear-*.apk` on the Releases page for
-the status tile - see [Wear OS](https://github.com/greyfoundry/ursa-android/wiki/Wear-OS)
+the full companion - see [Wear OS](https://github.com/greyfoundry/ursa-android/wiki/Wear-OS)
 for how to sideload it.
 
 **Prefer auto-updates?** In [Obtainium](https://github.com/ImranR98/Obtainium), add

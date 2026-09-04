@@ -190,6 +190,15 @@ sees its declared `specialUse` type and free-form subtype; the required foregrou
 permissions are normal/app-op permissions with no runtime data grant. Its ongoing
 notification is both the feature and the platform disclosure. It reuses the encrypted
 saved session only in memory and connects solely to the selected self-hosted server.
+The separate Wear app can receive an explicit, best-effort Data Layer session message
+only on its exact path and capability. Wear OS restricts Data Layer peers to the same
+package and signing identity. The bounded payload is validated again on-watch, then
+the server URL, token, and up to eight CR/LF-safe access headers are encrypted together
+with a Keystore-backed Tink AEAD. They are excluded from backup and never logged or
+rendered. Pairing is confirmed on the phone, credentials are never entered on-watch,
+and self-signed connections are refused because their session-only certificate trust
+cannot be transferred safely. The GitHub phone build enables this sender explicitly;
+the default F-Droid phone dependency graph contains no Play Services.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; Dependabot checks
