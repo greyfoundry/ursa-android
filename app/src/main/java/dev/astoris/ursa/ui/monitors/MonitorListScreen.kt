@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -75,6 +76,7 @@ import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.UptimeRing
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
+import dev.astoris.ursa.ui.actionRes
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,6 +84,7 @@ import kotlinx.coroutines.launch
 fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
+    val connectionFailure by vm.connectionFailure.collectAsStateWithLifecycle()
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
@@ -90,14 +93,16 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val incidentNotes by vm.incidentNotes.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val compactDisplay by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
+    val savedViews by vm.savedViews.collectAsStateWithLifecycle()
+    val incidentOpenRequest by vm.incidentOpenRequest.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
 
     var searchActive by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    var statusFilter by remember { mutableStateOf<MonitorStatus?>(null) }
-    var tagFilter by remember { mutableStateOf<String?>(null) }
-    var activityFilter by remember { mutableStateOf(MonitorActivityFilter.ACTIVE) }
+    var viewFilter by remember { mutableStateOf(MonitorViewFilter(activity = ActivityFilter.ACTIVE)) }
     var filterOpen by remember { mutableStateOf(false) }
+    var advancedFilterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
     var overlay by remember { mutableStateOf<MonitorOverlay?>(null) }
     var sortMode by remember { mutableStateOf(MonitorSort.SERVER) }
@@ -117,16 +122,13 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val pendingCount = activeMonitors.count { it.status == MonitorStatus.PENDING }
     val pausedCount = monitors.count { !it.active }
     val availableTags = monitors.flatMap { it.tags }.distinct().sorted()
+    val statusFilter = viewFilter.statuses.singleOrNull()
+    val tagFilter = viewFilter.tags.singleOrNull()
+    val activityFilter = viewFilter.activity
     val visibleIds = monitors
         .filter { m ->
                 (query.isBlank() || m.name.contains(query, ignoreCase = true)) &&
-                (statusFilter == null || m.status == statusFilter) &&
-                (tagFilter?.let { it in m.tags } ?: true) &&
-                when (activityFilter) {
-                    MonitorActivityFilter.ACTIVE -> m.active
-                    MonitorActivityFilter.PAUSED -> !m.active
-                    MonitorActivityFilter.ALL -> true
-                }
+                viewFilter.matches(m, monitors, certs.keys)
         }.mapTo(mutableSetOf(), Monitor::id)
     val shown = monitorHierarchy(monitors, sortMode.comparator(favorites))
         .filter { it.monitor.id in visibleIds }
@@ -135,6 +137,12 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
     LaunchedEffect(monitors) {
         selectedIds = selectedIds.intersect(monitors.mapTo(mutableSetOf(), Monitor::id))
+    }
+    LaunchedEffect(incidentOpenRequest) {
+        if (incidentOpenRequest != null) {
+            overlay = MonitorOverlay.INCIDENTS
+            vm.consumeIncidentOpenRequest()
+        }
     }
 
     Scaffold(
@@ -196,8 +204,13 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = stringResource(R.string.connection_status, stringResource(state.labelRes)),
+                            text = connectionFailure?.takeIf {
+                                state == ConnectionState.Error || state == ConnectionState.AuthenticationFailed
+                            }?.let { stringResource(it.actionRes) }
+                                ?: stringResource(R.string.connection_status, stringResource(state.labelRes)),
                             style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 3,
                             color = if (
                                 state == ConnectionState.AuthenticationFailed || state == ConnectionState.Error
                             ) MaterialTheme.colorScheme.onErrorContainer
@@ -207,6 +220,8 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             text = stringResource(R.string.servers_manage),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 12.dp),
+                            maxLines = 1,
                         )
                     }
                 }
@@ -292,17 +307,17 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             activityFilter = activityFilter,
                             availableTags = availableTags,
                             onAll = {
-                                statusFilter = null
-                                tagFilter = null
-                                activityFilter = MonitorActivityFilter.ALL
+                                viewFilter = MonitorViewFilter()
                             },
-                            onActive = { activityFilter = MonitorActivityFilter.ACTIVE },
+                            onActive = { viewFilter = viewFilter.copy(activity = ActivityFilter.ACTIVE) },
                             onPaused = {
-                                activityFilter = MonitorActivityFilter.PAUSED
-                                statusFilter = null
+                                viewFilter = viewFilter.copy(activity = ActivityFilter.PAUSED, statuses = emptySet())
                             },
-                            onStatus = { statusFilter = it },
-                            onTag = { tagFilter = if (tagFilter == it) null else it },
+                            onStatus = { viewFilter = viewFilter.copy(statuses = setOf(it)) },
+                            onTag = {
+                                viewFilter = viewFilter.copy(tags = if (tagFilter == it) emptySet() else setOf(it))
+                            },
+                            onAdvanced = { advancedFilterOpen = true },
                         )
                         Box {
                             IconButton(onClick = { moreOpen = true }) {
@@ -462,12 +477,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         pendingCount = pendingCount,
                         pausedCount = pausedCount,
                         onStatusClick = { status ->
-                            statusFilter = status
-                            activityFilter = MonitorActivityFilter.ACTIVE
+                            viewFilter = viewFilter.copy(statuses = setOf(status), activity = ActivityFilter.ACTIVE)
                         },
                         onPausedClick = {
-                            statusFilter = null
-                            activityFilter = MonitorActivityFilter.PAUSED
+                            viewFilter = viewFilter.copy(statuses = emptySet(), activity = ActivityFilter.PAUSED)
                         },
                     )
                 }
@@ -483,8 +496,8 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             } else if (overlay == null) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = if (compactDisplay) 8.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compactDisplay) 4.dp else 10.dp),
                 ) {
                     items(shown, key = { it.monitor.id }) { row ->
                         val monitor = row.monitor
@@ -493,6 +506,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             beats = history[monitor.id].orEmpty(),
                             selected = selectedIds.contains(monitor.id).takeIf { bulkMode },
                             depth = row.depth,
+                            compact = compactDisplay,
                             onClick = {
                                 if (bulkMode) {
                                     selectedIds = if (monitor.id in selectedIds) {
@@ -585,6 +599,18 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             },
         )
     }
+
+    if (advancedFilterOpen) {
+        AdvancedFilterDialog(
+            filter = viewFilter,
+            monitors = monitors,
+            savedViews = savedViews,
+            onApply = { viewFilter = it; advancedFilterOpen = false },
+            onSave = vm::saveMonitorView,
+            onDelete = vm::deleteMonitorView,
+            onDismiss = { advancedFilterOpen = false },
+        )
+    }
 }
 
 @Composable
@@ -593,13 +619,14 @@ private fun MonitorFilterMenu(
     onFilterOpenChange: (Boolean) -> Unit,
     statusFilter: MonitorStatus?,
     tagFilter: String?,
-    activityFilter: MonitorActivityFilter,
+    activityFilter: ActivityFilter,
     availableTags: List<String>,
     onAll: () -> Unit,
     onActive: () -> Unit,
     onPaused: () -> Unit,
     onStatus: (MonitorStatus) -> Unit,
     onTag: (String) -> Unit,
+    onAdvanced: () -> Unit,
 ) {
     Box {
         IconButton(onClick = { onFilterOpenChange(true) }) {
@@ -608,7 +635,7 @@ private fun MonitorFilterMenu(
                 contentDescription = stringResource(R.string.action_filter),
                 tint = if (
                     statusFilter != null || tagFilter != null ||
-                    activityFilter != MonitorActivityFilter.ACTIVE
+                    activityFilter != ActivityFilter.ACTIVE
                 ) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -652,11 +679,14 @@ private fun MonitorFilterMenu(
                     )
                 }
             }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.filter_advanced)) },
+                onClick = { onFilterOpenChange(false); onAdvanced() },
+            )
         }
     }
 }
-
-private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
 
 private enum class MonitorOverlay {
     MAINTENANCE,
@@ -844,6 +874,7 @@ private fun MonitorRow(
     beats: List<Heartbeat>,
     selected: Boolean?,
     depth: Int,
+    compact: Boolean,
     onClick: () -> Unit,
 ) {
     UrsaPressableCard(
@@ -853,7 +884,8 @@ private fun MonitorRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = if (compact) 7.dp else 12.dp)
+                .heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -863,7 +895,7 @@ private fun MonitorRow(
             MonitorLeadingIcon(monitor)
             Column(Modifier.weight(1f)) {
                 Text(monitor.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                monitor.url?.let {
+                monitor.url?.takeUnless { compact }?.let {
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,

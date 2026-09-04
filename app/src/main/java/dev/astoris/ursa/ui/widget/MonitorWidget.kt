@@ -37,6 +37,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import dev.astoris.ursa.MainActivity
+import dev.astoris.ursa.ui.AppDeepLink
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
@@ -238,10 +239,9 @@ private fun rowIntent(context: Context, config: WidgetConfig, monitorId: Int) = 
             if (config.source == WidgetSource.PUBLIC_PAGE) {
                 "ursa://status-page/${Uri.encode(config.sourceId)}"
             } else {
-                "ursa://monitor/$monitorId"
+                AppDeepLink.monitor(config.sourceId, monitorId)
             }
         ).toUri()
-        if (config.source == WidgetSource.PRIVATE_SERVER) putExtra("server_url", config.sourceId)
         flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
     },
 )

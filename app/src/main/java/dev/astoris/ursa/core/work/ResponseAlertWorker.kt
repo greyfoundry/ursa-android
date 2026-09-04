@@ -81,7 +81,7 @@ class ResponseAlertWorker(context: Context, params: WorkerParameters) :
                     }
                     val name = names[monitorId]?.name ?: "Monitor $monitorId"
                     val ping = latest.ping ?: 0
-                    if (ResponseAlertNotifier.notify(applicationContext, name, ping, threshold, key)) {
+                    if (ResponseAlertNotifier.notify(applicationContext, conn.url, monitorId, name, ping, threshold, key)) {
                         eventLogStore.append(
                             serverUrl = conn.url,
                             monitorId = monitorId,

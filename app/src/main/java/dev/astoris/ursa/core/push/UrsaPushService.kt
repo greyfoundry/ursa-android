@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.astoris.ursa.MainActivity
+import androidx.core.net.toUri
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
 import kotlinx.coroutines.CoroutineScope
@@ -216,6 +217,8 @@ class UrsaPushService : PushService() {
 
             val open = Intent()
             open.setClassName(context.packageName, MainActivity::class.java.name)
+            open.action = Intent.ACTION_VIEW
+            open.data = "ursa://push".toUri()
             open.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             val contentIntent = PendingIntent.getActivity(
                 context,

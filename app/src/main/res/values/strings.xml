@@ -138,6 +138,7 @@
     <string name="login_test">Test connection</string>
     <string name="login_test_success">Connection and credentials verified</string>
     <string name="login_test_2fa">Server reached - enter your 2FA code to finish verification</string>
+    <string name="login_local_network_denied">Local network access is needed to connect directly to this server. Allow Nearby devices access, then try again.</string>
     <string name="login_view_status_page">View a public status page</string>
     <string name="login_import_backup">Import backup</string>
 
@@ -803,4 +804,48 @@
         <item quantity="one">%1$d updated; %2$d monitor failed. The failed monitor remains selected.</item>
         <item quantity="other">%1$d updated; %2$d monitors failed. Failed monitors remain selected.</item>
     </plurals>
+    <string name="filter_advanced">Advanced filters &amp; saved views</string>
+    <string name="filter_activity">Activity</string>
+    <string name="filter_status">Status</string>
+    <string name="filter_groups">Groups</string>
+    <string name="filter_types">Monitor type</string>
+    <string name="filter_certificate">Certificate</string>
+    <string name="filter_any_certificate">Any</string>
+    <string name="filter_has_certificate">Has certificate</string>
+    <string name="filter_no_certificate">No certificate</string>
+    <string name="saved_views_title">Saved views</string>
+    <string name="saved_view_name">View name</string>
+    <string name="saved_view_save">Save current filters</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_clear">Clear</string>
+    <string name="settings_compact">Compact monitor list</string>
+    <string name="settings_compact_desc">Show more monitors while keeping full-size touch targets.</string>
+    <string name="settings_help">Connection help &amp; diagnostics</string>
+    <string name="settings_help_desc">Direct connection, TLS, access-proxy, 2FA, push, and background guidance.</string>
+    <string name="connection_help_title">Connection help</string>
+    <string name="connection_help_direct"><b>Direct connection:</b> URSA talks straight to your Uptime Kuma URL. Include any reverse-proxy base path.</string>
+    <string name="connection_help_access"><b>Access layers:</b> Pangolin, Cloudflare Access, and similar proxies can use up to eight custom headers in server setup.</string>
+    <string name="connection_help_auth"><b>Sign-in:</b> enter your 2FA code when requested. A session can expire; sign in again from Servers.</string>
+    <string name="connection_help_tls"><b>TLS:</b> prefer a trusted HTTPS certificate. Self-signed mode trusts only the certificate approved during that session.</string>
+    <string name="connection_help_push"><b>Alerts:</b> UnifiedPush needs a distributor and notification permission. Android background restrictions can delay work.</string>
+    <string name="connection_help_current">Current diagnosis: %1$s</string>
+    <string name="connection_reason_device">This device has no usable internet connection. Reconnect Wi-Fi or mobile data.</string>
+    <string name="connection_reason_server">The server could not be reached. Check its URL, base path, VPN, DNS, and reverse proxy.</string>
+    <string name="connection_reason_auth">The saved session was rejected. Open Servers and sign in again.</string>
+    <string name="connection_reason_certificate">TLS validation failed. Check the certificate chain or explicitly review self-signed mode.</string>
+    <string name="connection_reason_incompatible">The server returned an unexpected shape. Confirm it is Uptime Kuma 2.0 or newer and review proxy rewrites.</string>
+    <string name="connection_reason_unknown">No specific failure is active. Use Test connection in the server editor for a fresh check.</string>
+    <string name="settings_updates">What’s new &amp; updates</string>
+    <string name="settings_updates_desc">Check the official GitHub release page manually. No device identifier is sent and URSA never installs updates.</string>
+    <string name="update_dialog_title">What’s new</string>
+    <string name="update_current">URSA is up to date.</string>
+    <string name="update_check_failed">Couldn’t check right now. Your current installation is unchanged.</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_open_release">Open release page</string>
+    <string name="update_available_title">URSA %1$s is available</string>
+    <string name="update_available_body">Review the release notes and update through your preferred source.</string>
+    <string name="update_privacy">Manual check only. URSA sends its version, not a device or installation identifier.</string>
+    <string name="login_connection_guide">Connect directly to your Uptime Kuma server. Include a reverse-proxy base path when used; add access-proxy headers under Advanced connection if needed. Credentials stay encrypted on this device.</string>
+    <string name="update_current_notes"><b>In this version:</b> modern adaptive monitoring, richer incident and certificate views, secure custom headers, compact mode, saved filters, actionable diagnostics, Wear OS, and manual release checks.</string>
 </resources>

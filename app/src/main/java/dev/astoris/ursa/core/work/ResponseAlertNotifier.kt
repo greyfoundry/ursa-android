@@ -4,12 +4,17 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dev.astoris.ursa.R
+import dev.astoris.ursa.MainActivity
+import dev.astoris.ursa.ui.AppDeepLink
+import androidx.core.net.toUri
 
 /**
  * Builds and posts "slow response" notifications (#1813). Shared by the background
@@ -34,7 +39,15 @@ object ResponseAlertNotifier {
     }
 
     /** Post a slow-response notification. Returns false without notification permission. */
-    fun notify(context: Context, monitorName: String, pingMs: Int, thresholdMs: Int, monitorKey: String): Boolean {
+    fun notify(
+        context: Context,
+        serverUrl: String,
+        monitorId: Int,
+        monitorName: String,
+        pingMs: Int,
+        thresholdMs: Int,
+        monitorKey: String,
+    ): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -43,12 +56,18 @@ object ResponseAlertNotifier {
         }
         ensureChannel(context)
         val text = context.getString(R.string.slow_response_notification_text, monitorName, pingMs, thresholdMs)
+        val open = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            data = AppDeepLink.monitor(serverUrl, monitorId).toUri()
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
         val notification = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
             .setContentTitle(context.getString(R.string.slow_response_notification_title))
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setAutoCancel(true)
+            .setContentIntent(PendingIntent.getActivity(context, monitorKey.hashCode(), open, PendingIntent.FLAG_IMMUTABLE))
             .build()
         NotificationManagerCompat.from(context).notify(monitorKey.hashCode(), notification)
         return true

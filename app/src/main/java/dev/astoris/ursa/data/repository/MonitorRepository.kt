@@ -105,6 +105,10 @@ class MonitorRepository(
         .flatMapLatest { client -> client?.state ?: flowOf(ConnectionState.Disconnected) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
 
+    val connectionFailure: StateFlow<dev.astoris.ursa.core.network.ConnectionFailureReason?> = activeClient
+        .flatMapLatest { client -> client?.failure ?: flowOf(null) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+
     // Declared before init: the cert-expiry collector below reads this flow.
     val certs: StateFlow<Map<Int, CertInfo>> = activeClient
         .flatMapLatest { client -> client?.certs ?: flowOf(emptyMap()) }

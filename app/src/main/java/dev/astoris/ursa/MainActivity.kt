@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.ui.UrsaApp
+import dev.astoris.ursa.ui.AppDeepLink
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.theme.UrsaTheme
 
@@ -48,15 +49,8 @@ class MainActivity : FragmentActivity() {
         handleRoute(intent)
     }
 
-    /** App-shortcut deep links: ursa://push, ursa://settings. */
+    /** Validated credential-free routes from shortcuts, notifications, widgets, and links. */
     private fun handleRoute(intent: Intent?) {
-        when (intent?.data?.host) {
-            "push" -> vm.enterPush()
-            "settings" -> vm.enterSettings()
-            "monitor" -> intent.data?.pathSegments?.firstOrNull()?.toIntOrNull()?.let { id ->
-                vm.openMonitorDeepLink(intent.getStringExtra("server_url"), id)
-            }
-            "status-page" -> intent.data?.pathSegments?.firstOrNull()?.let(vm::openStatusPageDeepLink)
-        }
+        AppDeepLink.parse(intent?.dataString)?.let(vm::handleRoute)
     }
 }

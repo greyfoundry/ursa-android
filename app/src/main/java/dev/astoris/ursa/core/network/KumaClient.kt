@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -56,6 +57,8 @@ class KumaClient(
 
     private val _state = MutableStateFlow(ConnectionState.Disconnected)
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
+    private val _failure = MutableStateFlow<ConnectionFailureReason?>(null)
+    val failure: StateFlow<ConnectionFailureReason?> = _failure.asStateFlow()
 
     private val _monitors = MutableStateFlow<Map<Int, Monitor>>(emptyMap())
     val monitors: StateFlow<Map<Int, Monitor>> = _monitors.asStateFlow()
@@ -84,6 +87,7 @@ class KumaClient(
     fun connect() {
         if (socket != null) return
         _state.value = ConnectionState.Connecting
+        _failure.value = null
         val opts = IO.Options().apply {
             transports = arrayOf("polling", "websocket") // polling first, then upgrade
             reconnection = true
@@ -98,6 +102,7 @@ class KumaClient(
         val s = try {
             IO.socket(baseUrl, opts)
         } catch (e: Exception) {
+            _failure.value = ConnectionFailure.classify(e)
             _state.value = ConnectionState.Error
             return
         }
@@ -108,6 +113,7 @@ class KumaClient(
 
     private fun wireEvents(s: Socket) {
         s.on(Socket.EVENT_CONNECT) { _ ->
+            _failure.value = null
             _state.value = ConnectionState.Connected
             // On (re)connect, silently re-authenticate if we already have a token so a
             // dropped socket doesn't kick the user back to the login screen.
@@ -116,16 +122,31 @@ class KumaClient(
                     if ((args.getOrNull(0) as? JSONObject)?.optBoolean("ok") == true) {
                         _state.value = ConnectionState.Authenticated
                     } else {
+                        _failure.value = ConnectionFailureReason.AUTHENTICATION
                         _state.value = ConnectionState.AuthenticationFailed
                     }
                 })
             }
         }
-        s.on(Socket.EVENT_CONNECT_ERROR) { _ -> _state.value = ConnectionState.Error }
+        s.on(Socket.EVENT_CONNECT_ERROR) { args ->
+            // A failed transport upgrade can arrive after polling has already connected.
+            // Keep the authenticated session authoritative while the socket remains live.
+            if (s.connected()) return@on
+            val raw = args.firstOrNull()
+            val error = raw as? Throwable ?: raw?.toString()?.let(::IllegalStateException)
+            _failure.value = ConnectionFailure.classify(error)
+            _state.value = ConnectionState.Error
+        }
         s.on(Socket.EVENT_DISCONNECT) { _ -> _state.value = ConnectionState.Disconnected }
 
         s.on("monitorList") { args ->
-            args.jsonAt(0)?.let { _monitors.value = KumaParse.monitorList(it) }
+            val payload = args.jsonAt(0)
+            if (payload == null && args.isNotEmpty()) {
+                _failure.value = ConnectionFailureReason.INCOMPATIBLE_RESPONSE
+                _state.value = ConnectionState.Error
+            } else {
+                payload?.let { _monitors.value = KumaParse.monitorList(it) }
+            }
         }
         s.on("notificationList") { args ->
             args.jsonArrayAt(0)?.let {
@@ -201,8 +222,11 @@ class KumaClient(
             .put("username", username)
             .put("password", password)
             .put("token", token)
-        val res = emitAck("login", payload)
-            ?: return LoginResult.Failure("Server did not respond within 15 seconds")
+        val res = emitAck("login", payload) ?: run {
+            _failure.value = ConnectionFailureReason.SERVER_UNREACHABLE
+            _state.value = ConnectionState.Error
+            return LoginResult.Failure("Server did not respond within 15 seconds")
+        }
         return when {
             res.optBoolean("tokenRequired") -> LoginResult.TwoFactorRequired
             res.optBoolean("ok") -> {
@@ -211,6 +235,7 @@ class KumaClient(
                 LoginResult.Success(jwt)
             }
             else -> {
+                _failure.value = ConnectionFailureReason.AUTHENTICATION
                 _state.value = ConnectionState.AuthenticationFailed
                 LoginResult.Failure(res.optString("msg").ifEmpty { "Login failed" })
             }
@@ -218,12 +243,17 @@ class KumaClient(
     }
 
     suspend fun loginByToken(token: String): Boolean {
-        val res = emitAck("loginByToken", token) ?: return false
+        val res = emitAck("loginByToken", token) ?: run {
+            _failure.value = ConnectionFailureReason.SERVER_UNREACHABLE
+            _state.value = ConnectionState.Error
+            return false
+        }
         val ok = res.optBoolean("ok")
         if (ok) {
             jwt = token
             _state.value = ConnectionState.Authenticated
         } else {
+            _failure.value = ConnectionFailureReason.AUTHENTICATION
             _state.value = ConnectionState.AuthenticationFailed
         }
         return ok
@@ -485,17 +515,22 @@ class KumaClient(
         _maintenances.value = emptyMap()
         _notificationListReady.value = false
         _state.value = ConnectionState.Disconnected
+        _failure.value = null
     }
 
-    /** Emit with an ack callback, exposed as a suspend fun returning the `{ ok, ... }` reply. */
+    /** Emit with an ack callback once the transport is ready, within one shared timeout. */
     private suspend fun emitAck(event: String, vararg data: Any): JSONObject? =
-        withTimeoutOrNull(ACK_TIMEOUT_MS) {
-            suspendCancellableCoroutine { cont ->
-                val s = socket
-                if (s == null) {
-                    cont.resume(null)
-                    return@suspendCancellableCoroutine
+        withTimeoutOrNull(ACK_TIMEOUT_MS) timeout@{
+            val s = socket ?: return@timeout null
+            if (!s.connected()) {
+                state.first { current ->
+                    s.connected() ||
+                        current == ConnectionState.Error ||
+                        current == ConnectionState.Disconnected
                 }
+            }
+            if (!s.connected()) return@timeout null
+            suspendCancellableCoroutine { cont ->
                 val ack = Ack { args -> if (cont.isActive) cont.resume(args.getOrNull(0) as? JSONObject) }
                 s.emit(event, data, ack)
             }

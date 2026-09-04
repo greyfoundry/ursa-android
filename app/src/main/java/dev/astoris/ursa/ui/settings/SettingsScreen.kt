@@ -1,5 +1,6 @@
 package dev.astoris.ursa.ui.settings
 
+import android.content.Intent
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,10 +9,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.text.KeyboardOptions
@@ -32,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -40,6 +44,8 @@ import dev.astoris.ursa.R
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.WearPairingError
 import dev.astoris.ursa.ui.WearPairingUiState
+import dev.astoris.ursa.ui.UpdateCheckUiState
+import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +57,9 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val slowThresholdMs by vm.slowThresholdMs.collectAsStateWithLifecycle()
     val dynamicColorEnabled by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
+    val compactDisplayEnabled by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
+    val connectionFailure by vm.connectionFailure.collectAsStateWithLifecycle()
+    val updateCheck by vm.updateCheck.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val wearPairing by vm.wearPairing.collectAsStateWithLifecycle()
@@ -58,6 +67,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val canDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     var showKioskWarning by remember { mutableStateOf(false) }
     var showWearConfirmation by remember { mutableStateOf(false) }
+    var showConnectionHelp by remember { mutableStateOf(false) }
+    var showUpdates by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -228,6 +239,58 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(stringResource(R.string.settings_compact), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.settings_compact_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = compactDisplayEnabled,
+                    onCheckedChange = vm::setCompactDisplayEnabled,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            OutlinedButton(onClick = { showConnectionHelp = true }, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.settings_help), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.settings_help_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = { vm.clearUpdateCheck(); showUpdates = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.settings_updates), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.settings_updates_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
             OutlinedButton(onClick = { vm.logout() }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.action_sign_out))
             }
@@ -275,6 +338,85 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             },
         )
     }
+
+    if (showConnectionHelp) {
+        AlertDialog(
+            onDismissRequest = { showConnectionHelp = false },
+            title = { Text(stringResource(R.string.connection_help_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.connection_help_current, stringResource(connectionFailure.helpRes())))
+                    Text(stringResource(R.string.connection_help_direct))
+                    Text(stringResource(R.string.connection_help_access))
+                    Text(stringResource(R.string.connection_help_auth))
+                    Text(stringResource(R.string.connection_help_tls))
+                    Text(stringResource(R.string.connection_help_push))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showConnectionHelp = false }) { Text(stringResource(R.string.action_done)) }
+            },
+        )
+    }
+
+    if (showUpdates) {
+        AlertDialog(
+            onDismissRequest = { showUpdates = false },
+            title = { Text(stringResource(R.string.update_dialog_title)) },
+            text = {
+                Column(
+                    Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(stringResource(R.string.update_privacy))
+                    Text(stringResource(R.string.update_current_notes))
+                    when (val state = updateCheck) {
+                        UpdateCheckUiState.Idle -> Unit
+                        UpdateCheckUiState.Loading -> CircularProgressIndicator()
+                        UpdateCheckUiState.Current -> Text(stringResource(R.string.update_current))
+                        UpdateCheckUiState.Error -> Text(stringResource(R.string.update_check_failed))
+                        is UpdateCheckUiState.Available -> {
+                            Text(stringResource(R.string.update_available_title, state.release.version.toString()))
+                            if (state.release.notes.isNotBlank()) Text(state.release.notes)
+                            TextButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, state.release.webUrl.toUri())
+                                            .addCategory(Intent.CATEGORY_BROWSABLE),
+                                    )
+                                },
+                            ) { Text(stringResource(R.string.update_open_release)) }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = vm::checkForUpdates,
+                    enabled = updateCheck != UpdateCheckUiState.Loading,
+                ) {
+                    Text(
+                        stringResource(
+                            if (updateCheck == UpdateCheckUiState.Loading) R.string.update_checking
+                            else R.string.update_check,
+                        ),
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUpdates = false }) { Text(stringResource(R.string.action_done)) }
+            },
+        )
+    }
+}
+
+private fun ConnectionFailureReason?.helpRes() = when (this) {
+    ConnectionFailureReason.DEVICE_OFFLINE -> R.string.connection_reason_device
+    ConnectionFailureReason.SERVER_UNREACHABLE -> R.string.connection_reason_server
+    ConnectionFailureReason.AUTHENTICATION -> R.string.connection_reason_auth
+    ConnectionFailureReason.CERTIFICATE -> R.string.connection_reason_certificate
+    ConnectionFailureReason.INCOMPATIBLE_RESPONSE -> R.string.connection_reason_incompatible
+    ConnectionFailureReason.UNKNOWN, null -> R.string.connection_reason_unknown
 }
 
 @Composable

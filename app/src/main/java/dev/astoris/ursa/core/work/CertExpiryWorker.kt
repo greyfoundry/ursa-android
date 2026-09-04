@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -19,6 +21,9 @@ import dev.astoris.ursa.core.storage.CertExpiryUtil
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
 import dev.astoris.ursa.core.push.PushEventPreferencesStore
+import dev.astoris.ursa.MainActivity
+import dev.astoris.ursa.ui.AppDeepLink
+import androidx.core.net.toUri
 import java.util.concurrent.TimeUnit
 
 /**
@@ -71,6 +76,18 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
                     .setContentText(text)
                     .setStyle(Notification.BigTextStyle().bigText(text))
                     .setAutoCancel(true)
+                    .setContentIntent(
+                        PendingIntent.getActivity(
+                            applicationContext,
+                            "${entry.serverUrl}:${entry.monitorId}".hashCode(),
+                            Intent(applicationContext, MainActivity::class.java).apply {
+                                action = Intent.ACTION_VIEW
+                                data = AppDeepLink.monitor(entry.serverUrl, entry.monitorId).toUri()
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            },
+                            PendingIntent.FLAG_IMMUTABLE,
+                        ),
+                    )
                     .build()
                 manager.notify("${entry.serverUrl}:${entry.monitorId}".hashCode(), notification)
                 eventLogStore.append(

@@ -1,6 +1,10 @@
 package dev.astoris.ursa.ui.connections
 
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,14 +43,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.network.LocalNetworkAccess
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.ui.ConnectionTestUiState
@@ -62,6 +69,7 @@ fun LoginScreen(
     onBack: (() -> Unit)? = null,
     onConnected: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val loginState by vm.login.collectAsStateWithLifecycle()
     val testState by vm.connectionTest.collectAsStateWithLifecycle()
     val loading = loginState is LoginUiState.Loading || testState is ConnectionTestUiState.Loading
@@ -78,6 +86,16 @@ fun LoginScreen(
     var pass by remember { mutableStateOf("") }
     var token by remember { mutableStateOf("") }
     var sessionToken by remember { mutableStateOf("") }
+    var localNetworkPermissionDenied by remember { mutableStateOf(false) }
+    var pendingLocalNetworkAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val localNetworkPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val action = pendingLocalNetworkAction
+        pendingLocalNetworkAction = null
+        localNetworkPermissionDenied = !granted
+        if (granted) action?.invoke()
+    }
     var insecure by remember(initialConnection?.url) { mutableStateOf(initialConnection?.insecure == true) }
     var headersExpanded by remember(initialConnection?.url) {
         mutableStateOf(initialConnection?.headers?.isNotEmpty() == true)
@@ -117,6 +135,19 @@ fun LoginScreen(
     val headersValid = !hasPartialHeaders &&
         requestHeaders.size == headerCandidates.size &&
         requestHeaders.map { it.name.lowercase() }.distinct().size == requestHeaders.size
+
+    fun withLocalNetworkAccess(action: () -> Unit) {
+        val needsPermission = LocalNetworkAccess.requiresPermission(url, Build.VERSION.SDK_INT) &&
+            ContextCompat.checkSelfPermission(context, LOCAL_NETWORK_PERMISSION) !=
+            PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingLocalNetworkAction = action
+            localNetworkPermissionLauncher.launch(LOCAL_NETWORK_PERMISSION)
+        } else {
+            localNetworkPermissionDenied = false
+            action()
+        }
+    }
 
     BackHandler(enabled = onBack != null) { onBack?.invoke() }
 
@@ -182,6 +213,21 @@ fun LoginScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+
+                if (initialConnection == null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            stringResource(R.string.login_connection_guide),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(14.dp),
+                        )
+                    }
                 }
 
                 Surface(
@@ -437,19 +483,27 @@ fun LoginScreen(
                             )
                             ConnectionTestUiState.Idle, ConnectionTestUiState.Loading -> Unit
                         }
+                        if (localNetworkPermissionDenied) {
+                            ConnectionTestResult(
+                                message = stringResource(R.string.login_local_network_denied),
+                                success = false,
+                            )
+                        }
                         OutlinedButton(
                             onClick = {
-                                if (authMode == AuthMode.PASSWORD) {
-                                    vm.testConnection(
-                                        url = url,
-                                        username = user,
-                                        password = pass,
-                                        token = token,
-                                        insecure = insecure,
-                                        headers = requestHeaders,
-                                    )
-                                } else {
-                                    vm.testSessionToken(url, sessionToken, insecure, requestHeaders)
+                                withLocalNetworkAccess {
+                                    if (authMode == AuthMode.PASSWORD) {
+                                        vm.testConnection(
+                                            url = url,
+                                            username = user,
+                                            password = pass,
+                                            token = token,
+                                            insecure = insecure,
+                                            headers = requestHeaders,
+                                        )
+                                    } else {
+                                        vm.testSessionToken(url, sessionToken, insecure, requestHeaders)
+                                    }
                                 }
                             },
                             enabled = !loading && url.isNotBlank() && credentialsReady && headersValid,
@@ -463,26 +517,28 @@ fun LoginScreen(
                         }
                         Button(
                             onClick = {
-                                if (authMode == AuthMode.PASSWORD) {
-                                    vm.login(
-                                        url = url,
-                                        username = user,
-                                        password = pass,
-                                        token = token,
-                                        insecure = insecure,
-                                        alias = alias,
-                                        headers = requestHeaders,
-                                        onSuccess = onConnected,
-                                    )
-                                } else {
-                                    vm.loginWithSessionToken(
-                                        url = url,
-                                        sessionToken = sessionToken,
-                                        insecure = insecure,
-                                        alias = alias,
-                                        headers = requestHeaders,
-                                        onSuccess = onConnected,
-                                    )
+                                withLocalNetworkAccess {
+                                    if (authMode == AuthMode.PASSWORD) {
+                                        vm.login(
+                                            url = url,
+                                            username = user,
+                                            password = pass,
+                                            token = token,
+                                            insecure = insecure,
+                                            alias = alias,
+                                            headers = requestHeaders,
+                                            onSuccess = onConnected,
+                                        )
+                                    } else {
+                                        vm.loginWithSessionToken(
+                                            url = url,
+                                            sessionToken = sessionToken,
+                                            insecure = insecure,
+                                            alias = alias,
+                                            headers = requestHeaders,
+                                            onSuccess = onConnected,
+                                        )
+                                    }
                                 }
                             },
                             enabled = !loading && url.isNotBlank() && credentialsReady && headersValid,
@@ -549,6 +605,8 @@ private fun ServerConnection?.headerValue(name: String): String =
     this?.headers?.firstOrNull { it.name.equals(name, ignoreCase = true) }?.value.orEmpty()
 
 private enum class AuthMode { PASSWORD, SESSION_TOKEN }
+
+private const val LOCAL_NETWORK_PERMISSION = "android.permission.ACCESS_LOCAL_NETWORK"
 
 private const val CLOUDFLARE_CLIENT_ID = "CF-Access-Client-Id"
 private const val CLOUDFLARE_CLIENT_SECRET = "CF-Access-Client-Secret"
