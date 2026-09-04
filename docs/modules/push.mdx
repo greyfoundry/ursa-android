@@ -1,7 +1,7 @@
 ---
-last-updated: 2026-08-31
+last-updated: 2026-09-04
 owner: astoris
-status: in-flux
+status: stable
 ---
 
 ## what this is
@@ -161,5 +161,8 @@ connection: push works while the app is closed.
   a false history entry.
 - Notification content and monitor actions use immutable PendingIntents with explicit
   app-owned activity/receiver components.
+- Notification content routes through strict `ursa://` deep links. Private monitor
+  routes contain only a one-way server scope and monitor ID; update notices open the
+  validated official release page and never download or install an APK.
 - Notifications use the branded monochrome `ic_stat_ursa` small icon and
   `NotificationCompat` for consistent behavior across supported Android versions.

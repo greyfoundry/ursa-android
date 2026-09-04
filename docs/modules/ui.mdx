@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-02
+last-updated: 2026-09-04
 owner: astoris
 status: stable
 ---
@@ -31,7 +31,8 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
   server-weighted nested groups/folders, filter-scoped multi-selection with
   confirmed bulk pause/resume,
-  and attention/favourite/name sorting.
+  attention/favourite/name sorting, optional compact rows, advanced filters, and
+  up to ten server-scoped saved views.
 - `.../ui/monitors/FleetIncidentCenter.kt` - active-first outage transitions
   across monitors with all/active/resolved filters and detail deep links, plus
   windowed observed downtime, MTTR, flakiest-monitor, and history-coverage
@@ -87,6 +88,9 @@ navigation library for M1 - the screen set is small and state-driven).
   or saved public page, retain encrypted per-instance configuration/snapshots,
   show status/latency/uptime/recent checks, refresh on demand, and deep-link back
   to their validated server or page.
+- `.../ui/settings/SettingsScreen.kt` also exposes connection/setup guidance, compact
+  density, optional update notifications, and a user-triggered official-release
+  check. It does not download or install packages.
 - `.../core/wear/WearSessionBridge.kt` plus the conditional `src/wearBridge`
   implementation - explicit phone-to-watch session handoff for GitHub builds. The
   F-Droid build omits the transport dependency and pairing control. See
@@ -178,5 +182,4 @@ navigation library for M1 - the screen set is small and state-driven).
 - Adaptive launcher and monochrome icons are packaged. Cleartext HTTP is enabled
   in the manifest for self-hosted http instances.
 - UI/UX direction, accessibility requirements, and performance gates live in
-  `docs/planning/ui-revamp.mdx`. The revamp is active; primary screens may be at
-  different migration stages until that programme completes.
+  `docs/planning/ui-revamp.mdx`. The primary revamp programme is complete.

@@ -19,8 +19,9 @@ no ads, and no tracking - now and forever. If it works for your Kuma setup, it's
 
 <p>
   <img src="docs/assets/screenshots/02-monitors-dark.png" width="220" alt="Monitor list" />
+  <img src="docs/assets/screenshots/05-features-menu-dark.png" width="220" alt="Monitor list with the feature menu open" />
   <img src="docs/assets/screenshots/03-detail-dark.png" width="220" alt="Monitor detail with heartbeat and TLS certificate" />
-  <img src="docs/assets/screenshots/04-monitors-light.png" width="220" alt="Monitor list, light mode" />
+  <img src="docs/assets/screenshots/06-advanced-filters-dark.png" width="220" alt="Advanced monitor filters and saved views" />
 </p>
 
 ## 🐻 Why URSA?
@@ -42,13 +43,13 @@ whenever you pull your phone out.
 
 - 📡 **Live status at a glance** - every monitor, up or down, with a response-time
   sparkline and service favicon, updating in real time as Kuma pings them. Search and
-  filter when the list gets long. No pull-to-refresh, no stale numbers.
+  filter when the list gets long, save advanced views, or switch to compact mode.
 - 📈 **Heartbeat history and uptime** - tap a monitor for its recent beats (over 6h,
   24h, 7d, or 30d), response time, and uptime percentage.
 - 🐢 **Slow-response alerts** - get notified when a monitor is up but responding slower
   than a limit you set, globally or per monitor. Kuma can't do this; your phone can.
 - 🔒 **TLS certificate details** - see which certs are healthy and which are about to
-  expire, with local reminders before they do.
+  expire, with a fleet certificate dashboard and local reminders before they do.
 - 🔔 **Push notifications, your way** - get alerted the instant something goes down (and
   told how long it was down when it recovers), routed through
   [UnifiedPush](https://unifiedpush.org) (e.g. ntfy). No Firebase, no Google Play
@@ -57,9 +58,11 @@ whenever you pull your phone out.
   latency, uptime, groups, tags, a tile, complications, and optional paired
   Pause/Resume controls. The phone's F-Droid build remains free of Google services.
 - 🖥️ **All your servers, one app** - connect multiple Uptime Kuma instances and switch
-  between them.
-- ⏯️ **Pause and resume** - silence a monitor during maintenance without opening a
-  browser.
+  between them. Custom access headers support Pangolin, Cloudflare Access, and other
+  reverse-proxy gates, with sensitive values encrypted on-device.
+- ⏯️ **Manage without the browser** - create and safely edit common monitor settings,
+  assign groups, tags, and notification providers, run bulk pause/resume, and manage
+  all six maintenance strategies.
 - 🔑 **Login that sticks** - username/password and two-factor (TOTP), with a session
   that heals itself when your connection drops.
 - 🌐 **Public status pages** - check a shared status page without logging in at all.
@@ -67,8 +70,10 @@ whenever you pull your phone out.
   token is ever stored (never your password), and monitor data is hidden from
   screenshots and the app switcher.
 - 📱 **Feels like Android** - a home-screen widget, a Quick Settings tile, app
-  shortcuts, biometric app lock, an offline last-known view, and notification actions.
-  Things the web dashboard simply can't do.
+  shortcuts and scoped deep links, biometric app lock, an offline last-known view,
+  notification actions, responsive tablet layouts, and an opt-in glance display.
+- 🧰 **Built for incident triage** - incident, domain, event, aggregate, certificate,
+  and pinned-live dashboards turn a long fleet into the next useful action.
 - 🎨 **Light and dark, Kuma's colors** - it uses Uptime Kuma's own palette and status
   conventions by default, with optional Material You (Android 12+) if you'd rather match your
   wallpaper.
@@ -99,7 +104,7 @@ versioned release tags and updates URSA automatically, no store required.
 
 | Your Kuma looks like... | URSA handles it |
 |---|---|
-| Uptime Kuma 2.4.x | ✔ verified against a live instance |
+| Uptime Kuma 2.4.x and 2.5.0-2.5.3 | ✔ verified against live instances |
 | Username / password login | ✔ |
 | Two-factor (TOTP) | ✔ |
 | Several servers | ✔ switch freely |
@@ -107,6 +112,7 @@ versioned release tags and updates URSA automatically, no store required.
 | Plain-HTTP instances | ✔ |
 | Behind nginx / Caddy / Traefik | ✔ |
 | Behind a Cloudflare Tunnel | ✔ |
+| Behind Pangolin or an access proxy | ✔ up to eight encrypted custom headers per server |
 
 If your instance is reachable in a browser, URSA can talk to it - reverse proxy or
 tunnel, it's all the same standard HTTPS + WebSocket underneath.

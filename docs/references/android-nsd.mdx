@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-01
+last-updated: 2026-09-04
 owner: astoris
 status: stable
 ---
@@ -10,9 +10,9 @@ URSA uses Android Network Service Discovery (DNS-SD over mDNS) only after a user
 chooses HTTP or HTTPS in the new-monitor form.
 
 - Service types are `_http._tcp` and `_https._tcp`.
-- Android 17 (API 37) uses `DiscoveryRequest.FLAG_SHOW_PICKER`. The system shows
-  matching services and grants access only to the service the user selects.
-  `ACCESS_LOCAL_NETWORK` is deliberately not requested.
+- Android 17 (API 37) discovery uses `DiscoveryRequest.FLAG_SHOW_PICKER`. The system
+  shows matching services and grants discovery access only to the selected service;
+  opening this picker does not request broad local-network access.
 - Android 16 and older use foreground `discoverServices`, show discovered names
   inside the form, and resolve only the item the user selects.
 - Legacy discovery holds a non-reference-counted Wi-Fi multicast lock only while
@@ -34,3 +34,11 @@ Primary references:
 Discovery never begins at app startup, connection, editor entry, or while the app
 is in the background. Starting a new search cancels the previous one. Closing the
 monitor editor stops discovery and releases its multicast lock.
+
+## direct server boundary
+
+DNS-SD discovery is separate from connecting to a user-entered server. Android 17
+requires the runtime `ACCESS_LOCAL_NETWORK` permission before ordinary app sockets
+can reach direct private, loopback, link-local, or mDNS destinations. URSA declares
+that permission and requests it only when the user explicitly tests or connects to
+an address classified into one of those ranges. Public hostnames do not trigger it.

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-02
+last-updated: 2026-09-04
 owner: astoris
 status: in-flux
 ---
@@ -45,7 +45,8 @@ and the module docs under `docs/modules/`.
   `docs/planning/m4-native-depth.mdx`.
 - Builds green (`assembleDebug`, `lintDebug`); parsers unit-tested. Monitor list and
   detail flows are smoke-tested on a Pixel 8 emulator. See `docs/sessions/log.mdx`.
-- Competitor-parity items CP-001 through CP-022 are complete, including fleet
+- Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
+  partial CP-031 advanced monitor-type creation boundary. This includes fleet
   incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
   favourite-monitor live-heartbeat panel, encrypted local incident notes, and a
@@ -59,21 +60,21 @@ and the module docs under `docs/modules/`.
   offers an opt-in always-on fleet glance display with explicit power and burn-in
   guidance, and the separate Wear OS app now provides an attention-first dashboard,
   monitor details, complications, and optionally paired private actions. Advanced
-  monitor-type-specific create fields remain the open CP-031 boundary; CP-041 is the
-  next focused slice.
+  monitor-type-specific create fields remain the open CP-031 boundary. Scoped app
+  deep links, compact rows, connection guidance, a manual update check, advanced
+  filters with saved views, and actionable typed connection failures are complete.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
 - Local reference material (gitignored): `docs/kuma-notes/`, `archive/uptime-kuma/`,
   `MEMORY.md`.
 - Brand assets in: bear app icon (adaptive + themed monochrome), notification icon,
   feature graphic, social preview, real screenshots (`docs/assets/`). On-device
   verified on a Pixel 8.
-- Active next programme: implement the source-linked mobile competitor parity
-  ledger one focused slice at a time. A widget-preview image and the GitHub
-  social-preview upload remain release-polish tasks.
+- Active next programme: final release polish and any issue-driven fixes. The
+  source-linked parity ledger remains the record of deliberate product boundaries.
 
 **depends on**
-- a running Uptime Kuma server (the app is a client; it stores/creates nothing
-  server-side). Dev instance: `docker` container `uptime-kuma-dev` on `:3001`.
+- a running Uptime Kuma server. URSA has no separate backend, but authenticated
+  management actions intentionally update the user's Kuma instance.
 
 ## gotchas
 

@@ -28,8 +28,8 @@ issue before any public disclosure.
 
 In scope:
 
-- The URSA Android app in this repository (credential storage, session handling,
-  network/TLS behavior, push handling, exported components).
+- The URSA phone and Wear OS apps in this repository (credential storage, session
+  handling, network/TLS behavior, push handling, deep links, and exported components).
 
 Out of scope:
 
@@ -42,6 +42,5 @@ Out of scope:
 
 ## Supported versions
 
-URSA is in active development before its first tagged release. Security fixes land
-on `main` and in the latest release. Please reproduce on the latest version before
-reporting.
+Security fixes land on `main` and in the latest supported release. Please reproduce
+on the latest release before reporting; older versions may be asked to upgrade first.

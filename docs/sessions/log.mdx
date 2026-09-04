@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-04 - Final competitor parity and public documentation (CP-041 to CP-046)
+
+**changed**: Added strict scoped app deep links, compact monitor rows, contextual
+connection guidance, a manual official GitHub release check, advanced fleet filters
+with up to ten server-scoped saved views, and typed actionable connection failures.
+Socket acknowledgements now wait for a connected transport inside their existing
+timeout, and a late failed transport upgrade no longer overwrites an authenticated
+connected state. Android 17 requests local-network access only for an explicit test
+or connection to an obvious direct LAN destination.
+
+**security**: Deep links contain only a one-way server scope and bounded local ID.
+The update check sends no identifier, accepts only stable semantic releases and
+official release URLs, and never downloads or installs a package. Saved views contain
+filter metadata only. Existing custom access headers remain encrypted and applied to
+Socket.IO, authenticated requests, and exact-matching public status-page REST calls.
+
+**verified**: 173 app unit tests, app lint, and debug assembly passed. Android 17 live
+QA against official Kuma 2.5.3 covered process-cold reconnect, direct-LAN permission,
+valid/invalid deep links, compact density, saved-filter cleanup, and the five-monitor
+certificate dataset. Public docs and store metadata were reconciled with the shipped
+feature set and manual release model.
+
 ### 2026-09-04 - Full Wear OS companion and complications (CP-040)
 
 **changed**: Expanded the count-only Wear tile into a standalone public status-page

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-27
+last-updated: 2026-09-04
 owner: astoris
 status: stable
 ---
@@ -33,6 +33,11 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
   API 37 uses the system service picker without broad LAN permission, while older
   devices show a foreground result list and resolve only the selected service.
+- `.../core/network/LocalNetworkAccess.kt` - pure classification for direct private,
+  loopback, link-local, and mDNS server addresses that need Android 17 runtime
+  local-network access before an explicit test or connection.
+- `.../core/network/ConnectionFailure.kt` - maps transport/authentication/TLS/version
+  failures to bounded user-action categories without exposing sensitive causes.
 
 **exports**
 - `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
@@ -107,20 +112,24 @@ here so the rest of the app sees clean domain models.
   change only fields present in the typed common editor. Credentials, advanced
   settings, and fields introduced by future Kuma versions never leave the network
   adapter and are preserved in the round trip.
-- `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) - safe,
-  and every acknowledgement has a 15-second upper bound so an inaccessible
-  server cannot leave a UI action loading forever.
+- `emitAck` waits for a connected transport inside the same 15-second acknowledgement
+  budget. An inaccessible server therefore cannot leave a UI action loading forever,
+  and actions are not silently stranded in Socket.IO's pre-connect queue.
 - Connection state distinguishes transport failure from rejected credentials.
   `MonitorRepository.testServer` uses a short-lived client and never replaces or
   persists the active session; a newly added client is promoted only after login
   succeeds.
+- A failed late polling-to-WebSocket upgrade must not replace an already authenticated
+  connected state. The socket itself remains authoritative when an upgrade error races
+  successful authentication.
 - `MonitorRepository.addServerByToken` and `testServerToken` validate imported
   Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
   the socket because Kuma limits them to Prometheus HTTP Basic authentication.
 - Per-connection reverse-proxy headers are normalized and applied to Socket.IO
-  polling/WebSocket handshakes. `StatusPageClient.fetch` accepts the same optional
-  headers for both REST requests. Invalid names, empty values, duplicates, and
-  CR/LF injection are rejected before a connection action is enabled.
+  polling/WebSocket handshakes and every authenticated request. `StatusPageClient`
+  accepts the same optional headers for REST when a saved page exactly matches a
+  saved connection. Invalid names, empty values, duplicates, and CR/LF injection
+  are rejected before a connection action is enabled; at most eight are stored.
 - Public-page addresses accept HTTP(S) only and reject embedded credentials,
   queries/fragments, traversal segments, encoded separators, invalid Kuma slugs,
   and conflicts between a pasted page URL and a separately entered slug.

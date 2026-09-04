@@ -1,27 +1,35 @@
-URSA keeps every self-hosted Uptime Kuma monitor a glance away on your phone:
-real-time up/down status, heartbeat history, TLS certificate details, and push
-notifications that never touch Google or a paid relay.
-
-Point it at your server, log in, and your monitors are just there whenever you pull
-your phone out.
+URSA keeps every self-hosted Uptime Kuma monitor a glance away on your phone.
+Connect directly to your server for live state, incident context, management, and
+private push without an account, analytics, Google services, or a paid relay.
 
 Features:
 
-* Live status at a glance, updating in real time as Kuma pings your services.
-* Heartbeat history, response time, and uptime percentage per monitor.
-* TLS certificate details, with local reminders before a certificate expires.
-* Push notifications via UnifiedPush (for example ntfy), so alerts route through a
-  distributor you choose. No Firebase, no Google Play Services, no relay server.
-* Slow-response alerts: get notified when a monitor is up but responding slowly.
-* Connect multiple Uptime Kuma servers and switch between them.
-* Pause and resume a monitor without opening a browser.
-* Username and password login with two-factor (TOTP), and a session that heals itself
-  when your connection drops.
-* Public status page viewer, no login required.
-* Credentials encrypted on device; only the session token is stored, never your
-  password. Monitor data is hidden from screenshots and the app switcher.
-* Native extras: home-screen widget, Quick Settings tile, app shortcuts, biometric
-  app lock, notification actions, and an offline last-known view.
-* Light and dark mode using Uptime Kuma's own colors, with optional Material You.
+* Live monitor state, response-time trends, uptime, heartbeat history, and TLS
+  certificate detail.
+* Incident, certificate, domain, event, 30-day aggregate, and pinned-live fleet
+  views for fast triage.
+* Search, quick filters, advanced filters, saved views, favourites, groups, tags,
+  compact rows, and responsive tablet layouts.
+* Multiple encrypted server connections with password/TOTP or imported sessions,
+  optional self-signed TLS, and up to eight custom access headers for Pangolin,
+  Cloudflare Access, and similar reverse proxies.
+* Create and safely edit common monitor settings, assign notification providers,
+  manage groups/tags, run confirmed bulk pause/resume, and manage maintenance.
+* UnifiedPush alerts through a distributor you choose, including per-monitor modes,
+  severity, quiet hours, delays, repeats, acknowledge/snooze, and managed Kuma setup.
+* Slow-response and certificate-expiry alerts generated locally on your device.
+* Public status pages with native groups, uptime, recent checks, maintenance, and
+  incident history.
+* Encrypted portable backups, encrypted offline cache, optional biometric/device
+  credential lock, and sensitive screens protected in release builds.
+* Native Android extras: widget, Quick Settings tile, shortcuts, scoped deep links,
+  notification actions, and an opt-in always-on glance display.
+* Light/dark mode with Kuma status colors and optional Material You.
+* Optional manual check for stable releases from URSA's official GitHub repository.
 
-URSA is an independent client and is not affiliated with the Uptime Kuma project.
+A separate Wear OS APK is available from GitHub Releases with a standalone public
+dashboard, detail view, tile, complications, and optional same-signed phone pairing
+for private monitor actions. The F-Droid phone build remains free of Play Services.
+
+URSA is free and open source with no ads, tracking, premium tier, or subscription.
+It is an independent client and is not affiliated with Uptime Kuma.

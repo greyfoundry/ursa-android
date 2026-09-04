@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+* Encrypted per-server custom access headers for Pangolin, Cloudflare Access, and
+  other reverse-proxy gates.
+* Monitor and maintenance management, bulk actions, groups, tags, notification
+  assignment, and user-triggered local-service discovery.
+* Incident, certificate, domain, event, aggregate, and pinned-live fleet views.
+* Advanced filters with saved views, compact monitor rows, scoped deep links,
+  connection help, and a manual update check.
+* A full Wear OS companion with dashboard, monitor detail, tile, complications,
+  and optional same-signed phone session pairing.
+
+### Changed
+
+* Refreshed the phone UI, responsive tablet and glance layouts, startup routing,
+  failure guidance, and notification controls.
+* Updated compatibility and live verification through Uptime Kuma 2.5.3.
+
+### Fixed
+
+* Wait for a connected Socket.IO transport before acknowledged actions and ignore
+  a late failed transport upgrade when the authenticated socket remains connected.
+* Request Android 17 local-network access only when a user tests or connects to an
+  obvious direct LAN server.
+
 ## [1.2.3](https://github.com/greyfoundry/ursa-android/compare/v1.2.2...v1.2.3) (2026-08-24)
 
 

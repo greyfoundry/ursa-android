@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-27
+last-updated: 2026-09-04
 owner: astoris
 status: in-flux
 ---
@@ -8,7 +8,8 @@ status: in-flux
 
 How URSA is wired together and how data flows from a Kuma server to the screen.
 The app is a thin, reactive client: a socket/REST layer feeds repositories,
-repositories expose Flows, Compose renders them. Nothing is stored server-side.
+repositories expose Flows, and Compose renders them. URSA has no separate backend;
+explicit management actions write only to the user's authenticated Kuma server.
 
 ## technical map
 
@@ -41,6 +42,8 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) -
   see `docs/modules/ui.mdx`.
 - app shell → `.../MainActivity.kt` - see `docs/modules/app-shell.mdx`.
+- update check -> `.../core/update/` - user-triggered official GitHub release lookup,
+  strict semantic version parsing, and optional version-deduplicated notification.
 - Wear companion -> standalone public polling plus an optional same-signed Data Layer
   session handoff - see `docs/modules/wear.mdx`.
 

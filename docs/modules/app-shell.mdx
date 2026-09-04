@@ -1,37 +1,44 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-09-04
 owner: astoris
 status: stable
 ---
 
 ## what this is
 
-The app's single entry point and Compose host. Right now it's the scaffold - a
-Material 3 `Scaffold` showing a placeholder. As M1 lands, this becomes the
-navigation host that swaps between the connections, monitors, and status-page
-screens.
+The phone app's Android entry point and Compose host. It applies release UI privacy,
+restores the encrypted startup route, handles Android 17 local-network permission,
+and forwards only validated URSA deep links to the state-driven UI router.
 
 ## technical map
 
-**file paths**
-- primary: `app/src/main/java/dev/astoris/ursa/MainActivity.kt`
-- manifest: `app/src/main/AndroidManifest.xml` (launcher activity, INTERNET perm)
-- theme: `app/src/main/res/values/themes.xml` (`Theme.URSA`)
-- strings: `app/src/main/res/values/strings.xml`
+- `app/src/main/java/dev/astoris/ursa/MainActivity.kt` - edge-to-edge
+  `FragmentActivity`, app lock host, startup intent handling, permission launcher,
+  and `UrsaTheme`/`UrsaApp` composition.
+- `app/src/main/java/dev/astoris/ursa/core/navigation/AppDeepLink.kt` - strict
+  `ursa://` route construction and parsing.
+- `app/src/main/AndroidManifest.xml` - launcher/BROWSABLE activity, network and
+  notification permissions, widgets, tile, workers, and non-exported receivers.
+- `app/src/main/res/values/themes.xml` - XML launch theme before Compose renders.
 
-**exports**
-- `MainActivity : ComponentActivity` - `enableEdgeToEdge()` + `setContent { }`.
+## deep-link contract
 
-**depends on**
-- Compose BOM (activity-compose, material3, ui). Nothing app-internal yet.
+Supported destinations are connection, monitor, incident center, public status
+page, notifications, and settings. Private server routes use the first 16 hex
+characters of SHA-256 over the normalized saved server URL. URLs, tokens, access
+headers, and credentials never appear in an intent URI.
 
-**imported by**
-- Android system (declared as `MAIN`/`LAUNCHER` in the manifest).
+The parser rejects the wrong scheme, user info, unexpected host/path shape, query,
+fragment, encoded separators, invalid IDs, and unknown server/page scopes. A valid
+route still resolves only against data already saved by URSA.
 
 ## gotchas
 
-- `Theme.URSA` extends a platform `Material.Light.NoActionBar` parent to avoid
-  pulling in the Material Components XML dependency - keep it that way unless a
-  real need appears.
-- No app icon is declared yet (uses the system default); add one before release.
-- Navigation not wired - M1 will introduce a nav host here.
+- Release builds set `FLAG_SECURE`; debug builds intentionally permit QA captures.
+- The startup loading surface remains until encrypted connection selection is read.
+  Network authentication may continue after that gate without bouncing the user to
+  the login form.
+- Android 17 local-network access is requested only immediately before testing or
+  connecting to an obvious direct LAN address. DNS-SD's system picker is separate.
+- Routing remains state-driven rather than using a navigation library. Keep intent
+  parsing pure and bounded before changing ViewModel state.
