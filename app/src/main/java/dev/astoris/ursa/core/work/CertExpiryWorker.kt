@@ -68,6 +68,11 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
                         days.toInt(),
                     )
                 }
+                val open = Intent()
+                open.setClassName(applicationContext.packageName, MainActivity::class.java.name)
+                open.action = Intent.ACTION_VIEW
+                open.data = AppDeepLink.monitor(entry.serverUrl, entry.monitorId).toUri()
+                open.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 val notification = Notification.Builder(applicationContext, CHANNEL_ID)
                     .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
                     .setContentTitle(
@@ -80,12 +85,7 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
                         PendingIntent.getActivity(
                             applicationContext,
                             "${entry.serverUrl}:${entry.monitorId}".hashCode(),
-                            Intent().apply {
-                                setClassName(applicationContext.packageName, MainActivity::class.java.name)
-                                action = Intent.ACTION_VIEW
-                                data = AppDeepLink.monitor(entry.serverUrl, entry.monitorId).toUri()
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            },
+                            open,
                             PendingIntent.FLAG_IMMUTABLE,
                         ),
                     )

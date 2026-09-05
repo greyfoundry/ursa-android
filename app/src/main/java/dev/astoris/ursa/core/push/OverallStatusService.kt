@@ -94,10 +94,9 @@ class OverallStatusService : Service() {
     }
 
     private fun buildNotification(summary: OverallStatusSummary, connectionState: ConnectionState): Notification {
-        val open = Intent().apply {
-            setClassName(packageName, MainActivity::class.java.name)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
+        val open = Intent()
+        open.setClassName(packageName, MainActivity::class.java.name)
+        open.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         val contentIntent = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE)
         val title = when {
             connectionState == ConnectionState.AuthenticationFailed -> getString(R.string.overall_status_sign_in)
