@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string-array
+        name="android_wear_capabilities"
+        tools:ignore="UnusedResources">
+        <item>ursa_session_receiver</item>
+    </string-array>
+</resources>

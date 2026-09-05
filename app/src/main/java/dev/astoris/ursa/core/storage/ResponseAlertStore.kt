@@ -56,6 +56,14 @@ class ResponseAlertStore(context: Context) {
     suspend fun perMonitorThresholds(): Map<String, Long> =
         ResponseAlertUtil.decodeMap(appContext.responseAlertDataStore.data.first()[perMonitorKey] ?: "")
 
+    suspend fun mergePerMonitorThresholds(imported: Map<String, Long>) {
+        if (imported.isEmpty()) return
+        val next = perMonitorThresholds() + imported.filterValues { it > 0 }
+        appContext.responseAlertDataStore.edit {
+            it[perMonitorKey] = ResponseAlertUtil.encodeMap(next)
+        }
+    }
+
     suspend fun lastAlerted(): Map<String, Long> =
         ResponseAlertUtil.decodeMap(appContext.responseAlertDataStore.data.first()[lastAlertedKey] ?: "")
 

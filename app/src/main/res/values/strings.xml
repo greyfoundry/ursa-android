@@ -1,5 +1,25 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">URSA</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_no_data">No cached data yet. Tap to open URSA.</string>
+    <string name="widget_updated">Updated %1$s ago</string>
+    <string name="widget_uptime_24h">24-hour uptime</string>
+    <string name="widget_recent_checks">Recent checks</string>
+    <string name="widget_config_title">Set up URSA widget</string>
+    <string name="widget_config_source">Data source</string>
+    <string name="widget_config_private">Private server</string>
+    <string name="widget_config_public">Public page</string>
+    <string name="widget_config_refresh_guidance">Android redraw timing varies. Live data updates while URSA is open; Refresh runs an immediate secure update.</string>
+    <string name="widget_config_no_servers">Add a private server in URSA first.</string>
+    <string name="widget_config_no_pages">Save a public status page in URSA first.</string>
+    <string name="widget_config_choose_source">Choose a server or page</string>
+    <string name="widget_config_rows">Monitor rows: %1$d of %2$d</string>
+    <string name="widget_config_loading">Loading monitor choices</string>
+    <string name="widget_config_private_empty">Open this server in URSA once to cache its monitors.</string>
+    <string name="widget_config_public_empty">No saved public status page is available.</string>
+    <string name="widget_config_load_failed">This public page could not be loaded.</string>
+    <string name="widget_config_add">Save widget</string>
+    <string name="startup_loading">Loading URSA</string>
 
     <!-- App shortcuts (long-press launcher icon) -->
     <string name="shortcut_push_short">Push</string>
@@ -31,7 +51,19 @@
     <!-- Monitor list -->
     <string name="monitors_title">Monitors</string>
     <string name="action_sign_out">Sign out</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="action_done">Done</string>
+    <string name="action_add">Add</string>
+    <string name="action_close">Close</string>
+    <string name="action_delete">Delete</string>
     <string name="connection_status">Connection: %1$s</string>
+    <string name="connection_offline">Offline</string>
+    <string name="connection_connecting">Connecting</string>
+    <string name="connection_signing_in">Signing in</string>
+    <string name="connection_online">Online</string>
+    <string name="connection_auth_failed">Sign-in required</string>
+    <string name="connection_unavailable">Server unavailable</string>
     <string name="cache_banner_updated">Showing last-known data, updated %1$s</string>
     <string name="cache_banner">Showing last-known data</string>
     <string name="monitors_empty">No monitors yet</string>
@@ -46,8 +78,6 @@
     <string name="action_back">Back</string>
     <string name="action_filter">Filter</string>
     <string name="action_more">More options</string>
-    <string name="action_show_overview">Show overview</string>
-    <string name="action_hide_overview">Hide overview</string>
     <string name="filter_all">All</string>
     <string name="filter_active">Active</string>
     <string name="filter_paused">Paused</string>
@@ -57,26 +87,124 @@
     <string name="action_sort_attention">Sort: attention first</string>
     <string name="action_sort_favorites">Sort: favorites first</string>
     <string name="action_sort_name">Sort: name</string>
-    <string name="monitor_overview">Overview</string>
-    <plurals name="monitor_paused_count">
+    <string name="fleet_healthy">All systems operational</string>
+    <string name="fleet_checking">Checks in progress</string>
+    <plurals name="fleet_up_count">
+        <item quantity="one">%d up</item>
+        <item quantity="other">%d up</item>
+    </plurals>
+    <plurals name="fleet_down_count">
+        <item quantity="one">%d down</item>
+        <item quantity="other">%d down</item>
+    </plurals>
+    <plurals name="fleet_pending_count">
+        <item quantity="one">%d pending</item>
+        <item quantity="other">%d pending</item>
+    </plurals>
+    <plurals name="fleet_paused_count">
         <item quantity="one">%d paused</item>
         <item quantity="other">%d paused</item>
     </plurals>
 
     <!-- Login -->
     <string name="login_subtitle">Connect to an Uptime Kuma server</string>
+    <string name="login_title">Connect a server</string>
+    <string name="login_reauth_title">Sign in again</string>
+    <string name="login_reauth_subtitle">Refresh the saved session for %1$s</string>
+    <string name="login_server_name">Server name (optional)</string>
     <string name="login_server_url">Server URL</string>
     <string name="login_server_placeholder">https://kuma.example.com</string>
     <string name="login_username">Username</string>
     <string name="login_password">Password</string>
+    <string name="login_auth_password">Password</string>
+    <string name="login_auth_session_token">Session token</string>
+    <string name="login_session_token">Kuma session token</string>
+    <string name="login_session_token_desc">Paste a token issued by the Kuma web app. Kuma API keys only authorize Prometheus and cannot open the live socket.</string>
+    <string name="login_access_headers">Access headers (%1$d)</string>
+    <string name="login_access_headers_desc">Optional encrypted headers for Cloudflare Access or another reverse proxy. Values stay hidden after entry.</string>
+    <string name="login_cloudflare_client_id">Cloudflare Access Client ID</string>
+    <string name="login_cloudflare_client_secret">Cloudflare Access Client Secret</string>
+    <string name="login_header_name">Header name</string>
+    <string name="login_header_value">Header value</string>
+    <string name="login_add_header">Add custom header</string>
+    <string name="login_remove_header">Remove header</string>
+    <string name="login_headers_invalid">Complete both fields, use a valid header name, and remove duplicates.</string>
     <string name="login_2fa_code">2FA code</string>
     <string name="login_trust_self_signed">Trust self-signed certificate</string>
+    <string name="login_trust_self_signed_desc">Only enable this for a server you control.</string>
     <string name="login_verify">Verify</string>
     <string name="login_connect">Connect</string>
+    <string name="login_reconnect">Reconnect</string>
+    <string name="login_test">Test connection</string>
+    <string name="login_test_success">Connection and credentials verified</string>
+    <string name="login_test_2fa">Server reached - enter your 2FA code to finish verification</string>
+    <string name="login_local_network_denied">Local network access is needed to connect directly to this server. Allow Nearby devices access, then try again.</string>
     <string name="login_view_status_page">View a public status page</string>
+    <string name="login_import_backup">Import backup</string>
+
+    <!-- Saved servers -->
+    <string name="servers_title">Servers</string>
+    <string name="servers_intro">Switch between your Uptime Kuma servers. Session tokens are encrypted on this device.</string>
+    <string name="servers_add">Add server</string>
+    <string name="servers_switch">Switch server</string>
+    <string name="servers_manage">Manage</string>
+    <string name="servers_active">Active</string>
+    <string name="servers_active_status">%1$s - %2$s</string>
+    <string name="servers_saved">Saved</string>
+    <string name="servers_reauthenticate">Sign in again</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_import">Import</string>
+    <string name="backup_export_title">Export encrypted backup</string>
+    <string name="backup_import_title">Import encrypted backup</string>
+    <string name="backup_export_desc">Choose a password for this file. Servers, access headers, favorites, and alert preferences are encrypted.</string>
+    <string name="backup_import_desc">Enter the password used when this backup was created. Valid servers are merged by URL.</string>
+    <string name="backup_password">Backup password</string>
+    <string name="backup_confirm_password">Confirm password</string>
+    <string name="backup_include_sessions">Include signed-in sessions</string>
+    <string name="backup_include_sessions_desc">Off by default. Enable only for a backup you will protect carefully.</string>
+    <string name="backup_password_too_short">Use at least 8 characters.</string>
+    <string name="backup_password_mismatch">Passwords do not match.</string>
+    <string name="backup_working">Working…</string>
+    <string name="backup_exported">Encrypted backup saved</string>
+    <string name="backup_write_failed">Could not write the backup file</string>
+    <string name="backup_read_failed">Could not read this backup file</string>
+    <string name="backup_invalid_document">This is not a supported URSA backup</string>
+    <string name="backup_wrong_password">Wrong password or damaged backup</string>
+    <string name="backup_invalid_content">Backup contents failed validation</string>
+    <plurals name="access_header_count">
+        <item quantity="one">%d encrypted access header</item>
+        <item quantity="other">%d encrypted access headers</item>
+    </plurals>
+    <plurals name="backup_imported_count">
+        <item quantity="one">Imported %d server</item>
+        <item quantity="other">Imported %d servers</item>
+    </plurals>
+    <string name="servers_rename">Rename</string>
+    <string name="servers_rename_title">Rename server</string>
+    <string name="servers_remove">Remove</string>
+    <string name="servers_remove_title">Remove server?</string>
+    <string name="servers_remove_message">Remove %1$s and its saved session from this device?</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
+    <string name="settings_servers_desc">Add or switch servers</string>
+    <string name="settings_status_pages_desc">Save and open public dashboards</string>
+    <string name="settings_kiosk_title">Glance display</string>
+    <string name="settings_kiosk_desc">Open a clean always-on fleet view for a wall tablet or desk display.</string>
+    <string name="settings_wear_pair">Pair Wear OS</string>
+    <string name="settings_wear_desc">Send this server session to the paired URSA watch app.</string>
+    <string name="settings_wear_no_session">Sign in to a saved server before pairing.</string>
+    <string name="settings_wear_self_signed">Watch actions do not support self-signed server certificates.</string>
+    <string name="settings_wear_confirm_title">Send private session to your watch?</string>
+    <string name="settings_wear_confirm_body">URSA will send the active server session and any access headers locally to the same signed app on reachable paired watches. The watch encrypts them on receipt. Public monitoring works without this.</string>
+    <string name="settings_wear_send">Send</string>
+    <string name="settings_wear_sending">Looking for your watch…</string>
+    <plurals name="settings_wear_sent">
+        <item quantity="one">Sent to %1$d reachable watch.</item>
+        <item quantity="other">Sent to %1$d reachable watches.</item>
+    </plurals>
+    <string name="settings_wear_no_watch">No reachable paired URSA watch was found.</string>
+    <string name="settings_wear_failed">The watch session could not be sent.</string>
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>
@@ -89,6 +217,35 @@
     <string name="settings_dynamic_color_desc">Use your wallpaper colors instead of the Uptime Kuma palette.</string>
     <string name="settings_dynamic_color_unavailable">Available on Android 12 and newer.</string>
 
+    <!-- Adaptive tablet and glance display -->
+    <string name="tablet_choose_monitor">Choose a monitor to see its details</string>
+    <string name="kiosk_warning_title">Keep this screen awake?</string>
+    <string name="kiosk_warning_body">The glance display prevents screen timeout while it is open. This increases power use and can cause burn-in on OLED screens. Keep the device powered, lower brightness, and exit when the display is not needed.</string>
+    <string name="kiosk_open">Open display</string>
+    <string name="kiosk_exit">Exit display</string>
+    <string name="kiosk_all_operational">All monitored services operational</string>
+    <string name="kiosk_no_active">No active monitors</string>
+    <string name="kiosk_maintenance_active">Maintenance in progress</string>
+    <string name="kiosk_cached_at">Showing last-known data from %1$s</string>
+    <string name="kiosk_monitors_title">Monitor status</string>
+    <string name="kiosk_metric_up">Up</string>
+    <string name="kiosk_metric_down">Down</string>
+    <string name="kiosk_metric_pending">Pending</string>
+    <string name="kiosk_metric_maintenance">Maintenance</string>
+    <string name="kiosk_metric_paused">Paused</string>
+    <plurals name="kiosk_monitors_down">
+        <item quantity="one">%d monitor needs attention</item>
+        <item quantity="other">%d monitors need attention</item>
+    </plurals>
+    <plurals name="kiosk_monitors_pending">
+        <item quantity="one">%d monitor is pending</item>
+        <item quantity="other">%d monitors are pending</item>
+    </plurals>
+    <plurals name="kiosk_showing_rows">
+        <item quantity="one">Showing %1$d of %2$d monitor, with attention states first.</item>
+        <item quantity="other">Showing %1$d of %2$d monitors, with attention states first.</item>
+    </plurals>
+
     <!-- App lock -->
     <string name="lock_title">URSA is locked</string>
     <string name="lock_subtitle">Unlock to view your monitors.</string>
@@ -99,11 +256,71 @@
 
     <!-- Monitor detail -->
     <string name="detail_type">Type: %1$s</string>
+    <string name="detail_response_time">Response time</string>
+    <string name="detail_no_response_time">No response-time data in this period</string>
+    <string name="response_time_summary">Response time chart. Minimum %1$d ms, average %2$d ms, maximum %3$d ms.</string>
+    <string name="response_time_sample">%1$d ms at %2$s</string>
+    <string name="response_time_previous">Previous response-time sample</string>
+    <string name="response_time_next">Next response-time sample</string>
+    <string name="response_time_minimum">Minimum</string>
+    <string name="response_time_average">Average</string>
+    <string name="response_time_maximum">Maximum</string>
+    <string name="response_time_milliseconds">%d ms</string>
+    <string name="sparkline_unavailable">Response-time trend unavailable</string>
+    <string name="sparkline_single">Response-time trend: %d ms</string>
+    <string name="sparkline_summary">Response-time trend. Minimum %1$d ms, average %2$d ms, maximum %3$d ms.</string>
+    <string name="uptime_24h_summary">24-hour uptime: %d%%</string>
+    <string name="uptime_percentage">%d%%</string>
     <string name="detail_recent_heartbeats">Recent heartbeats</string>
     <string name="detail_recent_incidents">Recent incidents</string>
     <string name="incident_down">Monitor down</string>
     <string name="incident_recovered">Recovered</string>
     <string name="incident_status_changed">Status changed</string>
+    <string name="incident_center_title">Incident center</string>
+    <string name="incident_center_close">Close</string>
+    <string name="incident_center_empty">No incidents in the available history</string>
+    <string name="incident_filter_active">Active</string>
+    <string name="incident_filter_resolved">Resolved</string>
+    <string name="incident_started_at">Started %1$s</string>
+    <string name="incident_resolved_at">Resolved %1$s</string>
+    <string name="incident_start_unknown">Start time unavailable</string>
+    <string name="incident_duration">Duration %1$s</string>
+    <string name="incident_note_add">Add note</string>
+    <string name="incident_note_edit">Edit note</string>
+    <string name="incident_note_title">Note for %1$s</string>
+    <string name="incident_note_label">Incident note</string>
+    <string name="incident_note_support">%1$d/%2$d · Stored only on this device</string>
+    <string name="incident_note_delete">Delete</string>
+    <string name="incident_note_preview">Local note: %1$s</string>
+    <string name="incident_notes_unavailable">Notes need Kuma transition history. Reconnect and reopen to try again.</string>
+    <string name="incident_share">Share</string>
+    <string name="incident_share_heading">URSA incident</string>
+    <string name="incident_share_started">Started:</string>
+    <string name="incident_share_resolved">Resolved:</string>
+    <string name="incident_share_duration">Duration:</string>
+    <string name="incident_share_message">Message:</string>
+    <string name="incident_share_note">Local note:</string>
+    <string name="incident_share_redacted">[redacted]</string>
+    <string name="incident_share_subject">URSA incident summary</string>
+    <string name="incident_share_chooser">Share incident</string>
+    <string name="reliability_title">%1$s reliability</string>
+    <string name="reliability_downtime">Downtime observed</string>
+    <string name="reliability_mttr">MTTR</string>
+    <string name="reliability_no_outages">No outages</string>
+    <string name="reliability_unavailable">N/A</string>
+    <plurals name="reliability_incidents">
+        <item quantity="one">%d incident</item>
+        <item quantity="other">%d incidents</item>
+    </plurals>
+    <plurals name="reliability_complete">
+        <item quantity="one">Complete window across %1$d active monitor</item>
+        <item quantity="other">Complete window across %1$d active monitors</item>
+    </plurals>
+    <plurals name="reliability_incomplete">
+        <item quantity="one">Partial history for %1$d of %2$d active monitor; totals may be low</item>
+        <item quantity="other">Partial history for %1$d of %2$d active monitors; totals may be low</item>
+    </plurals>
+    <string name="reliability_no_active_monitors">No active monitors to summarize</string>
     <string name="detail_no_history">No history yet</string>
     <string name="heartbeat_summary">Recent heartbeats: %1$s, %2$s, %3$s</string>
     <plurals name="heartbeat_up_count">
@@ -123,16 +340,251 @@
     <string name="cert_invalid">Invalid</string>
     <string name="detail_issuer">Issuer: %1$s</string>
     <string name="detail_subject">Subject: %1$s</string>
+    <string name="certificate_dashboard_title">Certificates</string>
+    <string name="certificate_sort_expiry">Expiry</string>
+    <string name="certificate_sort_name">Name</string>
+    <string name="certificate_dashboard_empty">No certificate data yet</string>
+    <string name="certificate_dashboard_empty_desc">Connect and wait for HTTPS monitors to complete a check.</string>
+    <string name="certificate_issuer">Issuer %1$s</string>
+    <string name="certificate_expires_on">Expires %1$s</string>
+    <string name="certificate_expires_today">Today</string>
+    <plurals name="certificate_expired_days">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <plurals name="certificate_days_left">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="certificate_group_expired">
+        <item quantity="one">Expired (%d)</item>
+        <item quantity="other">Expired (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_invalid">
+        <item quantity="one">Invalid (%d)</item>
+        <item quantity="other">Invalid (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_expiring">
+        <item quantity="one">Expiring soon (%d)</item>
+        <item quantity="other">Expiring soon (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_healthy">
+        <item quantity="one">Healthy (%d)</item>
+        <item quantity="other">Healthy (%d)</item>
+    </plurals>
+    <plurals name="certificate_group_unknown">
+        <item quantity="one">Expiry unavailable (%d)</item>
+        <item quantity="other">Expiry unavailable (%d)</item>
+    </plurals>
+    <string name="domain_dashboard_title">Domains</string>
+    <string name="domain_sort_attention">Attention</string>
+    <string name="domain_dashboard_empty">No domains to show</string>
+    <string name="domain_dashboard_empty_desc">HTTP-family monitors with a valid host appear here.</string>
+    <plurals name="domain_monitor_count">
+        <item quantity="one">%d monitor</item>
+        <item quantity="other">%d monitors</item>
+    </plurals>
+    <string name="domain_no_active_checks">No active checks</string>
+    <plurals name="domain_maintenance_count">
+        <item quantity="one">%d maintenance</item>
+        <item quantity="other">%d maintenance</item>
+    </plurals>
+    <string name="domain_no_tls">No TLS monitors</string>
+    <string name="domain_tls_pending">Certificate data pending</string>
+    <string name="domain_tls_expired">TLS expired</string>
+    <string name="domain_tls_invalid">TLS invalid</string>
+    <string name="domain_tls_expiring">TLS expiring soon</string>
+    <string name="domain_tls_healthy">TLS healthy</string>
+    <string name="domain_tls_unknown">TLS expiry unavailable</string>
+    <plurals name="domain_tls_coverage">
+        <item quantity="one">%1$d of %2$d certificate available</item>
+        <item quantity="other">%1$d of %2$d certificates available</item>
+    </plurals>
+    <string name="domain_tls_summary">%1$s • %2$s</string>
+
+    <!-- Global event log -->
+    <string name="event_log_title">Event log</string>
+    <string name="event_log_intro">Kuma transitions plus actions and alerts recorded on this device. Device events are encrypted and kept for 90 days.</string>
+    <string name="event_log_empty">No events in this view</string>
+    <string name="event_log_empty_desc">State changes appear after Kuma has reported a transition. Device actions and alerts appear as they happen.</string>
+    <string name="event_filter_state">State</string>
+    <string name="event_filter_maintenance">Maintenance</string>
+    <string name="event_filter_actions">Actions</string>
+    <string name="event_filter_alerts">Alerts</string>
+    <string name="event_down">Went down</string>
+    <string name="event_up">Went up</string>
+    <string name="event_recovered">Recovered</string>
+    <string name="event_pending">Check pending</string>
+    <string name="event_maintenance_started">Maintenance started</string>
+    <string name="event_maintenance_ended">Maintenance ended</string>
+    <string name="event_paused">Monitoring paused</string>
+    <string name="event_resumed">Monitoring resumed</string>
+    <string name="event_slow_response">Slow-response alert</string>
+    <string name="event_certificate_expiry">Certificate-expiry alert</string>
+    <string name="event_push_alert">Push notification</string>
+    <string name="event_source_kuma">Kuma history</string>
+    <string name="event_source_device">Recorded on this device</string>
+    <string name="event_slow_response_detail">%1$dms response, %2$dms limit</string>
+    <string name="monitor_fallback_name">Monitor %1$d</string>
+    <string name="slow_response_channel_name">Slow response</string>
+    <string name="slow_response_channel_desc">Alerts when a monitor is up but responding slowly</string>
+    <string name="slow_response_notification_title">Slow response</string>
+    <string name="slow_response_notification_text">%1$s responded in %2$dms (limit %3$dms).</string>
+    <string name="cert_expiry_notification_title">Certificate expiring</string>
+    <string name="cert_expiry_notification_today">The certificate for %1$s expires today.</string>
+    <plurals name="cert_expiry_notification_days">
+        <item quantity="one">The certificate for %1$s expires in %2$d day.</item>
+        <item quantity="other">The certificate for %1$s expires in %2$d days.</item>
+    </plurals>
+
+    <!-- 30-day fleet aggregate -->
+    <string name="fleet_aggregate_title">30-day fleet</string>
+    <string name="fleet_aggregate_loading">Loading server aggregates…</string>
+    <string name="fleet_aggregate_uptime">Fleet uptime</string>
+    <string name="fleet_aggregate_latency">Average latency</string>
+    <plurals name="fleet_aggregate_coverage">
+        <item quantity="one">%1$d of %2$d active monitor contributes uptime data</item>
+        <item quantity="other">%1$d of %2$d active monitors contribute uptime data</item>
+    </plurals>
+    <string name="fleet_aggregate_excluded">Excluded: paused %1$d • no checks %2$d • unavailable %3$d</string>
+    <string name="fleet_aggregate_method">Each active monitor contributes equally. Kuma counts maintenance as up and pending as down.</string>
+    <plurals name="fleet_aggregate_latency_coverage">
+        <item quantity="one">Latency available for %1$d of %2$d contributing monitor.</item>
+        <item quantity="other">Latency available for %1$d of %2$d contributing monitors.</item>
+    </plurals>
+    <string name="fleet_aggregate_empty">No active monitor returned checks for this period</string>
+    <plurals name="fleet_aggregate_checks">
+        <item quantity="one">%d check</item>
+        <item quantity="other">%d checks</item>
+    </plurals>
+
+    <!-- Pinned live heartbeat panel -->
+    <string name="pinned_live_title">Live panel</string>
+    <string name="pinned_live_intro">Favorites are pinned here for this server. Recent checks update from Kuma\'s live connection.</string>
+    <string name="pinned_live_empty">No pinned monitors</string>
+    <string name="pinned_live_empty_desc">Open a monitor and add it to favorites to keep its recent checks here.</string>
+    <string name="pinned_live_unpin">Unpin</string>
+    <string name="pinned_live_time_unavailable">Latest check time unavailable</string>
+    <plurals name="pinned_live_count">
+        <item quantity="one">%d pinned monitor updating live</item>
+        <item quantity="other">%d pinned monitors updating live</item>
+    </plurals>
 
     <!-- Status page viewer -->
-    <string name="statuspage_title">Status page</string>
-    <string name="statuspage_slug">Status page slug</string>
+    <string name="statuspage_title">Status pages</string>
+    <string name="statuspage_intro">Keep public dashboards together for quick, account-free access.</string>
+    <string name="statuspage_add">Add page</string>
+    <string name="statuspage_edit">Edit page</string>
+    <string name="statuspage_name">Page name</string>
+    <string name="statuspage_editor_desc">Save a public Uptime Kuma page on this device. There is no page limit.</string>
+    <string name="statuspage_address">Page or server address</string>
+    <string name="statuspage_address_placeholder">https://kuma.example.com/status/my-status</string>
+    <string name="statuspage_address_desc">Paste a full public-page URL, or enter the server address and a slug below.</string>
+    <string name="statuspage_none">No saved pages</string>
+    <string name="statuspage_none_desc">Add a public status page to see it here.</string>
+    <string name="statuspage_slug_optional">Status page slug (optional)</string>
     <string name="statuspage_slug_placeholder">my-status</string>
-    <string name="statuspage_load">Load</string>
+    <string name="statuspage_slug_value">Page: %1$s</string>
+    <string name="statuspage_refresh">Refresh</string>
+    <string name="statuspage_retry">Try again</string>
+    <string name="statuspage_test">Test page</string>
+    <string name="statuspage_checking">Checking…</string>
+    <string name="statuspage_verified">Connected to %1$s</string>
+    <string name="statuspage_error_empty">Enter a page or server address.</string>
+    <string name="statuspage_error_invalid_url">Enter a valid server address without path tricks or encoded separators.</string>
+    <string name="statuspage_error_scheme">Only HTTP and HTTPS addresses are supported.</string>
+    <string name="statuspage_error_credentials">Remove the username or password from the address.</string>
+    <string name="statuspage_error_query">Remove query parameters and fragments from the address.</string>
+    <string name="statuspage_error_slug">Use letters, numbers, and single hyphens for the page slug.</string>
+    <string name="statuspage_error_conflict">The pasted page URL and slug field identify different pages.</string>
+    <string name="statuspage_error_not_discoverable">No default public page was advertised. Paste its full URL or enter its slug.</string>
+    <string name="statuspage_error_network">Could not open this page: %1$s</string>
+    <string name="statuspage_favorite">Add page to favorites</string>
+    <string name="statuspage_unfavorite">Remove page from favorites</string>
+    <string name="statuspage_move_up">Move up</string>
+    <string name="statuspage_move_down">Move down</string>
+    <string name="statuspage_remove">Remove</string>
+    <string name="statuspage_remove_title">Remove status page?</string>
+    <string name="statuspage_remove_message">Remove %1$s from this device?</string>
     <string name="statuspage_untitled">(untitled)</string>
     <string name="statuspage_empty">No public monitors on this page</string>
+    <string name="statuspage_refreshed">Updated %1$s</string>
+    <string name="statuspage_maintenance">Maintenance</string>
+    <string name="statuspage_active_incidents">Active incidents</string>
+    <string name="statuspage_incident_history">Incident history</string>
+    <string name="statuspage_no_incidents">No incidents reported</string>
+    <string name="statuspage_incident_active">Active</string>
+    <string name="statuspage_incident_resolved">Resolved</string>
+    <string name="statuspage_incident_created">Started %1$s</string>
+    <plurals name="statuspage_incident_partial">
+        <item quantity="one">Showing the latest %1$d of %2$d incident</item>
+        <item quantity="other">Showing the latest %1$d of %2$d incidents</item>
+    </plurals>
+    <string name="statuspage_no_recent_checks">No recent checks</string>
 
     <!-- Push notifications screen -->
+    <string name="push_channel_critical">Critical monitor alerts</string>
+    <string name="push_channel_standard">Standard monitor alerts</string>
+    <string name="push_channel_silent">Silent monitor alerts</string>
+    <string name="push_channel_recovery">Monitor recoveries</string>
+    <string name="push_channel_maintenance">Maintenance alerts</string>
+    <string name="push_channel_updates">Update alerts</string>
+    <string name="push_channel_description">Status notifications from your Uptime Kuma servers</string>
+    <string name="push_action_acknowledge">Acknowledge</string>
+    <string name="push_action_snooze_hour">Snooze 1 hour</string>
+    <string name="push_quiet_hours_title">Quiet hours</string>
+    <string name="push_quiet_hours_enable">Silence alerts on a schedule</string>
+    <string name="push_quiet_hours_desc">Alerts still arrive through the silent channel, so incidents are never discarded.</string>
+    <string name="push_quiet_hours_from">From %1$s</string>
+    <string name="push_quiet_hours_until">Until %1$s</string>
+    <string name="push_quiet_hours_dnd_desc">Android Do Not Disturb controls the final interruption policy. URSA does not request permission to bypass it.</string>
+    <string name="push_quiet_hours_dnd_button">Open Do Not Disturb settings</string>
+    <string name="push_channels_title">Alert sounds</string>
+    <string name="push_channels_desc">Choose any sound, vibration pattern, or visibility Android offers for each alert level. These choices stay in system settings.</string>
+    <string name="push_channels_configure">Configure %1$s alerts</string>
+    <string name="push_event_types_title">Alert types</string>
+    <string name="push_event_recovery">Recoveries</string>
+    <string name="push_event_recovery_desc">Notify when a down monitor becomes healthy again.</string>
+    <string name="push_event_maintenance">Maintenance</string>
+    <string name="push_event_maintenance_desc">Notify when Kuma reports a maintenance transition.</string>
+    <string name="push_event_certificate">Certificate expiry</string>
+    <string name="push_event_certificate_desc">Use locally cached TLS dates for daily expiry reminders.</string>
+    <string name="push_event_update">Updates</string>
+    <string name="push_event_update_desc">Allow notices from the manual app update checker.</string>
+    <string name="overall_status_channel">Persistent overall status</string>
+    <string name="overall_status_channel_desc">Optional live fleet counts while URSA is closed</string>
+    <string name="overall_status_connecting">Connecting to Uptime Kuma…</string>
+    <string name="overall_status_sign_in">Open URSA to sign in</string>
+    <string name="overall_status_healthy">All monitors healthy</string>
+    <plurals name="overall_status_down_title">
+        <item quantity="one">%1$d monitor down</item>
+        <item quantity="other">%1$d monitors down</item>
+    </plurals>
+    <plurals name="overall_status_pending_title">
+        <item quantity="one">%1$d monitor pending</item>
+        <item quantity="other">%1$d monitors pending</item>
+    </plurals>
+    <string name="overall_status_counts">%1$s · %2$s · %3$s · %4$s</string>
+    <plurals name="overall_status_up_count">
+        <item quantity="one">%1$d up</item>
+        <item quantity="other">%1$d up</item>
+    </plurals>
+    <plurals name="overall_status_down_count">
+        <item quantity="one">%1$d down</item>
+        <item quantity="other">%1$d down</item>
+    </plurals>
+    <plurals name="overall_status_pending_count">
+        <item quantity="one">%1$d pending</item>
+        <item quantity="other">%1$d pending</item>
+    </plurals>
+    <plurals name="overall_status_maintenance_count">
+        <item quantity="one">%1$d maintenance</item>
+        <item quantity="other">%1$d maintenance</item>
+    </plurals>
+    <string name="overall_status_title">Persistent status</string>
+    <string name="overall_status_enable">Keep live fleet status visible</string>
+    <string name="overall_status_desc">Shows up, down, pending, and maintenance counts in an ongoing notification.</string>
+    <string name="overall_status_cost">This keeps a direct connection to the active Kuma server and uses more battery. Turn it off when you only need push alerts.</string>
     <string name="push_refresh">Refresh</string>
     <string name="push_intro">Get a notification the moment a monitor goes down, over UnifiedPush, with no relay server and no Google services.</string>
     <string name="push_section_allow">1. Allow notifications</string>
@@ -143,8 +595,257 @@
     <string name="push_selected">Selected</string>
     <string name="push_use">Use</string>
     <string name="push_section_endpoint">Your endpoint</string>
-    <string name="push_endpoint_desc">Paste this URL into a Webhook notification in Uptime Kuma (Settings -&gt; Notifications -&gt; Webhook), then attach it to your monitors.</string>
-    <string name="push_ntfy_hint">ntfy users: append ?up=1 to the URL so ntfy forwards Kuma\'s raw body.</string>
+    <string name="push_endpoint_desc">URSA can configure this endpoint on the connected Kuma server below. Copy it for manual setup on another server.</string>
+    <string name="push_ntfy_hint">Managed ntfy setup adds the required ?up=1 raw-body flag automatically.</string>
     <string name="push_copy">Copy</string>
     <string name="push_disconnect">Disconnect</string>
+    <string name="push_kuma_section">Kuma setup</string>
+    <string name="push_kuma_desc">Create one dedicated Webhook provider and choose which existing monitors use it. URSA preserves every other provider and monitor setting.</string>
+    <string name="push_kuma_check">Check setup</string>
+    <string name="push_kuma_loading">Checking Kuma configuration…</string>
+    <string name="push_kuma_retry">Retry</string>
+    <string name="push_kuma_not_configured">Not configured on this server</string>
+    <string name="push_kuma_update_needed">Configured Webhook needs updating</string>
+    <string name="push_kuma_configured">Configured on this server</string>
+    <string name="push_kuma_saved">Kuma setup saved</string>
+    <string name="push_kuma_default">Use for new monitors by default</string>
+    <string name="push_kuma_default_desc">Kuma will preselect this provider when a monitor is created.</string>
+    <string name="push_kuma_existing">Existing monitors</string>
+    <string name="push_kuma_all">All</string>
+    <string name="push_kuma_none">None</string>
+    <plurals name="push_kuma_partial">
+        <item quantity="one">Could not verify %1$d monitor assignment. Saving will retry it.</item>
+        <item quantity="other">Could not verify %1$d monitor assignments. Saving will retry them.</item>
+    </plurals>
+    <string name="push_kuma_create">Create on Kuma</string>
+    <string name="push_kuma_update">Save changes</string>
+    <string name="push_kuma_remove">Remove</string>
+    <string name="push_kuma_remove_title">Remove Kuma webhook?</string>
+    <string name="push_kuma_remove_desc">This removes only the Webhook provider marked as managed by URSA. Your UnifiedPush registration stays connected.</string>
+    <string name="push_kuma_invalid_endpoint">The UnifiedPush endpoint is not a valid HTTP or HTTPS URL.</string>
+    <string name="push_kuma_server_unavailable">Kuma did not return its notification configuration. Reconnect and try again.</string>
+    <string name="push_kuma_save_failed">Kuma could not save the managed Webhook provider.</string>
+    <string name="push_kuma_delete_failed">Kuma could not remove the managed Webhook provider.</string>
+    <string name="push_alert_modes_title">Per-monitor alerts</string>
+    <string name="push_alert_modes_desc">Choose which transitions notify this phone and how strongly Android should signal them. These settings stay on this device.</string>
+    <string name="push_alert_modes_update_needed">Save the Kuma setup first to enable server-scoped alert modes.</string>
+    <string name="push_alert_mode_dialog_title">Alerts for %1$s</string>
+    <string name="push_alert_mode_muted">Muted</string>
+    <string name="push_alert_mode_muted_desc">Receive no alert notifications for this monitor.</string>
+    <string name="push_alert_mode_down_only">Down only</string>
+    <string name="push_alert_mode_down_only_desc">Notify only when the monitor goes down.</string>
+    <string name="push_alert_mode_down_recovery">Down and recovery</string>
+    <string name="push_alert_mode_down_recovery_desc">Notify when the monitor goes down and when it recovers.</string>
+    <string name="push_alert_mode_all">All transitions</string>
+    <string name="push_alert_mode_all_desc">Notify for every status sent by Kuma, including maintenance and pending.</string>
+    <string name="push_severity_dialog_title">Severity for %1$s</string>
+    <string name="push_severity_dialog_desc">Android keeps each level in a stable channel, so you can fine-tune it later in system settings.</string>
+    <string name="push_severity_critical">Critical</string>
+    <string name="push_severity_critical_desc">High-priority alert with sound and vibration.</string>
+    <string name="push_severity_standard">Standard</string>
+    <string name="push_severity_standard_desc">Normal alert with sound and no vibration.</string>
+    <string name="push_severity_silent">Silent</string>
+    <string name="push_severity_silent_desc">Low-priority alert without sound or vibration.</string>
+    <string name="push_timing_dialog_title">Alert timing for %1$s</string>
+    <string name="push_timing_delay">Initial delay</string>
+    <string name="push_timing_repeat">Repeat every</string>
+    <string name="push_timing_repeat_count">Maximum repeats</string>
+    <string name="push_timing_immediate">Now</string>
+    <string name="push_timing_off">Off</string>
+    <string name="push_timing_minutes">%1$d min</string>
+    <string name="push_timing_default">No delay or repeats</string>
+    <string name="push_timing_delay_summary">Delay %1$d min</string>
+    <plurals name="push_timing_repeat_summary">
+        <item quantity="one">Every %1$d min · once</item>
+        <item quantity="other">Every %1$d min · %2$d times</item>
+    </plurals>
+    <string name="push_diagnostics_section">Push diagnostics</string>
+    <string name="push_diagnostics_desc">The local test checks Android only. Registration and message history stores timestamps and error categories, never endpoints or message contents.</string>
+    <string name="push_diagnostics_last_registration">Last registration</string>
+    <string name="push_diagnostics_last_message">Last message received</string>
+    <string name="push_diagnostics_last_error">Last registration error</string>
+    <string name="push_diagnostics_never">Never</string>
+    <string name="push_diagnostics_error_value">%1$s - %2$s</string>
+    <string name="push_diagnostics_error_internal">Internal distributor error</string>
+    <string name="push_diagnostics_error_network">Distributor network error</string>
+    <string name="push_diagnostics_error_action">Distributor needs an action</string>
+    <string name="push_diagnostics_error_vapid">Distributor requires unsupported VAPID</string>
+    <string name="push_test_local_button">Test phone notification</string>
+    <string name="push_test_local_posted">Android accepted the test notification.</string>
+    <string name="push_test_local_permission">Notification permission is required.</string>
+    <string name="push_test_local_app_disabled">Notifications are disabled for URSA in Android settings.</string>
+    <string name="push_test_local_channel_disabled">The selected monitor-alert channel is disabled in Android settings.</string>
+    <string name="push_test_local_notification_title">URSA notification test</string>
+    <string name="push_test_local_notification_body">Android notifications are working. No Kuma or distributor was contacted.</string>
+    <string name="push_test_kuma_title">End-to-end Kuma delivery</string>
+    <string name="push_test_kuma_desc">Ask Kuma to send a uniquely matched test through the configured Webhook and distributor to this device.</string>
+    <string name="push_test_kuma_button">Test through Kuma</string>
+    <string name="push_test_kuma_sending">Asking Kuma to send the test…</string>
+    <string name="push_test_kuma_waiting">Kuma accepted the request. Waiting for the matching message on this device.</string>
+    <string name="push_test_kuma_rejected">Kuma could not send the test. Check the endpoint and distributor, then try again.</string>
+    <string name="push_test_kuma_received">Matching test received at %1$s.</string>
+    <string name="push_test_kuma_notification_title">Kuma delivery test</string>
+    <string name="push_test_kuma_notification_body">Kuma, the distributor, and Android delivery are working.</string>
+    <string name="action_open_in_kuma">Open in Uptime Kuma</string>
+    <string name="open_in_kuma_title">Open external site?</string>
+    <string name="open_in_kuma_message">This opens the exact address below in your browser. Sign-in details and access headers are never included.</string>
+    <string name="open_in_kuma_chooser">Open Uptime Kuma in browser</string>
+    <string name="action_open_browser">Open browser</string>
+    <string name="monitor_add_title">Add monitor</string>
+    <string name="monitor_edit_title">Edit monitor</string>
+    <string name="monitor_loading_details">Loading monitor settings…</string>
+    <string name="monitor_load_failed">Monitor settings could not be loaded.</string>
+    <string name="monitor_name_label">Name</string>
+    <string name="monitor_type_label">Monitor type</string>
+    <string name="monitor_create_types_note">Common monitor types can be created here. Existing advanced types can be safely edited without losing their server-only settings.</string>
+    <string name="monitor_advanced_preserved">Advanced settings stay on the server unchanged.</string>
+    <string name="monitor_url_label">URL</string>
+    <string name="monitor_host_label">Host</string>
+    <string name="monitor_port_label">Port</string>
+    <string name="monitor_discovery_title">Local service</string>
+    <string name="monitor_discovery_desc">Choose HTTP or HTTPS to find a service on this network. Discovery starts only when you tap a button.</string>
+    <string name="monitor_discovery_http">Find HTTP</string>
+    <string name="monitor_discovery_https">Find HTTPS</string>
+    <string name="monitor_discovery_searching">Looking for services. Android 17 shows a private system picker.</string>
+    <string name="monitor_discovery_choose">Choose a discovered service</string>
+    <string name="monitor_discovery_resolving">Resolving %1$s</string>
+    <string name="monitor_discovery_start_failed">Local service discovery could not start.</string>
+    <string name="monitor_discovery_resolve_failed">That service could not be resolved.</string>
+    <string name="monitor_discovery_invalid">That service did not provide a usable address and port.</string>
+    <string name="monitor_description_label">Description</string>
+    <string name="monitor_interval_label">Check interval (seconds)</string>
+    <string name="monitor_retry_interval_label">Retry interval (seconds)</string>
+    <string name="monitor_retries_label">Retries before down</string>
+    <string name="monitor_active_label">Start monitor after saving</string>
+    <string name="monitor_notifications_title">Server notifications</string>
+    <string name="monitor_notifications_desc">Choose the notification providers Uptime Kuma should use for this monitor.</string>
+    <string name="monitor_notifications_empty">No notification providers are configured on this Uptime Kuma server.</string>
+    <string name="monitor_notification_default_suffix"> · default</string>
+    <string name="monitor_group_label">Group</string>
+    <string name="monitor_group_none">Top level</string>
+    <string name="monitor_tags_title">Server tags</string>
+    <string name="monitor_tags_desc">Choose existing Uptime Kuma tags. Existing tag values are preserved.</string>
+    <string name="monitor_tags_empty">No tags are configured on this Uptime Kuma server.</string>
+    <string name="monitor_error_name">Enter a monitor name.</string>
+    <string name="monitor_error_type">This monitor type cannot be created here yet.</string>
+    <string name="monitor_error_endpoint">Enter the monitor address.</string>
+    <string name="monitor_error_url">Enter a valid HTTP or HTTPS URL.</string>
+    <string name="monitor_error_port">Enter a port from 1 to 65535.</string>
+    <string name="monitor_error_interval">Intervals must be at least one second.</string>
+    <string name="monitor_error_retries">Retries must be between 0 and 100.</string>
+    <string name="action_saving">Saving…</string>
+    <string name="action_edit_monitor">Edit monitor</string>
+    <string name="action_delete_monitor">Delete monitor</string>
+    <string name="monitor_delete_title">Delete monitor?</string>
+    <string name="monitor_delete_message">%1$s and its heartbeat history will be permanently deleted from this server.</string>
+    <string name="monitor_delete_children">Also delete every monitor inside this group</string>
+    <string name="monitor_delete_failed">The monitor could not be deleted.</string>
+    <string name="maintenance_loading">Loading maintenance…</string>
+    <string name="maintenance_empty">No maintenance windows are configured on this server.</string>
+    <string name="maintenance_summary">%1$s · %2$s</string>
+    <string name="maintenance_timezone_value">Timezone: %1$s</string>
+    <string name="maintenance_delete_title">Delete maintenance?</string>
+    <string name="maintenance_delete_message">%1$s will be permanently deleted from this server.</string>
+    <string name="maintenance_add_title">Add maintenance</string>
+    <string name="maintenance_edit_title">Edit maintenance</string>
+    <string name="maintenance_title_label">Title</string>
+    <string name="maintenance_strategy_label">Strategy</string>
+    <string name="maintenance_strategy_manual">Manual</string>
+    <string name="maintenance_strategy_single">Single window</string>
+    <string name="maintenance_strategy_cron">Cron expression</string>
+    <string name="maintenance_strategy_interval">Recurring interval</string>
+    <string name="maintenance_strategy_weekdays">Recurring weekdays</string>
+    <string name="maintenance_strategy_days">Recurring days of month</string>
+    <string name="maintenance_manual_desc">Starts and stops when this maintenance is resumed or paused.</string>
+    <string name="maintenance_cron_label">Cron expression</string>
+    <string name="maintenance_duration_label">Duration (minutes)</string>
+    <string name="maintenance_interval_label">Repeat every (days)</string>
+    <string name="maintenance_weekdays_label">Weekdays</string>
+    <string name="maintenance_days_label" tools:ignore="Typos">Days (1&#8211;31, or lastDay1)</string>
+    <string name="maintenance_timezone_label">Timezone (SAME_AS_SERVER, UTC, or IANA name)</string>
+    <string name="maintenance_timezone_resolved">Server resolves this as %1$s</string>
+    <string name="maintenance_active_label">Active after saving</string>
+    <string name="maintenance_monitors_title">Affected monitors</string>
+    <string name="maintenance_monitors_empty">No monitors are available.</string>
+    <string name="maintenance_start_date_label">Start date/time (YYYY-MM-DDTHH:mm)</string>
+    <string name="maintenance_end_date_label">End date/time (YYYY-MM-DDTHH:mm)</string>
+    <string name="maintenance_start_time_label">Start time (HH:mm)</string>
+    <string name="maintenance_end_time_label">End time (HH:mm)</string>
+    <string name="maintenance_error_title">Enter a title.</string>
+    <string name="maintenance_error_dates">Enter both start and end date/time values.</string>
+    <string name="maintenance_error_cron">Enter a cron expression.</string>
+    <string name="maintenance_error_duration">Duration must be at least one minute.</string>
+    <string name="maintenance_error_interval">Repeat interval must be between 1 and 3650 days.</string>
+    <string name="maintenance_error_weekdays">Choose at least one weekday.</string>
+    <string name="maintenance_error_days">Choose at least one day of the month.</string>
+    <string name="maintenance_error_times">Use 24-hour times in HH:mm format.</string>
+    <string name="bulk_manage_monitors">Manage monitors</string>
+    <string name="action_sort_server">Sort: server order</string>
+    <plurals name="bulk_monitors_selected">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <string name="bulk_select_visible">Select visible</string>
+    <string name="bulk_clear_visible">Clear visible</string>
+    <string name="bulk_confirm_title">%1$s monitors?</string>
+    <plurals name="bulk_confirm_fleet">
+        <item quantity="one">%1$s the only monitor on this server?</item>
+        <item quantity="other">%1$s all %2$d monitors on this server?</item>
+    </plurals>
+    <plurals name="bulk_confirm_selected">
+        <item quantity="one">%1$s the selected monitor?</item>
+        <item quantity="other">%1$s %2$d selected monitors?</item>
+    </plurals>
+    <plurals name="bulk_monitors_updated">
+        <item quantity="one">%1$d monitor updated.</item>
+        <item quantity="other">%1$d monitors updated.</item>
+    </plurals>
+    <plurals name="bulk_monitors_partial">
+        <item quantity="one">%1$d updated; %2$d monitor failed. The failed monitor remains selected.</item>
+        <item quantity="other">%1$d updated; %2$d monitors failed. Failed monitors remain selected.</item>
+    </plurals>
+    <string name="filter_advanced">Advanced filters &amp; saved views</string>
+    <string name="filter_activity">Activity</string>
+    <string name="filter_status">Status</string>
+    <string name="filter_groups">Groups</string>
+    <string name="filter_types">Monitor type</string>
+    <string name="filter_certificate">Certificate</string>
+    <string name="filter_any_certificate">Any</string>
+    <string name="filter_has_certificate">Has certificate</string>
+    <string name="filter_no_certificate">No certificate</string>
+    <string name="saved_views_title">Saved views</string>
+    <string name="saved_view_name">View name</string>
+    <string name="saved_view_save">Save current filters</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_clear">Clear</string>
+    <string name="settings_compact">Compact monitor list</string>
+    <string name="settings_compact_desc">Show more monitors while keeping full-size touch targets.</string>
+    <string name="settings_help">Connection help &amp; diagnostics</string>
+    <string name="settings_help_desc">Direct connection, TLS, access-proxy, 2FA, push, and background guidance.</string>
+    <string name="connection_help_title">Connection help</string>
+    <string name="connection_help_direct"><b>Direct connection:</b> URSA talks straight to your Uptime Kuma URL. Include any reverse-proxy base path.</string>
+    <string name="connection_help_access"><b>Access layers:</b> Pangolin, Cloudflare Access, and similar proxies can use up to eight custom headers in server setup.</string>
+    <string name="connection_help_auth"><b>Sign-in:</b> enter your 2FA code when requested. A session can expire; sign in again from Servers.</string>
+    <string name="connection_help_tls"><b>TLS:</b> prefer a trusted HTTPS certificate. Self-signed mode trusts only the certificate approved during that session.</string>
+    <string name="connection_help_push"><b>Alerts:</b> UnifiedPush needs a distributor and notification permission. Android background restrictions can delay work.</string>
+    <string name="connection_help_current">Current diagnosis: %1$s</string>
+    <string name="connection_reason_device">This device has no usable internet connection. Reconnect Wi-Fi or mobile data.</string>
+    <string name="connection_reason_server">The server could not be reached. Check its URL, base path, VPN, DNS, and reverse proxy.</string>
+    <string name="connection_reason_auth">The saved session was rejected. Open Servers and sign in again.</string>
+    <string name="connection_reason_certificate">TLS validation failed. Check the certificate chain or explicitly review self-signed mode.</string>
+    <string name="connection_reason_incompatible">The server returned an unexpected shape. Confirm it is Uptime Kuma 2.0 or newer and review proxy rewrites.</string>
+    <string name="connection_reason_unknown">No specific failure is active. Use Test connection in the server editor for a fresh check.</string>
+    <string name="settings_updates">What’s new &amp; updates</string>
+    <string name="settings_updates_desc">Check the official GitHub release page manually. No device identifier is sent and URSA never installs updates.</string>
+    <string name="update_dialog_title">What’s new</string>
+    <string name="update_current">URSA is up to date.</string>
+    <string name="update_check_failed">Couldn’t check right now. Your current installation is unchanged.</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_open_release">Open release page</string>
+    <string name="update_available_title">URSA %1$s is available</string>
+    <string name="update_available_body">Review the release notes and update through your preferred source.</string>
+    <string name="update_privacy">Manual check only. URSA sends its version, not a device or installation identifier.</string>
+    <string name="login_connection_guide">Connect directly to your Uptime Kuma server. Include a reverse-proxy base path when used; add access-proxy headers under Advanced connection if needed. Credentials stay encrypted on this device.</string>
+    <string name="update_current_notes"><b>In this version:</b> modern adaptive monitoring, richer incident and certificate views, secure custom headers, compact mode, saved filters, actionable diagnostics, Wear OS, and manual release checks.</string>
 </resources>

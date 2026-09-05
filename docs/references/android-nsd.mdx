@@ -1,0 +1,44 @@
+---
+last-updated: 2026-09-04
+owner: astoris
+status: stable
+---
+
+## contract
+
+URSA uses Android Network Service Discovery (DNS-SD over mDNS) only after a user
+chooses HTTP or HTTPS in the new-monitor form.
+
+- Service types are `_http._tcp` and `_https._tcp`.
+- Android 17 (API 37) discovery uses `DiscoveryRequest.FLAG_SHOW_PICKER`. The system
+  shows matching services and grants discovery access only to the selected service;
+  opening this picker does not request broad local-network access.
+- Android 16 and older use foreground `discoverServices`, show discovered names
+  inside the form, and resolve only the item the user selects.
+- Legacy discovery holds a non-reference-counted Wi-Fi multicast lock only while
+  discovery is active. It is released after selection, failure, cancellation, or
+  editor teardown.
+- Resolved addresses are reduced to scheme, IP host, and port. TXT records and
+  advertised paths are not trusted or applied.
+- IPv6 interface scopes are removed before creating a bracketed URL. Invalid
+  schemes, ports, or host delimiters are rejected.
+
+Primary references:
+
+- https://developer.android.com/privacy-and-security/local-network-permission
+- https://developer.android.com/reference/android/net/nsd/NsdManager
+- https://developer.android.com/reference/android/net/nsd/DiscoveryRequest
+
+## lifecycle boundary
+
+Discovery never begins at app startup, connection, editor entry, or while the app
+is in the background. Starting a new search cancels the previous one. Closing the
+monitor editor stops discovery and releases its multicast lock.
+
+## direct server boundary
+
+DNS-SD discovery is separate from connecting to a user-entered server. Android 17
+requires the runtime `ACCESS_LOCAL_NETWORK` permission before ordinary app sockets
+can reach direct private, loopback, link-local, or mDNS destinations. URSA declares
+that permission and requests it only when the user explicitly tests or connects to
+an address classified into one of those ranges. Public hostnames do not trigger it.

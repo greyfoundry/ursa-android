@@ -2,16 +2,24 @@ package dev.astoris.ursa.core.network
 
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
+import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.model.MonitorTagAssignment
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 /**
  * Pure normalization of Uptime Kuma wire payloads into domain models. Kept free of
@@ -43,6 +51,7 @@ object KumaParse {
 
     fun monitor(obj: JsonObject): Monitor? {
         val id = obj["id"]?.jsonPrimitive?.intOrNull ?: return null
+        val assignments = tagAssignments(obj)
         return Monitor(
             id = id,
             name = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
@@ -50,13 +59,42 @@ object KumaParse {
             type = obj["type"]?.jsonPrimitive?.contentOrNull ?: "",
             active = obj["active"]?.jsonPrimitive?.booleanOrNull ?: true,
             tags = tags(obj),
+            tagAssignments = assignments,
+            parentId = obj["parent"]?.jsonPrimitive?.intOrNull,
+            weight = obj["weight"]?.jsonPrimitive?.intOrNull ?: 0,
         )
     }
 
     fun tags(obj: JsonObject): List<String> =
         obj["tags"]?.jsonArray?.mapNotNull { el ->
-            (el as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull?.ifEmpty { null }
-        } ?: emptyList()
+            (el as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull?.trim()?.ifEmpty { null }
+        }?.distinct().orEmpty()
+
+    fun tagAssignments(obj: JsonObject): List<MonitorTagAssignment> {
+        val monitorId = obj["id"]?.jsonPrimitive?.intOrNull ?: 0
+        return obj["tags"]?.jsonArray?.mapNotNull { el ->
+            val tag = el as? JsonObject ?: return@mapNotNull null
+            val tagId = tag["tag_id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 }
+                ?: return@mapNotNull null
+            val name = tag["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+                ?: return@mapNotNull null
+            MonitorTagAssignment(
+                tagId = tagId,
+                monitorId = tag["monitor_id"]?.jsonPrimitive?.intOrNull ?: monitorId,
+                name = name,
+                color = tag["color"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                value = tag["value"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            )
+        }.orEmpty()
+    }
+
+    fun tagDefinitions(arr: JsonArray): List<KumaTag> = arr.mapNotNull { el ->
+        val tag = el as? JsonObject ?: return@mapNotNull null
+        val id = tag["id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+        val name = tag["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        KumaTag(id, name, tag["color"]?.jsonPrimitive?.contentOrNull.orEmpty())
+    }.sortedBy { it.name.lowercase() }
 
     /** `heartbeat` event (object, camelCase). */
     fun heartbeat(obj: JsonObject): Heartbeat? {
@@ -70,6 +108,40 @@ object KumaParse {
             important = obj["important"]?.jsonPrimitive?.booleanOrNull ?: false,
         )
     }
+
+    /** Bean-serialized heartbeat arrays such as `monitorImportantHeartbeatListPaged`. */
+    fun heartbeatRows(arr: JsonArray): List<Heartbeat> =
+        arr.mapNotNull { (it as? JsonObject)?.let(::heartbeat) }
+
+    /** Keeps only webhook providers explicitly marked as managed by URSA. */
+    fun managedPushNotifications(arr: JsonArray): List<ManagedPushNotification> =
+        arr.mapNotNull { value ->
+            val obj = value as? JsonObject ?: return@mapNotNull null
+            val id = obj["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+            val rawConfig = obj["config"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            val config = runCatching { Json.parseToJsonElement(rawConfig).jsonObject }.getOrNull()
+                ?: return@mapNotNull null
+            if (
+                config[ManagedPushNotification.MANAGED_MARKER]?.jsonPrimitive?.booleanOrNull != true
+            ) return@mapNotNull null
+            if (config["type"]?.jsonPrimitive?.contentOrNull != "webhook") return@mapNotNull null
+            val webhookUrl = config["webhookURL"]?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            ManagedPushNotification(
+                id = id,
+                name = obj["name"]?.jsonPrimitive?.contentOrNull
+                    ?: config["name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                webhookUrl = webhookUrl,
+                isDefault = obj["isDefault"]?.jsonPrimitive?.booleanOrNull
+                    ?: config["isDefault"]?.jsonPrimitive?.booleanOrNull
+                    ?: false,
+                serverId = config[ManagedPushNotification.SERVER_ID_FIELD]
+                    ?.jsonPrimitive?.contentOrNull
+                    ?.takeIf(ManagedPushNotification::isValidServerId),
+                schemaVersion = config[ManagedPushNotification.SCHEMA_FIELD]
+                    ?.jsonPrimitive?.intOrNull,
+            )
+        }.sortedBy(ManagedPushNotification::id)
 
     /** `getMonitorBeats` rows - SNAKE_CASE, `important` is 1/0 not a boolean. */
     fun beatRow(obj: JsonObject): Heartbeat? {
@@ -87,6 +159,18 @@ object KumaParse {
     fun beatRows(arr: JsonArray): List<Heartbeat> =
         arr.mapNotNull { (it as? JsonObject)?.let(::beatRow) }
 
+    /** `getMonitorChartData` buckets, aggregated by Kuma's uptime calculator. */
+    fun chartRows(arr: JsonArray): List<MonitorChartPoint> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val timestamp = obj["timestamp"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null
+        val up = obj["up"]?.jsonPrimitive?.longOrNull ?: 0L
+        val down = obj["down"]?.jsonPrimitive?.longOrNull ?: 0L
+        if (up < 0L || down < 0L) return@mapNotNull null
+        val avgPing = obj["avgPing"]?.jsonPrimitive?.doubleOrNull
+            ?.takeIf { it.isFinite() && it >= 0.0 }
+        MonitorChartPoint(up, down, avgPing, timestamp)
+    }
+
     /**
      * `certInfo` payload: `{ valid, certInfo: { subject:{CN}, issuer:{CN}, validTo,
      * daysRemaining } }`. `validTo`/`daysRemaining` drive the local expiry reminder.
@@ -101,4 +185,22 @@ object KumaParse {
             daysRemaining = info?.get("daysRemaining")?.jsonPrimitive?.intOrNull,
         )
     }
+
+    /** Exposes only fields needed for monitor assignment; provider secrets stay in the adapter. */
+    fun notifications(arr: JsonArray): List<KumaNotification> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val id = obj["id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+        val name = obj["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() }
+            ?: return@mapNotNull null
+        val rawConfig = obj["config"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+        val type = runCatching { Json.parseToJsonElement(rawConfig).jsonObject }
+            .getOrNull()?.get("type")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+            ?: return@mapNotNull null
+        KumaNotification(
+            id = id,
+            name = name,
+            type = type,
+            isDefault = obj["isDefault"]?.jsonPrimitive?.booleanOrNull ?: false,
+        )
+    }.sortedWith(compareByDescending<KumaNotification>(KumaNotification::isDefault).thenBy { it.name.lowercase() })
 }

@@ -1,0 +1,71 @@
+---
+last-updated: 2026-09-04
+owner: astoris
+status: stable
+---
+
+## what this is
+
+The separate Wear OS companion. It is a standalone public status-page viewer with
+an attention-first dashboard, monitor detail, tile, and watch-face complications.
+An optional phone pairing enables authenticated pause/resume without asking for a
+password or session token on the watch.
+
+## technical map
+
+**watch paths**
+- `wear/.../WearMainActivity.kt` - launcher dashboard and validated monitor route.
+- `wear/.../WearMonitorDetailActivity.kt` - status, latency, uptime, group, tags,
+  and confirmed private actions.
+- `wear/.../WearStatus.kt` - safe public-page addressing, parser, and shared copy.
+- `wear/.../StatusPoll.kt` - unauthenticated Kuma status-page requests.
+- `wear/.../StatusTileService.kt` - five-minute fleet tile.
+- `wear/.../StatusComplicationService.kt` - 15-minute short/long text source.
+- `wear/.../WearSessionListenerService.kt` - exact-path Data Layer receiver.
+- `wear/.../WearSecurity.kt`, `WearPrefs.kt` - payload bounds, header validation,
+  Socket.IO action client, and Keystore-backed Tink encryption.
+
+**phone paths**
+- `app/.../core/wear/WearSessionBridge.kt` - transport-neutral bounded envelope.
+- `app/src/wearBridge/.../PlayWearSessionSender.kt` - optional Data Layer sender.
+- `app/.../ui/settings/SettingsScreen.kt` - explicit pairing disclosure/action.
+
+## behaviour and boundaries
+
+- A published Kuma page is sufficient for the complete read-only watch dashboard.
+  Reverse-proxy base paths are preserved. No account, phone app, or private token is
+  required for this mode.
+- Monitor rows are attention-first and capped at 100. Detail routes accept only a
+  positive monitor ID that is present on the configured public page.
+- SHORT_TEXT and LONG_TEXT complications expose only fleet state. They and the tile
+  open the watch app; neither embeds credentials.
+- Private actions use the active saved phone session. Pairing carries the normalized
+  server URL, bounded token, display name, and at most eight validated access headers.
+  Header values reject CR/LF and are never rendered.
+- The phone uses an ephemeral Data Layer message to reachable nodes advertising the
+  exact URSA capability. Wear OS enforces matching package name and signing identity.
+  There is no vendor account, relay, persistent DataItem, or cloud copy.
+- The watch validates the 16 KiB envelope again and encrypts the entire session and
+  access-header set with AES-GCM under Android Keystore before persistence. Clearing
+  pairing removes the ciphertext.
+- Credentials are never entered on the watch. Servers using URSA's opt-in self-signed
+  mode cannot enable watch actions because the phone's in-memory certificate trust
+  cannot be transferred safely. Public-page viewing remains available.
+- Message delivery is best-effort. If a session expires or the watch is unreachable,
+  pair again from phone Settings.
+
+## distribution
+
+The Wear APK includes the Wearable Data Layer client and is distributed as a separate
+GitHub release asset. The phone sender is compiled only with
+`-PursaWearBridge=true`, which the GitHub release workflow supplies. The default and
+F-Droid phone builds have no Play Services dependency and hide the pairing control.
+
+## verification
+
+Pure tests cover reverse-proxy URLs, status parsing, attention order, metrics copy,
+payload bounds, custom headers, AES-GCM tamper rejection, and action event names.
+Device QA covers standalone setup, dashboard/detail rendering, manifest registration,
+encrypted watch storage, and live Kuma pause/resume. Two independent AVDs cannot form
+a real Data Layer pair; the phone no-watch failure path and both compiled endpoints are
+verified separately.

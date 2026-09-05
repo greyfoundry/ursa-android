@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-25
+last-updated: 2026-08-27
 owner: astoris
 status: stable
 source: verified from Uptime Kuma 2.5.3 source and a live 2.5.3 container
@@ -28,6 +28,11 @@ between versions.
    `token` = 2FA code; if cb returns `{ tokenRequired: true }`, re-emit with it.
 3. Later sessions: `emit("loginByToken", <jwt>)` instead of credentials.
 
+The session JWT may be imported directly and validated with `loginByToken` before
+it is saved. Kuma's `uk...` API keys are not an alternative socket credential:
+2.5.3 verifies them only in the HTTP Basic authorizer used by the Prometheus
+endpoint. Passing one to `loginByToken` is rejected by design.
+
 **server → client events (⚠ several are POSITIONAL args, not objects)**
 - `info` → `{ version, latestVersion, serverTimezone, dbType, isContainer, ... }`
 - `monitorList` → `{ [id]: MonitorObject }` (id-keyed object, not array)
@@ -46,8 +51,48 @@ between versions.
   down_count, end_time, retries }`
 - `getMonitorChartData(id, periodHours)` → `{ ok, data: [{ up, down, avgPing,
   minPing, maxPing, timestamp }] }` (⚠ NOT `ping/pingMin/pingMax`)
+- `monitorImportantHeartbeatListPaged(null, offset, count)` →
+  `{ ok, data: HeartbeatBean[] }`, newest first; these rows use camelCase
+  `monitorID` and boolean `important` like the live event, not `getMonitorBeats`
+  row casing. `null` selects all monitors, and 2.5.3 retains important state
+  transitions separately from the rolling live list.
 - `pauseMonitor(id)` / `resumeMonitor(id)` → `{ ok, msg, msgi18n }`
 - `getMonitor(id)` → full MonitorObject
+- `addNotification(config, notificationID|null)` returns `{ ok, id }`. Webhook
+  config includes `name`, `type=webhook`, `isDefault`, `webhookURL`, and
+  `httpMethod=post`. `webhookContentType=json` sends Kuma's standard body;
+  `webhookContentType=custom` renders `webhookCustomBody` through Liquid. In
+  2.5.3 the template context exposes `heartbeatJSON`, `monitorJSON`, and `msg`,
+  and Liquid's `| json` filter produces JSON-safe values. Unknown config keys are
+  retained.
+- `deleteNotification(notificationID)` returns `{ ok, msg }`; Kuma removes the
+  associated monitor-notification relations.
+- `testNotification(fullNotificationConfig)` returns `{ ok, msg }` after the
+  provider completes its send. A standard Webhook posts
+  `{ heartbeat: null, monitor: null, msg: "<notification name> Testing" }`;
+  a custom Webhook renders the same null monitor/heartbeat values through its
+  template. Kuma does not save the temporary config.
+- `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
+  is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
+  restarts the edited monitor, so bulk callers should update sequentially.
+- `getTags()` returns `{ ok, tags: [{ id, name, color }] }`.
+  `addMonitorTag(tagID, monitorID, value)` and
+  `deleteMonitorTag(tagID, monitorID, value)` update assignments and push an
+  `updateMonitorIntoList` event. The exact value is part of the delete key.
+- Group/folder membership is the full monitor object's nullable `parent` field.
+  Kuma rejects assigning a group below one of its descendants. `weight` is
+  emitted for sibling ordering (descending after active state), but 2.5.3 has no
+  authenticated event that mutates monitor weight; clients must not invent a
+  local-only order.
+- `maintenanceList` is an ID-keyed object of maintenance JSON. Detail editing uses
+  `getMaintenance(id)` and `getMonitorMaintenance(id)`. Create/edit returns a
+  `maintenanceID`, after which `addMonitorMaintenance(id, [{ id }])` replaces the
+  affected-monitor relation. `pauseMaintenance`, `resumeMaintenance`, and
+  `deleteMaintenance` are separate acknowledged events.
+- Maintenance strategies are `manual`, `single`, `cron`, `recurring-interval`,
+  `recurring-weekday`, and `recurring-day-of-month`. Payloads use `dateRange`,
+  `{ hours, minutes }` `timeRange` entries, `timezoneOption`, `intervalDay`,
+  `weekdays`, `daysOfMonth`, `cron`, and `durationMinutes`.
 
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
@@ -64,9 +109,14 @@ source inventory remains 87 client events, 30 server emit candidates, and 33 RES
 routes; normalized live payload shapes used by URSA are unchanged.
 
 **REST (no auth - public status pages)**
-- `GET /api/status-page/<slug>` - page config, groups, monitors, incident
-- `GET /api/status-page/heartbeat/<slug>` - heartbeats + uptime
-- `GET /api/entry-page` - detect setup state / vanity domains
+- `GET /api/status-page/<slug>` - page config, public groups/monitors, pinned
+  active incidents, and active maintenance entries
+- `GET /api/status-page/heartbeat/<slug>` - up to 100 public heartbeat rows per
+  monitor plus `{"<monitorId>_24": <fraction>}` uptime values
+- `GET /api/status-page/<slug>/incident-history` - paginated active and resolved
+  incidents as `{ ok, incidents, total, nextCursor, hasMore }`
+- `GET /api/entry-page` - `statusPageMatchedDomain` returns `statusPageSlug`;
+  `entryPage` can return `statusPage-<slug>` for a configured default page
 
 ## gotchas
 
@@ -77,6 +127,11 @@ routes; normalized live payload shapes used by URSA are unchanged.
   inside object payloads are numbers. Normalize both forms at the adapter boundary.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
   JSON string *inside* the JSON - parse twice.
+- **Sensitive full monitor shape**: authenticated `getMonitor` includes fields
+  needed to edit every monitor type and may include credentials. Keep it ephemeral,
+  never log/store it, preserve unknown fields, and mutate only the intended field.
+- **Public incident overlap**: a pinned active incident is returned by both the
+  main page endpoint and incident history. De-duplicate by numeric incident ID.
 - Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON
   array) on Kuma 2.x - absent from the wiki.
 - Kuma 2.x boots into a separate "setup-database" mode; the app socket isn't

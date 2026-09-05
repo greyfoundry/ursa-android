@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-09-04
 owner: astoris
 status: in-flux
 ---
@@ -8,7 +8,8 @@ status: in-flux
 
 How URSA is wired together and how data flows from a Kuma server to the screen.
 The app is a thin, reactive client: a socket/REST layer feeds repositories,
-repositories expose Flows, Compose renders them. Nothing is stored server-side.
+repositories expose Flows, and Compose renders them. URSA has no separate backend;
+explicit management actions write only to the user's authenticated Kuma server.
 
 ## technical map
 
@@ -23,20 +24,28 @@ Kuma server ──Socket.IO──▶ core.network (adapter: parse/normalize wire
 
 core.storage (DataStore+Tink)  ── credentials/JWT ──▶ core.network (login/loginByToken)
 distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──▶ system notification
+core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhook provider
 ```
 
 **layers (M1 implemented unless noted)**
 - `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) -
   see `docs/modules/network.mdx`.
-- `core.storage` → `.../core/storage/` (ConnectionStore + Crypto) - DataStore with
-  Tink AES-256-GCM at rest, master key in Android Keystore.
-- `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore) -
-  UnifiedPush receive path + notification rendering. See `docs/modules/push.mdx`.
+- `core.storage` → `.../core/storage/` (ConnectionStore, encrypted caches,
+  preferences, event history, and incident notes) - DataStore with Tink
+  AES-256-GCM at rest, master key in Android Keystore.
+- `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore,
+  KumaWebhook, PushDeliveryTest) - UnifiedPush receive path, delivery URL
+  validation, privacy-safe diagnostics/testing, and notification rendering.
+  See `docs/modules/push.mdx`.
 - `data.model` → `.../data/model/` - Models.kt + StatusPageModels.kt.
 - `data.repository` → `.../data/repository/MonitorRepository.kt`.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) -
   see `docs/modules/ui.mdx`.
 - app shell → `.../MainActivity.kt` - see `docs/modules/app-shell.mdx`.
+- update check -> `.../core/update/` - user-triggered official GitHub release lookup,
+  strict semantic version parsing, and optional version-deduplicated notification.
+- Wear companion -> standalone public polling plus an optional same-signed Data Layer
+  session handoff - see `docs/modules/wear.mdx`.
 
 **depends on**
 - `docs/references/*` - the external API contracts each layer implements against.

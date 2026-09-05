@@ -1,8 +1,8 @@
 ---
-last-updated: 2026-07-04
+last-updated: 2026-08-27
 owner: astoris
 status: verified
-source: connector 3.3.3 source, read directly from the tagged repo
+source: connector 3.3.4 source, read directly from the tagged repo
         (UnifiedPush/android-connector) on 2026-07-04. Context7 has no UnifiedPush
         entry; the website docs are redirect-gated, so the source is authoritative.
 ---
@@ -21,11 +21,16 @@ HTTP 200. Body is `{ heartbeat, monitor, msg }`; `msg` is ready-made text like
 `"[name] [🔴 Down] connect ECONNREFUSED ..."`. URSA parses this JSON itself.
 Append `?up=1` to the ntfy endpoint so ntfy forwards raw bytes untouched.
 
-## technical map (verified against connector 3.3.3 source)
+**Reverified end-to-end (2026-08-27):** Official Kuma 2.5.3
+`testNotification` -> Webhook -> the signed official ntfy 1.25.2 F-Droid app ->
+URSA on Android 17 completed in under two seconds. The returning test body used
+the same JSON envelope with null monitor/heartbeat objects and a generated message.
+
+## technical map (verified against connector 3.3.4 source)
 
 **gradle**
 ```kotlin
-implementation("org.unifiedpush.android:connector:3.3.3")
+implementation("org.unifiedpush.android:connector:3.3.4")
 ```
 
 **register / distributor selection** - `UnifiedPush` is an object with `@JvmStatic`
@@ -94,3 +99,6 @@ Also `POST_NOTIFICATIONS` permission (API 33+) and `INTERNET` (already present).
   `VapidNotValidException` only if you pass a malformed `vapid` - we pass none.
 - FOSS-clean for F-Droid - the connector is FOSS; confirm the final dependency set
   before release.
+- Registration callbacks expose only normalized `FailedReason` categories. URSA
+  stores the category and timestamp for diagnostics, never a distributor-provided
+  free-form error or endpoint copy.

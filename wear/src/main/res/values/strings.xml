@@ -1,8 +1,22 @@
 <resources>
     <string name="app_name">URSA</string>
     <string name="tile_name">URSA status</string>
+    <string name="complication_name">URSA fleet status</string>
     <string name="config_prompt">Kuma status-page URL</string>
     <string name="config_hint">https://kuma.example.com/status/home</string>
+    <string name="config_actions_prompt">Optional private actions</string>
+    <string name="config_actions_desc">Send the active session from URSA Settings on your paired phone. Credentials are never typed on the watch and are encrypted here.</string>
+    <string name="config_not_paired">Not paired</string>
+    <string name="config_paired_to">Paired to %1$s</string>
+    <string name="config_clear_pairing">Clear pairing</string>
+    <string name="config_pairing_cleared">Pairing cleared</string>
+    <string name="config_invalid_status_url">Enter a valid published Kuma status-page URL.</string>
     <string name="config_save">Save</string>
     <string name="config_saved">Saved</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_confirm_pause">Pause %1$s?</string>
+    <string name="action_confirm_resume">Resume %1$s?</string>
+    <string name="action_confirm_desc">This changes the monitor on your Kuma server.</string>
+    <string name="action_cancel">Cancel</string>
 </resources>

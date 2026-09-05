@@ -1,7 +1,7 @@
 ---
-last-updated: 2026-08-25
+last-updated: 2026-09-04
 owner: astoris
-status: in-flux
+status: stable
 ---
 
 ## what this is
@@ -20,17 +20,48 @@ connection: push works while the app is closed.
 - `.../core/push/PushParse.kt` - pure, tolerant parser of Kuma's webhook JSON
   (`{heartbeat, monitor, msg}`) → `PushNotice`. JVM-unit-tested (`PushParseTest`).
 - `.../core/push/PushStore.kt` - process-wide holder of the endpoint URL + chosen
-  distributor (SharedPreferences mirrored into StateFlows).
+  distributor plus privacy-safe diagnostic/test metadata (SharedPreferences
+  mirrored into StateFlows).
+- `.../core/push/KumaWebhook.kt` - validates the registered delivery endpoint and
+  adds ntfy's required `up=1` query flag without discarding an existing query.
+- `.../core/push/PushDeliveryTest.kt` - creates and exactly matches the short,
+  random marker used to distinguish a requested Kuma test from unrelated pushes.
+- `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
+  for transition modes, severity, bounded timing, and snooze expiry.
+- `.../core/push/PushAlertLifecycle.kt` - pure delay/repeat/acknowledgement policy
+  plus privacy-safe WorkManager and notification identities.
+- `.../core/push/PushPendingAlertStore.kt` - encrypted rendered payloads for
+  delayed and repeating alerts; active pointers contain only random server scope,
+  monitor ID, and opaque alert ID.
+- `.../core/push/PushAlertWorker.kt` - one-shot scheduled delivery and bounded
+  repeat chaining. WorkManager input contains only an opaque alert ID.
+- `.../core/push/PushAlertActionReceiver.kt` - non-exported acknowledge and
+  one-hour snooze notification actions.
+- `.../core/push/PushQuietHours.kt` / `PushQuietHoursStore.kt` - local weekly
+  schedule that routes delivery-time alerts to the existing silent channel.
+- `.../core/push/PushEventPolicy.kt` / `PushEventPreferencesStore.kt` - recovery,
+  maintenance, certificate, and update opt-ins plus stable event-channel routes.
+- `.../core/push/PushTransitionStore.kt` - server-scoped two-minute exact-transition
+  de-duplication; real status changes always pass.
+- `.../core/push/OverallStatusService.kt` - optional special-use foreground service
+  that keeps a direct authenticated socket and an ongoing live fleet notification.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
-  show the endpoint with a copy button, disconnect.
+  show/copy the endpoint, create or update the marked Kuma Webhook provider,
+  select existing monitors/default use, configure per-monitor alert modes and
+  delivery severity and timing, show setup status, and remove it safely.
 
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).
 - `PushParse.parse(raw): PushNotice?`.
-- `PushStore.endpoint` / `.distributor` (StateFlow), `load`/`setEndpoint`/
-  `setDistributor`/`clear`.
+- `PushStore.endpoint` / `.distributor` (StateFlow), `load`/`setDistributor`/
+  `clear`; `diagnostics` exposes timestamps and normalized result
+  categories without retaining endpoint copies or message contents.
+- `KumaWebhook.deliveryUrl(endpoint, distributor)` returns a validated HTTP(S)
+  endpoint ready for Kuma, or null.
 - ViewModel: `pushEndpoint`, `pushDistributor`, `distributors`, `pushMode`;
-  `enterPush`/`exitPush`/`refreshDistributors`/`registerPush`/`unregisterPush`.
+  `enterPush`/`exitPush`/`refreshDistributors`/`registerPush`/`unregisterPush`,
+  plus local notification testing, managed Kuma setup state, and
+  create/update/test/remove actions and per-monitor alert-mode state.
 
 **depends on**
 - `org.unifiedpush.android:connector:3.3.4` (excludes JVM `tink`; we ship
@@ -47,14 +78,91 @@ connection: push works while the app is closed.
   tolerantly, render-only, never acted upon.
 - `POST_NOTIFICATIONS` is a runtime permission on API 33+; the service drops the
   notification (logs a warning) if it isn't granted. `PushScreen` requests it.
-- ntfy endpoints need `?up=1` appended so ntfy forwards Kuma's raw bytes - surfaced
-  as a hint on the endpoint screen.
+- ntfy endpoints need `up=1` so ntfy forwards Kuma's raw bytes. Managed setup adds
+  it automatically and preserves any existing endpoint query parameters.
+- URSA only edits or removes Webhook providers whose double-encoded config contains
+  the exact `ursaManaged: true` marker. The provider is named `URSA UnifiedPush`;
+  unrelated user notification providers are not surfaced to the managed setup path.
+- Managed providers use Kuma's custom Webhook body with Liquid's JSON filter and a
+  random 32-hex `ursaServerId`. The scope is not a credential and is never shown;
+  it prevents identical monitor IDs on different saved servers from sharing an
+  alert policy. Legacy managed providers must be saved once to gain this scope.
+- Per-monitor modes are non-sensitive device preferences keyed by server scope and
+  monitor ID. Muted posts nothing; down-only accepts status 0; down-and-recovery
+  accepts 0 and 1; all-transitions also accepts pending, maintenance, and unknown
+  legacy payloads. Manual or legacy Webhooks without a valid scope default to all
+  transitions so an upgrade cannot silently suppress alerts.
+- Per-monitor severity uses the same server scope. Critical, standard, and silent
+  map to stable Android channels. Critical defaults to high importance with sound
+  and vibration; standard defaults to normal importance with sound and no forced
+  vibration; silent defaults to low importance without sound or vibration. Android
+  system settings remain authoritative after channel creation. Existing records
+  default to critical so upgrades preserve the previous alert strength.
+- Managed down alerts may be immediate or delayed by 1, 5, or 10 minutes, then
+  optionally repeat every 5, 15, or 30 minutes up to 1, 3, or 5 times. Defaults
+  remain immediate with no repeat. Timing preferences contain no notification
+  content. Rendered pending content is encrypted with the same Keystore-backed
+  AEAD as other private local state, while WorkManager receives only a random ID.
+- Recovery always cancels delayed/repeating work and clears an active snooze before
+  transition filtering, so a down-only policy cannot leave a stale down reminder.
+  Acknowledge cancels the active alert; snooze hides it and schedules it once for
+  one hour later. Both actions use immutable PendingIntents targeting a non-exported
+  receiver. Manual and legacy Webhooks stay immediate because they lack the server
+  scope required for collision-safe per-monitor policy.
+- Quiet hours are a device-wide weekly push schedule with configurable start/end
+  times and selected days. Same-day and overnight windows are supported. Alerts
+  are never discarded: the effective severity becomes silent at actual delivery
+  time, including delayed or repeated work. Android Do Not Disturb remains
+  authoritative and the UI links to its settings without requesting policy access
+  or claiming that URSA can bypass it.
+- Custom sounds and vibration are delegated to Android's settings for the stable
+  critical, standard, and silent channels. The Notifications screen links directly
+  to each channel. URSA stores no content URI and never recreates a channel, so a
+  user's custom choice survives app updates and remains under system control.
+- Recovery and maintenance have separate stable channels and independent opt-ins.
+  Certificate reminders can also be disabled; their existing daily worker exits
+  without reading cached certificate details when disabled. The update opt-in and
+  channel are ready for the CP-044 manual update checker; no network lookup is made
+  by this alert-policy layer.
+- Managed push transitions keep only status and timestamp under the random server
+  scope and monitor ID. An exact same-status delivery inside two minutes is ignored;
+  status changes always deliver, including down -> recovery -> down, and the window
+  is anchored to the first delivery rather than extended by duplicates.
+- Persistent status is explicit opt-in. It runs a visible `specialUse` foreground
+  service with a separate low-importance channel, maintains a direct Socket.IO
+  connection to the active saved server, and shows up/down/pending/maintenance
+  counts with an app content intent. The UI states its battery cost. Turning it off
+  stops the service and socket immediately; push delivery does not depend on it.
+- Existing-monitor assignment reads are capped at four concurrent requests. Writes
+  run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
+  a fleet-wide restart burst. No-op relations are skipped.
+- Removing managed setup deletes only marked providers. The UnifiedPush registration
+  and endpoint remain on the device, ready for another server or manual setup.
+- "Test phone notification" exercises Android permission, app notification state,
+  channel state, and posting only. It never contacts Kuma or the distributor.
+- "Test through Kuma" sends a temporary marked Webhook config through Kuma's
+  `testNotification`. A random 12-character marker correlates the returning message;
+  it is cleared on match, failure, unregister, or disconnect and is never shown.
+- Diagnostics persist only last registration/message/error timestamps, normalized
+  registration failure categories, and test results. Payloads, monitor names,
+  endpoints, and server URLs are not retained. A delivery test does not add a fake
+  incident to the event log.
 - Kuma 2.5.1's Pinglet and SMS Gateway additions are separate outbound providers;
   the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
   body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral
   Webhook to UnifiedPush path rather than depend on a third-party provider.
-- Same monitor id reuses its notification id, so a new status replaces the old one.
+- Managed alerts derive a stable, hashed notification ID from server scope and
+  monitor ID, so a new status replaces the old one without colliding across servers.
+  Manual legacy payloads retain the previous monitor-ID fallback.
+- A notification that is actually posted is also appended to the encrypted,
+  bounded device event log. The webhook body has no trustworthy server identity,
+  so the entry remains provider-neutral rather than being assigned to a guessed
+  connection. Missing notification permission produces neither a notification nor
+  a false history entry.
 - Notification content and monitor actions use immutable PendingIntents with explicit
   app-owned activity/receiver components.
+- Notification content routes through strict `ursa://` deep links. Private monitor
+  routes contain only a one-way server scope and monitor ID; update notices open the
+  validated official release page and never download or install an APK.
 - Notifications use the branded monochrome `ic_stat_ursa` small icon and
   `NotificationCompat` for consistent behavior across supported Android versions.

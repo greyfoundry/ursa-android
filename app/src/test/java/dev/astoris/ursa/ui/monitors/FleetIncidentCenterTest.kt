@@ -1,0 +1,241 @@
+package dev.astoris.ursa.ui.monitors
+
+import dev.astoris.ursa.data.model.Heartbeat
+import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.MonitorStatus
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class FleetIncidentCenterTest {
+
+    @Test
+    fun buildsActiveAndResolvedIncidentsAcrossMonitors() {
+        val active = monitor(1, "API", MonitorStatus.DOWN)
+        val recovered = monitor(2, "Database", MonitorStatus.UP)
+
+        val incidents = fleetIncidents(
+            listOf(active, recovered),
+            mapOf(
+                1 to listOf(beat(1, MonitorStatus.UP, "10:00"), beat(1, MonitorStatus.DOWN, "10:05")),
+                2 to listOf(
+                    beat(2, MonitorStatus.UP, "09:00"),
+                    beat(2, MonitorStatus.DOWN, "09:05", "Timeout"),
+                    beat(2, MonitorStatus.UP, "09:10"),
+                ),
+            ),
+        )
+
+        assertEquals(2, incidents.size)
+        assertTrue(incidents.first().active)
+        assertEquals("API", incidents.first().monitorName)
+        assertFalse(incidents.last().active)
+        assertEquals("09:10", incidents.last().resolvedAt)
+        assertEquals("Timeout", incidents.last().message)
+    }
+
+    @Test
+    fun currentDownMonitorWithoutHistoryStillAppears() {
+        val incident = fleetIncidents(listOf(monitor(3, "Unknown start", MonitorStatus.DOWN)), emptyMap()).single()
+
+        assertTrue(incident.active)
+        assertNull(incident.startedAt)
+    }
+
+    @Test
+    fun durationUsesUtcHeartbeatTimesAndLiveClock() {
+        val resolved = FleetIncident(1, "API", "2026-08-25 10:00:00.000", "2026-08-25 10:01:05.000", null)
+        val active = FleetIncident(1, "API", "2026-08-25 10:00:00", null, null)
+        val now = kumaUtcMillisOrNull("2026-08-25 11:02:03")!!
+
+        assertEquals(65_000L, incidentDurationMillis(resolved, now))
+        assertEquals("1m 5s", compactDuration(incidentDurationMillis(resolved, now)!!))
+        assertEquals("1h 2m", compactDuration(incidentDurationMillis(active, now)!!))
+        assertNull(kumaUtcMillisOrNull("not a Kuma time"))
+    }
+
+    @Test
+    fun durableTransitionsStabilizeAContinuousOutageStart() {
+        val important = listOf(
+            beat(1, MonitorStatus.UP, "2026-08-26 01:00:00"),
+            beat(1, MonitorStatus.DOWN, "2026-08-26 01:05:00"),
+        )
+        val rolling = mapOf(
+            1 to listOf(
+                beat(1, MonitorStatus.DOWN, "2026-08-26 11:58:00"),
+                beat(1, MonitorStatus.DOWN, "2026-08-26 12:00:00"),
+            ),
+        )
+        val monitor = monitor(1, "API", MonitorStatus.DOWN)
+
+        val first = fleetIncidents(listOf(monitor), mergedIncidentHistory(rolling, important)).single()
+        val advanced = fleetIncidents(
+            listOf(monitor),
+            mergedIncidentHistory(
+                mapOf(1 to listOf(beat(1, MonitorStatus.DOWN, "2026-08-26 12:01:00"))),
+                important,
+            ),
+        ).single()
+
+        assertEquals("2026-08-26 01:05:00", first.startedAt)
+        assertEquals(first.startedAt, advanced.startedAt)
+    }
+
+    @Test
+    fun reliabilityCalculatesDowntimeMttrAndFlakiestMonitorForWindow() {
+        val now = kumaUtcMillisOrNull("2026-08-25 12:00:00")!!
+        val api = monitor(1, "API", MonitorStatus.DOWN)
+        val database = monitor(2, "Database", MonitorStatus.UP)
+        val history = mapOf(
+            1 to listOf(
+                beat(1, MonitorStatus.UP, "2026-08-25 05:00:00"),
+                beat(1, MonitorStatus.DOWN, "2026-08-25 07:00:00"),
+                beat(1, MonitorStatus.UP, "2026-08-25 07:30:00"),
+                beat(1, MonitorStatus.DOWN, "2026-08-25 10:00:00"),
+            ),
+            2 to listOf(
+                beat(2, MonitorStatus.UP, "2026-08-25 05:00:00"),
+                beat(2, MonitorStatus.DOWN, "2026-08-25 09:00:00"),
+                beat(2, MonitorStatus.UP, "2026-08-25 09:15:00"),
+            ),
+        )
+
+        val summary = fleetReliabilitySummary(
+            monitors = listOf(api, database),
+            history = history,
+            incidents = fleetIncidents(listOf(api, database), history),
+            windowHours = 6,
+            nowMillis = now,
+        )
+
+        assertEquals(9_900_000L, summary.observedDowntimeMillis)
+        assertEquals(1_350_000L, summary.meanTimeToRecoveryMillis)
+        assertEquals(MonitorFlakiness(1, "API", 2), summary.flakiestMonitor)
+        assertEquals(0, summary.incompleteMonitorCount)
+        assertEquals(2, summary.activeMonitorCount)
+    }
+
+    @Test
+    fun reliabilityClipsCarryInOutageAndMarksPartialHistory() {
+        val now = kumaUtcMillisOrNull("2026-08-25 12:00:00")!!
+        val api = monitor(1, "API", MonitorStatus.UP)
+        val history = mapOf(
+            1 to listOf(
+                beat(1, MonitorStatus.DOWN, "2026-08-25 05:30:00"),
+                beat(1, MonitorStatus.UP, "2026-08-25 06:30:00"),
+            ),
+        )
+
+        val summary = fleetReliabilitySummary(
+            monitors = listOf(api),
+            history = history,
+            incidents = fleetIncidents(listOf(api), history),
+            windowHours = 6,
+            nowMillis = now,
+        )
+
+        assertEquals(1_800_000L, summary.observedDowntimeMillis)
+        assertNull(summary.meanTimeToRecoveryMillis)
+        assertNull(summary.flakiestMonitor)
+        assertEquals(0, summary.incompleteMonitorCount)
+        assertTrue(incidentOverlapsWindow(fleetIncidents(listOf(api), history).single(), now - 21_600_000L, now))
+
+        val recentOnly = mapOf(1 to listOf(beat(1, MonitorStatus.UP, "2026-08-25 11:00:00")))
+        val partial = fleetReliabilitySummary(listOf(api), recentOnly, emptyList(), 6, now)
+        assertEquals(1, partial.incompleteMonitorCount)
+
+        val paused = api.copy(active = false)
+        val pausedSummary = fleetReliabilitySummary(
+            listOf(paused),
+            history,
+            fleetIncidents(listOf(paused), history),
+            24 * 30,
+            now,
+        )
+        assertEquals(0L, pausedSummary.observedDowntimeMillis)
+        assertEquals(0, pausedSummary.activeMonitorCount)
+    }
+
+    @Test
+    fun sharedIncidentRedactsUrlsAndCredentialLikeValues() {
+        val copy = shareCopy()
+        val incident = FleetIncident(
+            monitorId = 1,
+            monitorName = "API https://kuma.example",
+            startedAt = "2026-08-26 10:00:00",
+            resolvedAt = null,
+            message = "Authorization: Bearer bearer-value endpoint https://internal.example/path",
+        )
+
+        val text = incidentShareText(
+            incident = incident,
+            note = "password=hunter2 tracking at https://kuma.example/dashboard server kuma.example",
+            duration = "5m 2s",
+            serverUrl = "https://kuma.example",
+            copy = copy,
+        )
+
+        assertFalse(text.contains("kuma.example"))
+        assertFalse(text.contains("internal.example"))
+        assertFalse(text.contains("bearer-value"))
+        assertFalse(text.contains("hunter2"))
+        assertTrue(text.contains("[redacted]"))
+        assertTrue(text.contains("API"))
+        assertTrue(text.contains("5m 2s"))
+    }
+
+    @Test
+    fun sharedIncidentIncludesResolvedStateAndLocalNoteWithoutServerMetadata() {
+        val text = incidentShareText(
+            incident = FleetIncident(
+                monitorId = 9,
+                monitorName = "Database",
+                startedAt = "2026-08-26 10:00:00",
+                resolvedAt = "2026-08-26 10:03:00",
+                message = null,
+            ),
+            note = "Recovered after restart",
+            duration = "3m 0s",
+            serverUrl = "https://private.example",
+            copy = shareCopy(),
+        )
+
+        assertTrue(text.contains("Database - Resolved"))
+        assertTrue(text.contains("Resolved: 2026-08-26 10:03:00"))
+        assertTrue(text.contains("Local note: Recovered after restart"))
+        assertFalse(text.contains("private.example"))
+    }
+
+    private fun shareCopy() = IncidentShareCopy(
+        heading = "URSA incident",
+        active = "Active",
+        resolved = "Resolved",
+        started = "Started:",
+        startUnknown = "Start unavailable",
+        resolvedAt = "Resolved:",
+        duration = "Duration:",
+        message = "Message:",
+        note = "Local note:",
+        redacted = "[redacted]",
+    )
+
+    private fun monitor(id: Int, name: String, status: MonitorStatus) = Monitor(
+        id = id,
+        name = name,
+        url = null,
+        type = "http",
+        active = true,
+        status = status,
+    )
+
+    private fun beat(id: Int, status: MonitorStatus, time: String, message: String? = null) = Heartbeat(
+        monitorId = id,
+        status = status,
+        time = time,
+        msg = message,
+        ping = null,
+        important = true,
+    )
+}

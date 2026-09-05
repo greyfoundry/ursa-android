@@ -26,10 +26,28 @@ data class Monitor(
     val type: String,
     val active: Boolean,
     val tags: List<String> = emptyList(),
+    val tagAssignments: List<MonitorTagAssignment> = emptyList(),
+    val parentId: Int? = null,
+    val weight: Int = 0,
     val status: MonitorStatus = MonitorStatus.PENDING,
     val ping: Int? = null,
     val avgPing: Int? = null,
     val uptime24h: Double? = null,
+)
+
+@Serializable
+data class MonitorTagAssignment(
+    val tagId: Int,
+    val monitorId: Int,
+    val name: String,
+    val color: String,
+    val value: String = "",
+)
+
+data class KumaTag(
+    val id: Int,
+    val name: String,
+    val color: String,
 )
 
 /** A single heartbeat (the live `heartbeat` event; camelCase on the wire). */
@@ -40,6 +58,50 @@ data class Heartbeat(
     val msg: String?,
     val ping: Int?,
     val important: Boolean,
+)
+
+/** One server-aggregated bucket from `getMonitorChartData`. Counts are check totals. */
+data class MonitorChartPoint(
+    val up: Long,
+    val down: Long,
+    val avgPing: Double?,
+    /** Kuma epoch timestamp in seconds at the start of the bucket. */
+    val timestamp: Long,
+)
+
+/** The deliberately marked webhook provider URSA manages on the active Kuma server. */
+data class ManagedPushNotification(
+    val id: Int,
+    val name: String,
+    val webhookUrl: String,
+    val isDefault: Boolean,
+    val serverId: String?,
+    val schemaVersion: Int?,
+) {
+    companion object {
+        const val MANAGED_NAME = "URSA UnifiedPush"
+        const val MANAGED_MARKER = "ursaManaged"
+        const val SERVER_ID_FIELD = "ursaServerId"
+        const val SCHEMA_FIELD = "ursaSchemaVersion"
+        const val CURRENT_SCHEMA = 1
+        private val serverIdPattern = Regex("^[a-f0-9]{32}$")
+
+        fun isValidServerId(value: String?): Boolean =
+            value != null && serverIdPattern.matches(value)
+
+        fun customWebhookBody(serverId: String): String? {
+            if (!isValidServerId(serverId)) return null
+            return """{"heartbeat":{{ heartbeatJSON | json }},"monitor":{{ monitorJSON | json }},"msg":{{ msg | json }},"ursaServerId":"$serverId"}"""
+        }
+    }
+}
+
+/** Assignment-safe notification metadata; provider configuration never leaves the network adapter. */
+data class KumaNotification(
+    val id: Int,
+    val name: String,
+    val type: String,
+    val isDefault: Boolean,
 )
 
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
@@ -61,7 +123,30 @@ data class ServerConnection(
     val jwt: String? = null,
     /** User opted into trusting a self-signed / internal-CA certificate. */
     val insecure: Boolean = false,
-)
+    /** Optional user-facing name; absent in records written before multi-server UI. */
+    val alias: String? = null,
+    /** Encrypted with the connection; values are never included in UI summaries or logs. */
+    val headers: List<RequestHeader> = emptyList(),
+) {
+    val displayName: String
+        get() = alias?.trim()?.takeIf { it.isNotEmpty() }
+            ?: url.substringAfter("://", url).substringBefore('/').ifBlank { url }
+}
+
+@Serializable
+data class RequestHeader(val name: String, val value: String) {
+    fun normalizedOrNull(): RequestHeader? {
+        val cleanName = name.trim()
+        val cleanValue = value.trim()
+        if (!HEADER_NAME.matches(cleanName) || cleanValue.isEmpty()) return null
+        if ('\r' in cleanValue || '\n' in cleanValue) return null
+        return RequestHeader(cleanName, cleanValue)
+    }
+
+    private companion object {
+        val HEADER_NAME = Regex("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+    }
+}
 
 /** Result of a login attempt. */
 sealed interface LoginResult {

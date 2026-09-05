@@ -2,6 +2,7 @@ package dev.astoris.ursa.ui.monitors
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -18,6 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,10 +32,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -38,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +55,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -62,29 +71,49 @@ import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.Sparkline
 import dev.astoris.ursa.ui.StatusCircle
-import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.UptimeRing
+import dev.astoris.ursa.ui.components.UrsaPressableCard
+import dev.astoris.ursa.ui.labelRes
+import dev.astoris.ursa.ui.actionRes
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
+    val connectionFailure by vm.connectionFailure.collectAsStateWithLifecycle()
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
+    val certs by vm.certs.collectAsStateWithLifecycle()
+    val localEvents by vm.localEvents.collectAsStateWithLifecycle()
+    val incidentNotes by vm.incidentNotes.collectAsStateWithLifecycle()
+    val connections by vm.connections.collectAsStateWithLifecycle()
+    val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val compactDisplay by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
+    val savedViews by vm.savedViews.collectAsStateWithLifecycle()
+    val incidentOpenRequest by vm.incidentOpenRequest.collectAsStateWithLifecycle()
+    val activeConnection = connections.firstOrNull { it.url == activeUrl }
 
     var searchActive by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    var statusFilter by remember { mutableStateOf<MonitorStatus?>(null) }
-    var tagFilter by remember { mutableStateOf<String?>(null) }
-    var activityFilter by remember { mutableStateOf(MonitorActivityFilter.ACTIVE) }
+    var viewFilter by remember { mutableStateOf(MonitorViewFilter(activity = ActivityFilter.ACTIVE)) }
     var filterOpen by remember { mutableStateOf(false) }
+    var advancedFilterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
-    var showOverview by remember { mutableStateOf(false) }
-    var sortMode by remember { mutableStateOf(MonitorSort.ATTENTION) }
+    var overlay by remember { mutableStateOf<MonitorOverlay?>(null) }
+    var sortMode by remember { mutableStateOf(MonitorSort.SERVER) }
+    var bulkMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var pendingBulkAction by remember { mutableStateOf<BulkMonitorAction?>(null) }
+    var bulkInFlight by remember { mutableStateOf(false) }
     val searchFocusRequester = remember { FocusRequester() }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val resources = LocalResources.current
     val favorites by vm.favorites.collectAsStateWithLifecycle()
 
     val activeMonitors = monitors.filter { it.active }
@@ -93,40 +122,65 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val pendingCount = activeMonitors.count { it.status == MonitorStatus.PENDING }
     val pausedCount = monitors.count { !it.active }
     val availableTags = monitors.flatMap { it.tags }.distinct().sorted()
-    val shown = monitors
+    val statusFilter = viewFilter.statuses.singleOrNull()
+    val tagFilter = viewFilter.tags.singleOrNull()
+    val activityFilter = viewFilter.activity
+    val visibleIds = monitors
         .filter { m ->
                 (query.isBlank() || m.name.contains(query, ignoreCase = true)) &&
-                (statusFilter == null || m.status == statusFilter) &&
-                (tagFilter?.let { it in m.tags } ?: true) &&
-                when (activityFilter) {
-                    MonitorActivityFilter.ACTIVE -> m.active
-                    MonitorActivityFilter.PAUSED -> !m.active
-                    MonitorActivityFilter.ALL -> true
-                }
+                viewFilter.matches(m, monitors, certs.keys)
+        }.mapTo(mutableSetOf(), Monitor::id)
+    val shown = monitorHierarchy(monitors, sortMode.comparator(favorites))
+        .filter { it.monitor.id in visibleIds }
+    val pausePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.PAUSE)
+    val resumePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.RESUME)
+
+    LaunchedEffect(monitors) {
+        selectedIds = selectedIds.intersect(monitors.mapTo(mutableSetOf(), Monitor::id))
+    }
+    LaunchedEffect(incidentOpenRequest) {
+        if (incidentOpenRequest != null) {
+            overlay = MonitorOverlay.INCIDENTS
+            vm.consumeIncidentOpenRequest()
         }
-        .sortedWith(sortMode.comparator(favorites))
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(
-                            painter = painterResource(R.mipmap.ic_launcher_monochrome),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp),
-                        )
-                        Text(stringResource(R.string.app_name))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { vm.selectTab(dev.astoris.ursa.ui.MainTab.NOTIFICATIONS) }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_nav_notifications),
-                            contentDescription = stringResource(R.string.nav_notifications),
-                        )
+                    Surface(
+                        onClick = { vm.enterConnectionManager() },
+                        color = Color.Transparent,
+                        shape = MaterialTheme.shapes.small,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.mipmap.ic_launcher_monochrome),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp),
+                            )
+                            Column {
+                                Text(
+                                    activeConnection?.displayName ?: stringResource(R.string.app_name),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    stringResource(R.string.servers_switch),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
                     }
                 },
             )
@@ -134,12 +188,43 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (state != ConnectionState.Authenticated) {
-                Text(
-                    text = stringResource(R.string.connection_status, state.toString()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                Surface(
+                    onClick = { vm.enterConnectionManager() },
+                    color = when (state) {
+                        ConnectionState.AuthenticationFailed, ConnectionState.Error ->
+                            MaterialTheme.colorScheme.errorContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = connectionFailure?.takeIf {
+                                state == ConnectionState.Error || state == ConnectionState.AuthenticationFailed
+                            }?.let { stringResource(it.actionRes) }
+                                ?: stringResource(R.string.connection_status, stringResource(state.labelRes)),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 3,
+                            color = if (
+                                state == ConnectionState.AuthenticationFailed || state == ConnectionState.Error
+                            ) MaterialTheme.colorScheme.onErrorContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = stringResource(R.string.servers_manage),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 12.dp),
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
             if (showingCache) {
                 val whenText = lastUpdated?.let {
@@ -155,7 +240,8 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
-            if (searchActive) {
+            if (overlay == null) {
+                if (searchActive) {
                 LaunchedEffect(Unit) { searchFocusRequester.requestFocus() }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -186,58 +272,101 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = stringResource(R.string.monitors_title),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = { searchActive = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_search),
-                            contentDescription = stringResource(R.string.action_search),
+                    if (bulkMode) {
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.bulk_monitors_selected,
+                                selectedIds.size,
+                                selectedIds.size,
+                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
                         )
-                    }
-                    MonitorFilterMenu(
-                        filterOpen = filterOpen,
-                        onFilterOpenChange = { filterOpen = it },
-                        statusFilter = statusFilter,
-                        tagFilter = tagFilter,
-                        activityFilter = activityFilter,
-                        availableTags = availableTags,
-                        onAll = {
-                            statusFilter = null
-                            tagFilter = null
-                            activityFilter = MonitorActivityFilter.ALL
-                        },
-                        onActive = { activityFilter = MonitorActivityFilter.ACTIVE },
-                        onPaused = {
-                            activityFilter = MonitorActivityFilter.PAUSED
-                            statusFilter = null
-                        },
-                        onStatus = { statusFilter = it },
-                        onTag = { tagFilter = if (tagFilter == it) null else it },
-                    )
-                    Box {
-                        IconButton(onClick = { moreOpen = true }) {
+                        TextButton(
+                            onClick = { bulkMode = false; selectedIds = emptySet() },
+                            enabled = !bulkInFlight,
+                        ) { Text(stringResource(R.string.action_cancel)) }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.monitors_title),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { searchActive = true }) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_more_vertical),
-                                contentDescription = stringResource(R.string.action_more),
+                                painter = painterResource(R.drawable.ic_search),
+                                contentDescription = stringResource(R.string.action_search),
                             )
                         }
-                        DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                        MonitorFilterMenu(
+                            filterOpen = filterOpen,
+                            onFilterOpenChange = { filterOpen = it },
+                            statusFilter = statusFilter,
+                            tagFilter = tagFilter,
+                            activityFilter = activityFilter,
+                            availableTags = availableTags,
+                            onAll = {
+                                viewFilter = MonitorViewFilter()
+                            },
+                            onActive = { viewFilter = viewFilter.copy(activity = ActivityFilter.ACTIVE) },
+                            onPaused = {
+                                viewFilter = viewFilter.copy(activity = ActivityFilter.PAUSED, statuses = emptySet())
+                            },
+                            onStatus = { viewFilter = viewFilter.copy(statuses = setOf(it)) },
+                            onTag = {
+                                viewFilter = viewFilter.copy(tags = if (tagFilter == it) emptySet() else setOf(it))
+                            },
+                            onAdvanced = { advancedFilterOpen = true },
+                        )
+                        Box {
+                            IconButton(onClick = { moreOpen = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_more_vertical),
+                                    contentDescription = stringResource(R.string.action_more),
+                                )
+                            }
+                            DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        stringResource(
-                                            if (showOverview) R.string.action_hide_overview
-                                            else R.string.action_show_overview,
-                                        ),
-                                    )
-                                },
-                                onClick = { showOverview = !showOverview; moreOpen = false },
+                                text = { Text(stringResource(R.string.monitor_add_title)) },
+                                onClick = { vm.createMonitor(); moreOpen = false },
                             )
-                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.bulk_manage_monitors)) },
+                                onClick = { bulkMode = true; selectedIds = emptySet(); moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.status_maintenance)) },
+                                onClick = { overlay = MonitorOverlay.MAINTENANCE; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.incident_center_title)) },
+                                onClick = { overlay = MonitorOverlay.INCIDENTS; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.certificate_dashboard_title)) },
+                                onClick = { overlay = MonitorOverlay.CERTIFICATES; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.domain_dashboard_title)) },
+                                onClick = { overlay = MonitorOverlay.DOMAINS; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.event_log_title)) },
+                                onClick = { overlay = MonitorOverlay.EVENTS; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.fleet_aggregate_title)) },
+                                onClick = { overlay = MonitorOverlay.FLEET_SUMMARY; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.pinned_live_title)) },
+                                onClick = { overlay = MonitorOverlay.PINNED_LIVE; moreOpen = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_sort_server)) },
+                                onClick = { sortMode = MonitorSort.SERVER; moreOpen = false },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_sort_attention)) },
                                 onClick = { sortMode = MonitorSort.ATTENTION; moreOpen = false },
@@ -250,70 +379,237 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 text = { Text(stringResource(R.string.action_sort_name)) },
                                 onClick = { sortMode = MonitorSort.NAME; moreOpen = false },
                             )
+                            }
                         }
                     }
                 }
-            }
-            if (downCount > 0) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        StatusPill(MonitorStatus.DOWN)
-                        Text(
-                            text = pluralStringResource(R.plurals.monitors_need_attention, downCount, downCount),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
                 }
             }
-            if (showOverview && monitors.isNotEmpty()) {
-                MonitorOverview(
-                    upCount = upCount,
-                    downCount = downCount,
-                    pendingCount = pendingCount,
-                    pausedCount = pausedCount,
-                    onStatusClick = { status ->
-                        statusFilter = status
-                        activityFilter = MonitorActivityFilter.ACTIVE
-                    },
-                    onPausedClick = {
-                        statusFilter = null
-                        activityFilter = MonitorActivityFilter.PAUSED
-                    },
-                )
+            if (overlay == null && bulkMode) {
+                val shownIds = shown.mapTo(mutableSetOf()) { it.monitor.id }
+                val allShownSelected = shownIds.isNotEmpty() && shownIds.all { it in selectedIds }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = {
+                            selectedIds = if (allShownSelected) selectedIds - shownIds else selectedIds + shownIds
+                        },
+                        enabled = shownIds.isNotEmpty() && !bulkInFlight,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (allShownSelected) R.string.bulk_clear_visible else R.string.bulk_select_visible,
+                            ),
+                        )
+                    }
+                    TextButton(
+                        onClick = { pendingBulkAction = BulkMonitorAction.PAUSE },
+                        enabled = pausePlan.targetIds.isNotEmpty() && !bulkInFlight,
+                    ) { Text(stringResource(R.string.action_pause)) }
+                    TextButton(
+                        onClick = { pendingBulkAction = BulkMonitorAction.RESUME },
+                        enabled = resumePlan.targetIds.isNotEmpty() && !bulkInFlight,
+                    ) { Text(stringResource(R.string.action_resume)) }
+                }
             }
-            if (monitors.isEmpty()) {
+            when (overlay) {
+                MonitorOverlay.MAINTENANCE -> MaintenanceScreen(
+                    vm = vm,
+                    onClose = { overlay = null },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.INCIDENTS -> FleetIncidentCenter(
+                        monitors = monitors,
+                        history = history,
+                        notes = incidentNotes,
+                        serverUrl = activeUrl,
+                        loadImportantHeartbeats = vm::importantHeartbeatHistory,
+                        onClose = { overlay = null },
+                        onIncidentClick = vm::select,
+                        onSaveNote = vm::saveIncidentNote,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                MonitorOverlay.CERTIFICATES -> CertificateDashboard(
+                    monitors = monitors,
+                    certs = certs,
+                    onClose = { overlay = null },
+                    onCertificateClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.DOMAINS -> DomainDashboard(
+                    monitors = monitors,
+                    certs = certs,
+                    onClose = { overlay = null },
+                    onMonitorClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.EVENTS -> GlobalEventLog(
+                    monitors = monitors,
+                    history = history,
+                    localEvents = localEvents,
+                    onClose = { overlay = null },
+                    onMonitorClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.FLEET_SUMMARY -> FleetAggregateDashboard(
+                    monitors = monitors,
+                    loadChartData = vm::fleetChartData,
+                    onClose = { overlay = null },
+                    onMonitorClick = vm::select,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                MonitorOverlay.PINNED_LIVE -> PinnedLivePanel(
+                    monitors = monitors,
+                    history = history,
+                    pinnedIds = favorites,
+                    onClose = { overlay = null },
+                    onMonitorClick = vm::select,
+                    onUnpin = vm::toggleFavorite,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                null -> if (monitors.isNotEmpty()) {
+                    MonitorOverview(
+                        upCount = upCount,
+                        downCount = downCount,
+                        pendingCount = pendingCount,
+                        pausedCount = pausedCount,
+                        onStatusClick = { status ->
+                            viewFilter = viewFilter.copy(statuses = setOf(status), activity = ActivityFilter.ACTIVE)
+                        },
+                        onPausedClick = {
+                            viewFilter = viewFilter.copy(statuses = emptySet(), activity = ActivityFilter.PAUSED)
+                        },
+                    )
+                }
+            }
+            if (overlay == null && monitors.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (shown.isEmpty()) {
+            } else if (overlay == null && shown.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_none_match), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else {
+            } else if (overlay == null) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = if (compactDisplay) 8.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compactDisplay) 4.dp else 10.dp),
                 ) {
-                    items(shown, key = { it.id }) { monitor ->
+                    items(shown, key = { it.monitor.id }) { row ->
+                        val monitor = row.monitor
                         MonitorRow(
                             monitor = monitor,
                             beats = history[monitor.id].orEmpty(),
-                            onClick = { vm.select(monitor.id) },
+                            selected = selectedIds.contains(monitor.id).takeIf { bulkMode },
+                            depth = row.depth,
+                            compact = compactDisplay,
+                            onClick = {
+                                if (bulkMode) {
+                                    selectedIds = if (monitor.id in selectedIds) {
+                                        selectedIds - monitor.id
+                                    } else {
+                                        selectedIds + monitor.id
+                                    }
+                                } else {
+                                    vm.select(monitor.id)
+                                }
+                            },
                         )
                     }
                 }
             }
         }
+    }
+
+    pendingBulkAction?.let { action ->
+        val plan = if (action == BulkMonitorAction.PAUSE) pausePlan else resumePlan
+        val actionLabel = stringResource(
+            if (action == BulkMonitorAction.PAUSE) R.string.action_pause else R.string.action_resume,
+        )
+        AlertDialog(
+            onDismissRequest = { if (!bulkInFlight) pendingBulkAction = null },
+            title = { Text(stringResource(R.string.bulk_confirm_title, actionLabel)) },
+            text = {
+                Text(
+                    if (plan.fleetWide) {
+                        pluralStringResource(
+                            R.plurals.bulk_confirm_fleet,
+                            plan.targetIds.size,
+                            actionLabel,
+                            plan.targetIds.size,
+                        )
+                    } else {
+                        pluralStringResource(
+                            R.plurals.bulk_confirm_selected,
+                            plan.targetIds.size,
+                            actionLabel,
+                            plan.targetIds.size,
+                        )
+                    },
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        bulkInFlight = true
+                        vm.setMonitorsActive(
+                            ids = plan.targetIds.toSet(),
+                            active = action == BulkMonitorAction.RESUME,
+                        ) { result ->
+                            bulkInFlight = false
+                            pendingBulkAction = null
+                            selectedIds = result.failedIds
+                            if (result.failedIds.isEmpty()) {
+                                bulkMode = false
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = resources.getQuantityString(
+                                            R.plurals.bulk_monitors_updated,
+                                            result.succeededIds.size,
+                                            result.succeededIds.size,
+                                        ),
+                                    )
+                                }
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = resources.getQuantityString(
+                                            R.plurals.bulk_monitors_partial,
+                                            result.failedIds.size,
+                                            result.succeededIds.size,
+                                            result.failedIds.size,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    enabled = !bulkInFlight && plan.targetIds.isNotEmpty(),
+                ) { Text(actionLabel) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingBulkAction = null },
+                    enabled = !bulkInFlight,
+                ) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    if (advancedFilterOpen) {
+        AdvancedFilterDialog(
+            filter = viewFilter,
+            monitors = monitors,
+            savedViews = savedViews,
+            onApply = { viewFilter = it; advancedFilterOpen = false },
+            onSave = vm::saveMonitorView,
+            onDelete = vm::deleteMonitorView,
+            onDismiss = { advancedFilterOpen = false },
+        )
     }
 }
 
@@ -323,13 +619,14 @@ private fun MonitorFilterMenu(
     onFilterOpenChange: (Boolean) -> Unit,
     statusFilter: MonitorStatus?,
     tagFilter: String?,
-    activityFilter: MonitorActivityFilter,
+    activityFilter: ActivityFilter,
     availableTags: List<String>,
     onAll: () -> Unit,
     onActive: () -> Unit,
     onPaused: () -> Unit,
     onStatus: (MonitorStatus) -> Unit,
     onTag: (String) -> Unit,
+    onAdvanced: () -> Unit,
 ) {
     Box {
         IconButton(onClick = { onFilterOpenChange(true) }) {
@@ -338,7 +635,7 @@ private fun MonitorFilterMenu(
                 contentDescription = stringResource(R.string.action_filter),
                 tint = if (
                     statusFilter != null || tagFilter != null ||
-                    activityFilter != MonitorActivityFilter.ACTIVE
+                    activityFilter != ActivityFilter.ACTIVE
                 ) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -382,18 +679,35 @@ private fun MonitorFilterMenu(
                     )
                 }
             }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.filter_advanced)) },
+                onClick = { onFilterOpenChange(false); onAdvanced() },
+            )
         }
     }
 }
 
-private enum class MonitorActivityFilter { ACTIVE, PAUSED, ALL }
+private enum class MonitorOverlay {
+    MAINTENANCE,
+    INCIDENTS,
+    CERTIFICATES,
+    DOMAINS,
+    EVENTS,
+    FLEET_SUMMARY,
+    PINNED_LIVE,
+}
 
 private enum class MonitorSort {
+    SERVER,
     ATTENTION,
     FAVORITES,
     NAME;
 
     fun comparator(favorites: Set<Int>): Comparator<Monitor> = when (this) {
+        SERVER -> compareBy<Monitor> { !it.active }
+            .thenByDescending(Monitor::weight)
+            .thenBy { it.name.lowercase() }
         ATTENTION -> compareBy<Monitor> { it.status.attentionPriority }
             .thenBy { if (it.id in favorites) 0 else 1 }
             .thenBy { it.name.lowercase() }
@@ -413,18 +727,66 @@ private fun MonitorOverview(
     onStatusClick: (MonitorStatus) -> Unit,
     onPausedClick: () -> Unit,
 ) {
+    val healthy = downCount == 0 && pendingCount == 0
+    val containerColor = if (downCount > 0) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    }
+    val contentColor = if (downCount > 0) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text(
-                text = stringResource(R.string.monitor_overview),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (healthy) {
+                            stringResource(R.string.fleet_healthy)
+                        } else if (downCount > 0) {
+                            pluralStringResource(R.plurals.monitors_need_attention, downCount, downCount)
+                        } else {
+                            stringResource(R.string.fleet_checking)
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = listOf(
+                            pluralStringResource(R.plurals.fleet_up_count, upCount, upCount),
+                            pluralStringResource(R.plurals.fleet_down_count, downCount, downCount),
+                            pluralStringResource(R.plurals.fleet_pending_count, pendingCount, pendingCount),
+                            pluralStringResource(R.plurals.fleet_paused_count, pausedCount, pausedCount),
+                        ).joinToString(" • "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.72f),
+                    )
+                }
+                Surface(
+                    color = if (healthy) StatusUi.color(MonitorStatus.UP) else contentColor.copy(alpha = 0.1f),
+                    shape = CircleShape,
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (healthy) R.drawable.ic_status_up else R.drawable.ic_status_down,
+                        ),
+                        contentDescription = null,
+                        tint = if (healthy) MaterialTheme.colorScheme.onPrimary else contentColor,
+                        modifier = Modifier.padding(10.dp).size(22.dp),
+                    )
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
                 MonitorMetric(
                     count = upCount,
                     label = stringResource(R.string.status_up),
@@ -446,14 +808,13 @@ private fun MonitorOverview(
                     onClick = { onStatusClick(MonitorStatus.PENDING) },
                     modifier = Modifier.weight(1f),
                 )
-            }
-            if (pausedCount > 0) {
-                TextButton(
+                MonitorMetric(
+                    count = pausedCount,
+                    label = stringResource(R.string.filter_paused),
+                    color = contentColor.copy(alpha = 0.72f),
                     onClick = onPausedClick,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                ) {
-                    Text(pluralStringResource(R.plurals.monitor_paused_count, pausedCount, pausedCount))
-                }
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -476,19 +837,8 @@ private fun MonitorMetric(
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.titleLarge,
-                color = color,
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(text = count.toString(), style = MaterialTheme.typography.titleMedium, color = color)
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = color.copy(alpha = 0.82f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -519,23 +869,33 @@ private fun MonitorLeadingIcon(monitor: Monitor) {
 }
 
 @Composable
-private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> Unit) {
-    Card(
+private fun MonitorRow(
+    monitor: Monitor,
+    beats: List<Heartbeat>,
+    selected: Boolean?,
+    depth: Int,
+    compact: Boolean,
+    onClick: () -> Unit,
+) {
+    UrsaPressableCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.fillMaxWidth().padding(start = (depth.coerceAtMost(4) * 16).dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = if (compact) 7.dp else 12.dp)
+                .heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            selected?.let {
+                Checkbox(checked = it, onCheckedChange = null)
+            }
             MonitorLeadingIcon(monitor)
             Column(Modifier.weight(1f)) {
-                Text(monitor.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                monitor.url?.let {
+                Text(monitor.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                monitor.url?.takeUnless { compact }?.let {
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,
@@ -544,31 +904,37 @@ private fun MonitorRow(monitor: Monitor, beats: List<Heartbeat>, onClick: () -> 
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(StatusUi.color(monitor.status)),
+                    )
+                    Text(
+                        stringResource(StatusUi.labelRes(monitor.status)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                StatusPill(monitor.status)
+                Sparkline(
+                    beats = beats,
+                    color = StatusUi.color(monitor.status),
+                    modifier = Modifier.width(72.dp).height(20.dp),
+                )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Sparkline(
-                        beats = beats,
-                        color = StatusUi.color(monitor.status),
-                        modifier = Modifier.width(64.dp).height(18.dp),
-                    )
-                    (monitor.avgPing ?: monitor.ping)?.let {
-                        Text(
-                            "${it}ms",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    (monitor.avgPing ?: monitor.ping)?.let { Text("${it}ms", style = MaterialTheme.typography.labelMedium) }
                     monitor.uptime24h?.let {
-                        Text(
-                            "${(it * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        UptimeRing(it, StatusUi.color(monitor.status))
                     }
                 }
             }

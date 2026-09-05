@@ -1,5 +1,6 @@
 package dev.astoris.ursa.ui.monitors
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,8 +19,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,32 +53,51 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.net.toUri
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.network.ServerWebLink
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.theme.KumaGreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier = Modifier) {
+fun MonitorDetailScreen(
+    vm: UrsaViewModel,
+    monitor: Monitor,
+    modifier: Modifier = Modifier,
+    showBack: Boolean = true,
+) {
     val beats by vm.beats.collectAsStateWithLifecycle()
     val certs by vm.certs.collectAsStateWithLifecycle()
     val cert = certs[monitor.id]
     val beatRange by vm.beatRange.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
+    val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val browserUrl = remember(activeUrl, monitor.id) {
+        activeUrl?.let { ServerWebLink.monitor(it, monitor.id) }
+    }
+    val browserChooserTitle = stringResource(R.string.open_in_kuma_chooser)
     var overrideText by remember(monitor.id) { mutableStateOf("") }
     var actionInFlight by remember(monitor.id) { mutableStateOf(false) }
+    var moreOpen by remember(monitor.id) { mutableStateOf(false) }
+    var confirmBrowserOpen by remember(monitor.id) { mutableStateOf(false) }
+    var confirmDelete by remember(monitor.id) { mutableStateOf(false) }
+    var deleteChildren by remember(monitor.id) { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val pausedMessage = stringResource(R.string.monitor_paused)
     val pauseFailedMessage = stringResource(R.string.monitor_pause_failed)
     val resumedMessage = stringResource(R.string.monitor_resumed)
     val resumeFailedMessage = stringResource(R.string.monitor_resume_failed)
+    val deleteFailedMessage = stringResource(R.string.monitor_delete_failed)
     LaunchedEffect(monitor.id) { overrideText = vm.monitorThresholdMs(monitor.id)?.toString() ?: "" }
 
     BackHandler { vm.back() }
@@ -84,11 +109,47 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
             TopAppBar(
                 title = { Text(monitor.name) },
                 navigationIcon = {
-                    IconButton(onClick = { vm.back() }) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_arrow_back),
-                            contentDescription = stringResource(R.string.action_back),
-                        )
+                    if (showBack) {
+                        IconButton(onClick = { vm.back() }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_arrow_back),
+                                contentDescription = stringResource(R.string.action_back),
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { moreOpen = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_more_vertical),
+                                contentDescription = stringResource(R.string.action_more),
+                            )
+                        }
+                        DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_edit_monitor)) },
+                                onClick = {
+                                    moreOpen = false
+                                    vm.editMonitor(monitor.id)
+                                },
+                            )
+                            DropdownMenuItem(
+                                enabled = browserUrl != null,
+                                text = { Text(stringResource(R.string.action_open_in_kuma)) },
+                                onClick = {
+                                    moreOpen = false
+                                    confirmBrowserOpen = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_delete_monitor)) },
+                                onClick = {
+                                    moreOpen = false
+                                    confirmDelete = true
+                                },
+                            )
+                        }
                     }
                 },
             )
@@ -123,16 +184,22 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
             monitor.url?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(stringResource(R.string.detail_type, monitor.type), style = MaterialTheme.typography.bodySmall)
 
-            Text(stringResource(R.string.detail_recent_heartbeats), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.detail_response_time), style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HeartbeatRange.entries.forEach { range ->
                     FilterChip(
                         selected = beatRange == range,
                         onClick = { vm.setBeatRange(range) },
                         label = { Text(range.label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = KumaGreen.copy(alpha = 0.16f),
+                            selectedLabelColor = KumaGreen,
+                        ),
                     )
                 }
             }
+            ResponseTimeChart(beats)
+            Text(stringResource(R.string.detail_recent_heartbeats), style = MaterialTheme.typography.titleSmall)
             HeartbeatBar(beats)
             IncidentTimeline(beats)
 
@@ -197,6 +264,79 @@ fun MonitorDetailScreen(vm: UrsaViewModel, monitor: Monitor, modifier: Modifier 
                 )
             }
         }
+    }
+
+    if (confirmBrowserOpen && browserUrl != null) {
+        AlertDialog(
+            onDismissRequest = { confirmBrowserOpen = false },
+            title = { Text(stringResource(R.string.open_in_kuma_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.open_in_kuma_message))
+                    Text(browserUrl, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmBrowserOpen = false
+                        val view = Intent(Intent.ACTION_VIEW, browserUrl.toUri())
+                            .addCategory(Intent.CATEGORY_BROWSABLE)
+                        context.startActivity(
+                            Intent.createChooser(view, browserChooserTitle),
+                        )
+                    },
+                ) { Text(stringResource(R.string.action_open_browser)) }
+            },
+            dismissButton = {
+                Button(onClick = { confirmBrowserOpen = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { if (!actionInFlight) confirmDelete = false },
+            title = { Text(stringResource(R.string.monitor_delete_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.monitor_delete_message, monitor.name))
+                    if (monitor.type == "group") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Checkbox(
+                                checked = deleteChildren,
+                                onCheckedChange = { deleteChildren = it },
+                            )
+                            Text(stringResource(R.string.monitor_delete_children))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !actionInFlight,
+                    onClick = {
+                        actionInFlight = true
+                        vm.deleteMonitor(monitor.id, deleteChildren) { result ->
+                            actionInFlight = false
+                            if (!result.ok) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(result.message ?: deleteFailedMessage)
+                                }
+                            }
+                        }
+                    },
+                ) { Text(stringResource(R.string.action_delete_monitor)) }
+            },
+            dismissButton = {
+                Button(
+                    enabled = !actionInFlight,
+                    onClick = { confirmDelete = false },
+                ) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 }
 

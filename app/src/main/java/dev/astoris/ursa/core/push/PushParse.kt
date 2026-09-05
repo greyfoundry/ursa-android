@@ -1,5 +1,6 @@
 package dev.astoris.ursa.core.push
 
+import dev.astoris.ursa.data.model.ManagedPushNotification
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -10,11 +11,14 @@ import kotlinx.serialization.json.jsonPrimitive
 /** A rendered monitor notification: what to show in the system tray. */
 data class PushNotice(
     val monitorId: Int?,
+    val monitorName: String,
     val title: String,
     val body: String,
     val important: Boolean,
     /** Kuma heartbeat status (0=down, 1=up, 2=pending, 3=maintenance), when known. */
     val status: Int? = null,
+    /** Random scope from URSA's managed provider; absent for legacy/manual Webhooks. */
+    val serverId: String? = null,
 )
 
 /**
@@ -40,6 +44,9 @@ object PushParse {
         val status = heartbeat?.get("status")?.jsonPrimitive?.intOrNull
         val monitorId = heartbeat?.get("monitorID")?.jsonPrimitive?.intOrNull
             ?: monitor?.get("id")?.jsonPrimitive?.intOrNull
+        val serverId = root[ManagedPushNotification.SERVER_ID_FIELD]
+            ?.jsonPrimitive?.contentOrNull
+            ?.takeIf(ManagedPushNotification::isValidServerId)
 
         val message = root["msg"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
             ?: heartbeat?.get("msg")?.jsonPrimitive?.contentOrNull?.ifBlank { null }
@@ -52,10 +59,12 @@ object PushParse {
 
         return PushNotice(
             monitorId = monitorId,
+            monitorName = name,
             title = "$name ${statusPhrase(status)}",
             body = message,
             important = important,
             status = status,
+            serverId = serverId,
         )
     }
 

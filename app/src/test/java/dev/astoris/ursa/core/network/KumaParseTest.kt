@@ -1,7 +1,9 @@
 package dev.astoris.ursa.core.network
 
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.model.KumaNotification
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,13 +23,17 @@ class KumaParseTest {
 
     @Test fun monitor_parses_core_fields() {
         val m = KumaParse.monitor(
-            obj("""{"id":2,"name":"down-test","url":"http://127.0.0.1:9","type":"http","active":true,"tags":[]}""")
+            obj("""{"id":2,"name":"down-test","url":"http://127.0.0.1:9","type":"http","active":true,"parent":7,"weight":42,"tags":[{"tag_id":3,"monitor_id":2,"name":"prod","color":"#e74c3c","value":"eu"}]}""")
         )!!
         assertEquals(2, m.id)
         assertEquals("down-test", m.name)
         assertEquals("http://127.0.0.1:9", m.url)
         assertEquals("http", m.type)
         assertTrue(m.active)
+        assertEquals(7, m.parentId)
+        assertEquals(42, m.weight)
+        assertEquals(listOf("prod"), m.tags)
+        assertEquals("eu", m.tagAssignments.single().value)
     }
 
     @Test fun monitor_null_url_becomes_null_and_inactive() {
@@ -43,6 +49,17 @@ class KumaParseTest {
     @Test fun tags_extracted_by_name() {
         val tags = KumaParse.tags(obj("""{"tags":[{"name":"prod"},{"name":"db"}]}"""))
         assertEquals(listOf("prod", "db"), tags)
+    }
+
+    @Test fun tagDefinitionsParseOnlyValidServerMetadata() {
+        val tags = KumaParse.tagDefinitions(
+            Json.parseToJsonElement(
+                """[{"id":4,"name":"Production","color":"#e74c3c"},{"id":0,"name":"Invalid","color":"#000000"}]""",
+            ).jsonArray,
+        )
+
+        assertEquals(1, tags.size)
+        assertEquals("Production", tags.single().name)
     }
 
     @Test fun monitorList_is_keyed_by_id() {
@@ -71,6 +88,66 @@ class KumaParseTest {
         assertEquals(MonitorStatus.DOWN, hb.status)
     }
 
+    @Test fun importantHeartbeatPage_is_camelcase_bean_json() {
+        val rows = KumaParse.heartbeatRows(
+            Json.parseToJsonElement(
+                """[{"monitorID":3,"status":0,"time":"2026-08-25 19:26:16.694","msg":"TLS failed","ping":null,"important":true}]""",
+            ).jsonArray,
+        )
+
+        assertEquals(1, rows.size)
+        assertEquals(3, rows.single().monitorId)
+        assertEquals(MonitorStatus.DOWN, rows.single().status)
+        assertEquals("2026-08-25 19:26:16.694", rows.single().time)
+        assertTrue(rows.single().important)
+    }
+
+    @Test fun managedPushNotifications_ignoreUnmarkedAndOtherProviders() {
+        val rows = KumaParse.managedPushNotifications(
+            Json.parseToJsonElement(
+                """[
+                    {"id":4,"name":"Personal webhook","isDefault":false,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://other.example\"}"},
+                    {"id":9,"name":"URSA UnifiedPush","isDefault":true,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://push.example/topic?up=1\",\"ursaManaged\":true,\"ursaServerId\":\"0123456789abcdef0123456789abcdef\",\"ursaSchemaVersion\":1}"},
+                    {"id":10,"name":"Marked mail","isDefault":false,"config":"{\"type\":\"smtp\",\"ursaManaged\":true}"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(1, rows.size)
+        assertEquals(9, rows.single().id)
+        assertEquals("https://push.example/topic?up=1", rows.single().webhookUrl)
+        assertTrue(rows.single().isDefault)
+        assertEquals("0123456789abcdef0123456789abcdef", rows.single().serverId)
+        assertEquals(1, rows.single().schemaVersion)
+    }
+
+    @Test fun notificationsExposeOnlyAssignmentMetadata() {
+        val rows = KumaParse.notifications(
+            Json.parseToJsonElement(
+                """[
+                    {"id":4,"name":"Ops email","isDefault":true,"config":"{\"type\":\"smtp\",\"password\":\"secret\"}"},
+                    {"id":9,"name":"Webhook","isDefault":false,"config":"{\"type\":\"webhook\",\"webhookURL\":\"https://private.example\"}"},
+                    {"id":0,"name":"Invalid","config":"{}"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals(KumaNotification(4, "Ops email", "smtp", true), rows.first())
+        assertEquals("webhook", rows.last().type)
+    }
+
+    @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {
+        val row = KumaParse.managedPushNotifications(
+            Json.parseToJsonElement(
+                """[{"id":9,"name":"URSA UnifiedPush","config":"{\"type\":\"webhook\",\"webhookURL\":\"https://push.example/topic\",\"ursaManaged\":true}"}]""",
+            ).jsonArray,
+        ).single()
+
+        assertNull(row.serverId)
+        assertNull(row.schemaVersion)
+    }
+
     @Test fun beatRow_snakecase_with_int_important() {
         // getMonitorBeats rows are snake_case; important is 1/0, not a boolean
         val hb = KumaParse.beatRow(
@@ -80,6 +157,24 @@ class KumaParseTest {
         assertEquals(MonitorStatus.UP, hb.status)
         assertEquals(167, hb.ping)
         assertTrue(hb.important)
+    }
+
+    @Test fun chartRows_parse_253_aggregate_shape_and_skip_invalid_rows() {
+        val rows = KumaParse.chartRows(
+            Json.parseToJsonElement(
+                """[{"up":57,"down":3,"avgPing":13.67,"minPing":8,"maxPing":42,"timestamp":1787612400},
+                    {"up":0,"down":4,"avgPing":null,"timestamp":1787616000},
+                    {"up":-1,"down":0,"avgPing":2,"timestamp":1787619600},
+                    {"up":1,"down":0,"avgPing":2}]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals(57L, rows.first().up)
+        assertEquals(3L, rows.first().down)
+        assertEquals(13.67, rows.first().avgPing!!, 0.001)
+        assertEquals(1787612400L, rows.first().timestamp)
+        assertNull(rows.last().avgPing)
     }
 
     @Test fun cert_extracts_validity_and_cns() {

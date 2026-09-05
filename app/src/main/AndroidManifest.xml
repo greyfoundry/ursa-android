@@ -2,8 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Android 17 blocks direct connections to user-entered LAN servers by default. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <!-- Legacy foreground DNS-SD needs multicast reception. Android 17 uses its
+         private service picker instead of requesting broad local-network access. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <!-- Post the notification when a monitor changes state (runtime-requested on API 33+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:allowBackup="false"
@@ -22,9 +30,26 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ursa" />
+            </intent-filter>
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
+        </activity>
+
+        <!-- System-launched AppWidget configuration. It validates the supplied
+             pending or committed widget ID against URSA's exact provider before
+             reading any encrypted configuration. -->
+        <activity
+            android:name=".ui.widget.MonitorWidgetConfigActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
         </activity>
 
         <!-- Handles Pause/Resume actions on a monitor notification. NOT exported:
@@ -33,8 +58,13 @@
             android:name=".core.push.MonitorActionReceiver"
             android:exported="false" />
 
+        <!-- Handles acknowledge/snooze actions from app-created notifications only. -->
+        <receiver
+            android:name=".core.push.PushAlertActionReceiver"
+            android:exported="false" />
+
         <!-- Home-screen widget. Exported as required by the AppWidget framework;
-             it only receives system APPWIDGET broadcasts and shows cached counts. -->
+             it only receives system APPWIDGET broadcasts and renders encrypted cache data. -->
         <receiver
             android:name=".ui.widget.MonitorWidgetReceiver"
             android:exported="true">
@@ -67,6 +97,16 @@
             <intent-filter>
                 <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
             </intent-filter>
+        </service>
+
+        <!-- User-enabled continuous live status with a visible ongoing notification. -->
+        <service
+            android:name=".core.push.OverallStatusService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Continuous user-enabled live status for self-hosted monitors" />
         </service>
     </application>
 

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-24
+last-updated: 2026-09-02
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,775 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-04 - Final competitor parity and public documentation (CP-041 to CP-046)
+
+**changed**: Added strict scoped app deep links, compact monitor rows, contextual
+connection guidance, a manual official GitHub release check, advanced fleet filters
+with up to ten server-scoped saved views, and typed actionable connection failures.
+Socket acknowledgements now wait for a connected transport inside their existing
+timeout, and a late failed transport upgrade no longer overwrites an authenticated
+connected state. Android 17 requests local-network access only for an explicit test
+or connection to an obvious direct LAN destination.
+
+**security**: Deep links contain only a one-way server scope and bounded local ID.
+The update check sends no identifier, accepts only stable semantic releases and
+official release URLs, and never downloads or installs a package. Saved views contain
+filter metadata only. Existing custom access headers remain encrypted and applied to
+Socket.IO, authenticated requests, and exact-matching public status-page REST calls.
+
+**verified**: 173 app unit tests, app lint, and debug assembly passed. Android 17 live
+QA against official Kuma 2.5.3 covered process-cold reconnect, direct-LAN permission,
+valid/invalid deep links, compact density, saved-filter cleanup, and the five-monitor
+certificate dataset. Public docs and store metadata were reconciled with the shipped
+feature set and manual release model.
+
+### 2026-09-04 - Full Wear OS companion and complications (CP-040)
+
+**changed**: Expanded the count-only Wear tile into a standalone public status-page
+dashboard with attention-first monitors, live latency and 24-hour uptime, groups,
+tags, validated monitor detail routes, and shared fleet wording across the app, tile,
+and SHORT_TEXT/LONG_TEXT complications. Private pause/resume is optional and confirmed.
+The phone sends its active session and up to eight access headers through an explicit
+same-signed Wear Data Layer handoff; the watch revalidates the bounded payload and
+encrypts it with Tink and Android Keystore. Credentials are never typed on-watch.
+
+**distribution boundary**: GitHub phone releases opt into the Data Layer sender with
+`-PursaWearBridge=true`. Default and F-Droid phone builds contain no Play Services
+dependency and hide the pairing control. The separately distributed Wear APK includes
+the receiver. Self-signed private actions are refused because the phone's ephemeral
+certificate trust cannot be transferred safely; public viewing still works.
+
+**verified**: Wear parser/security tests cover base paths, tags, metrics, ordering,
+header injection/bounds, encryption tampering, payload validation, and action events.
+Wear tests, lint, and assembly pass. Android 16 Wear QA verified a credential-free
+setup screen, clean dashboard/detail rendering, encrypted token storage, registered
+tile/complication services, and live Kuma pause/resume. Android 17 phone QA verified
+the conditional pairing control, disclosure, and safe no-watch failure. Two independent
+AVDs cannot establish a real Data Layer pair, so that transport remains a physical-pair
+QA caveat. Temporary Kuma page/group/tag data was removed and monitor 1 is active.
+
+### 2026-09-02 - Adaptive tablet and glance display (CP-039)
+
+**changed**: Added an 840dp monitor list-detail layout that retains the fleet list
+while selection populates the adjacent detail pane. Settings now offers an opt-in
+always-on glance display with a bounded attention-first monitor list, fleet counts,
+cached-data age, a visible exit action, and explicit power/OLED burn-in guidance.
+The display restores the previous Android keep-screen-on flag when it closes and
+does not use lock-task pinning.
+
+**verified**: All 160 JVM tests pass, including the width breakpoint,
+operational-state counts, pending/no-active edge cases, attention ordering, and
+the 12-row bound. Android 17 QA verified the warning flow, live cached fleet
+rendering, active keep-screen-on flag, flag removal on exit, expanded empty-detail
+state, and selected detail with the monitor list retained. The emulator display
+override was reset afterward.
+
+### 2026-09-01 - Detailed configurable widgets (CP-038)
+
+**changed**: Replaced the count-only widget with exact-size private-server and
+public-page layouts. Each instance stores its source and up to six chosen monitors
+in an encrypted DataStore, shows status, latency, uptime, recent public checks, and
+cache age, offers an immediate secure refresh, and deep-links to a validated saved
+server monitor or public page. The system editor supports initial setup and later
+reconfiguration; public snapshots and private monitor caches remain encrypted, and
+headers/JWTs are resolved only from `ConnectionStore` at refresh time.
+
+**verified**: Focused model tests cover selected-order preservation, bounded defaults,
+and bounded public heartbeat history. Android 17 QA verified retained-data rendering,
+exact-size row adaptation, manual refresh without crashes, valid-ID edit state with
+three preserved selections, and navigation to the exact private monitor detail. The
+emulator's widget service retained its original provider resource across repeated
+same-package debug upgrades, so clean-install automatic editor launch remains covered
+by the compiled provider contract rather than this retained-data launcher instance.
+
+### 2026-09-01 - Local service discovery (CP-036)
+
+**changed**: Added user-triggered HTTP and HTTPS DNS-SD discovery to the
+new-monitor editor. Android 17 uses the system service picker without broad
+`ACCESS_LOCAL_NETWORK`; older devices show names from a foreground-only scan.
+Selection safely prefills URL, host, and port fields. IPv6 scopes and unsafe host
+delimiters are normalized or rejected, and TXT records are ignored.
+
+**verified**: All 153 JVM tests, debug assembly, and Android lint passed; the only
+lint notice is the tracked newer-AGP availability warning. Android 17 emulator QA
+confirmed the OS-owned picker opens from the HTTP action, names URSA in its
+disclosure, and returns the form to idle after dismissal.
+
+### 2026-09-01 - Native maintenance management (CP-035)
+
+**changed**: Added live maintenance-list handling and a native list/editor for all
+six Uptime Kuma 2.5.3 strategies. Create/edit round-trips the exact schedule fields
+and replaces the affected-monitor relation; pause, resume, and confirmed delete use
+their dedicated server events. New single windows start with a local now-to-one-hour
+range, while configured and resolved timezone values remain visible.
+
+**verification**: Codec tests cover a source-shaped recurring weekday response,
+cron payloads, sorted monitor relations, and per-strategy validation. The adapter
+keeps server validation authoritative for cron syntax and IANA timezone names.
+Live 2.5.3 QA created a manual window assigned to one monitor, reloaded the
+assignment, paused and resumed it, confirmed inactive-string normalization, and
+deleted it; the server database returned to zero maintenance rows.
+
+### 2026-09-01 - Server-backed groups and tags (CP-034)
+
+**changed**: Monitor snapshots now retain Kuma parent, weight, and exact tag
+assignment metadata. The list renders nested groups in server sibling order, and
+monitor create/edit can change group membership and assign or remove existing tags.
+
+**contract boundary**: Uptime Kuma 2.5.3 has authenticated tag-relation events and
+full-object parent edits, but no event that mutates monitor weight. URSA honors the
+server's weight and exposes a server-order sort instead of persisting a conflicting
+local order. Hierarchy tests cover nesting, weight, cycle safety, and descendant
+exclusion; parser/draft tests cover the wire fields and value preservation.
+
+### 2026-09-01 - Confirmed bulk monitor actions (CP-033)
+
+**changed**: Added a discoverable monitor-management mode with explicit selection,
+filter-scoped Select/Clear visible controls, and confirmed bulk pause/resume. Whole-
+fleet confirmations are called out separately, already-correct monitor states are
+skipped, calls are serialized, and partial failures stay selected for retry.
+
+**verification**: Pure planning tests cover state filtering, stale IDs, fleet scope,
+and the empty-fleet guard. The UI reports applied and failed counts without hiding a
+partial result.
+
+### 2026-08-31 - Monitor notification assignment (CP-032)
+
+**changed**: Monitor create/edit now lists the active Kuma server's notification
+providers, preselects server-default providers for new monitors, and saves exact
+per-monitor assignments through the existing full-object edit path. The empty
+provider state is explicit.
+
+**security boundary**: Only ID, name, type, and default status enter app state.
+Provider configuration, destinations, tokens, and passwords are discarded in the
+network parser. Focused parser/draft tests cover metadata filtering, default
+selection inputs, and exact relation replacement.
+
+### 2026-08-31 - Native monitor CRUD and safe common editing (CP-030)
+
+**changed**: Added the verified 33-type Uptime Kuma 2.5.3 catalogue, typed
+monitor drafts, common create flows, safe existing-monitor common edits, active
+state control, named destructive confirmation, and group-child deletion choice.
+Existing edits fetch the full object immediately before save and retain every
+advanced, sensitive, unknown, and future field inside the network adapter.
+
+**live verification**: Against the local Kuma 2.5.3 instance, created
+`URSA_CRUD_QA`, renamed it to `URSA_CRUD_QA_EDITED`, confirmed the updated live
+detail, then deleted it through URSA and confirmed it disappeared from the live
+monitor list. Android 17 crash buffer remained empty.
+
+**coverage boundary**: CP-030 is complete. CP-031 is partial: all 33 existing
+types can be common-edited safely; native creation currently covers HTTP(S), TCP
+port, ping, DNS, push, group, and manual while advanced type-specific forms remain.
+
+### 2026-08-31 - Safe external Kuma monitor links (CP-037)
+
+**changed**: Verified Uptime Kuma 2.5.3's canonical monitor route from the
+archived source. Added pure, tested link construction that preserves reverse-proxy
+base paths and rejects unsafe or ambiguous server addresses. Monitor detail now
+has an overflow action with an explicit destination confirmation and launches the
+Android browsable external-view contract without credentials, session tokens, or
+access headers.
+
+**verification**: focused JVM suite 3 tests, 0 failures.
+
+### 2026-08-31 - event channels, transition dedup, and persistent fleet status
+
+**changed**: Completed CP-028 and CP-029, and completed the locally actionable
+portion of CP-027. Recovery and maintenance now have independent opt-ins and stable
+channels; certificate reminders can be disabled; update policy has its own opt-in
+and channel ready for the CP-044 producer. Managed pushes suppress only an exact
+same-status duplicate inside two minutes, preserving every genuine status change.
+
+**persistent-mode boundary**: The optional overall-status toggle starts a visible,
+non-exported `specialUse` foreground service with its own low-importance channel.
+It keeps a direct authenticated socket to the active server, updates live fleet
+counts, opens URSA when tapped, and states its battery cost. Turning it off stops
+the service and connection immediately. UnifiedPush remains independent.
+
+**verification**: Policy tests cover category mapping, opt-outs, stable channel
+routes, exact duplicate suppression, expiry/clock rollback, and down -> recovery ->
+down preservation. Fleet-summary tests cover inactive-monitor exclusion and state
+priority. Android 17 accepted foreground type `0x40000000`, showed the service as
+foreground, and updated the notification to live 2-up/2-down/1-pending counts with
+no crash; the mode was disabled after the test. Full unit, lint, and assembly gates
+followed.
+
+### 2026-08-31 - quiet hours and system-owned custom alert sounds
+
+**changed**: Completed parity items CP-025 and CP-026. A device-wide weekly quiet
+schedule supports selected days plus same-day or overnight time windows. Alerts
+inside the window still arrive but use the existing silent channel, evaluated at
+actual delivery time for immediate, delayed, and repeated work. The screen links
+to Android Do Not Disturb settings and to each stable severity channel for custom
+sound, vibration, and visibility choices.
+
+**platform boundary**: URSA never discards a quiet-hours incident, requests DND
+policy access, stores a sound content URI, or recreates a channel. Android remains
+the source of truth for final interruption policy and persists the user's channel
+customizations across app updates.
+
+**verification**: Pure tests cover disabled, same-day, overnight, day-mask,
+boundary, and malformed-schedule behavior. Existing severity-route tests protect
+the three stable channel IDs. Full unit, lint, assembly, and Android 17 UI checks
+followed.
+
+### 2026-08-31 - delayed, repeating, acknowledged, and snoozed push alerts
+
+**changed**: Completed parity item CP-024. Managed monitors can keep immediate
+delivery or use a 1, 5, or 10-minute first-alert delay, then optionally repeat at
+5, 15, or 30-minute intervals with a hard maximum of five repeats. Down
+notifications expose acknowledge and one-hour snooze actions. Recovery cancels
+pending work before transition filtering, preventing stale reminders under a
+down-only policy.
+
+**security and compatibility boundary**: Rendered pending notification content is
+encrypted under the existing Keystore-backed Tink AEAD. WorkManager receives only
+an opaque random alert ID; its tags and notification IDs use a truncated hash of
+the managed server scope and monitor ID. Actions target a non-exported receiver
+through immutable PendingIntents. Existing preferences default to immediate,
+non-repeating behavior, and unscoped manual Webhooks stay on that compatible path.
+
+**verification**: Pure lifecycle tests cover immediate and delayed delivery,
+snooze precedence and expiry, recovery/acknowledgement cancellation, exact repeat
+bounds, corrupt timing fallback, encrypted-payload codec validation, and stable
+cross-server work identity. Full unit, lint, assembly, and Android 17 verification
+followed.
+
+### 2026-08-31 - per-monitor severity and stable Android channels
+
+**changed**: Completed parity item CP-023. Each managed monitor now has a separate
+critical, standard, or silent delivery severity in addition to its transition
+mode. The setting is device-local and server-scoped, defaults to the previous
+critical behavior, and is editable beside the existing per-monitor mode.
+
+**channel boundary**: Critical, standard, and silent use stable Android channel
+IDs with high/sound/vibration, default/sound/no-forced-vibration, and
+low/no-sound/no-vibration defaults respectively. Critical uses a new channel ID
+because Android correctly preserves an already-created legacy channel's behavior;
+the old channel is left untouched rather than overriding user settings.
+
+**verification**: Focused tests cover every stable route, upgrade/corrupt-value
+fallback, and server-scoped preference keys. Android 17 created all three channels
+with the expected importance, sound, and vibration settings, and the local test
+posted on the new critical channel. Full-suite and lint verification followed.
+
+### 2026-08-27 - Glance 1.2.0 maintenance update
+
+**changed**: Updated the home-screen widget runtime from AndroidX Glance 1.1.1
+to the stable 1.2.0 release. This clears the remaining Android lint dependency
+advisory and brings the widget onto the current performance and bug-fix line.
+
+**verification**: All 101 unit tests passed with zero failures, Android lint
+reported zero issues, and debug/release assemblies completed. The updated debug
+APK installed over retained data on Android 17, reopened the saved session, and
+remained registered with Android's AppWidget service and manifest receiver.
+
+### 2026-08-27 - server-scoped per-monitor push modes
+
+**changed**: Completed parity item CP-022. Each monitor on a current managed Kuma
+Webhook can now use one of four device-side alert modes: muted, down-only,
+down-and-recovery, or all transitions. The compact selector sits separately from
+Kuma's provider-assignment checkboxes, applies immediately, and persists across
+process restarts.
+
+**identity and compatibility boundary**: Managed providers now use Kuma 2.5.3's
+custom Liquid Webhook body to include a random 32-hex server scope alongside the
+standard heartbeat, monitor, and message fields. Policies are keyed by that scope
+and monitor ID, so identical numeric IDs on different servers cannot collide. The
+scope contains no connection metadata. Legacy and manual Webhooks without a valid
+scope retain all-transition behavior so upgrading cannot silently suppress alerts;
+removing the managed provider clears its local policy entries.
+
+**verification**: The 101-test suite covers every status/mode combination, managed
+template fields, scope validation, config parsing, and push parsing. Android lint,
+debug assembly, and release assembly passed. Android 17 QA against official Kuma 2.5.3
+and the signed ntfy 1.25.2 F-Droid build verified custom-provider persistence,
+accessible mode selection, process-restart persistence, muted/down-only/recovery/
+maintenance decisions, Kuma's correlated end-to-end test, and background delivery.
+The marked provider, monitor relations, endpoint, test marker, mode entries,
+temporary APK, and QA distributor were removed afterward.
+
+### 2026-08-27 - push tests and privacy-safe diagnostics
+
+**changed**: Completed parity item CP-021. Notifications now has an Android-only
+test that checks runtime permission, app notification state, channel state, and
+posting without contacting Kuma or a distributor. A separate end-to-end action asks
+Kuma to send a temporary Webhook test and waits for the exact correlated message.
+The screen also shows last registration, received-message, and normalized
+registration-error times without displaying diagnostic payload data.
+
+**privacy and identity boundary**: Diagnostic persistence contains timestamps,
+enum result/error categories, and one random 12-character pending-test marker. It
+does not retain message bodies, monitor names, server URLs, or an extra endpoint
+copy. A matching test message is rendered with fixed copy, excluded from the event
+log, and clears its marker. Kuma test configs are not saved as providers.
+
+**verification**: Pure tests cover exact marker construction/matching and reject
+lookalikes. The full 97-test suite, zero-finding Android lint, debug assembly, and
+release assembly passed. Android 17 QA posted the local test on the real high-
+importance `ursa_monitors` channel. A signed official ntfy 1.25.2 F-Droid build then
+completed a live Kuma 2.5.3 -> Webhook -> ntfy -> URSA delivery in under two seconds;
+the exact test was matched, metadata survived force-stop/relaunch, and no crash was
+recorded. The marked provider, five monitor relations, endpoint registration,
+correlation marker, downloaded APK, and QA distributor were removed afterward.
+
+### 2026-08-27 - one-tap Kuma UnifiedPush setup
+
+**changed**: Completed parity item CP-020. The Notifications screen can now create
+or update one marked `URSA UnifiedPush` Webhook provider on the active Kuma server,
+set its default-for-new-monitors flag, select any existing monitors, report partial
+assignment failures, refresh status, and remove only marked providers after
+confirmation. ntfy delivery URLs receive the required `up=1` flag automatically.
+
+**safety and load boundary**: Unmarked notification providers are ignored. The
+active server's notification list is awaited with a five-second bound; assignment
+reads use at most four concurrent requests, while writes run sequentially because
+Kuma restarts an edited monitor. Full monitor objects required by `editMonitor`
+remain ephemeral inside the network client and only `notificationIDList` changes.
+The setup stores no additional local secret and never logs provider config.
+
+**verification**: Unit tests cover URL validation/ntfy query preservation and exact
+marked-provider parsing. Full unit tests, lint, debug/release assembly, and repository
+policy checks passed. Android 17 QA against official Kuma 2.5.3 verified create,
+default and per-monitor updates, force-stop/relaunch recovery, full-row checkbox
+semantics, confirmed removal, and zero remaining notification/provider relations in
+the disposable server database. The temporary fake QA endpoint was removed afterward.
+
+### 2026-08-26 - local incident notes and redacted sharing
+
+**changed**: Completed parity item CP-019. Incident rows now support add, edit,
+delete, and encrypted device-only notes plus Android text sharing. The share copy
+contains monitor name, state, timing, duration, Kuma message, and optional note;
+it never sources connection metadata, and redacts URL and credential-like values
+found in the included text.
+
+**identity and load boundary**: The incident center makes one on-demand request
+for Kuma 2.5.3's newest 500 account-wide important heartbeat beans and merges
+those durable state transitions with the rolling live window. This stabilizes
+incident start identity after the ordinary 100-row window advances and improves
+incident/reliability history without polling. Notes are scoped by encrypted server,
+monitor, and durable down-transition time, capped at 500 entries and 2,000
+characters each, and excluded from portable backups.
+
+**verification**: Codec tests cover corruption, validation, deduplication, count,
+and text bounds. Parser tests cover the endpoint's exact camelCase `monitorID` and
+boolean `important` shape. Incident tests cover durable/live merging and shares
+containing injected URLs, authorization values, passwords, and tokens. Full unit
+tests, lint, and debug assembly passed. Android 17 QA against official Kuma 2.5.3
+confirmed the stable database transition time, add/edit/delete, encrypted-file
+creation, force-stop/relaunch persistence, and the native sharesheet preview.
+
+### 2026-08-26 - pinned live-heartbeat panel
+
+**changed**: Completed parity item CP-018. The monitor overflow now opens a
+compact live panel for the active server's favourite monitors. Attention states
+sort first, and each row shows current state, available latency, 16 recent checks,
+an immediate unpin action, and a monitor-detail deep link.
+
+**persistence and load boundary**: The panel deliberately reuses the existing
+per-server favourite-ID preference as its pin set. It stores no URL, monitor name,
+or heartbeat history and issues no request of its own; live state is projected
+from the same Socket.IO data already feeding the monitor list.
+
+**verification**: Pure tests cover stale/unpinned ID filtering, attention and
+paused ordering, bounded newest-sample selection, and the no-pin state. Full unit
+tests, lint, and debug assembly passed. Android 17 QA against the official Kuma
+2.5.3 session covered the empty state, healthy and failing live rows, accessibility
+summaries, immediate unpin, force-stop/relaunch persistence, and the detail link.
+
+### 2026-08-26 - explainable 30-day fleet aggregate
+
+**changed**: Completed parity item CP-017. A new 30-day fleet dashboard loads
+Kuma's server-computed chart buckets on demand, then shows fleet uptime, average
+latency, contributor/exclusion counts, the calculation method, and a lowest-uptime-
+first monitor breakdown with detail deep links. Refresh repeats the bounded fetch;
+the dashboard never polls in the background.
+
+**correctness and load boundary**: Only active monitors are requested. Four
+Socket.IO acknowledgements run concurrently so large fleets do not flood Kuma.
+Empty and failed results are counted but excluded. Each contributing monitor's
+up/down checks produce its uptime, and its successful checks weight its own average
+latency; fleet values then equal-weight monitors so shorter check intervals cannot
+dominate. The UI explicitly states Kuma's maintenance-as-up and pending-as-down
+semantics and separately reports latency coverage.
+
+**verification**: Parser tests cover the exact 2.5.3 `up/down/avgPing/timestamp`
+shape and reject invalid buckets. Aggregate tests cover equal weighting, weighted
+per-monitor latency, paused/no-data/failure exclusion, down-only monitors, and empty
+results. Full unit tests, lint, and debug assembly passed. Android 17 QA against the
+live official Kuma 2.5.3 session loaded five genuine 720-hour results, confirmed
+coverage and `N/A` latency behavior, refreshed successfully, and deep-linked a row.
+
+### 2026-08-26 - global operational event log
+
+**changed**: Completed parity item CP-016. The monitor overflow now opens a
+newest-first event log combining observed Kuma heartbeat transitions with pause,
+resume, slow-response, certificate-expiry, and UnifiedPush events that URSA can
+timestamp locally. Filters separate state, maintenance, actions, and alerts; rows
+for current-server monitors deep-link to detail.
+
+**privacy and correctness boundary**: The first available heartbeat is baseline,
+not a fabricated event. State and maintenance entries require adjacent Kuma
+heartbeats. Local entries are written only after an action succeeds or Android
+accepts a notification for posting, encrypted at rest, capped at 500 entries, kept
+for 90 days, and excluded from portable backups. Provider-neutral push payloads
+remain unassigned because the webhook does not identify the originating server.
+
+**additional fix**: Notification permission failure no longer starts the local
+slow-alert cooldown. Background slow-response checks now apply each connection's
+saved reverse-proxy headers.
+
+**verification**: Pure tests cover corrupt input, retention and size limits, text
+bounds, transition derivation, non-invention of first/repeated states, ordering,
+and filters. Full unit tests, lint, and debug assembly passed. Android 17 QA against
+the live official Kuma 2.5.3 session verified the combined timeline, filter layout,
+real pause/resume capture, retained action ordering, and monitor-detail deep links.
+
+### 2026-08-25 - domain and host dashboard
+
+**changed**: Completed parity item CP-015. The monitor overflow now opens a
+domain dashboard that groups HTTP-family checks by normalized host and port.
+Each card summarizes active and paused statuses, TLS coverage and worst
+certificate health, then provides compact monitor rows that deep-link to detail.
+Domains sort by operational attention or name; changing sort resets the list to
+the top. The certificate dashboard now follows the same predictable sort motion.
+
+**privacy and correctness boundary**: Host parsing accepts only absolute HTTP,
+HTTPS, WS, and WSS addresses on supported HTTP-family monitor types. Display
+labels omit URL credentials, path, query, and fragment; default ports fold into
+the host while non-default ports and IPv6 remain distinct. Malformed, relative,
+and non-HTTP monitors are excluded. Certificate coverage counts secure monitors
+only and states when live Kuma certificate events are incomplete.
+
+**verification**: Focused tests cover credential/path redaction, shared-host
+grouping, default and non-default ports, WebSocket and legacy HTTP types, IPv6,
+malformed/non-HTTP exclusion, status aggregation, TLS coverage, certificate
+health, and attention/name sorting. Android 17 QA against the live official Kuma
+2.5.3 session confirmed two-monitor host groups, honest one-of-two TLS coverage,
+worst-certificate summaries, sorting, and compact row layout.
+
+### 2026-08-25 - fleet certificate dashboard
+
+**changed**: Completed parity item CP-014. The monitor overflow now opens a
+dedicated certificate dashboard grouped into expired, invalid, expiring soon,
+healthy, and expiry-unavailable sections. Entries sort by expiry or monitor name,
+show issuer and local expiry date, and deep-link to the existing monitor TLS view.
+System back now closes both certificate and incident overlays consistently.
+
+**correctness boundary**: The dashboard uses the active server's live `certInfo`
+events, preserves Kuma's distinction between an expired certificate and another
+invalid state such as hostname mismatch, and applies the same 14-day threshold as
+the background expiry reminder. Monitors without a received certificate event are
+not presented as healthy or unknown.
+
+**verification**: Focused tests cover every health group, the inclusive expiry
+threshold, absent-event exclusion, and expiry/name sorting. Android 17 emulator
+QA against official Kuma 2.5.3 exercised real checks for an expired BadSSL
+certificate, a hostname-invalid certificate, and a healthy certificate, then
+verified the expired-row deep link into monitor detail.
+
+### 2026-08-25 - fleet reliability statistics
+
+**changed**: Completed parity item CP-013. The incident center now scopes both
+its feed and an active-monitor reliability summary to 6-hour, 24-hour, 7-day, or
+30-day windows. The summary shows observed downtime, mean time to recovery, and
+the monitor with the most incident starts in the selected window.
+
+**correctness boundary**: Metrics derive only from heartbeat transitions already
+available in the client and never trigger fleet-wide polling. Overlapping outage
+duration is clipped to the selected boundary; carry-in outages do not distort
+MTTR or flakiness. Any active monitor whose available history does not reach the
+window boundary makes the summary explicitly partial and warns that totals may
+be low.
+
+**verification**: Focused tests cover multiple resolved and active outages,
+window clipping, aggregate MTTR, flakiest ranking, complete coverage, and partial
+coverage. The Android 17 emulator verified the clean two-row filters, reliability
+card, partial-history copy, window switching, and absence of login regression.
+
+### 2026-08-25 - restored-session startup gate
+
+**changed**: Cold starts now hold a minimal branded loading surface while the
+encrypted saved-server state chooses the initial route. A restored session
+activates its client and last-known cache before the gate opens, so upgrades and
+process restarts no longer flash or settle on the login screen.
+
+**failure and performance boundary**: The one-way gate is used only for initial
+storage restoration. It always opens when state is missing, corrupt, or
+unreadable, and it opens as soon as the saved client starts instead of waiting
+up to 15 seconds for the network authentication acknowledgement. Later
+reconnects continue to render the monitor surface normally.
+
+**verification**: Full unit, lint, and assembly gates pass with zero lint issues.
+An install-over-update and cold start on the Android 17 emulator retained the
+encrypted session, showed the loading bridge, and settled on cached monitors
+with the server-unavailable banner instead of login.
+
+### 2026-08-25 - live incident duration
+
+**changed**: Completed parity item CP-012. Fleet incidents now show compact
+durations derived from Kuma's UTC heartbeat transition timestamps. Resolved
+outages use their recovery heartbeat; active outages advance from a single local
+one-second ticker while the incident center is visible, without network polling
+or a timer per row.
+
+**correctness boundary**: Both Kuma timestamp forms (whole seconds and
+milliseconds) are parsed as UTC, matching the 2.5.3 server write contract.
+Unknown or malformed start times remain unlabeled, future-clock differences clamp
+to zero, and longer durations avoid noisy second-by-second text.
+
+**verification**: Focused tests cover UTC parsing, resolved and live duration,
+compact formatting, and malformed timestamps. Full unit, lint, and assembly gates
+pass with zero lint issues.
+
+### 2026-08-25 - fleet incident center
+
+**changed**: Completed parity item CP-011. The monitor overflow menu now opens a
+fleet incident center derived from Kuma heartbeat transitions already held by
+the live client. Active outages sort first, resolved outages retain their start,
+recovery, and server message, and all/active/resolved chips filter the feed.
+Selecting any incident opens that monitor's existing detail view.
+
+**data boundary**: The center does not claim server-global retention. It labels
+the feed as available history, includes a current down monitor even when its start
+was outside the received window, and explicitly marks that start time unknown.
+No polling, extra storage, or synthetic incident identifiers were added.
+
+**verification**: Focused tests cover multi-monitor active/resolved extraction,
+active-first ordering, retained recovery/message data, and a current outage with
+no known start. Full unit, lint, and assembly gates pass with zero lint issues.
+
+### 2026-08-25 - compact dashboard trends
+
+**changed**: Completed parity item CP-010. Monitor rows retain the existing
+30-sample response-time sparkline and now pair it with a compact static 24-hour
+uptime ring. The exact percentage remains visible beside the ring; its arc uses
+the monitor's existing Kuma status colour rather than inventing uptime severity
+thresholds. The list dimensions and one-tap detail navigation remain unchanged.
+
+**accessibility and performance**: Sparklines now announce unavailable, single,
+or min/average/max trend data. Uptime rings expose both a readable 24-hour label
+and native progress semantics. Both visuals are single-pass Canvas primitives
+with no animation or added chart dependency, keeping scrolling work bounded.
+
+**verification**: Added focused tests for uptime clamping, compact rounding, and
+non-finite server values. Full unit, lint, and assembly gates pass with zero lint
+issues.
+
+### 2026-08-25 - explorable response-time chart
+
+**changed**: Completed parity item CP-009. Monitor detail now charts the raw
+response-time samples supplied by Kuma for the selected 6-hour, 24-hour, 7-day,
+or 30-day period. The lightweight native Canvas view includes min/average/max,
+an exact selected sample, restrained area fill, and a separate recent-heartbeat
+strip so latency and availability remain distinct.
+
+**accessibility and performance**: Touch press/drag selects the nearest sample.
+The chart exposes the full summary and selected value to accessibility services,
+with previous/next sample actions for non-visual exploration. Drawing is a single
+path and small fixed grid with no per-frame animation or chart dependency.
+
+**verification**: Added focused JVM coverage for missing/invalid ping filtering,
+rounded statistics, empty data, and clamped touch indexing. Pixel 8 emulator QA
+against official Uptime Kuma 2.5.3 heartbeat history confirmed period data,
+rendered statistics, chart semantics, and first-to-last drag selection.
+
+### 2026-08-25 - public-page operational detail
+
+**changed**: Completed parity item CP-008. Public pages now merge Kuma's page,
+heartbeat, and incident-history endpoints into one native snapshot. Saved pages
+show grouped monitors, the latest 30 of Kuma's returned checks, 24-hour uptime,
+active maintenance, pinned active incidents, resolved incident history, and a
+relative refresh timestamp. Incident cards use Kuma's warning, danger, info, and
+primary colours while retaining text labels and non-colour semantics.
+
+**compatibility boundary**: Incident-history failure remains optional so public
+pages from older Kuma releases still load their groups and recent checks. Active
+incidents returned by both endpoints are de-duplicated by ID. Nullable
+maintenance descriptions and unknown wire fields are accepted safely.
+
+**verification**: Added a pure mapper test covering current status, preserved
+checks, incident overlap, active-first ordering, counts, and refresh time. Full
+unit, lint, and assembly gates pass with zero lint issues. Pixel 8 emulator QA
+against an official Uptime Kuma 2.5.3 container confirmed the public group,
+heartbeat semantics, active warning incident, resolved info incident, uptime,
+and refresh timestamp from live payloads.
+
+### 2026-08-25 - public-page URL discovery and validation
+
+**changed**: Completed parity item CP-007. The public-page editor now accepts a
+complete `/status/<slug>` or `/api/status-page/<slug>` URL and safely separates
+the server base from the page slug, including reverse-proxy subpaths. A base URL
+without a slug can discover Kuma's custom-domain or configured default page via
+`GET /api/entry-page`. A separate test action verifies the resolved page before
+save while still allowing a fully specified page to be stored offline.
+
+**validation boundary**: Only HTTP(S) is accepted. Embedded credentials,
+queries/fragments, traversal segments, encoded slash/backslash, invalid Kuma slug
+grammar, and disagreement between a pasted URL and manual slug are rejected with
+specific corrective copy before storage or network access.
+
+**verification**: Added focused JVM coverage for full URLs, reverse-proxy paths,
+scheme completion, entry discovery inputs, and unsafe/ambiguous cases. Full unit,
+lint, and assembly gates pass. Pixel 8 emulator QA against official Kuma 2.5.3
+confirmed a pasted full URL, bare-host default-page discovery, successful page
+test, normalized persisted fields, and the embedded-credential error path.
+
+### 2026-08-25 - saved public status pages
+
+**changed**: Completed parity item CP-006. Replaced the one-off public-page form
+with an unlimited, named, local-first page manager available before sign-in and
+from Settings. Pages can be added, edited, favourited, manually reordered, opened,
+refreshed, and removed behind confirmation. The viewer retains native grouped
+monitor presentation and uses the shared modern card/surface language.
+
+**security boundary**: Page definitions are encrypted in their own DataStore with
+the existing Keystore-backed Tink AEAD. They never duplicate credentials. An exact
+normalized URL match can reuse a saved server's encrypted reverse-proxy headers at
+request time without rendering or logging them.
+
+**verification**: Added focused sparse-order and boundary tests. Full JVM tests,
+debug assembly, and lint pass. Pixel 8 emulator QA against an ephemeral official
+Uptime Kuma 2.5.3 container covered add, edit, favourite, reorder, restart
+persistence, successful REST load, refresh surface, and confirmed removal. The
+temporary server exposed a real public page and was removed after the run.
+
+### 2026-08-25 - password-encrypted configuration backup
+
+**changed**: Completed parity item CP-005. The saved-server manager can export and
+import a versioned `.ursa.json` document through Android's system document picker.
+The encrypted payload carries connections, access headers, favorites, dynamic
+colour preference, slow-alert settings, and per-monitor thresholds. Import merges
+by URL and preserves an existing local session when the backup omitted it.
+
+**security boundary**: Backups use PBKDF2-HMAC-SHA256 with 210,000 iterations and
+a random 128-bit salt, then AES-256-GCM with a random 96-bit nonce and fixed format
+AAD. Passwords must be at least eight characters. Session JWTs are excluded by
+default behind an explicit warning; lock keys, push endpoints, caches, and alert
+cooldowns are never exported. Import validates format/KDF bounds, authenticated
+decryption, URL schemes, header injection/duplicates, field sizes, counts, and
+portable preference ownership before changing storage.
+
+**verification**: Added JVM round-trip, optional-session, wrong-password, header,
+and legacy compatibility coverage. Emulator QA exported a real encrypted document,
+re-imported it with the password, confirmed a one-server merge without duplication,
+and displayed success feedback. The temporary document was then deleted from the
+emulator.
+
+### 2026-08-25 - encrypted access headers
+
+**changed**: Completed parity item CP-004. Connection forms now include a
+collapsed access-header editor with masked Cloudflare Access Client ID/Secret
+fields and up to eight custom name/value pairs. Validated headers are encrypted
+inside each saved connection, applied to Socket.IO polling/WebSocket handshakes,
+available to status-page REST requests, and reused by notification actions.
+Saved-server summaries reveal only a count.
+
+**security boundary**: Header names must use the HTTP token character set; values
+must be non-empty and cannot contain CR/LF; duplicates and partially completed
+pairs disable connection actions. Passwords, TOTP values, session JWTs, and
+header values are never logged or rendered in summaries.
+
+**verification**: Added focused normalization/injection tests and exercised the
+form on the emulator. A temporary Socket.IO server returned login success only
+when the expected custom header arrived in its handshake; URSA's connection test
+passed through that gate. A later issue #40 audit repeated the check against
+official Kuma 2.5.3 behind a Pangolin-style header gate and verified both polling
+and WebSocket upgrade. The temporary containers were then removed.
+
+### 2026-08-25 - imported Kuma session authentication
+
+**changed**: Completed parity item CP-003. Connection and re-authentication forms
+now switch between password/2FA and a masked Kuma session-token mode. Imported
+tokens are validated with `loginByToken` before encrypted persistence, and failed
+validation leaves the active session untouched. The UI explicitly explains that
+Kuma API keys cannot open its live socket.
+
+**contract boundary**: Uptime Kuma 2.5.3 source verifies `uk...` API keys only in
+the HTTP Basic authorizer used by Prometheus. Its socket accepts server-signed
+JWTs through `loginByToken`; URSA implements that real contract and does not
+invent an API-key exchange.
+
+**verification**: The token form, masked semantics, mode switch, and rejected
+token result were exercised on the emulator against an ephemeral official Kuma
+2.5.3 instance. Existing stored JWT reconnect continues through the same
+`loginByToken` client path.
+
+### 2026-08-25 - connection diagnostics and re-authentication
+
+**changed**: Completed parity item CP-002. Active connections now expose localized
+connecting, signing-in, online, offline, sign-in-required, and server-unavailable
+states on the dashboard and saved-server manager. Added a credential-aware
+pre-save connection test and a prefilled re-authentication route. Socket
+acknowledgements now time out after 15 seconds, failed add/test attempts preserve
+the active session, and a new client is promoted only after successful login.
+
+**verification**: Tested the unavailable-server boundary and a successful login
+against an ephemeral official Uptime Kuma 2.5.3 container. Confirmed the test does
+not create a saved server. Emulator semantics covered the health banner, server
+badge, re-authentication form, and result message. QA also found and fixed system
+Back exiting the app from nested connection forms instead of returning to the
+server manager.
+
+### 2026-08-25 - named saved-server manager
+
+**changed**: Completed parity item CP-001. Saved connections now accept an
+optional display name and can be added, switched, renamed, or removed from a
+dedicated manager without clearing unrelated sessions. The active server is
+visible and switchable from the monitor dashboard and settings. Rebuilt the
+connection form with a bounded, grouped layout, clearer certificate-trust copy,
+and a full-row accessible checkbox target.
+
+**verification**: Added model compatibility tests for aliases and legacy stored
+JSON. `:app:testDebugUnitTest` and `:app:lintDebug` pass. Emulator QA covered the
+manager, rename dialog, confirmed removal flow without deleting the test server,
+and add-server form; accessibility semantics exposed every visible control. No
+URSA crash was observed during the flow.
+
+### 2026-08-25 - UI revamp foundation and monitor dashboard
+
+**changed**: Added the tracked UI/UX direction and motion/performance budget.
+Introduced a quieter green-tinted neutral palette, tighter typography and shape
+scale, shared motion tokens, and a GPU-only tactile card. Refined bottom navigation
+and rebuilt the monitor landing screen around a permanent fleet-health hero,
+compact status metrics, and denser outlined rows without redundant status pills.
+
+**visual QA**: Installed on the Pixel 8 Android 17 emulator and captured the
+dashboard, accessibility tree, crash buffer, memory snapshot, frame statistics,
+and a focused Perfetto list/detail trace under gitignored `.private/qa/`.
+The screen is readable and all visible icon actions retain at least 48dp touch
+targets; no URSA crash was observed. A later emulator Bluetooth-process abort was
+system-only and unrelated to the app.
+
+**performance finding**: The debug emulator trace is not an accepted performance
+result. It recorded 12/12 missed frame deadlines during three list/detail round
+trips, with app-side measure/traversal peaks of 211-267ms and a 42.7ms Compose
+recomposition while GPU work was generally much smaller. Continue the revamp with
+lighter screen construction, then repeat on a release-like/profileable build and
+add a baseline profile if the device evidence still misses the frame budget.
+
+### 2026-08-25 - exhaustive mobile competitor parity inventory
+
+**changed**: Added `docs/planning/mobile-competitor-parity.mdx`, a source-linked
+inventory of released, beta, prototype, widget, multi-service, and adjacent
+Uptime Kuma mobile projects. Distinguished shipped features from claims and
+roadmaps, recorded platform and pricing differences, documented privacy/security
+substitutions, and assigned every transferable URSA gap a stable CP identifier
+and one-by-one implementation order. Linked the active programme from the project
+overview. No application code changed.
+
+**decisions made**:
+- The parity boundary is a direct Android companion for an existing Uptime Kuma
+  server. Apple-only system surfaces, advertising, vendor relay/accounts,
+  token-bearing WebViews, embedded monitoring engines, and generic homelab tools
+  are documented but are not implementation targets.
+- Paid competitor features that fit the boundary - including unlimited saved
+  public pages/widgets, full statistics, alert policy, management, and Wear
+  surfaces - remain parity targets without a URSA paywall.
+- Public marketing claims are not treated as shipped without store, release, or
+  source evidence.
 
 ### 2026-08-25 - Kuma 2.5.3 compatibility verification
 

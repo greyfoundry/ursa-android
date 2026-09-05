@@ -1,78 +1,47 @@
 ---
-last-updated: 2026-07-04
+last-updated: 2026-09-04
 owner: astoris
-status: in-flux
+status: complete
 ---
 
 ## what this is
 
-The M4 milestone plan: native-Android depth that Uptime Kuma's web app cannot
-offer. Approved 2026-07-04. Built in order, one sub-milestone per set of phases,
-committed and pushed each, CI kept green. Icon/asset work and the on-device QA pass
-are deferred (an asset list will be produced separately); everything here is
-code-only and verifiable by logic/unit tests until a device is available.
+The completed native-depth milestone: Android and Wear capabilities that a browser
+tab cannot provide while URSA remains a direct client with no hosted backend.
 
-## sequence
+## delivered
 
-1. ~~**Offline last-known status**~~ **DONE (2026-07-04)** - encrypted per-server
-   `MonitorSnapshot` cache (`core/storage/MonitorCacheStore`, pure `SnapshotCodec` +
-   tests); repository seeds `monitors` from cache on connect and persists every live
-   update; the list shows a "last-known data, updated <time>" banner until live
-   arrives.
-2. ~~**Biometric / device-credential app lock**~~ **DONE (2026-07-04)** - opt-in
-   Settings toggle; `LockStore` + `BiometricGate` (BiometricPrompt, device-credential
-   fallback); `LockScreen` gate routed first in `UrsaApp`; re-locks on background.
-   `MainActivity` is now a `FragmentActivity`. Closes security backlog AUTH-2.
-3. ~~**Notification actions**~~ **DONE (2026-07-04)** - Pause/Resume buttons on monitor
-   notifications; a non-exported `MonitorActionReceiver` opens a short-lived
-   connection to the active server (loginByToken, then pause/resume, bounded by
-   timeouts) and dismisses the notification. On-device verification pending.
-4. ~~**Local TLS-expiry reminders**~~ **DONE (2026-07-04)** - `CertInfo` extended with
-   `validTo`/`daysRemaining`; repository captures cert expiry per server into an
-   encrypted `CertExpiryStore`; a daily `CertExpiryWorker` (WorkManager, no network)
-   notifies when a cert is within 14 days of expiry. Pure `CertExpiryUtil`
-   (resolve/daysUntil/codec) unit-tested.
-5. ~~**Home-screen widget** (Jetpack Glance)~~ **DONE (2026-07-04)** - `MonitorWidget`
-   shows cached up/down counts, taps to open. Preview image still a deferred asset;
-   visual check needs a device.
-6. ~~**Quick Settings tile**~~ **DONE (2026-07-04)** - `StatusTileService` shows
-   all-up / N-down from cache, opens app on tap; inline vector icon.
-7. ~~**App shortcuts**~~ **DONE (2026-07-04)** - Push and Settings shortcuts
-   (`shortcuts.xml`) deep-link via `ursa://` into `MainActivity`; inline vector icons.
-8. ~~**i18n sweep**~~ **DONE (2026-07-04)** - all screen strings extracted to
-   `res/values/strings.xml`; every screen uses `stringResource`. Ready for translations.
+1. Encrypted per-server offline monitor snapshots with explicit freshness and live
+   reconciliation.
+2. Optional biometric/device-credential app lock backed by a Keystore-bound proof.
+3. Explicit immutable notification actions and non-exported action receivers.
+4. Local certificate-expiry reminders from encrypted cached certificate metadata.
+5. Exact-size Glance widgets with encrypted per-instance private/public sources,
+   selected rows, manual refresh, freshness, and strict scoped deep links.
+6. Quick Settings fleet-status tile.
+7. Launcher shortcuts and validated in-app routes.
+8. Extracted UI string resources ready for community translations.
+9. Optional always-on glance display with power/burn-in disclosure and visible exit.
+10. Wear OS dashboard, monitor detail, tile, SHORT_TEXT/LONG_TEXT complications,
+    and optional confirmed same-signed private session pairing.
 
-**M4 code complete.** All eight built, unit-tested where logic allows, CI green.
-Remaining before a release: the deferred asset list (icons/graphics/screenshots) and
-an on-device QA pass of every flow, both to be done when a device is available.
+## boundaries
 
-## deferred (needs assets or a device)
+- Cached data accelerates first paint; it is not a background synchronization engine.
+- Widget and notification routes resolve only saved local sources and never embed a
+  server URL, token, or access header.
+- The default/F-Droid phone build omits Play Services. Only the GitHub phone build
+  enables the optional Wear Data Layer sender; the separate Wear APK is distributed
+  through GitHub Releases.
+- Self-signed private sessions are not paired because session-lifetime certificate
+  trust cannot safely transfer to the watch.
+- Widgets remain a secondary convenience. Issue-driven reliability work takes
+  precedence over launcher-specific polish.
 
-- Launcher icon, notification small icon, widget preview image, F-Droid graphics,
-  screenshots (an asset list will be provided).
-- On-device QA pass of all flows, and cutting the first tagged release.
+## verification
 
-## sub-milestone 1: offline last-known status (design)
-
-**Goal.** On launch, the monitor list appears immediately from the last saved
-snapshot (with a "last updated <time>" line) instead of an empty screen, then live
-data takes over as the socket reconnects.
-
-**Shape.**
-- A pure `MonitorSnapshot` model (serializable) plus pure encode/decode and a
-  "should show cache" decision - unit-testable on the JVM.
-- An Android-side store that persists the snapshot per active server, encrypted at
-  rest with the existing `Crypto` (monitor names and URLs are infrastructure detail,
-  so they get the same protection as credentials).
-- The repository writes a snapshot whenever the live monitor list updates, and seeds
-  its `monitors` StateFlow from the snapshot on init so the UI has data at once.
-- The UI shows a subtle "Last updated <relative time>" indicator when displaying
-  cached (not-yet-live) data.
-
-**Reconciliation.** Live data always wins: when the socket delivers a non-empty
-monitor list, it replaces the cache in the flow and is written back as the new
-snapshot. The cache is per active-server; switching servers loads that server's
-snapshot.
-
-**Out of scope.** Caching heartbeat history or certificates (list + status only for
-now). No background refresh - the cache is a fast first paint, not a sync engine.
+Logic, parser, security, widget-data, and Wear tests cover bounded inputs and route
+validation. Android 17 phone QA covers list/detail, widgets, tile, shortcuts, deep
+links, and glance mode. Android 16 Wear QA covers setup, live public dashboard/detail,
+tile/complication registration, encrypted private session storage, and actions. A
+real paired-watch Data Layer transfer remains the only hardware-specific caveat.

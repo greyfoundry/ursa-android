@@ -5,6 +5,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val wearBridgeEnabled = providers.gradleProperty("ursaWearBridge")
+    .map { it.toBooleanStrictOrNull() == true }
+    .orElse(false)
+
+if (wearBridgeEnabled.get()) {
+    layout.buildDirectory.set(layout.projectDirectory.dir("build-wear-bridge"))
+}
+
 android {
     namespace = "dev.astoris.ursa"
     compileSdk = 37
@@ -16,8 +24,8 @@ android {
         // Literal versionName/versionCode so F-Droid's parser can read them for
         // auto-update (it cannot evaluate variables or arithmetic). Update both
         // by hand for each release (major*10000 + minor*100 + patch).
-        versionCode = 10203
-        versionName = "1.2.3"
+        versionCode = 10300
+        versionName = "1.3.0"
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise
@@ -52,6 +60,12 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    if (wearBridgeEnabled.get()) {
+        sourceSets.named("main") {
+            kotlin.directories.add("src/wearBridge/java")
+        }
     }
 
     // F-Droid rejects the AGP "Dependency metadata" signing block that Google adds to
@@ -113,6 +127,10 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.json)
+
+    if (wearBridgeEnabled.get()) {
+        implementation(libs.play.services.wearable)
+    }
 
     debugImplementation(libs.androidx.ui.tooling)
 

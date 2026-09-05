@@ -18,22 +18,18 @@ By participating you agree to our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Scope
 
-URSA is intentionally focused. The roadmap is **viewer -> actions -> push**:
-
-1. View monitors, history, certificates, and public status pages (done)
-2. Single actions such as pause/resume (done)
-3. Push notifications over UnifiedPush (in progress)
-
-Read-heavy monitoring and reliability come first. Larger surface area (monitor
-editing, notification/status-page management, widgets, Wear OS) may come later but
-is out of scope for the current milestones. If in doubt, ask in an issue.
+URSA is intentionally focused on monitoring and incident response. Core viewing,
+UnifiedPush, native Android surfaces, monitor and maintenance management, public
+status pages, advanced fleet dashboards, and the Wear OS companion are implemented.
+Advanced monitor-type-specific creation fields and server administration remain
+deliberate boundaries. Check the public roadmap before proposing a large surface.
 
 ## Development setup
 
 Requirements:
 
 - Android Studio (bundled JDK 21 is fine) with the Android SDK
-- JDK 17 target, `compileSdk 36`, `minSdk 26`
+- JDK 17 target, `compileSdk 37`, `minSdk 26`
 
 Build and test:
 
@@ -42,6 +38,7 @@ export JAVA_HOME="<path-to-jbr>"     # e.g. Android Studio's bundled JBR
 ./gradlew assembleDebug              # build the debug APK
 ./gradlew :app:testDebugUnitTest     # run unit tests
 ./gradlew :app:lintDebug             # run Android Lint (must pass)
+./gradlew :wear:testDebugUnitTest :wear:lintDebug :wear:assembleDebug
 ```
 
 To run the app, install the debug APK and point it at an Uptime Kuma instance
@@ -51,6 +48,10 @@ server:
 ```bash
 docker run -d -p 3001:3001 -v uptime-kuma:/app/data --name uptime-kuma louislam/uptime-kuma:2
 ```
+
+On Android 17, testing or connecting to a direct LAN address may show the platform's
+local-network permission prompt. DNS-SD discovery uses the scoped system picker and
+does not request broad access by itself.
 
 ## Git hooks (required)
 

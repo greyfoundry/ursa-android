@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-24
+last-updated: 2026-09-04
 owner: astoris
 status: in-flux
 ---
@@ -24,33 +24,57 @@ and the module docs under `docs/modules/`.
 - security posture (OWASP MASVS mapping + backlog): `docs/security.mdx`
 - full build spec (why + scope + verified API): `URSA_BUILD_SPEC.md`
 - release procedure: `docs/infrastructure/deployment.mdx`
+- mobile competitor inventory and implementation ledger:
+  `docs/planning/mobile-competitor-parity.mdx`
+- active UI/UX direction, motion budget, and QA gates:
+  `docs/planning/ui-revamp.mdx`
 - app entry: `app/src/main/java/dev/astoris/ursa/MainActivity.kt`
 - version catalog: `gradle/libs.versions.toml`
 
 **status**
 - M1 (core viewing) implemented: login incl. 2FA, live monitor list, monitor
-  detail (heartbeat history + TLS cert), public status-page viewer, pause/resume.
+  detail (response chart + heartbeat history + TLS cert), saved public status pages with native
+  recent checks and incident history, pause/resume.
 - M2 done: Tink AES-256-GCM credential encryption (Keystore master key), resilient
   reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
 - M3 done: UnifiedPush push - receive path (non-exported `PushService`, webhook
   parser, notifications) + registration UI. See `docs/modules/push.mdx`.
-- M4 done (code): native depth - offline last-known cache, biometric app lock,
+- M4 done: native depth - offline last-known cache, biometric app lock,
   notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,
   Quick Settings tile, app shortcuts, and full i18n. See
-  `docs/planning/m4-native-depth.mdx`. Icons/assets + on-device QA deferred.
+  `docs/planning/m4-native-depth.mdx`.
 - Builds green (`assembleDebug`, `lintDebug`); parsers unit-tested. Monitor list and
   detail flows are smoke-tested on a Pixel 8 emulator. See `docs/sessions/log.mdx`.
+- Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
+  partial CP-031 advanced monitor-type creation boundary. This includes fleet
+  incidents/reliability, certificate/domain dashboards, and the filtered global
+  event log, an explainable 30-day uptime/latency aggregate, and a persisted
+  favourite-monitor live-heartbeat panel, encrypted local incident notes, and a
+  redacted native share summary, one-tap managed Kuma Webhook setup for the
+  registered UnifiedPush endpoint, separate local/end-to-end push tests, and
+  metadata-only diagnostics, per-monitor mute/down/recovery/all-transition modes,
+  and critical/standard/silent Android delivery channels. Monitor CRUD now includes
+  bulk state changes, notification assignment, groups/tags, maintenance, and
+  privacy-preserving local-service discovery and detailed encrypted configurable
+  widgets. Expanded screens now use a monitor list-detail layout, Settings
+  offers an opt-in always-on fleet glance display with explicit power and burn-in
+  guidance, and the separate Wear OS app now provides an attention-first dashboard,
+  monitor details, complications, and optionally paired private actions. Advanced
+  monitor-type-specific create fields remain the open CP-031 boundary. Scoped app
+  deep links, compact rows, connection guidance, a manual update check, advanced
+  filters with saved views, and actionable typed connection failures are complete.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
 - Local reference material (gitignored): `docs/kuma-notes/`, `archive/uptime-kuma/`,
   `MEMORY.md`.
 - Brand assets in: bear app icon (adaptive + themed monochrome), notification icon,
   feature graphic, social preview, real screenshots (`docs/assets/`). On-device
   verified on a Pixel 8.
-- Next: a widget-preview image; upload the social preview in GitHub repo settings.
+- Active next programme: final release polish and any issue-driven fixes. The
+  source-linked parity ledger remains the record of deliberate product boundaries.
 
 **depends on**
-- a running Uptime Kuma server (the app is a client; it stores/creates nothing
-  server-side). Dev instance: `docker` container `uptime-kuma-dev` on `:3001`.
+- a running Uptime Kuma server. URSA has no separate backend, but authenticated
+  management actions intentionally update the user's Kuma instance.
 
 ## gotchas
 

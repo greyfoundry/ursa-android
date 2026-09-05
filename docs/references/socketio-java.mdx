@@ -25,6 +25,7 @@ implementation("io.socket:socket.io-client:<ver>") {
 val opts = IO.Options().apply {
     transports = arrayOf("polling", "websocket") // polling first, then upgrade
     reconnection = true
+    extraHeaders = mapOf("CF-Access-Client-Id" to listOf("..."))
 }
 val socket: Socket = IO.socket("https://kuma.example.com", opts)
 socket.on(Socket.EVENT_CONNECT) { /* connected */ }
@@ -68,5 +69,8 @@ socket.emit("login", login, Ack { res ->
   `suspend fun` returning the parsed callback.
 - Kuma auth is emitted as a `login` event (see uptime-kuma-api), **not** the
   Socket.IO `auth` option.
+- Reverse-proxy headers belong in `IO.Options.extraHeaders`; the Java client
+  applies them to polling and WebSocket handshakes. Validate names and reject
+  CR/LF in values before constructing the map.
 - Cast carefully: positional Kuma events give raw `Int`/`String`/`JSONObject` in
   `args[]`; object events give a single `JSONObject` at `args[0]`.

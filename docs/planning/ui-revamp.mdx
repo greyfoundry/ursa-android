@@ -1,0 +1,67 @@
+---
+last-updated: 2026-09-04
+owner: astoris
+status: complete
+---
+
+# UI and UX revamp
+
+## Direction
+
+URSA is a calm operations console: clean neutral surfaces, strong hierarchy,
+compact rounded controls, one Kuma-green accent, and semantic status color only
+where it carries information. Healthy routine state is intentionally quiet;
+incidents surface the next useful action without making every screen loud.
+
+Material components provide native behavior and accessibility, but do not dictate
+the product composition. Monitoring tools informed the hierarchy: fleet health,
+active incidents, trends, then the complete monitor list.
+
+## Implemented system
+
+- A concise fleet hero answers "is anything broken?" and exposes freshness.
+- High-density monitor rows keep a minimum 48dp target. Optional compact mode hides
+  secondary URLs while retaining actions and accessibility semantics.
+- Search, quick status filters, advanced filters, and up to ten saved views per
+  server support large fleets without turning the home screen into a control panel.
+- Monitor detail groups response history, heartbeat state, certificates, incidents,
+  and actions. Expanded screens retain the list beside detail.
+- Incident, certificate, domain, event, aggregate, and pinned-live tools live behind
+  the three-dot menu as progressive disclosure.
+- Connection forms explain direct URLs, base paths, TOTP, self-signed TLS, Android
+  local-network access, UnifiedPush, and Pangolin/Cloudflare-style access headers.
+- Settings groups appearance, compact density, privacy, background behavior,
+  What's New, help, native surfaces, and destructive actions.
+- Public pages, glance display, widgets, and Wear adapt the same hierarchy rather
+  than scaling the phone layout.
+
+## Visual and motion rules
+
+- System sans, 4dp spacing grid, restrained outlines, and 12-20dp radii.
+- Kuma green is brand/healthy; red is down; amber pending; blue maintenance.
+  Text and icons always reinforce color.
+- Press feedback uses transform/alpha only. State changes use short fades; lists do
+  not animate layout or allocate per frame.
+- Loading uses one purposeful indicator. Motion follows the system duration scale
+  and never blocks input or delays monitoring data.
+- Dynamic color remains opt-in and never changes semantic status colors.
+
+## Quality gates
+
+- 48dp actions, accessible names, visual-order TalkBack traversal, chart summaries,
+  large-text resilience, and no color-only status meaning.
+- Stable row geometry during live updates and bounded lists/caches.
+- Phone and tablet screenshots, UI trees, logcat, frame statistics, and memory are
+  captured when a focused change warrants them. Perfetto is reserved for evidenced
+  frame problems.
+- Final public screenshots include dark and light monitors, detail, connection help,
+  and the open three-dot feature menu.
+
+## References
+
+- https://developer.android.com/develop/ui/compose/animation/quick-guide
+- https://support.pagerduty.com/main/docs/mobile-home-screen
+- https://betterstack.com/community/blog/mobile-app/
+- https://uptimerobot.com/mobile-app/
+- https://blog.duolingo.com/core-tabs-redesign/
+- https://blog.duolingo.com/duolingo-android-reboot-2021/

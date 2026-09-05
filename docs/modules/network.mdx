@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-08-25
+last-updated: 2026-09-04
 owner: astoris
 status: stable
 ---
@@ -15,21 +15,66 @@ here so the rest of the app sees clean domain models.
 
 **file paths**
 - `app/src/main/java/dev/astoris/ursa/core/network/KumaClient.kt` - one Socket.IO
-  connection per server; auth, event wiring, pause/resume, getBeats.
+  connection per server; auth, event wiring, pause/resume, heartbeat history,
+  and server chart/important-transition queries.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
 - `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
+- `.../core/network/StatusPageMapper.kt` - pure, tested merge of public page,
+  heartbeat, maintenance, and incident-history payloads into a UI snapshot.
+- `.../core/network/StatusPageAddress.kt` - pure, tested full-page/base URL and
+  Kuma-slug validation/normalization.
 - `.../core/network/FaviconCache.kt` - bounded best-effort monitor favicon fetcher;
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
+- `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
+  confirmed external-browser dashboard and monitor links.
+- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.3 type catalogue,
+  typed common-field validation, safe patching, and create defaults.
+- `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
+  API 37 uses the system service picker without broad LAN permission, while older
+  devices show a foreground result list and resolve only the selected service.
+- `.../core/network/LocalNetworkAccess.kt` - pure classification for direct private,
+  loopback, link-local, and mDNS server addresses that need Android 17 runtime
+  local-network access before an explicit test or connection.
+- `.../core/network/ConnectionFailure.kt` - maps transport/authentication/TLS/version
+  failures to bounded user-action categories without exposing sensitive causes.
 
 **exports**
-- `KumaClient(baseUrl)` - `connect()`, `login(u,p,token)`, `loginByToken(jwt)`,
+- `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
+  `login(u,p,token)`, `loginByToken(jwt)`,
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
-  `disconnect()`. Flows: `state`, `monitors`, `heartbeats`, `certs`.
-- `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `beatRow(s)`, `cert`, `tags`.
-- `StatusPageClient.fetch(baseUrl, slug): StatusPageView`.
+  `getChartData(id,hours)`, `getImportantBeats(limit)`,
+  `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
+  notification relation reads/updates, `testManagedPushNotification`, monitor
+  draft load/save/delete, group membership, tag definition/assignment calls,
+  all six maintenance strategies and affected-monitor relations, sequential bulk
+  active-state changes, and `disconnect()`.
+  Flows: `state`,
+  `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
+  and marked managed notifications.
+- `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
+  `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`.
+- `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
+  resolves a custom-domain or configured default status page through Kuma's
+  public entry contract. Fetch combines page configuration, the latest 100
+  checks per public monitor, 24-hour uptime, active maintenance, and incident
+  history; older Kuma versions may omit history without failing the page.
+- `StatusPageAddress.resolve(address, optionalSlug)` safely derives a normalized
+  base and slug from `/status/<slug>` and `/api/status-page/<slug>` URLs.
 - `FaviconCache.get(context, monitorUrl): ImageBitmap?` - only accepts a small image
   from the monitor's own HTTP(S) origin, otherwise returns null for the status-circle fallback.
+- `ServerWebLink.dashboard/monitor` - preserves a valid reverse-proxy base path while
+  rejecting non-HTTP schemes, embedded credentials, traversal, encoded separators,
+  queries, and fragments.
+- `MonitorDraftCodec` - maps a full monitor response to a bounded common
+  editor model, patches a newly fetched full object without removing unknown
+  fields, and builds typed defaults for common create flows.
+- `KumaParse.notifications` returns only provider ID, name, type, and default
+  status. The double-encoded provider configuration is parsed only far enough to
+  identify its type and is then discarded.
+- Monitor parsing retains server `parent`, `weight`, and tag-assignment metadata.
+  Tag changes use Kuma's relation events after the full monitor save; values are
+  retained so removals use the server's exact assignment key.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
@@ -47,8 +92,50 @@ here so the rest of the app sees clean domain models.
   `KumaParse`.
 - `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case - two
   parse paths (`heartbeat` vs `beatRow`). Covered by `KumaParseTest`.
-- `emitAck` buffers if the socket is mid-connect (Socket.IO queues emits) - safe,
-  but the ack resolves only after the server replies.
+- `getMonitorChartData` returns Kuma-computed buckets with `up`, `down`,
+  `avgPing`, and epoch-second `timestamp`. Thirty days uses a 720-hour request.
+  Fleet loading is user-triggered, limited to four concurrent acknowledgements,
+  and cancelled when its dashboard leaves composition; it is never polled.
+- The incident center requests one newest-first page of at most 500 account-wide
+  important heartbeats when opened. Those durable transition beans use camelCase
+  `monitorID`/boolean `important`, unlike `getMonitorBeats`; they are merged with
+  the live window and never polled in the background.
+- `notificationList` contains double-encoded provider config. The adapter retains
+  only Webhook rows with URSA's exact management marker. Create/update uses
+  `addNotification`; removal uses `deleteNotification`; delivery testing uses a
+  temporary config with `testNotification` and does not persist it on Kuma.
+- Kuma exposes notification relations only inside the full result of `getMonitor`.
+  Relation updates therefore round-trip the complete object through `editMonitor`
+  while changing only `notificationIDList`. That potentially sensitive raw object
+  stays inside the client method and is never persisted or logged.
+- Existing monitor edits also fetch the full object immediately before saving and
+  change only fields present in the typed common editor. Credentials, advanced
+  settings, and fields introduced by future Kuma versions never leave the network
+  adapter and are preserved in the round trip.
+- `emitAck` waits for a connected transport inside the same 15-second acknowledgement
+  budget. An inaccessible server therefore cannot leave a UI action loading forever,
+  and actions are not silently stranded in Socket.IO's pre-connect queue.
+- Connection state distinguishes transport failure from rejected credentials.
+  `MonitorRepository.testServer` uses a short-lived client and never replaces or
+  persists the active session; a newly added client is promoted only after login
+  succeeds.
+- A failed late polling-to-WebSocket upgrade must not replace an already authenticated
+  connected state. The socket itself remains authoritative when an upgrade error races
+  successful authentication.
+- `MonitorRepository.addServerByToken` and `testServerToken` validate imported
+  Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
+  the socket because Kuma limits them to Prometheus HTTP Basic authentication.
+- Per-connection reverse-proxy headers are normalized and applied to Socket.IO
+  polling/WebSocket handshakes and every authenticated request. `StatusPageClient`
+  accepts the same optional headers for REST when a saved page exactly matches a
+  saved connection. Invalid names, empty values, duplicates, and CR/LF injection
+  are rejected before a connection action is enabled; at most eight are stored.
+- Public-page addresses accept HTTP(S) only and reject embedded credentials,
+  queries/fragments, traversal segments, encoded separators, invalid Kuma slugs,
+  and conflicts between a pasted page URL and a separately entered slug.
+- Public incidents can appear in both the page payload and incident-history
+  payload. `StatusPageMapper` de-duplicates them by ID, keeps active incidents
+  first, and derives current monitor status from the newest returned heartbeat.
 - Reconnect: `KumaClient` keeps the JWT and silently re-emits `loginByToken` on
   every `EVENT_CONNECT`, so a dropped socket re-authenticates itself. `disconnect()`
   clears the JWT.

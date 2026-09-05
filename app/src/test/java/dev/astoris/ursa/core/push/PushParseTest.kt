@@ -20,6 +20,7 @@ class PushParseTest {
                "msg":"[API] [🔴 Down] connect ECONNREFUSED"}"""
         )!!
         assertEquals(7, n.monitorId)
+        assertEquals("API", n.monitorName)
         assertEquals("API is Down", n.title)
         assertEquals("[API] [🔴 Down] connect ECONNREFUSED", n.body)
         assertTrue(n.important)
@@ -67,6 +68,19 @@ class PushParseTest {
     @Test fun exposes_status_for_downtime_tracking() {
         assertEquals(0, PushParse.parse("""{"heartbeat":{"monitorID":1,"status":0}}""")!!.status)
         assertEquals(1, PushParse.parse("""{"heartbeat":{"monitorID":1,"status":1}}""")!!.status)
+    }
+
+    @Test fun managed_webhook_exposes_only_valid_server_scope() {
+        val id = "0123456789abcdef0123456789abcdef"
+        val scoped = PushParse.parse(
+            """{"heartbeat":{"monitorID":7,"status":0},"ursaServerId":"$id"}""",
+        )!!
+        val invalid = PushParse.parse(
+            """{"heartbeat":{"monitorID":7,"status":0},"ursaServerId":"not-valid"}""",
+        )!!
+
+        assertEquals(id, scoped.serverId)
+        assertNull(invalid.serverId)
     }
 
     @Test fun formats_downtime() {
