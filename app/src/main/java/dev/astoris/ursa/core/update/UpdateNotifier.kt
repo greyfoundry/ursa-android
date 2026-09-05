@@ -20,7 +20,8 @@ object UpdateNotifier {
         if (ContextCompat.checkSelfPermission(app, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false
         val prefs = app.getSharedPreferences("ursa_update_notices", Context.MODE_PRIVATE)
         if (prefs.getString("last_version", null) == release.version.toString()) return false
-        val open = Intent(app, MainActivity::class.java).apply {
+        val open = Intent().apply {
+            setClassName(app.packageName, MainActivity::class.java.name)
             action = Intent.ACTION_VIEW
             data = "ursa://settings".toUri()
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

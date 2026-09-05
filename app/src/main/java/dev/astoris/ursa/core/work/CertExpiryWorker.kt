@@ -80,7 +80,8 @@ class CertExpiryWorker(context: Context, params: WorkerParameters) :
                         PendingIntent.getActivity(
                             applicationContext,
                             "${entry.serverUrl}:${entry.monitorId}".hashCode(),
-                            Intent(applicationContext, MainActivity::class.java).apply {
+                            Intent().apply {
+                                setClassName(applicationContext.packageName, MainActivity::class.java.name)
                                 action = Intent.ACTION_VIEW
                                 data = AppDeepLink.monitor(entry.serverUrl, entry.monitorId).toUri()
                                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

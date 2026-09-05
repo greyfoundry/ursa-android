@@ -56,7 +56,8 @@ object ResponseAlertNotifier {
         }
         ensureChannel(context)
         val text = context.getString(R.string.slow_response_notification_text, monitorName, pingMs, thresholdMs)
-        val open = Intent(context, MainActivity::class.java).apply {
+        val open = Intent().apply {
+            setClassName(context.packageName, MainActivity::class.java.name)
             action = Intent.ACTION_VIEW
             data = AppDeepLink.monitor(serverUrl, monitorId).toUri()
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

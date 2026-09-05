@@ -94,7 +94,8 @@ class OverallStatusService : Service() {
     }
 
     private fun buildNotification(summary: OverallStatusSummary, connectionState: ConnectionState): Notification {
-        val open = Intent(this, MainActivity::class.java).apply {
+        val open = Intent().apply {
+            setClassName(packageName, MainActivity::class.java.name)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         val contentIntent = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE)
