@@ -28,7 +28,7 @@ here so the rest of the app sees clean domain models.
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
 - `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
   confirmed external-browser dashboard and monitor links.
-- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.3 type catalogue,
+- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.5 type catalogue,
   typed common-field validation, safe patching, and create defaults.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
   API 37 uses the system service picker without broad LAN permission, while older
@@ -87,9 +87,9 @@ here so the rest of the app sees clean domain models.
 ## gotchas
 
 - Positional events (`heartbeatList`, `avgPing`, `uptime`, `certInfo`) are read from
-  `args[]` directly. Kuma 2.5.3 serializes their monitor IDs as strings, normalized
-  by `KumaParse.positionalInt`; object events go through `jsonAt()` → kotlinx →
-  `KumaParse`.
+  `args[]` directly. Kuma 2.5.3 through 2.5.5 serialize their monitor IDs as
+  strings, normalized by `KumaParse.positionalInt`; object events go through
+  `jsonAt()` → kotlinx → `KumaParse`.
 - `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case - two
   parse paths (`heartbeat` vs `beatRow`). Covered by `KumaParseTest`.
 - `getMonitorChartData` returns Kuma-computed buckets with `up`, `down`,

@@ -1,17 +1,17 @@
 ---
-last-updated: 2026-08-27
+last-updated: 2026-09-19
 owner: astoris
 status: stable
-source: verified from Uptime Kuma 2.5.3 source and a live 2.5.3 container
+source: verified from Uptime Kuma 2.5.5 source and a live 2.5.5 container
 ---
 
 ## what this is
 
 How URSA talks to an Uptime Kuma server. Kuma has no stable public API - it's a
 Socket.IO app plus a few unauthenticated REST endpoints for public status pages.
-Everything below was rechecked against tag `2.5.3` (`1f0755f`) and captured from
-the official `louislam/uptime-kuma:2.5.3` image (digest
-`sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c`).
+Everything below was rechecked through tag `2.5.5` (`c98982a`) and captured from
+the official `louislam/uptime-kuma:2.5.5` image (digest
+`sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe`).
 Sanitized raw captures and the complete source-derived event/route inventory live
 under gitignored `docs/kuma-notes/`. Build a thin adapter around this; expect drift
 between versions.
@@ -104,9 +104,15 @@ heartbeat-history, certificate, pause, or resume contracts.
 Kuma 2.5.1 adds seven outbound notification providers: SMS Gateway, ClickUp,
 TurboSMTP, BearSMS, Pinglet, Milky, and OpenWA. They do not change the Webhook
 provider payload URSA consumes. Kuma 2.5.2 fixes non-Docker installation, and
-2.5.3 corrects the published version number. Across 2.5.0 through 2.5.3, the
-source inventory remains 87 client events, 30 server emit candidates, and 33 REST
-routes; normalized live payload shapes used by URSA are unchanged.
+2.5.3 corrects the published version number. Kuma 2.5.4 adds the `sftp` monitor
+type, Signalgrid, Notify!, and Amoot SMS providers, plus a cached-response fix.
+SFTP monitor objects add `sftpPath`, `sshAuthMethod`, `sshUsername`, `sshPassword`,
+`sshPrivateKey`, and `sshPassphrase`; common edits must retain these fields from
+the fresh full object. Kuma 2.5.5 fixes a TCP monitor socket leak without changing
+the client contract. Across 2.5.0 through 2.5.5, the source inventory remains 87
+client events, 30 server emit candidates, and 33 REST routes. Previously consumed
+live payload shapes are unchanged; the full monitor shape and `monitorTypeList`
+gain only the SFTP additions.
 
 **REST (no auth - public status pages)**
 - `GET /api/status-page/<slug>` - page config, public groups/monitors, pinned
@@ -123,8 +129,9 @@ routes; normalized live payload shapes used by URSA are unchanged.
 - **Case split**: live `heartbeat` event is camelCase; `getMonitorBeats` rows are
   snake_case. The data model must map both to one domain type.
 - **String IDs in positional events**: monitor IDs are JSON strings in live 2.5.3
-  `heartbeatList`, `avgPing`, `uptime`, and `certInfo` emissions even though IDs
-  inside object payloads are numbers. Normalize both forms at the adapter boundary.
+  through 2.5.5 `heartbeatList`, `avgPing`, `uptime`, and `certInfo` emissions even
+  though IDs inside object payloads are numbers. Normalize both forms at the
+  adapter boundary.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
   JSON string *inside* the JSON - parse twice.
 - **Sensitive full monitor shape**: authenticated `getMonitor` includes fields
