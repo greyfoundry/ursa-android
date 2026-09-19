@@ -11,12 +11,12 @@ import org.junit.Test
 class MonitorDraftCodecTest {
 
     @Test
-    fun catalogCoversEveryKuma253MonitorTypeWithoutDuplicates() {
+    fun catalogCoversEveryKuma255MonitorTypeWithoutDuplicates() {
         val keys = MonitorTypeCatalog.all.map(MonitorTypeOption::key)
 
-        assertEquals(33, keys.size)
+        assertEquals(34, keys.size)
         assertEquals(keys.size, keys.distinct().size)
-        assertTrue(keys.containsAll(listOf("http", "globalping", "rabbitmq", "oracledb", "gamedig")))
+        assertTrue(keys.containsAll(listOf("http", "globalping", "rabbitmq", "sftp", "oracledb", "gamedig")))
     }
 
     @Test
@@ -52,6 +52,37 @@ class MonitorDraftCodecTest {
         assertEquals(true, updated["notificationIDList"]!!.jsonObject["9"]!!.jsonPrimitive.content.toBoolean())
         assertEquals(5, updated["parent"]!!.jsonPrimitive.content.toInt())
         assertEquals("eu", draft.tagAssignments.single().value)
+    }
+
+    @Test
+    fun editingSftpCommonFieldsPreservesCredentialsAndTypeSpecificConfiguration() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":12,"type":"sftp","name":"Old SFTP","description":"before",
+                "hostname":"files.internal","port":22,"interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "sshAuthMethod":"privateKey","sshUsername":"monitor-user",
+                "sshPassword":"fallback-secret","sshPrivateKey":"private-key-data",
+                "sshPassphrase":"key-secret","sftpPath":"/incoming/health.txt"
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!.copy(
+            name = "Primary SFTP",
+            endpoint = "files.example.net",
+            port = 2222,
+        )
+
+        val updated = MonitorDraftCodec.applyToExisting(raw, draft)
+
+        assertEquals("Primary SFTP", updated["name"]!!.jsonPrimitive.content)
+        assertEquals("files.example.net", updated["hostname"]!!.jsonPrimitive.content)
+        assertEquals(2222, updated["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals("privateKey", updated["sshAuthMethod"]!!.jsonPrimitive.content)
+        assertEquals("monitor-user", updated["sshUsername"]!!.jsonPrimitive.content)
+        assertEquals("fallback-secret", updated["sshPassword"]!!.jsonPrimitive.content)
+        assertEquals("private-key-data", updated["sshPrivateKey"]!!.jsonPrimitive.content)
+        assertEquals("key-secret", updated["sshPassphrase"]!!.jsonPrimitive.content)
+        assertEquals("/incoming/health.txt", updated["sftpPath"]!!.jsonPrimitive.content)
     }
 
     @Test
