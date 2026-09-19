@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## [1.3.2](https://github.com/greyfoundry/ursa-android/compare/v1.3.1...v1.3.2) (2026-09-19)
+
+### Added
+
+* Recognize Uptime Kuma 2.5.4 SFTP monitors and safely edit their common host,
+  port, scheduling, grouping, tag, and notification settings without removing
+  authentication or path configuration.
+
+### Changed
+
+* Verify Socket.IO, public REST, and monitor compatibility through Uptime Kuma
+  2.5.5.
+
 ## [1.3.1](https://github.com/greyfoundry/ursa-android/compare/v1.3.0...v1.3.1) (2026-09-19)
 
 ### Fixed
