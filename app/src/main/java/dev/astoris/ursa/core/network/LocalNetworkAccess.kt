@@ -9,7 +9,7 @@ object LocalNetworkAccess {
         val host = runCatching { URI(url.trim()).host?.lowercase()?.trim('[', ']') }.getOrNull() ?: return false
         if (host == "localhost" || host == "::1" || host.startsWith("127.")) return false
         if (host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".home") ||
-            host.endsWith(".internal") || '.' !in host && ':' !in host
+            host.endsWith(".internal") || host.endsWith(".ts.net") || '.' !in host && ':' !in host
         ) return true
 
         val ipv4 = host.split('.').mapNotNull(String::toIntOrNull)
@@ -17,7 +17,10 @@ object LocalNetworkAccess {
             return ipv4[0] == 10 ||
                 ipv4[0] == 192 && ipv4[1] == 168 ||
                 ipv4[0] == 172 && ipv4[1] in 16..31 ||
-                ipv4[0] == 169 && ipv4[1] == 254
+                ipv4[0] == 169 && ipv4[1] == 254 ||
+                // Carrier-grade NAT space (RFC 6598), used by Tailscale and similar
+                // mesh VPNs for peer addresses.
+                ipv4[0] == 100 && ipv4[1] in 64..127
         }
 
         return host.startsWith("fc") || host.startsWith("fd") ||
