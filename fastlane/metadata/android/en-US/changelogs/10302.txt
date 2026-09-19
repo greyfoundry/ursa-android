@@ -1,0 +1,4 @@
+URSA 1.3.2 adds compatibility with Uptime Kuma 2.5.4 and 2.5.5.
+
+* Recognizes SFTP monitors and safely edits their common settings.
+* Preserves SFTP passwords, private keys, passphrases, paths, and authentication settings.
