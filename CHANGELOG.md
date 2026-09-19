@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## [1.3.1](https://github.com/greyfoundry/ursa-android/compare/v1.3.0...v1.3.1) (2026-09-19)
+
+### Fixed
+
+* Request Android 17 local-network access for Tailscale MagicDNS names and the
+  `100.64.0.0/10` peer range so direct Kuma connections can proceed.
+* Parse IP literals strictly so unrelated public hostnames do not trigger the
+  broad local-network permission prompt.
+
 ## [1.3.0](https://github.com/greyfoundry/ursa-android/compare/v1.2.3...v1.3.0) (2026-09-04)
 
 ### Added
