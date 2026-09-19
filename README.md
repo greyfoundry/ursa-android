@@ -104,7 +104,7 @@ versioned release tags and updates URSA automatically, no store required.
 
 | Your Kuma looks like... | URSA handles it |
 |---|---|
-| Uptime Kuma 2.4.x and 2.5.0-2.5.3 | ✔ verified against live instances |
+| Uptime Kuma 2.4.x and 2.5.0-2.5.5 | ✔ verified against live instances |
 | Username / password login | ✔ |
 | Two-factor (TOTP) | ✔ |
 | Several servers | ✔ switch freely |

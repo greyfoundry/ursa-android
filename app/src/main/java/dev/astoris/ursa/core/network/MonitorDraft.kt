@@ -25,7 +25,7 @@ data class MonitorTypeOption(
     val defaultPort: Int? = null,
 )
 
-/** Uptime Kuma 2.5.3's monitor-type catalogue. */
+/** Uptime Kuma 2.5.5's monitor-type catalogue. */
 object MonitorTypeCatalog {
     val all = listOf(
         MonitorTypeOption("http", "HTTP(s)", MonitorEndpointKind.URL, createSupported = true),
@@ -50,6 +50,7 @@ object MonitorTypeCatalog {
         MonitorTypeOption("sip-options", "SIP options ping"),
         MonitorTypeOption("smtp", "SMTP"),
         MonitorTypeOption("snmp", "SNMP"),
+        MonitorTypeOption("sftp", "SFTP", MonitorEndpointKind.HOST_PORT, defaultPort = 22),
         MonitorTypeOption("tailscale-ping", "Tailscale ping"),
         MonitorTypeOption("websocket-upgrade", "WebSocket upgrade", MonitorEndpointKind.URL),
         MonitorTypeOption("sqlserver", "Microsoft SQL Server"),

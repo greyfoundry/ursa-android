@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-02
+last-updated: 2026-09-19
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,25 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-19 - Kuma 2.5.5 compatibility verification
+
+**verified**: Compared Uptime Kuma 2.5.4 and 2.5.5 release changes and source,
+then captured a fresh official 2.5.5 container. The source inventory remains 87
+client events, 30 server emit candidates, and 33 REST routes. Existing URSA event,
+acknowledgement, and public REST shapes are unchanged; monitor payloads add the
+2.5.4 SFTP fields and `monitorTypeList` adds the SFTP type.
+
+**changed**: Added SFTP to the typed monitor catalogue as a host-and-port monitor
+with port 22 as its default. Existing SFTP monitors can use the common editor while
+the fresh full-object round trip preserves authentication method, username,
+password, private key, passphrase, and path. Native SFTP creation remains deferred
+until its credential-heavy type-specific form can meet the existing secret-handling
+boundary.
+
+**verification**: A focused codec test covers catalogue completeness and proves
+that editing common SFTP fields retains every credential and type-specific field.
+All 176 app unit tests, Android lint, and debug assembly passed.
 
 ### 2026-09-04 - Final competitor parity and public documentation (CP-041 to CP-046)
 
