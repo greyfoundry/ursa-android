@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-19
 owner: astoris
 status: in-flux
 ---
@@ -131,9 +131,11 @@ never include the encrypted JWT or custom access headers.
 
 Optional local-service discovery uses Android 17's system DNS-SD picker, which reveals
 and grants only the service the user selects. Separately, Android 17 requires runtime
-local-network access for direct private/loopback/link-local/mDNS server sockets. URSA
-requests it only immediately before a user tests or connects to such an address.
-Public hostnames do not trigger it. Older Android releases scan only after an explicit tap,
+local-network access for direct private/link-local/single-label/mDNS server sockets and
+recognized mesh-VPN destinations such as Tailscale's `100.64.0.0/10` peer range and
+`.ts.net` MagicDNS names. URSA requests it only immediately before a user tests or
+connects to such an address. Unrelated public hostnames do not trigger it. Older Android
+releases scan only after an explicit tap,
 only while the monitor editor is open, and release multicast access on every exit.
 URSA consumes only the resolved IP address and port; advertised TXT data is ignored.
 

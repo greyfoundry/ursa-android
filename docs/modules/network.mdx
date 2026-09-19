@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-19
 owner: astoris
 status: stable
 ---
@@ -34,8 +34,8 @@ here so the rest of the app sees clean domain models.
   API 37 uses the system service picker without broad LAN permission, while older
   devices show a foreground result list and resolve only the selected service.
 - `.../core/network/LocalNetworkAccess.kt` - pure classification for direct private,
-  loopback, link-local, and mDNS server addresses that need Android 17 runtime
-  local-network access before an explicit test or connection.
+  link-local, single-label, mDNS, and recognized mesh-VPN server addresses that need
+  Android 17 runtime local-network access before an explicit test or connection.
 - `.../core/network/ConnectionFailure.kt` - maps transport/authentication/TLS/version
   failures to bounded user-action categories without exposing sensitive causes.
 

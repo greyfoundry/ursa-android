@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-19
 owner: astoris
 status: stable
 ---
@@ -39,6 +39,7 @@ monitor editor stops discovery and releases its multicast lock.
 
 DNS-SD discovery is separate from connecting to a user-entered server. Android 17
 requires the runtime `ACCESS_LOCAL_NETWORK` permission before ordinary app sockets
-can reach direct private, loopback, link-local, or mDNS destinations. URSA declares
-that permission and requests it only when the user explicitly tests or connects to
-an address classified into one of those ranges. Public hostnames do not trigger it.
+can reach direct private, link-local, single-label, mDNS, or recognized mesh-VPN
+destinations. URSA includes Tailscale's `100.64.0.0/10` peer range and `.ts.net`
+MagicDNS names, and requests the permission only when the user explicitly tests or
+connects to a matching address. Public hostnames do not trigger it.
