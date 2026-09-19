@@ -16,11 +16,21 @@ class LocalNetworkAccessTest {
 
     @Test
     fun android17RecognizesTailscaleAddresses() {
-        assertTrue(LocalNetworkAccess.requiresPermission("http://100.64.0.5:3001", 37))
-        assertTrue(LocalNetworkAccess.requiresPermission("http://100.127.255.254:3001", 37))
+        assertTrue(LocalNetworkAccess.requiresPermission("http://100.64.0.0:3001", 37))
+        assertTrue(LocalNetworkAccess.requiresPermission("http://100.127.255.255:3001", 37))
         assertTrue(LocalNetworkAccess.requiresPermission("https://myhost.tailnet-name.ts.net", 37))
+        assertTrue(LocalNetworkAccess.requiresPermission("https://myhost.tailnet-name.ts.net.", 37))
+        assertTrue(LocalNetworkAccess.requiresPermission("https://[fd7a:115c:a1e0::1]:3001", 37))
         assertFalse(LocalNetworkAccess.requiresPermission("http://100.63.0.5:3001", 37))
         assertFalse(LocalNetworkAccess.requiresPermission("http://100.128.0.5:3001", 37))
+    }
+
+    @Test
+    fun publicHostnamesDoNotLookLikePrivateIpAddresses() {
+        assertFalse(LocalNetworkAccess.requiresPermission("https://100.64.0.5.example.com", 37))
+        assertFalse(LocalNetworkAccess.requiresPermission("https://fdic.gov", 37))
+        assertFalse(LocalNetworkAccess.requiresPermission("https://features.example.com", 37))
+        assertFalse(LocalNetworkAccess.requiresPermission("https://[2606:4700:4700::1111]", 37))
     }
 
     @Test

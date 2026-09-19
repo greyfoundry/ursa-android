@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-19
 owner: astoris
 status: stable
 ---
@@ -39,6 +39,7 @@ route still resolves only against data already saved by URSA.
   Network authentication may continue after that gate without bouncing the user to
   the login form.
 - Android 17 local-network access is requested only immediately before testing or
-  connecting to an obvious direct LAN address. DNS-SD's system picker is separate.
+  connecting to a recognized direct LAN or mesh-VPN address. DNS-SD's system picker
+  is separate.
 - Routing remains state-driven rather than using a navigation library. Keep intent
   parsing pure and bounded before changing ViewModel state.
