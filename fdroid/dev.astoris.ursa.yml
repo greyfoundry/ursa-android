@@ -20,7 +20,7 @@ Binaries:
 Builds:
   - versionName: 1.3.1
     versionCode: 10301
-    commit: 08a60c3de02157445b2894b6a12a4c9af1784ed8
+    commit: 6b495069e149c29bfc1d4cc36d36d43411b5d01b
     subdir: app
     gradle:
       - yes
