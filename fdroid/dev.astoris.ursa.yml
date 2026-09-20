@@ -1,6 +1,6 @@
-# Submitted to F-Droid as fdroiddata MR !47975 (reproducible build: F-Droid verifies
+# Submitted to F-Droid as fdroiddata MR !49557 (reproducible build: F-Droid verifies
 # its build against the released APK and signs with the upstream key). AutoUpdateMode
-# picks up future vX.Y.Z tags automatically. This file mirrors the submitted metadata.
+# picks up future vX.Y.Z tags automatically. This file mirrors the current release.
 Categories:
   - Internet
   - System
@@ -20,7 +20,7 @@ Binaries:
 Builds:
   - versionName: 1.3.3
     versionCode: 10303
-    commit: 05aa3d46f63e083662eed6bec8b52c71622e4caa
+    commit: ee522bfbe3752f3f0afea31ab98c9277c3d67398
     subdir: app
     gradle:
       - fdroid
