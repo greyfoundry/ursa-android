@@ -9,6 +9,24 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-20 - Native SFTP monitor editing
+
+**changed**: Added native SFTP monitor creation and type-specific editing for
+Uptime Kuma 2.5.4 and newer. Password and private-key authentication, optional
+key passphrases, and remote paths use the existing monitor draft and Socket.IO
+round-trip instead of a parallel transport.
+
+**security**: Existing SFTP secrets are represented in UI state only by presence
+flags. Secret fields remain masked, blank edits preserve only the currently active
+saved credential, authentication changes clear the previous credential type, and
+private-key replacement does not silently reuse an old passphrase.
+
+**verification**: Both app flavors assembled and passed unit tests and lint. Live
+Android QA against the official Uptime Kuma 2.5.5 image covered password and
+private-key layouts, creating a password-authenticated SFTP monitor with a remote
+path, preserving server-side secrets during a blank edit, and retaining a paused
+monitor's inactive state.
+
 ### 2026-09-20 - Explicit F-Droid and GitHub distributions
 
 **changed**: Replaced the optional build-property Wear bridge with explicit

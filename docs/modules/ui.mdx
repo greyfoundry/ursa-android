@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-20
 owner: astoris
 status: stable
 ---
@@ -60,10 +60,11 @@ navigation library for M1 - the screen set is small and state-driven).
   It keeps the screen awake only while composed and does not enter Android lock-task
   mode.
 - `.../ui/monitors/MonitorEditorScreen.kt` - typed create/common-edit form with
-  inline validation, explicit active state, per-monitor server-notification
-  assignments, server-backed group membership and existing-tag assignments,
-  user-triggered HTTP/HTTPS local-service discovery, server errors, and no raw
-  JSON surface.
+  inline validation, native SFTP password/private-key setup, explicit active state,
+  per-monitor server-notification assignments, server-backed group membership and
+  existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
+  server errors, and no raw JSON surface. Saved SFTP secrets are never prefilled;
+  blank fields retain them and replacements are masked by default.
 - `.../ui/monitors/MaintenanceScreen.kt` - native maintenance list and typed editor
   for all six Kuma strategies, explicit resolved/configured timezone fields,
   affected monitors, pause/resume, and confirmed deletion.

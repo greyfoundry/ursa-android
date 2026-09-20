@@ -277,7 +277,7 @@ class KumaClient(
         return KumaParse.tagDefinitions(json)
     }
 
-    /** Creates a supported monitor or safely patches common fields on any known Kuma 2.5.3 type. */
+    /** Creates a supported monitor or safely patches typed fields on any known Kuma 2.5.5 type. */
     suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult {
         MonitorDraftCodec.validate(draft)?.let { error ->
             return MonitorMutationResult(false, message = error.name)

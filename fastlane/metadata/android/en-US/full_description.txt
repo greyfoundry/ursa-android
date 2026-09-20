@@ -13,8 +13,9 @@ Features:
 * Multiple encrypted server connections with password/TOTP or imported sessions,
   optional self-signed TLS, and up to eight custom access headers for Pangolin,
   Cloudflare Access, and similar reverse proxies.
-* Create and safely edit common monitor settings, assign notification providers,
-  manage groups/tags, run confirmed bulk pause/resume, and manage maintenance.
+* Create and safely edit common monitor settings, including SFTP password or
+  private-key access, assign notification providers, manage groups/tags, run
+  confirmed bulk pause/resume, and manage maintenance.
 * UnifiedPush alerts through a distributor you choose, including per-monitor modes,
   severity, quiet hours, delays, repeats, acknowledge/snooze, and managed Kuma setup.
 * Slow-response and certificate-expiry alerts generated locally on your device.

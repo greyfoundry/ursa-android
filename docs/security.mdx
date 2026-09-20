@@ -147,10 +147,13 @@ object is held only for the acknowledgement round trip, never persisted or logge
 and only its `notificationIDList` is changed.
 
 Monitor editing follows the same bounded full-object round trip. The UI receives
-only common typed fields; the freshly fetched raw object, including advanced or
-sensitive fields, remains inside the network adapter, is never persisted or logged,
-and is patched without dropping unknown fields. Deletion requires an explicit
-named-target confirmation, with group-child removal as a separate opt-in.
+only typed fields; the freshly fetched raw object, including advanced or sensitive
+fields, remains inside the network adapter, is never persisted or logged, and is
+patched without dropping unknown fields. For SFTP, existing passwords, private keys,
+and passphrases become presence flags before UI state is created. Replacement values
+are masked by default, held only in memory, and applied only on save; changing the
+authentication method clears credentials for the previous method. Deletion requires
+an explicit named-target confirmation, with group-child removal as a separate opt-in.
 Notification assignment exposes only provider ID, display name, type, and default
 flag; the double-encoded provider configuration (including passwords, tokens, and
 destinations) is discarded inside the parser and never reaches UI state.
