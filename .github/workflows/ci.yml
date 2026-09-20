@@ -50,15 +50,23 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
-      - name: Assemble debug, test, lint
-        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --stacktrace --no-daemon
+      - name: Assemble, test, and lint both phone distributions
+        run: |
+          ./gradlew \
+            :app:assembleFdroidDebug \
+            :app:assembleGithubDebug \
+            :app:testFdroidDebugUnitTest \
+            :app:testGithubDebugUnitTest \
+            :app:lintFdroidDebug \
+            :app:lintGithubDebug \
+            --stacktrace --no-daemon
 
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: lint-report
-          path: app/build/reports/lint-results-debug.html
+          path: app/build/reports/lint-results-*Debug.html
           if-no-files-found: ignore
 
   fdroid:
@@ -91,12 +99,12 @@ jobs:
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Build F-Droid-compatible release APK
-        run: ./gradlew :app:assembleRelease --stacktrace --no-daemon
+        run: ./gradlew :app:assembleFdroidRelease --stacktrace --no-daemon
 
       - name: Upload release APK
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: fdroid-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/fdroid/release/app-fdroid-release.apk
           if-no-files-found: error

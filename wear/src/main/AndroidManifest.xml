@@ -14,10 +14,6 @@
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
         android:usesCleartextTraffic="true">
 
-        <uses-library
-            android:name="com.google.android.wearable"
-            android:required="false" />
-
         <!-- Standalone: the watch app works without a phone companion. Network calls
              are routed through the phone transparently by Wear OS when needed. -->
         <meta-data
@@ -52,18 +48,6 @@
                     android:pathPrefix="/monitor/" />
             </intent-filter>
         </activity>
-
-        <service
-            android:name=".WearSessionListenerService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-                <data
-                    android:scheme="wear"
-                    android:host="*"
-                    android:path="/ursa/session/v1" />
-            </intent-filter>
-        </service>
 
         <service
             android:name=".StatusTileService"

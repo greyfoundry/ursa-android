@@ -20,7 +20,7 @@ android {
     }
 
     // Release signing mirrors the app module: the keystore from CI secrets when present,
-    // otherwise the debug key so local `assembleRelease` still produces an installable APK.
+    // otherwise the debug key so local flavor release builds remain installable.
     signingConfigs {
         create("release") {
             System.getenv("ANDROID_KEYSTORE_PATH")?.let { path ->
@@ -43,6 +43,16 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("fdroid") {
+            dimension = "distribution"
+        }
+        create("github") {
+            dimension = "distribution"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -58,12 +68,12 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
 
-    // Wear surfaces plus the Data Layer receiver used for explicit phone pairing.
+    // Wear surfaces. The GitHub flavor adds the Data Layer receiver dependency.
     implementation(libs.androidx.wear.tiles)
     implementation(libs.androidx.wear.protolayout)
     implementation(libs.androidx.wear.protolayout.material)
     implementation(libs.androidx.wear.watchface.complications.data.source.ktx)
-    implementation(libs.play.services.wearable)
+    add("githubImplementation", libs.play.services.wearable)
     implementation(libs.guava) // ListenableFuture for TileService responses
 
     // networking: Ktor to poll a public Kuma status page (no auth, no GMS)

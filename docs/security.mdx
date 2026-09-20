@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-19
+last-updated: 2026-09-20
 owner: astoris
 status: in-flux
 ---
@@ -204,8 +204,9 @@ the server URL, token, and up to eight CR/LF-safe access headers are encrypted t
 with a Keystore-backed Tink AEAD. They are excluded from backup and never logged or
 rendered. Pairing is confirmed on the phone, credentials are never entered on-watch,
 and self-signed connections are refused because their session-only certificate trust
-cannot be transferred safely. The GitHub phone build enables this sender explicitly;
-the default F-Droid phone dependency graph contains no Play Services.
+cannot be transferred safely. The GitHub flavor enables this sender explicitly. The
+F-Droid phone and Wear flavors contain no Play Services source, manifest declarations,
+or dependencies.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; Dependabot checks

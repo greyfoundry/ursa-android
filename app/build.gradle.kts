@@ -5,14 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-val wearBridgeEnabled = providers.gradleProperty("ursaWearBridge")
-    .map { it.toBooleanStrictOrNull() == true }
-    .orElse(false)
-
-if (wearBridgeEnabled.get()) {
-    layout.buildDirectory.set(layout.projectDirectory.dir("build-wear-bridge"))
-}
-
 android {
     namespace = "dev.astoris.ursa"
     compileSdk = 37
@@ -29,7 +21,7 @@ android {
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise
-    // falls back to the debug key so local `assembleRelease` still produces an
+    // falls back to the debug key so local flavor release builds still produce an
     // installable APK. See docs/infrastructure/deployment.mdx and release.yml.
     signingConfigs {
         create("release") {
@@ -53,6 +45,16 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("fdroid") {
+            dimension = "distribution"
+        }
+        create("github") {
+            dimension = "distribution"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -62,10 +64,8 @@ android {
         compose = true
     }
 
-    if (wearBridgeEnabled.get()) {
-        sourceSets.named("main") {
-            kotlin.directories.add("src/wearBridge/java")
-        }
+    sourceSets.named("github") {
+        kotlin.directories.add("src/github/java")
     }
 
     // F-Droid rejects the AGP "Dependency metadata" signing block that Google adds to
@@ -128,9 +128,7 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.json)
 
-    if (wearBridgeEnabled.get()) {
-        implementation(libs.play.services.wearable)
-    }
+    add("githubImplementation", libs.play.services.wearable)
 
     debugImplementation(libs.androidx.ui.tooling)
 
