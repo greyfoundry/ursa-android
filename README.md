@@ -61,8 +61,9 @@ whenever you pull your phone out.
   between them. Custom access headers support Pangolin, Cloudflare Access, and other
   reverse-proxy gates, with sensitive values encrypted on-device.
 - ⏯️ **Manage without the browser** - create and safely edit common monitor settings,
-  assign groups, tags, and notification providers, run bulk pause/resume, and manage
-  all six maintenance strategies.
+  configure SFTP monitors with password or private-key access, assign groups, tags,
+  and notification providers, run bulk pause/resume, and manage all six maintenance
+  strategies.
 - 🔑 **Login that sticks** - username/password and two-factor (TOTP), with a session
   that heals itself when your connection drops.
 - 🌐 **Public status pages** - check a shared status page without logging in at all.

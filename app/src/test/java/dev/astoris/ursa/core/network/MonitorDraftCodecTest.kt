@@ -5,6 +5,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,6 +18,7 @@ class MonitorDraftCodecTest {
         assertEquals(34, keys.size)
         assertEquals(keys.size, keys.distinct().size)
         assertTrue(keys.containsAll(listOf("http", "globalping", "rabbitmq", "sftp", "oracledb", "gamedig")))
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "sftp" })
     }
 
     @Test
@@ -60,7 +62,7 @@ class MonitorDraftCodecTest {
             """{
                 "id":12,"type":"sftp","name":"Old SFTP","description":"before",
                 "hostname":"files.internal","port":22,"interval":60,"retryInterval":60,
-                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "resendInterval":0,"maxretries":0,"active":false,"notificationIDList":{},
                 "sshAuthMethod":"privateKey","sshUsername":"monitor-user",
                 "sshPassword":"fallback-secret","sshPrivateKey":"private-key-data",
                 "sshPassphrase":"key-secret","sftpPath":"/incoming/health.txt"
@@ -71,6 +73,17 @@ class MonitorDraftCodecTest {
             endpoint = "files.example.net",
             port = 2222,
         )
+
+        assertEquals("monitor-user", draft.sftpUsername)
+        assertEquals("/incoming/health.txt", draft.sftpPath)
+        assertEquals(SftpAuthMethod.PRIVATE_KEY, draft.sftpAuthMethod)
+        assertEquals("", draft.sftpPassword)
+        assertEquals("", draft.sftpPrivateKey)
+        assertEquals("", draft.sftpPassphrase)
+        assertTrue(draft.sftpHasSavedPassword)
+        assertTrue(draft.sftpHasSavedPrivateKey)
+        assertTrue(draft.sftpHasSavedPassphrase)
+        assertFalse(draft.active)
 
         val updated = MonitorDraftCodec.applyToExisting(raw, draft)
 
@@ -83,6 +96,94 @@ class MonitorDraftCodecTest {
         assertEquals("private-key-data", updated["sshPrivateKey"]!!.jsonPrimitive.content)
         assertEquals("key-secret", updated["sshPassphrase"]!!.jsonPrimitive.content)
         assertEquals("/incoming/health.txt", updated["sftpPath"]!!.jsonPrimitive.content)
+        assertFalse(updated["active"]!!.jsonPrimitive.content.toBoolean())
+    }
+
+    @Test
+    fun newSftpPayloadSupportsPasswordAuthentication() {
+        val draft = MonitorDraft.create("sftp").copy(
+            name = "Files",
+            endpoint = "files.example.net",
+            sftpUsername = "monitor",
+            sftpPassword = "password with spaces",
+            sftpPath = "/health/ready.txt",
+        )
+
+        assertEquals(null, MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals("sftp", payload["type"]!!.jsonPrimitive.content)
+        assertEquals("files.example.net", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals(22, payload["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals(10, payload["timeout"]!!.jsonPrimitive.content.toInt())
+        assertEquals("password", payload["sshAuthMethod"]!!.jsonPrimitive.content)
+        assertEquals("monitor", payload["sshUsername"]!!.jsonPrimitive.content)
+        assertEquals("password with spaces", payload["sshPassword"]!!.jsonPrimitive.content)
+        assertEquals("", payload["sshPrivateKey"]!!.jsonPrimitive.content)
+        assertEquals("", payload["sshPassphrase"]!!.jsonPrimitive.content)
+        assertEquals("/health/ready.txt", payload["sftpPath"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun newSftpPayloadSupportsPrivateKeyAuthentication() {
+        val draft = MonitorDraft.create("sftp").copy(
+            name = "Files",
+            endpoint = "files.example.net",
+            sftpAuthMethod = SftpAuthMethod.PRIVATE_KEY,
+            sftpUsername = "monitor",
+            sftpPrivateKey = "-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----",
+            sftpPassphrase = "key secret",
+        )
+
+        assertEquals(null, MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals("privateKey", payload["sshAuthMethod"]!!.jsonPrimitive.content)
+        assertEquals("", payload["sshPassword"]!!.jsonPrimitive.content)
+        assertTrue(payload["sshPrivateKey"]!!.jsonPrimitive.content.startsWith("-----BEGIN"))
+        assertEquals("key secret", payload["sshPassphrase"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun changingSftpAuthenticationReplacesOnlySubmittedSecrets() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":12,"type":"sftp","name":"SFTP","hostname":"files.internal","port":22,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"sshAuthMethod":"privateKey","sshUsername":"monitor",
+                "sshPassword":"old-password","sshPrivateKey":"old-key","sshPassphrase":"old-passphrase"
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!.copy(
+            sftpAuthMethod = SftpAuthMethod.PASSWORD,
+            sftpPassword = "new-password",
+        )
+
+        val updated = MonitorDraftCodec.applyToExisting(raw, draft)
+
+        assertEquals("password", updated["sshAuthMethod"]!!.jsonPrimitive.content)
+        assertEquals("new-password", updated["sshPassword"]!!.jsonPrimitive.content)
+        assertEquals("", updated["sshPrivateKey"]!!.jsonPrimitive.content)
+        assertEquals("", updated["sshPassphrase"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun replacingSftpPrivateKeyDoesNotReuseOldPassphrase() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":12,"type":"sftp","name":"SFTP","hostname":"files.internal","port":22,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"sshAuthMethod":"privateKey","sshUsername":"monitor",
+                "sshPrivateKey":"old-key","sshPassphrase":"old-passphrase"
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!.copy(sftpPrivateKey = "new-key")
+
+        val updated = MonitorDraftCodec.applyToExisting(raw, draft)
+
+        assertEquals("new-key", updated["sshPrivateKey"]!!.jsonPrimitive.content)
+        assertEquals("", updated["sshPassphrase"]!!.jsonPrimitive.content)
+        assertFalse(draft.sftpClearSavedPassphrase)
     }
 
     @Test
@@ -119,6 +220,18 @@ class MonitorDraftCodecTest {
         assertEquals(
             MonitorDraftError.PORT_REQUIRED,
             MonitorDraftCodec.validate(MonitorDraft.create("port").copy(name = "SSH", endpoint = "host")),
+        )
+        val sftp = MonitorDraft.create("sftp").copy(name = "SFTP", endpoint = "host")
+        assertEquals(MonitorDraftError.SFTP_USERNAME_REQUIRED, MonitorDraftCodec.validate(sftp))
+        assertEquals(
+            MonitorDraftError.SFTP_PASSWORD_REQUIRED,
+            MonitorDraftCodec.validate(sftp.copy(sftpUsername = "monitor")),
+        )
+        assertEquals(
+            MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED,
+            MonitorDraftCodec.validate(
+                sftp.copy(sftpUsername = "monitor", sftpAuthMethod = SftpAuthMethod.PRIVATE_KEY),
+            ),
         )
     }
 }

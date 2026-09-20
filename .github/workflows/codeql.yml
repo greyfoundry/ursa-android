@@ -41,7 +41,7 @@ jobs:
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Build for analysis
-        run: ./gradlew clean assembleDebug --rerun-tasks --no-build-cache --stacktrace --no-daemon
+        run: ./gradlew clean :app:assembleFdroidDebug :app:assembleGithubDebug :wear:assembleFdroidDebug :wear:assembleGithubDebug --rerun-tasks --no-build-cache --stacktrace --no-daemon
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0

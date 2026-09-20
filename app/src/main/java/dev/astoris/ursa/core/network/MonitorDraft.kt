@@ -50,7 +50,13 @@ object MonitorTypeCatalog {
         MonitorTypeOption("sip-options", "SIP options ping"),
         MonitorTypeOption("smtp", "SMTP"),
         MonitorTypeOption("snmp", "SNMP"),
-        MonitorTypeOption("sftp", "SFTP", MonitorEndpointKind.HOST_PORT, defaultPort = 22),
+        MonitorTypeOption(
+            "sftp",
+            "SFTP",
+            MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            defaultPort = 22,
+        ),
         MonitorTypeOption("tailscale-ping", "Tailscale ping"),
         MonitorTypeOption("websocket-upgrade", "WebSocket upgrade", MonitorEndpointKind.URL),
         MonitorTypeOption("sqlserver", "Microsoft SQL Server"),
@@ -69,6 +75,16 @@ object MonitorTypeCatalog {
     fun find(type: String): MonitorTypeOption? = all.firstOrNull { it.key == type }
 }
 
+enum class SftpAuthMethod(val wireValue: String) {
+    PASSWORD("password"),
+    PRIVATE_KEY("privateKey");
+
+    companion object {
+        fun fromWire(value: String?): SftpAuthMethod =
+            entries.firstOrNull { it.wireValue == value } ?: PASSWORD
+    }
+}
+
 data class MonitorDraft(
     val id: Int? = null,
     val type: String = "http",
@@ -84,6 +100,17 @@ data class MonitorDraft(
     val notificationIds: Set<Int> = emptySet(),
     val parentId: Int? = null,
     val tagAssignments: List<MonitorTagAssignment> = emptyList(),
+    val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
+    val sftpUsername: String = "",
+    val sftpPassword: String = "",
+    val sftpPrivateKey: String = "",
+    val sftpPassphrase: String = "",
+    val sftpPath: String = "",
+    val sftpOriginalAuthMethod: SftpAuthMethod? = null,
+    val sftpHasSavedPassword: Boolean = false,
+    val sftpHasSavedPrivateKey: Boolean = false,
+    val sftpHasSavedPassphrase: Boolean = false,
+    val sftpClearSavedPassphrase: Boolean = false,
 ) {
     val isNew: Boolean get() = id == null
 
@@ -107,6 +134,9 @@ enum class MonitorDraftError {
     PORT_REQUIRED,
     INVALID_INTERVAL,
     INVALID_RETRIES,
+    SFTP_USERNAME_REQUIRED,
+    SFTP_PASSWORD_REQUIRED,
+    SFTP_PRIVATE_KEY_REQUIRED,
 }
 
 object MonitorDraftCodec {
@@ -125,13 +155,26 @@ object MonitorDraftCodec {
             retryIntervalSeconds = raw.int("retryInterval") ?: 60,
             resendIntervalSeconds = raw.int("resendInterval") ?: 0,
             maxRetries = raw.int("maxretries") ?: 0,
-            active = raw["active"]?.jsonPrimitive?.booleanOrNull ?: raw.int("active") != 0,
+            active = raw["active"]?.jsonPrimitive?.booleanOrNull
+                ?: raw.int("active")?.let { it != 0 }
+                ?: true,
             notificationIds = (raw["notificationIDList"] as? JsonObject)?.entries
                 ?.mapNotNull { (key, value) ->
                     key.toIntOrNull()?.takeIf { value.jsonPrimitive.booleanOrNull == true }
                 }?.toSet().orEmpty(),
             parentId = raw.int("parent"),
             tagAssignments = KumaParse.tagAssignments(raw),
+            sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
+            sftpUsername = raw.string("sshUsername").orEmpty(),
+            sftpPath = raw.string("sftpPath").orEmpty(),
+            sftpOriginalAuthMethod = if (type == "sftp") {
+                SftpAuthMethod.fromWire(raw.string("sshAuthMethod"))
+            } else {
+                null
+            },
+            sftpHasSavedPassword = raw.string("sshPassword")?.isNotEmpty() == true,
+            sftpHasSavedPrivateKey = raw.string("sshPrivateKey")?.isNotEmpty() == true,
+            sftpHasSavedPassphrase = raw.string("sshPassphrase")?.isNotEmpty() == true,
         )
     }
 
@@ -150,6 +193,25 @@ object MonitorDraftCodec {
         }
         if (option.endpointKind == MonitorEndpointKind.HOST_PORT && draft.port !in 1..65535) {
             return MonitorDraftError.PORT_REQUIRED
+        }
+        if (draft.type == "sftp") {
+            if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
+            when (draft.sftpAuthMethod) {
+                SftpAuthMethod.PASSWORD -> {
+                    val canKeepSaved = draft.sftpOriginalAuthMethod == SftpAuthMethod.PASSWORD &&
+                        draft.sftpHasSavedPassword
+                    if (draft.sftpPassword.isEmpty() && !canKeepSaved) {
+                        return MonitorDraftError.SFTP_PASSWORD_REQUIRED
+                    }
+                }
+                SftpAuthMethod.PRIVATE_KEY -> {
+                    val canKeepSaved = draft.sftpOriginalAuthMethod == SftpAuthMethod.PRIVATE_KEY &&
+                        draft.sftpHasSavedPrivateKey
+                    if (draft.sftpPrivateKey.isBlank() && !canKeepSaved) {
+                        return MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED
+                    }
+                }
+            }
         }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
             return MonitorDraftError.INVALID_INTERVAL
@@ -170,6 +232,7 @@ object MonitorDraftCodec {
         values["notificationIDList"] = notificationIdObject(draft.notificationIds)
         values["parent"] = draft.parentId?.let(::JsonPrimitive) ?: JsonNull
         applyEndpoint(values, draft)
+        applySftp(values, draft, raw)
         return JsonObject(values)
     }
 
@@ -203,11 +266,12 @@ object MonitorDraftCodec {
             put("rabbitmqNodes", JsonArray(emptyList()))
             put("conditions", JsonArray(emptyList()))
             put("active", draft.active)
-            put("timeout", if (draft.type == "ping") 10 else 48)
+            put("timeout", if (draft.type in setOf("ping", "sftp")) 10 else 48)
             put("manual_status", 1)
             if (draft.type == "push") put("pushToken", UUID.randomUUID().toString().replace("-", ""))
         }.toMutableMap()
         applyEndpoint(mutable, draft)
+        applySftp(mutable, draft)
         return JsonObject(mutable)
     }
 
@@ -226,6 +290,65 @@ object MonitorDraftCodec {
         }
         if (MonitorTypeCatalog.find(draft.type)?.endpointKind == MonitorEndpointKind.HOST_PORT) {
             values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
+        }
+    }
+
+    private fun applySftp(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (draft.type != "sftp") return
+        values["sshAuthMethod"] = JsonPrimitive(draft.sftpAuthMethod.wireValue)
+        values["sshUsername"] = JsonPrimitive(draft.sftpUsername.trim())
+        values["sftpPath"] = JsonPrimitive(draft.sftpPath.trim())
+        val sameAuthMethod = existing != null && draft.sftpOriginalAuthMethod == draft.sftpAuthMethod
+        when (draft.sftpAuthMethod) {
+            SftpAuthMethod.PASSWORD -> {
+                val password = if (draft.sftpPassword.isNotEmpty()) {
+                    draft.sftpPassword
+                } else if (
+                    draft.sftpOriginalAuthMethod == SftpAuthMethod.PASSWORD &&
+                    draft.sftpHasSavedPassword
+                ) {
+                    existing?.string("sshPassword").orEmpty()
+                } else {
+                    ""
+                }
+                values["sshPassword"] = JsonPrimitive(password)
+                values["sshPrivateKey"] = JsonPrimitive(
+                    if (sameAuthMethod) existing.string("sshPrivateKey").orEmpty() else "",
+                )
+                values["sshPassphrase"] = JsonPrimitive(
+                    if (sameAuthMethod) existing.string("sshPassphrase").orEmpty() else "",
+                )
+            }
+            SftpAuthMethod.PRIVATE_KEY -> {
+                val replacingKey = draft.sftpPrivateKey.isNotBlank()
+                val privateKey = if (replacingKey) {
+                    draft.sftpPrivateKey
+                } else if (
+                    draft.sftpOriginalAuthMethod == SftpAuthMethod.PRIVATE_KEY &&
+                    draft.sftpHasSavedPrivateKey
+                ) {
+                    existing?.string("sshPrivateKey").orEmpty()
+                } else {
+                    ""
+                }
+                val passphrase = when {
+                    draft.sftpClearSavedPassphrase -> ""
+                    draft.sftpPassphrase.isNotEmpty() -> draft.sftpPassphrase
+                    replacingKey -> ""
+                    draft.sftpOriginalAuthMethod == SftpAuthMethod.PRIVATE_KEY &&
+                        draft.sftpHasSavedPassphrase -> existing?.string("sshPassphrase").orEmpty()
+                    else -> ""
+                }
+                values["sshPassword"] = JsonPrimitive(
+                    if (sameAuthMethod) existing.string("sshPassword").orEmpty() else "",
+                )
+                values["sshPrivateKey"] = JsonPrimitive(privateKey)
+                values["sshPassphrase"] = JsonPrimitive(passphrase)
+            }
         }
     }
 

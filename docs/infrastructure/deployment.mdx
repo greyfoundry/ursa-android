@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-20
 owner: astoris
 status: in-flux
 ---
@@ -13,10 +13,11 @@ How to build, run, and release URSA.
 **build (from project root)**
 ```bash
 export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
-./gradlew.bat assembleDebug --no-daemon     # -> app/build/outputs/apk/debug/app-debug.apk
-./gradlew.bat testDebugUnitTest --no-daemon # unit tests
-./gradlew.bat :app:lintDebug --no-daemon    # must pass before commit
-./gradlew.bat :wear:testDebugUnitTest :wear:lintDebug :wear:assembleDebug --no-daemon
+./gradlew.bat :app:assembleFdroidDebug :app:assembleGithubDebug --no-daemon
+./gradlew.bat :app:testFdroidDebugUnitTest :app:testGithubDebugUnitTest --no-daemon
+./gradlew.bat :app:lintFdroidDebug :app:lintGithubDebug --no-daemon
+./gradlew.bat :wear:testFdroidDebugUnitTest :wear:testGithubDebugUnitTest --no-daemon
+./gradlew.bat :wear:lintFdroidDebug :wear:lintGithubDebug --no-daemon
 ```
 
 **run**
@@ -33,9 +34,9 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
    baseline validator, and immutable Action-pin validator. Merge only after the
    hosted checks pass.
 3. Create the `vX.Y.Z` tag and GitHub release from the release merge commit.
-4. Run the **Release artifacts** workflow with that existing tag. It builds the
-   phone app with `-PursaWearBridge=true` and
-   uploads signed phone and watch APKs, a CycloneDX SBOM, checksums, and provenance.
+4. Run the **Release artifacts** workflow with that existing tag. It uploads the
+   signed GitHub phone APK, the reproducible F-Droid phone APK, the GitHub Wear APK,
+   CycloneDX SBOMs, checksums, and provenance.
 5. Download the assets and verify the checksums, APK signatures/version metadata,
    and attestations. F-Droid discovers the version tag automatically.
 
@@ -51,8 +52,8 @@ export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 - First build downloads Gradle 9.7.1 plus AGP/dependencies - slow once, cached
   after.
 - Use `--no-daemon` in CI/headless to avoid lingering daemons on Windows.
-- Plain `:app:assembleRelease` is the F-Droid-compatible phone build and does not
-  resolve Play Services. Only GitHub release builds enable the optional Wear Data
-  Layer sender. The separately distributed Wear APK includes the receiver.
+- The `fdroid` flavor contains no Play Services declarations, sender, or Wear listener.
+  The `github` flavor enables the optional Wear Data Layer bridge. Build an explicit
+  flavor instead of relying on aggregate tasks when publishing an artifact.
 - lint caches results; if a `local.properties`-style fix seems ignored, rerun
   with `--rerun-tasks`.

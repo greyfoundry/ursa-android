@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-20
 owner: astoris
 status: stable
 ---
@@ -7,9 +7,10 @@ status: stable
 # Publishing URSA on F-Droid
 
 URSA is listed at https://f-droid.org/packages/dev.astoris.ursa/. The phone app's
-default dependency graph is fully FOSS and contains no Firebase, Google Play
-Services, analytics, or hosted relay. The separate Wear APK is distributed through
-GitHub Releases because F-Droid cannot deliver it to a paired watch.
+`fdroid` flavor is fully FOSS and contains no Firebase, Google Play Services,
+analytics, or hosted relay. The release workflow publishes this exact flavor as
+`ursa-fdroid-vX.Y.Z.apk` for reproducible-build comparison. The separate GitHub Wear
+APK is distributed outside F-Droid.
 
 ## Repository surfaces
 
@@ -22,7 +23,8 @@ GitHub Releases because F-Droid cannot deliver it to a paired watch.
 
 1. Update the literal phone and Wear `versionName`/`versionCode` values and add the
    matching Fastlane changelog.
-2. Update `fdroid/dev.astoris.ursa.yml` to the same commit and version.
+2. Update `fdroid/dev.astoris.ursa.yml` to the same commit and version. Its Gradle
+   flavor must be `fdroid`, and `Binaries` must point to the matching F-Droid APK.
 3. Refresh screenshots after UI work. Include the primary monitor view, monitor
    detail, light mode, connection flow, and the open three-dot feature menu.
 4. Follow the manual release checklist in `docs/infrastructure/deployment.mdx` and

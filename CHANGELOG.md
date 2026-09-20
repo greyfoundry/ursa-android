@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## [1.3.3](https://github.com/greyfoundry/ursa-android/compare/v1.3.2...v1.3.3) (2026-09-20)
+
+### Added
+
+* Create and edit Uptime Kuma 2.5.4+ SFTP monitors with password or private-key
+  authentication, optional passphrases, and remote paths.
+* Publish a dedicated reproducible F-Droid APK alongside the standard phone and
+  Wear OS release artifacts.
+
+### Fixed
+
+* Keep paused monitors paused when their settings are edited.
+* Remove Play Services Wearable from the F-Droid build while retaining optional
+  phone-to-watch pairing in the GitHub build.
+
 ## [1.3.2](https://github.com/greyfoundry/ursa-android/compare/v1.3.1...v1.3.2) (2026-09-19)
 
 ### Added

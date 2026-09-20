@@ -2,7 +2,7 @@
 
 Build specification for package `dev.astoris.ursa`.
 
-Status: Implemented and verified against live Uptime Kuma 2.4.x and 2.5.0-2.5.3.
+Status: Implemented and verified against live Uptime Kuma 2.4.x and 2.5.0-2.5.5.
 Stack: Kotlin, Jetpack Compose, native Android, and a separate native Wear OS module.
 
 ## Product boundary
@@ -17,16 +17,17 @@ The implemented phone surface includes:
   opt-in self-signed TLS, and up to eight encrypted access headers per server.
 - Live monitor state, history, charts, certificates, public status pages, offline
   cache, compact and responsive layouts, saved filters, and fleet dashboards.
-- Safe common monitor editing/creation, notification assignment, groups, tags, bulk
-  actions, local discovery, and all six maintenance strategies.
+- Safe common monitor editing/creation, native SFTP password/private-key setup,
+  notification assignment, groups, tags, bulk actions, local discovery, and all six
+  maintenance strategies.
 - UnifiedPush, certificate/slow-response/update notifications, app lock, widgets,
   tile, shortcuts, strict deep links, encrypted backups, and glance display.
 - A separate Wear OS app with dashboard, detail, tile, complications, and optional
   same-signed phone session pairing.
 
-Advanced type-specific monitor creation and Kuma server administration remain out of
-scope. Unknown or sensitive monitor fields stay inside the network adapter and are
-preserved during common edits.
+Apart from SFTP, advanced type-specific monitor creation and Kuma server administration
+remain out of scope. Unknown or sensitive monitor fields stay inside the network
+adapter and are preserved during common edits.
 
 ## Architecture
 

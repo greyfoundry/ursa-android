@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-19
+last-updated: 2026-09-20
 owner: astoris
 status: stable
 ---
@@ -66,9 +66,11 @@ here so the rest of the app sees clean domain models.
 - `ServerWebLink.dashboard/monitor` - preserves a valid reverse-proxy base path while
   rejecting non-HTTP schemes, embedded credentials, traversal, encoded separators,
   queries, and fragments.
-- `MonitorDraftCodec` - maps a full monitor response to a bounded common
-  editor model, patches a newly fetched full object without removing unknown
-  fields, and builds typed defaults for common create flows.
+- `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
+  patches a newly fetched full object without removing unknown fields, and builds
+  typed defaults for common and SFTP create flows. Existing SFTP secret values are
+  reduced to presence flags before the draft reaches UI state; blank replacement
+  fields retain the server value only when the authentication method is unchanged.
 - `KumaParse.notifications` returns only provider ID, name, type, and default
   status. The double-encoded provider configuration is parsed only far enough to
   identify its type and is then discarded.
@@ -109,9 +111,11 @@ here so the rest of the app sees clean domain models.
   while changing only `notificationIDList`. That potentially sensitive raw object
   stays inside the client method and is never persisted or logged.
 - Existing monitor edits also fetch the full object immediately before saving and
-  change only fields present in the typed common editor. Credentials, advanced
-  settings, and fields introduced by future Kuma versions never leave the network
-  adapter and are preserved in the round trip.
+  change only fields present in the typed editor. SFTP supports username, path,
+  password, private key, and optional passphrase replacement without exposing saved
+  secret values. Other credentials, advanced settings, and fields introduced by
+  future Kuma versions never leave the network adapter and are preserved in the
+  round trip.
 - `emitAck` waits for a connected transport inside the same 15-second acknowledgement
   budget. An inaccessible server therefore cannot leave a UI action loading forever,
   and actions are not silently stranded in Socket.IO's pre-connect queue.

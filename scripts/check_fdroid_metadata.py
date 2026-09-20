@@ -33,6 +33,11 @@ def main() -> int:
     version_code = int(gradle_value(r"versionCode\s*=\s*(\d+)", "versionCode"))
 
     require(metadata.get("RepoType") == "git", "RepoType must be git")
+    require(
+        metadata.get("Binaries")
+        == "https://github.com/greyfoundry/ursa-android/releases/download/v%v/ursa-fdroid-v%v.apk",
+        "Binaries must use the dedicated F-Droid release APK",
+    )
     require(metadata.get("AutoUpdateMode") == "Version", "AutoUpdateMode must be Version")
     require(
         str(metadata.get("UpdateCheckMode", "")).startswith("Tags ^v[0-9]"),
@@ -55,7 +60,7 @@ def main() -> int:
     require(build.get("versionCode") == version_code, "Build versionCode differs from app versionCode")
     require(re.fullmatch(r"[0-9a-f]{40}", str(build.get("commit", ""))) is not None, "Build commit must be a full SHA")
     require(build.get("subdir") == "app", "Build subdir must be app")
-    require(build.get("gradle") in ([True], ["yes"]), "Build must use Gradle")
+    require(build.get("gradle") == ["fdroid"], "Build must use the fdroid Gradle flavor")
 
     print(f"F-Droid metadata is consistent with URSA {version_name} ({version_code}).")
     return 0

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-20
 owner: astoris
 status: stable
 ---
@@ -21,13 +21,13 @@ password or session token on the watch.
 - `wear/.../StatusPoll.kt` - unauthenticated Kuma status-page requests.
 - `wear/.../StatusTileService.kt` - five-minute fleet tile.
 - `wear/.../StatusComplicationService.kt` - 15-minute short/long text source.
-- `wear/.../WearSessionListenerService.kt` - exact-path Data Layer receiver.
+- `wear/src/github/.../WearSessionListenerService.kt` - exact-path Data Layer receiver.
 - `wear/.../WearSecurity.kt`, `WearPrefs.kt` - payload bounds, header validation,
   Socket.IO action client, and Keystore-backed Tink encryption.
 
 **phone paths**
 - `app/.../core/wear/WearSessionBridge.kt` - transport-neutral bounded envelope.
-- `app/src/wearBridge/.../PlayWearSessionSender.kt` - optional Data Layer sender.
+- `app/src/github/.../PlayWearSessionSender.kt` - optional Data Layer sender.
 - `app/.../ui/settings/SettingsScreen.kt` - explicit pairing disclosure/action.
 
 ## behaviour and boundaries
@@ -56,10 +56,10 @@ password or session token on the watch.
 
 ## distribution
 
-The Wear APK includes the Wearable Data Layer client and is distributed as a separate
-GitHub release asset. The phone sender is compiled only with
-`-PursaWearBridge=true`, which the GitHub release workflow supplies. The default and
-F-Droid phone builds have no Play Services dependency and hide the pairing control.
+The separately distributed GitHub Wear APK includes the Wearable Data Layer client.
+The `github` phone flavor includes the matching sender. Both `fdroid` flavors exclude
+Play Services source, manifest declarations, and dependencies; the F-Droid phone app
+therefore remains fully functional except for optional phone-to-watch pairing.
 
 ## verification
 

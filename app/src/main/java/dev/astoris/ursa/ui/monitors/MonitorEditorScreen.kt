@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
@@ -45,6 +48,7 @@ import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
+import dev.astoris.ursa.core.network.SftpAuthMethod
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
@@ -242,7 +246,10 @@ private fun MonitorForm(
                 maxDigits = 5,
             )
         }
-        if (draft.isNew && option?.endpointKind != MonitorEndpointKind.NONE) {
+        if (draft.type == "sftp") {
+            SftpFields(draft = draft, onDraftChange = onDraftChange)
+        }
+        if (draft.isNew && option?.endpointKind != MonitorEndpointKind.NONE && draft.type != "sftp") {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
                 stringResource(R.string.monitor_discovery_desc),
@@ -451,6 +458,167 @@ private fun MonitorForm(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SftpFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    var authMenuOpen by remember { mutableStateOf(false) }
+    Text(stringResource(R.string.monitor_sftp_auth_title), style = MaterialTheme.typography.titleSmall)
+    ExposedDropdownMenuBox(expanded = authMenuOpen, onExpandedChange = { authMenuOpen = it }) {
+        OutlinedTextField(
+            value = stringResource(
+                if (draft.sftpAuthMethod == SftpAuthMethod.PASSWORD) {
+                    R.string.monitor_sftp_auth_password
+                } else {
+                    R.string.monitor_sftp_auth_private_key
+                },
+            ),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_sftp_auth_label)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(authMenuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = authMenuOpen, onDismissRequest = { authMenuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.monitor_sftp_auth_password)) },
+                onClick = {
+                    onDraftChange(draft.copy(sftpAuthMethod = SftpAuthMethod.PASSWORD))
+                    authMenuOpen = false
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.monitor_sftp_auth_private_key)) },
+                onClick = {
+                    onDraftChange(
+                        draft.copy(
+                            sftpAuthMethod = SftpAuthMethod.PRIVATE_KEY,
+                            sftpClearSavedPassphrase = false,
+                        ),
+                    )
+                    authMenuOpen = false
+                },
+            )
+        }
+    }
+    OutlinedTextField(
+        value = draft.sftpUsername,
+        onValueChange = { onDraftChange(draft.copy(sftpUsername = it.take(256))) },
+        label = { Text(stringResource(R.string.monitor_sftp_username_label)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    when (draft.sftpAuthMethod) {
+        SftpAuthMethod.PASSWORD -> SensitiveField(
+            value = draft.sftpPassword,
+            onValueChange = { onDraftChange(draft.copy(sftpPassword = it.take(4_096))) },
+            label = stringResource(R.string.monitor_sftp_password_label),
+            saved = draft.sftpOriginalAuthMethod == SftpAuthMethod.PASSWORD && draft.sftpHasSavedPassword,
+        )
+        SftpAuthMethod.PRIVATE_KEY -> {
+            SensitiveField(
+                value = draft.sftpPrivateKey,
+                onValueChange = {
+                    onDraftChange(
+                        draft.copy(
+                            sftpPrivateKey = it.take(65_536),
+                            sftpClearSavedPassphrase = false,
+                        ),
+                    )
+                },
+                label = stringResource(R.string.monitor_sftp_private_key_label),
+                saved = draft.sftpOriginalAuthMethod == SftpAuthMethod.PRIVATE_KEY &&
+                    draft.sftpHasSavedPrivateKey,
+                minLines = 4,
+            )
+            SensitiveField(
+                value = draft.sftpPassphrase,
+                onValueChange = {
+                    onDraftChange(
+                        draft.copy(
+                            sftpPassphrase = it.take(4_096),
+                            sftpClearSavedPassphrase = false,
+                        ),
+                    )
+                },
+                label = stringResource(R.string.monitor_sftp_passphrase_label),
+                saved = draft.sftpOriginalAuthMethod == SftpAuthMethod.PRIVATE_KEY &&
+                    draft.sftpHasSavedPassphrase,
+                savedMessage = stringResource(R.string.monitor_sftp_saved_passphrase),
+                enabled = !draft.sftpClearSavedPassphrase,
+            )
+            if (
+                draft.sftpOriginalAuthMethod == SftpAuthMethod.PRIVATE_KEY &&
+                draft.sftpHasSavedPassphrase &&
+                draft.sftpPrivateKey.isBlank()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = draft.sftpClearSavedPassphrase,
+                        onCheckedChange = {
+                            onDraftChange(
+                                draft.copy(
+                                    sftpPassphrase = "",
+                                    sftpClearSavedPassphrase = it,
+                                ),
+                            )
+                        },
+                    )
+                    Text(stringResource(R.string.monitor_sftp_clear_passphrase))
+                }
+            }
+        }
+    }
+    OutlinedTextField(
+        value = draft.sftpPath,
+        onValueChange = { onDraftChange(draft.copy(sftpPath = it.take(2_048))) },
+        label = { Text(stringResource(R.string.monitor_sftp_path_label)) },
+        supportingText = { Text(stringResource(R.string.monitor_sftp_path_desc)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun SensitiveField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    saved: Boolean,
+    savedMessage: String? = null,
+    minLines: Int = 1,
+    enabled: Boolean = true,
+) {
+    var visible by remember(label) { mutableStateOf(false) }
+    val helper = savedMessage ?: stringResource(R.string.monitor_sftp_saved_secret)
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        supportingText = if (saved && value.isEmpty()) {
+            { Text(helper) }
+        } else {
+            null
+        },
+        trailingIcon = {
+            TextButton(onClick = { visible = !visible }, enabled = enabled) {
+                Text(stringResource(if (visible) R.string.action_hide else R.string.action_show))
+            }
+        },
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        singleLine = minLines == 1,
+        minLines = minLines,
+        maxLines = if (minLines == 1) 1 else 8,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 @Composable
 private fun NumberField(
     value: Int?,
@@ -478,6 +646,9 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.PORT_REQUIRED -> R.string.monitor_error_port
         MonitorDraftError.INVALID_INTERVAL -> R.string.monitor_error_interval
         MonitorDraftError.INVALID_RETRIES -> R.string.monitor_error_retries
+        MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
+        MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
+        MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key
     },
 )
 

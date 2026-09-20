@@ -1,0 +1,5 @@
+URSA 1.3.3 adds native SFTP monitor setup and restores F-Droid compatibility.
+
+* Create and edit SFTP monitors with password or private-key authentication.
+* Keep paused monitors paused when editing their settings.
+* Remove Play Services Wearable from the dedicated F-Droid build.

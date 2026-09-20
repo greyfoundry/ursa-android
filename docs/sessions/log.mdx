@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-19
+last-updated: 2026-09-20
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,37 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-20 - Native SFTP monitor editing
+
+**changed**: Added native SFTP monitor creation and type-specific editing for
+Uptime Kuma 2.5.4 and newer. Password and private-key authentication, optional
+key passphrases, and remote paths use the existing monitor draft and Socket.IO
+round-trip instead of a parallel transport.
+
+**security**: Existing SFTP secrets are represented in UI state only by presence
+flags. Secret fields remain masked, blank edits preserve only the currently active
+saved credential, authentication changes clear the previous credential type, and
+private-key replacement does not silently reuse an old passphrase.
+
+**verification**: Both app flavors assembled and passed unit tests and lint. Live
+Android QA against the official Uptime Kuma 2.5.5 image covered password and
+private-key layouts, creating a password-authenticated SFTP monitor with a remote
+path, preserving server-side secrets during a blank edit, and retaining a paused
+monitor's inactive state.
+
+### 2026-09-20 - Explicit F-Droid and GitHub distributions
+
+**changed**: Replaced the optional build-property Wear bridge with explicit
+`fdroid` and `github` product flavors in both Android modules. Play Services code,
+manifest declarations, and dependencies now exist only in `src/github` and
+`githubImplementation`. The release workflow publishes a distinct F-Droid phone
+APK alongside the GitHub phone and Wear APKs, with an SBOM and provenance covering
+each artifact.
+
+**verification**: Both phone and Wear flavors compile and pass their unit tests.
+Resolved `fdroidReleaseRuntimeClasspath` dependency graphs contain no
+`com.google.android.gms`; both GitHub graphs retain the optional Wear bridge.
 
 ### 2026-09-19 - Kuma 2.5.5 compatibility verification
 
