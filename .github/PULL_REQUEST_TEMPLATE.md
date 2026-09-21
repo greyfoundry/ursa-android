@@ -13,8 +13,9 @@ Closes #
 
 <!-- Unit tests, and how you exercised it on a device/emulator (Android version). -->
 
-- [ ] `./gradlew :app:testDebugUnitTest` passes
-- [ ] `./gradlew :app:lintDebug` passes
+- [ ] `./gradlew :app:testFdroidDebugUnitTest :app:testGithubDebugUnitTest` passes
+- [ ] `./gradlew :app:lintFdroidDebug :app:lintGithubDebug` passes
+- [ ] Wear tests/lint pass if the change affects `:wear` or shared contracts
 - [ ] Tested on device/emulator (state Android version):
 
 ## Checklist

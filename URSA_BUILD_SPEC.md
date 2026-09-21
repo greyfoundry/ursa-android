@@ -60,8 +60,8 @@ snake/camel naming splits, and double-encoded configuration, belongs in
 | Component | Version |
 |---|---|
 | Kotlin | 2.4.10 |
-| Compose BOM | 2026.08.00 |
-| Android Gradle Plugin | 9.3.2 |
+| Compose BOM | 2026.09.00 |
+| Android Gradle Plugin | 9.4.1 |
 | Gradle | 9.7.1 |
 | compileSdk / targetSdk | 37 / 37 |
 | phone minSdk | 26 |
@@ -74,9 +74,11 @@ built-in Kotlin, so modules do not apply `org.jetbrains.kotlin.android`.
 ## Verification gates
 
 ```bash
-./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
-./gradlew.bat :wear:testDebugUnitTest :wear:lintDebug :wear:assembleDebug --no-daemon
-./gradlew.bat -PursaWearBridge=true :app:assembleDebug --no-daemon
+./gradlew.bat :app:testFdroidDebugUnitTest :app:testGithubDebugUnitTest --no-daemon
+./gradlew.bat :app:lintFdroidDebug :app:lintGithubDebug --no-daemon
+./gradlew.bat :wear:testFdroidDebugUnitTest :wear:testGithubDebugUnitTest --no-daemon
+./gradlew.bat :wear:lintFdroidDebug :wear:lintGithubDebug --no-daemon
+./gradlew.bat :app:assembleFdroidRelease --no-daemon
 ```
 
 Live release-candidate QA covers password/TOTP or token login, reconnect, direct

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-20
+last-updated: 2026-09-21
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,21 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-21 - Dependency and documentation refresh
+
+**changed**: Updated CodeQL Action to 4.38.1, Android Gradle Plugin to 9.4.1,
+Compose BOM to 2026.09.00, and Ktor to 3.6.0. Kotlin remains at 2.4.10 because
+the hosted CodeQL extractor selected for the repository rejects 2.4.20; exact
+Dependabot ignores defer only the compiler and its aligned plugins.
+
+**documentation**: Reconciled the build specification, contributor commands,
+architecture and roadmap maps, dependency references, SFTP parity boundary,
+environment guidance, and release instructions with the shipped 1.3.3 tree.
+
+**verification**: Both phone and Wear unit-test and lint tasks passed for the
+`fdroid` and `github` flavors, the F-Droid release assembled, metadata validators
+passed, and hosted CI and CodeQL were green before merge.
 
 ### 2026-09-20 - Native SFTP monitor editing
 

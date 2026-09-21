@@ -35,10 +35,12 @@ Build and test:
 
 ```bash
 export JAVA_HOME="<path-to-jbr>"     # e.g. Android Studio's bundled JBR
-./gradlew assembleDebug              # build the debug APK
-./gradlew :app:testDebugUnitTest     # run unit tests
-./gradlew :app:lintDebug             # run Android Lint (must pass)
-./gradlew :wear:testDebugUnitTest :wear:lintDebug :wear:assembleDebug
+./gradlew :app:assembleFdroidDebug :app:assembleGithubDebug
+./gradlew :app:testFdroidDebugUnitTest :app:testGithubDebugUnitTest
+./gradlew :app:lintFdroidDebug :app:lintGithubDebug
+./gradlew :wear:assembleFdroidDebug :wear:assembleGithubDebug
+./gradlew :wear:testFdroidDebugUnitTest :wear:testGithubDebugUnitTest
+./gradlew :wear:lintFdroidDebug :wear:lintGithubDebug
 ```
 
 To run the app, install the debug APK and point it at an Uptime Kuma instance
@@ -77,7 +79,8 @@ The same check runs in CI, so enabling the hook locally saves a round trip.
   `feat(push): ...`.
 - **Tests**: add or update unit tests for logic changes. Wire-format parsing must
   stay covered.
-- **Lint**: `./gradlew :app:lintDebug` must be clean before you push.
+- **Lint**: both `fdroid` and `github` flavor lint tasks must be clean before you
+  push.
 
 ## Pull requests
 

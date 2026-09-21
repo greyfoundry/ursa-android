@@ -1,7 +1,7 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-21
 owner: astoris
-status: in-flux
+status: stable
 ---
 
 ## what this is
@@ -43,11 +43,13 @@ and the module docs under `docs/modules/`.
   notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,
   Quick Settings tile, app shortcuts, and full i18n. See
   `docs/planning/m4-native-depth.mdx`.
-- Builds green (`assembleDebug`, `lintDebug`); parsers unit-tested. Monitor list and
-  detail flows are smoke-tested on a Pixel 8 emulator. See `docs/sessions/log.mdx`.
+- Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
+  F-Droid release flavor is also built in CI. Monitor list and detail flows are
+  device-tested. See `docs/sessions/log.mdx`.
 - Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
-  partial CP-031 advanced monitor-type creation boundary. This includes fleet
-  incidents/reliability, certificate/domain dashboards, and the filtered global
+  partial CP-031 advanced monitor-type creation boundary. Native SFTP creation and
+  editing are included; less common type-specific forms remain in Kuma. This includes
+  fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
   favourite-monitor live-heartbeat panel, encrypted local incident notes, and a
   redacted native share summary, one-tap managed Kuma Webhook setup for the
@@ -60,8 +62,8 @@ and the module docs under `docs/modules/`.
   offers an opt-in always-on fleet glance display with explicit power and burn-in
   guidance, and the separate Wear OS app now provides an attention-first dashboard,
   monitor details, complications, and optionally paired private actions. Advanced
-  monitor-type-specific create fields remain the open CP-031 boundary. Scoped app
-  deep links, compact rows, connection guidance, a manual update check, advanced
+  monitor-type-specific create fields other than SFTP remain the open CP-031
+  boundary. Scoped app deep links, compact rows, connection guidance, a manual update check, advanced
   filters with saved views, and actionable typed connection failures are complete.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
 - Local reference material (gitignored): `docs/kuma-notes/`, `archive/uptime-kuma/`,

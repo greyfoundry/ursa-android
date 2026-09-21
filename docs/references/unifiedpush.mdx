@@ -1,10 +1,8 @@
 ---
-last-updated: 2026-08-27
+last-updated: 2026-09-21
 owner: astoris
 status: verified
-source: connector 3.3.4 source, read directly from the tagged repo
-        (UnifiedPush/android-connector) on 2026-07-04. Context7 has no UnifiedPush
-        entry; the website docs are redirect-gated, so the source is authoritative.
+source: UnifiedPush/android-connector 3.3.5 source and API
 ---
 
 ## what this is
@@ -26,11 +24,11 @@ Append `?up=1` to the ntfy endpoint so ntfy forwards raw bytes untouched.
 URSA on Android 17 completed in under two seconds. The returning test body used
 the same JSON envelope with null monitor/heartbeat objects and a generated message.
 
-## technical map (verified against connector 3.3.4 source)
+## technical map (verified against connector 3.3.5)
 
 **gradle**
 ```kotlin
-implementation("org.unifiedpush.android:connector:3.3.4")
+implementation("org.unifiedpush.android:connector:3.3.5")
 ```
 
 **register / distributor selection** - `UnifiedPush` is an object with `@JvmStatic`
