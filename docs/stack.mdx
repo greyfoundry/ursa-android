@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-21
 owner: astoris
 status: stable
 ---
@@ -12,10 +12,10 @@ actually resolves, the build wins - update this file.
 
 ## technical map
 
-**toolchain (verified building on this machine 2026-09-04)**
+**toolchain (verified building on this machine 2026-09-21)**
 - Kotlin **2.4.10** (pinned via root `buildscript` classpath - see gotchas)
-- Jetpack Compose - BOM **2026.08.00** (Compose 1.12 line)
-- Android Gradle Plugin **9.3.2**, Gradle **9.7.1**
+- Jetpack Compose - BOM **2026.09.00**
+- Android Gradle Plugin **9.4.1**, Gradle **9.7.1**
 - compileSdk **37**, minSdk **26**, targetSdk **37**
 - JDK: build runs on Android Studio's bundled JBR 21, targets Java/Kotlin 17
 - SDK build-tools 37.0.0; platform android-37.0
@@ -23,13 +23,13 @@ actually resolves, the build wins - update this file.
 **major runtime dependencies**
 - `io.socket:socket.io-client` - real-time Kuma connection. Exclude bundled
   `org.json`. See `docs/references/socketio-java.mdx`.
-- `io.ktor:ktor-client-*` (v3) + `ktor-client-content-negotiation` +
+- `io.ktor:ktor-client-*` (**3.6.0**) + `ktor-client-content-negotiation` +
   `ktor-serialization-kotlinx-json` - REST for public status pages. See
   `docs/references/ktor-client.mdx`.
 - `androidx.datastore:datastore-preferences` + `androidx.datastore:datastore-tink`
   (`AeadSerializer`) - encrypted credential/JWT storage. See
   `docs/references/datastore-tink.mdx`.
-- `org.unifiedpush.android:connector` - FOSS push, no relay. See
+- `org.unifiedpush.android:connector` (**3.3.5**) - FOSS push, no relay. See
   `docs/references/unifiedpush.mdx`.
 
 **depends on**
@@ -41,8 +41,12 @@ actually resolves, the build wins - update this file.
   errors). Keep `org.jetbrains.kotlin.plugin.compose`. AGP bundles an older KGP,
   so Kotlin 2.4.10 is pinned in root `build.gradle.kts`:
   `buildscript { dependencies { classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10") } }`.
+- Kotlin 2.4.20 is intentionally deferred: the hosted CodeQL Kotlin extractor
+  currently rejects that version. Dependabot ignores only 2.4.20 for the compiler,
+  Compose plugin, and serialization plugin so those three remain aligned.
 - The build omits an explicit Kotlin `jvmTarget`; AGP aligns Kotlin compilation
   to the Java 17 `compileOptions` boundary.
-- Compose BOM 2026.08.00 resolves Compose 1.12 and requires compileSdk 37.
+- Compose BOM 2026.09.00 requires compileSdk 37.
 - Kotlin 2.4 rejects Gradle 9.1; the wrapper is pinned to 9.7.1.
-- Build command: `JAVA_HOME` = JBR, then `./gradlew.bat assembleDebug --no-daemon`.
+- Build commands target explicit `fdroid` or `github` variants; do not rely on an
+  ambiguous aggregate variant when producing an artifact.

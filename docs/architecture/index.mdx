@@ -1,7 +1,7 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-21
 owner: astoris
-status: in-flux
+status: stable
 ---
 
 ## what this is
@@ -27,7 +27,7 @@ distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──�
 core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhook provider
 ```
 
-**layers (M1 implemented unless noted)**
+**layers**
 - `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) -
   see `docs/modules/network.mdx`.
 - `core.storage` → `.../core/storage/` (ConnectionStore, encrypted caches,

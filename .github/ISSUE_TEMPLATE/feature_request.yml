@@ -5,9 +5,10 @@ body:
   - type: markdown
     attributes:
       value: |
-        URSA follows a focused roadmap (viewer -> actions -> push). Please check the
-        README and existing issues first. Ideas that broaden scope may be deferred,
-        but we still want to hear them.
+        URSA is a focused native companion for monitoring and incident response.
+        Please check the README, public roadmap, and existing issues first. Broad
+        server-administration features may be deferred, but we still want to hear
+        the underlying use case.
 
   - type: checkboxes
     id: preflight

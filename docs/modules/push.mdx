@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-21
 owner: astoris
 status: stable
 ---
@@ -64,7 +64,7 @@ connection: push works while the app is closed.
   create/update/test/remove actions and per-monitor alert-mode state.
 
 **depends on**
-- `org.unifiedpush.android:connector:3.3.4` (excludes JVM `tink`; we ship
+- `org.unifiedpush.android:connector:3.3.5` (excludes JVM `tink`; we ship
   `tink-android`). See `docs/references/unifiedpush.mdx` (verified from source).
 - `androidx.core` (NotificationManagerCompat), `MainActivity` (content intent).
 
@@ -149,7 +149,7 @@ connection: push works while the app is closed.
   incident to the event log.
 - Kuma 2.5.1's Pinglet and SMS Gateway additions are separate outbound providers;
   the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
-  body, verified live through Kuma 2.5.3. URSA should keep the provider-neutral
+  body, verified live through Kuma 2.5.5. URSA should keep the provider-neutral
   Webhook to UnifiedPush path rather than depend on a third-party provider.
 - Managed alerts derive a stable, hashed notification ID from server scope and
   monitor ID, so a new status replaces the old one without colliding across servers.
