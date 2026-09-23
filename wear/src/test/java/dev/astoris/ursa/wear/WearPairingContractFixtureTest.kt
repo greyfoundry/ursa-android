@@ -6,6 +6,13 @@ import org.junit.Test
 
 class WearPairingContractFixtureTest {
 
+    @Test fun released_pairing_transport_identifiers_remain_stable() {
+        assertEquals("/ursa/session/v1", WearPairingPayload.MESSAGE_PATH)
+        assertEquals("ursa_session_receiver", WearPairingPayload.CAPABILITY)
+        assertEquals("pauseMonitor", WearMonitorAction.PAUSE.eventName)
+        assertEquals("resumeMonitor", WearMonitorAction.RESUME.eventName)
+    }
+
     @Test fun released_v1_pairing_payload_remains_readable() {
         val bytes = requireNotNull(
             javaClass.getResource("/fixtures/wear_pairing_v1.json"),

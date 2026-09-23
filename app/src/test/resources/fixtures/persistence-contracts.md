@@ -15,5 +15,10 @@ They contain no production credentials or user data.
 | Widgets | DataStore `ursa_widgets` | encrypted `WidgetConfig` under `config_<widgetId>` and public snapshots under `page_<pageId>` |
 | Wear pairing | SharedPreferences `ursa_wear` | encrypted v1 pairing JSON under `paired_session` |
 
+`remote_mutations_v1.tsv` records every current remote write, its proposed access
+capability, wire event, and known entry points. `intent_contracts_v1.tsv` freezes
+released deep links, notification actions, channel IDs, and shortcut IDs before
+the navigation and access-policy migrations.
+
 Do not update an existing fixture to make a new format pass. Add a new versioned
 fixture and keep the released one as an upgrade input.
