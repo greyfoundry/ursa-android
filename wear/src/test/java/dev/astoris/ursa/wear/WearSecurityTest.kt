@@ -85,4 +85,45 @@ class WearSecurityTest {
         )
         assertNull(WearPairingPayload.parse(ByteArray(20_000)))
     }
+
+    @Test fun version2PairingEnforcesTransferredCapabilities() {
+        val encoded = WearPairingPayload(
+            serverUrl = "https://kuma.example.com",
+            sessionToken = "private-token",
+            serverName = "Restricted",
+            protocolVersion = WearPairingPayload.CURRENT_PROTOCOL_VERSION,
+            policyVersion = WearPairingPayload.CURRENT_POLICY_VERSION,
+            allowedCapabilities = emptySet(),
+        ).encode()
+
+        val decoded = WearPairingPayload.parseVersion2(encoded)
+
+        assertEquals(WearPairingPayload.CURRENT_PROTOCOL_VERSION, decoded?.protocolVersion)
+        assertEquals(WearPairingPayload.CURRENT_POLICY_VERSION, decoded?.policyVersion)
+        assertFalse(requireNotNull(decoded).allows(WearMonitorAction.PAUSE))
+        assertFalse(
+            WearActionConfig(
+                decoded.serverUrl,
+                decoded.sessionToken,
+                decoded.headers,
+                decoded.allowedCapabilities,
+            ).allows(WearMonitorAction.RESUME),
+        )
+        assertNull(WearPairingPayload.parseVersion1(encoded))
+    }
+
+    @Test fun version2RejectsUnknownPolicyAndCapabilities() {
+        assertNull(
+            WearPairingPayload.parseVersion2(
+                """{"protocolVersion":2,"policyVersion":99,"serverUrl":"https://kuma.example.com","sessionToken":"token","allowedCapabilities":[]}"""
+                    .encodeToByteArray(),
+            ),
+        )
+        assertNull(
+            WearPairingPayload.parseVersion2(
+                """{"protocolVersion":2,"policyVersion":1,"serverUrl":"https://kuma.example.com","sessionToken":"token","allowedCapabilities":["UNKNOWN"]}"""
+                    .encodeToByteArray(),
+            ),
+        )
+    }
 }

@@ -240,11 +240,12 @@
     <string name="settings_kiosk_title">Glance display</string>
     <string name="settings_kiosk_desc">Open a clean always-on fleet view for a wall tablet or desk display.</string>
     <string name="settings_wear_pair">Pair Wear OS</string>
-    <string name="settings_wear_desc">Send this server session to the paired URSA watch app.</string>
+    <string name="settings_wear_desc">Send this server session and its allowed actions to the paired URSA watch app.</string>
     <string name="settings_wear_no_session">Sign in to a saved server before pairing.</string>
     <string name="settings_wear_self_signed">Watch actions do not support self-signed server certificates.</string>
+    <string name="settings_wear_cleartext_blocked">HTTP is blocked for this server, so its session cannot be paired.</string>
     <string name="settings_wear_confirm_title">Send private session to your watch?</string>
-    <string name="settings_wear_confirm_body">URSA will send the active server session and any access headers locally to the same signed app on reachable paired watches. The watch encrypts them on receipt. Public monitoring works without this.</string>
+    <string name="settings_wear_confirm_body">URSA will send the active server session, allowed actions, and any access headers locally to the same signed app on reachable paired watches. The watch encrypts them on receipt. Public monitoring works without this.</string>
     <string name="settings_wear_send">Send</string>
     <string name="settings_wear_sending">Looking for your watch…</string>
     <plurals name="settings_wear_sent">
@@ -252,7 +253,15 @@
         <item quantity="other">Sent to %1$d reachable watches.</item>
     </plurals>
     <string name="settings_wear_no_watch">No reachable paired URSA watch was found.</string>
+    <string name="settings_wear_update_required">Update the URSA watch app before pairing a restricted access profile.</string>
     <string name="settings_wear_failed">The watch session could not be sent.</string>
+    <string name="settings_wear_clear">Clear watch session</string>
+    <string name="settings_wear_clear_confirm_title">Clear the private watch session?</string>
+    <string name="settings_wear_clear_confirm_body">URSA will ask reachable paired watches to remove the encrypted server session. An offline or older watch may retain its previous token until it reconnects, is updated, or the token is revoked on Kuma.</string>
+    <plurals name="settings_wear_cleared">
+        <item quantity="one">Clear request sent to %1$d reachable watch.</item>
+        <item quantity="other">Clear request sent to %1$d reachable watches.</item>
+    </plurals>
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>

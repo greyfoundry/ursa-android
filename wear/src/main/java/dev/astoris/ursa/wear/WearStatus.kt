@@ -81,6 +81,7 @@ data class WearActionConfig(
     val serverUrl: String,
     val sessionToken: String,
     val headers: List<WearActionHeader> = emptyList(),
+    val allowedCapabilities: Set<WearAccessCapability> = WearAccessCapability.entries.toSet(),
 ) {
     val normalizedServerUrl: String? get() {
         val uri = safeHttpUri(serverUrl) ?: return null
@@ -97,6 +98,12 @@ data class WearActionConfig(
             normalizedServerUrl != null && headers.size <= MAX_HEADERS &&
             headers.all { it.normalizedOrNull() != null } &&
             headers.map { it.name.trim().lowercase(Locale.ROOT) }.distinct().size == headers.size
+
+    fun allows(action: WearMonitorAction): Boolean = when (action) {
+        WearMonitorAction.PAUSE,
+        WearMonitorAction.RESUME,
+        -> WearAccessCapability.MONITOR_STATE in allowedCapabilities
+    }
 
     companion object {
         const val MAX_TOKEN_LENGTH = 8_192

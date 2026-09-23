@@ -9,6 +9,25 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-23 - Capability-aware Wear pairing
+
+**changed**: Added pairing protocol v2 with explicit protocol/policy versions and
+allowed action capabilities. New watches enforce `MONITOR_STATE` for pause/resume;
+new phones use the released v1 protocol only for exactly-Manage connections on
+legacy-only watches. Restricted profiles require an updated watch instead of being
+silently widened.
+
+**compatibility and revocation**: New watches continue to read released v1 payloads
+as Manage. Settings can send a best-effort clear request, also attempted when the
+active profile is restricted, HTTP is blocked, or the active saved server is removed.
+An offline or old watch may retain a copied Kuma token until reconnect, local data
+clear, token expiry, or server-side revocation; the client policy is not represented
+as credential revocation.
+
+**distribution**: Data Layer implementations and manifest receivers remain confined
+to GitHub source sets. Both F-Droid variants remain free of Play Services code and
+dependencies.
+
 ### 2026-09-23 - Per-connection cleartext policy
 
 **changed**: Added a persisted legacy/allow/deny transport policy. New HTTP server

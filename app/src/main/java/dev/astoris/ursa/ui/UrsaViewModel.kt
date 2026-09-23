@@ -7,8 +7,10 @@ import android.net.NetworkCapabilities
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.core.access.AccessDecision
+import dev.astoris.ursa.core.access.AccessPolicy
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.network.LocalServiceDiscovery
 import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraft
@@ -120,7 +122,9 @@ sealed interface ConnectionTestUiState {
 enum class WearPairingError {
     NO_ACTIVE_SESSION,
     SELF_SIGNED_UNSUPPORTED,
+    CLEARTEXT_BLOCKED,
     NO_REACHABLE_WATCH,
+    WATCH_UPDATE_REQUIRED,
     TRANSFER_FAILED,
 }
 
@@ -128,6 +132,7 @@ sealed interface WearPairingUiState {
     data object Idle : WearPairingUiState
     data object Sending : WearPairingUiState
     data class Success(val watchCount: Int) : WearPairingUiState
+    data class Cleared(val watchCount: Int) : WearPairingUiState
     data class Error(val reason: WearPairingError) : WearPairingUiState
 }
 
@@ -606,6 +611,14 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         customCapabilities: Set<AccessCapability>,
     ) = viewModelScope.launch {
         repo.updateServerAccess(url, profile, customCapabilities)
+        val stateRestricted = AccessPolicy.evaluate(
+            profile = profile,
+            customCapabilities = customCapabilities,
+            required = setOf(AccessCapability.MONITOR_STATE),
+        ) is AccessDecision.Denied
+        if (stateRestricted && store.activeUrl.first() == url) {
+            clearWearPairingBestEffort()
+        }
     }
 
     fun dismissAccessDenial() {
@@ -613,10 +626,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun updateConnectionCleartextPolicy(url: String, policy: CleartextPolicy) =
-        viewModelScope.launch { repo.updateServerCleartextPolicy(url, policy) }
+        viewModelScope.launch {
+            val wasActive = store.activeUrl.first() == url
+            repo.updateServerCleartextPolicy(url, policy)
+            if (wasActive && policy == CleartextPolicy.DENY) clearWearPairingBestEffort()
+        }
 
     fun removeConnection(url: String) {
         viewModelScope.launch {
+            if (store.activeUrl.first() == url) clearWearPairingBestEffort()
             val fallback = repo.removeServer(url)
             OverallStatusService.refreshIfEnabled(getApplication())
             _hasSession.value = fallback?.jwt != null
@@ -1323,6 +1341,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _wearPairing.value = WearPairingUiState.Error(WearPairingError.SELF_SIGNED_UNSUPPORTED)
                 return@launch
             }
+            if (!ConnectionTransportPolicy.allows(connection)) {
+                _wearPairing.value = WearPairingUiState.Error(WearPairingError.CLEARTEXT_BLOCKED)
+                return@launch
+            }
             val transfer = WearSessionTransfer.from(connection)
             if (transfer == null) {
                 _wearPairing.value = WearPairingUiState.Error(WearPairingError.NO_ACTIVE_SESSION)
@@ -1337,11 +1359,38 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 is WearSessionSendResult.Failure -> WearPairingUiState.Error(
                     when (result.reason) {
                         WearSessionSendError.NO_REACHABLE_WATCH -> WearPairingError.NO_REACHABLE_WATCH
+                        WearSessionSendError.WATCH_UPDATE_REQUIRED -> WearPairingError.WATCH_UPDATE_REQUIRED
                         WearSessionSendError.TRANSFER_FAILED -> WearPairingError.TRANSFER_FAILED
                     },
                 )
             }
         }
+    }
+
+    fun clearActiveSessionFromWear() {
+        if (!wearBridgeAvailable || _wearPairing.value == WearPairingUiState.Sending) return
+        viewModelScope.launch {
+            _wearPairing.value = WearPairingUiState.Sending
+            _wearPairing.value = when (
+                val result = withContext(Dispatchers.IO) {
+                    WearSessionBridge.clear(getApplication())
+                }
+            ) {
+                is WearSessionSendResult.Success -> WearPairingUiState.Cleared(result.watchCount)
+                is WearSessionSendResult.Failure -> WearPairingUiState.Error(
+                    when (result.reason) {
+                        WearSessionSendError.NO_REACHABLE_WATCH -> WearPairingError.NO_REACHABLE_WATCH
+                        WearSessionSendError.WATCH_UPDATE_REQUIRED -> WearPairingError.WATCH_UPDATE_REQUIRED
+                        WearSessionSendError.TRANSFER_FAILED -> WearPairingError.TRANSFER_FAILED
+                    },
+                )
+            }
+        }
+    }
+
+    private suspend fun clearWearPairingBestEffort() {
+        if (!wearBridgeAvailable) return
+        withContext(Dispatchers.IO) { WearSessionBridge.clear(getApplication()) }
     }
 
     fun clearWearPairingResult() {

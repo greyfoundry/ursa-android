@@ -4,5 +4,6 @@
         name="android_wear_capabilities"
         tools:ignore="UnusedResources">
         <item>ursa_session_receiver</item>
+        <item>ursa_session_receiver_v2</item>
     </string-array>
 </resources>

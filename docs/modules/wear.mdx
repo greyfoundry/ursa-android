@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-20
+last-updated: 2026-09-23
 owner: astoris
 status: stable
 ---
@@ -40,19 +40,32 @@ password or session token on the watch.
 - SHORT_TEXT and LONG_TEXT complications expose only fleet state. They and the tile
   open the watch app; neither embeds credentials.
 - Private actions use the active saved phone session. Pairing carries the normalized
-  server URL, bounded token, display name, and at most eight validated access headers.
-  Header values reject CR/LF and are never rendered.
+  server URL, bounded token, display name, at most eight validated access headers,
+  and a versioned set of client-side action capabilities. Header values reject CR/LF
+  and are never rendered.
 - The phone uses an ephemeral Data Layer message to reachable nodes advertising the
   exact URSA capability. Wear OS enforces matching package name and signing identity.
   There is no vendor account, relay, persistent DataItem, or cloud copy.
 - The watch validates the 16 KiB envelope again and encrypts the entire session and
   access-header set with AES-GCM under Android Keystore before persistence. Clearing
   pairing removes the ciphertext.
+- Protocol v2 carries policy version 1 and explicit capabilities. Pause/resume is
+  available only with `MONITOR_STATE`. A new watch accepts a released v1 payload as
+  Manage for old-phone compatibility. A new phone sends v1 only to a legacy-only
+  watch when the connection profile is exactly Manage; restricted profiles require
+  an updated v2-capable watch and are never downgraded.
+- Settings exposes a best-effort clear request. Restricting the active profile,
+  blocking its HTTP transport, or removing that active server also sends the request.
+  Reachable updated watches erase their encrypted session immediately.
 - Credentials are never entered on the watch. Servers using URSA's opt-in self-signed
   mode cannot enable watch actions because the phone's in-memory certificate trust
   cannot be transferred safely. Public-page viewing remains available.
 - Message delivery is best-effort. If a session expires or the watch is unreachable,
   pair again from phone Settings.
+- Access profiles reduce accidental URSA actions; they do not scope or revoke the
+  copied Kuma token. An offline or released v1 watch can retain earlier authority
+  until it receives a supported clear request, the app data is cleared, or the Kuma
+  token expires or is revoked.
 
 ## distribution
 
@@ -64,7 +77,8 @@ therefore remains fully functional except for optional phone-to-watch pairing.
 ## verification
 
 Pure tests cover reverse-proxy URLs, status parsing, attention order, metrics copy,
-payload bounds, custom headers, AES-GCM tamper rejection, and action event names.
+v1/v2 pairing fixtures and routing, payload bounds, custom headers, capability
+denials, AES-GCM tamper rejection, and action event names.
 Device QA covers standalone setup, dashboard/detail rendering, manifest registration,
 encrypted watch storage, and live Kuma pause/resume. Two independent AVDs cannot form
 a real Data Layer pair; the phone no-watch failure path and both compiled endpoints are

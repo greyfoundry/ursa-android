@@ -1,0 +1,14 @@
+{
+  "protocolVersion": 2,
+  "policyVersion": 1,
+  "serverUrl": "https://restricted.example.test/base",
+  "sessionToken": "fixture-wear-session-v2",
+  "serverName": "Restricted",
+  "headers": [
+    {
+      "name": "X-Fixture",
+      "value": "fixture-header-v2"
+    }
+  ],
+  "allowedCapabilities": []
+}

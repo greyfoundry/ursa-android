@@ -46,6 +46,7 @@ import dev.astoris.ursa.ui.WearPairingError
 import dev.astoris.ursa.ui.WearPairingUiState
 import dev.astoris.ursa.ui.UpdateCheckUiState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +68,7 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val canDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     var showKioskWarning by remember { mutableStateOf(false) }
     var showWearConfirmation by remember { mutableStateOf(false) }
+    var showWearClearConfirmation by remember { mutableStateOf(false) }
     var showConnectionHelp by remember { mutableStateOf(false) }
     var showUpdates by remember { mutableStateOf(false) }
 
@@ -122,7 +124,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         showWearConfirmation = true
                     },
                     enabled = wearPairing != WearPairingUiState.Sending &&
-                        activeConnection?.jwt?.isNotBlank() == true && activeConnection.insecure.not(),
+                        activeConnection?.jwt?.isNotBlank() == true && activeConnection.insecure.not() &&
+                        ConnectionTransportPolicy.allows(activeConnection),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.fillMaxWidth()) {
@@ -133,6 +136,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     activeConnection == null || activeConnection.jwt.isNullOrBlank() ->
                                         R.string.settings_wear_no_session
                                     activeConnection.insecure -> R.string.settings_wear_self_signed
+                                    !ConnectionTransportPolicy.allows(activeConnection) ->
+                                        R.string.settings_wear_cleartext_blocked
                                     else -> R.string.settings_wear_desc
                                 },
                             ),
@@ -141,6 +146,17 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         )
                         WearPairingResult(wearPairing)
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = {
+                        vm.clearWearPairingResult()
+                        showWearClearConfirmation = true
+                    },
+                    enabled = wearPairing != WearPairingUiState.Sending,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_wear_clear))
                 }
             }
 
@@ -339,6 +355,27 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         )
     }
 
+    if (showWearClearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showWearClearConfirmation = false },
+            title = { Text(stringResource(R.string.settings_wear_clear_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_wear_clear_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showWearClearConfirmation = false
+                        vm.clearActiveSessionFromWear()
+                    },
+                ) { Text(stringResource(R.string.settings_wear_clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWearClearConfirmation = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
     if (showConnectionHelp) {
         AlertDialog(
             onDismissRequest = { showConnectionHelp = false },
@@ -430,11 +467,18 @@ private fun WearPairingResult(state: WearPairingUiState) {
             state.watchCount,
             state.watchCount,
         )
+        is WearPairingUiState.Cleared -> pluralStringResource(
+            R.plurals.settings_wear_cleared,
+            state.watchCount,
+            state.watchCount,
+        )
         is WearPairingUiState.Error -> stringResource(
             when (state.reason) {
                 WearPairingError.NO_ACTIVE_SESSION -> R.string.settings_wear_no_session
                 WearPairingError.SELF_SIGNED_UNSUPPORTED -> R.string.settings_wear_self_signed
+                WearPairingError.CLEARTEXT_BLOCKED -> R.string.settings_wear_cleartext_blocked
                 WearPairingError.NO_REACHABLE_WATCH -> R.string.settings_wear_no_watch
+                WearPairingError.WATCH_UPDATE_REQUIRED -> R.string.settings_wear_update_required
                 WearPairingError.TRANSFER_FAILED -> R.string.settings_wear_failed
             },
         )

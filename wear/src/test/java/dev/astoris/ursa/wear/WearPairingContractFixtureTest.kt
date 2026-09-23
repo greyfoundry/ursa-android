@@ -25,6 +25,22 @@ class WearPairingContractFixtureTest {
         assertEquals("fixture-wear-session", payload.sessionToken)
         assertEquals("Home", payload.serverName)
         assertEquals(listOf(WearActionHeader("X-Fixture", "fixture-header")), payload.headers)
+        assertEquals(WearPairingPayload.LEGACY_PROTOCOL_VERSION, payload.protocolVersion)
+        assertEquals(WearAccessCapability.entries.toSet(), payload.allowedCapabilities)
+        assertEquals(payload, WearPairingPayload.parse(payload.encode()))
+    }
+
+    @Test fun version2_restricted_pairing_fixture_is_fail_closed() {
+        val bytes = requireNotNull(
+            javaClass.getResource("/fixtures/wear_pairing_v2_restricted.json"),
+        ).readBytes()
+
+        val payload = WearPairingPayload.parseVersion2(bytes)
+
+        assertNotNull(payload)
+        assertEquals(WearPairingPayload.CURRENT_PROTOCOL_VERSION, payload!!.protocolVersion)
+        assertEquals(WearPairingPayload.CURRENT_POLICY_VERSION, payload.policyVersion)
+        assertEquals(emptySet<WearAccessCapability>(), payload.allowedCapabilities)
         assertEquals(payload, WearPairingPayload.parse(payload.encode()))
     }
 }

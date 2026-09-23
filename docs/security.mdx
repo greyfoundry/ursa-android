@@ -217,16 +217,20 @@ sees its declared `specialUse` type and free-form subtype; the required foregrou
 permissions are normal/app-op permissions with no runtime data grant. Its ongoing
 notification is both the feature and the platform disclosure. It reuses the encrypted
 saved session only in memory and connects solely to the selected self-hosted server.
-The separate Wear app can receive an explicit, best-effort Data Layer session message
-only on its exact path and capability. Wear OS restricts Data Layer peers to the same
-package and signing identity. The bounded payload is validated again on-watch, then
-the server URL, token, and up to eight CR/LF-safe access headers are encrypted together
-with a Keystore-backed Tink AEAD. They are excluded from backup and never logged or
-rendered. Pairing is confirmed on the phone, credentials are never entered on-watch,
-and self-signed connections are refused because their session-only certificate trust
-cannot be transferred safely. The GitHub flavor enables this sender explicitly. The
-F-Droid phone and Wear flavors contain no Play Services source, manifest declarations,
-or dependencies.
+The separate Wear app can receive explicit, best-effort Data Layer session and clear
+messages only on exact paths and capabilities. Wear OS restricts Data Layer peers to
+the same package and signing identity. The bounded v2 payload includes a policy version
+and allowed action capabilities; it is validated again on-watch before the server URL,
+token, headers, and policy are encrypted together with a Keystore-backed Tink AEAD.
+They are excluded from backup and never logged or rendered. A new watch treats a
+released v1 payload as Manage for compatibility. A restricted profile is never sent
+to a legacy-only watch, and profile restriction triggers a best-effort clear request.
+An offline or old watch can retain a previously copied server-authoritative token until
+it reconnects, its data is cleared, or the token expires or is revoked on Kuma. Pairing
+is confirmed on the phone, credentials are never entered on-watch, and self-signed or
+explicitly HTTP-blocked connections are refused. The GitHub flavor enables this sender
+explicitly. The F-Droid phone and Wear flavors contain no Play Services source,
+manifest declarations, or dependencies.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; Dependabot checks

@@ -79,7 +79,8 @@ class WearMonitorDetailActivity : Activity() {
             root.addView(WearUi.spacer(this, 6))
             root.addView(WearUi.body(this, "Tags · ${monitor.tags.joinToString(" · ")}"))
         }
-        if (WearPrefs.actionConfig(this) != null) {
+        val actionConfig = WearPrefs.actionConfig(this)
+        if (actionConfig?.allows(WearMonitorAction.PAUSE) == true) {
             root.addView(WearUi.spacer(this, 8))
             root.addView(WearUi.button(this, getString(R.string.action_pause)) {
                 confirmAction(monitor, WearMonitorAction.PAUSE)
@@ -87,9 +88,12 @@ class WearMonitorDetailActivity : Activity() {
             root.addView(WearUi.button(this, getString(R.string.action_resume), primary = true) {
                 confirmAction(monitor, WearMonitorAction.RESUME)
             })
-        } else {
+        } else if (actionConfig == null) {
             root.addView(WearUi.spacer(this, 8))
             root.addView(WearUi.body(this, "Pause/resume is off. Pair this watch from URSA Settings on your phone."))
+        } else {
+            root.addView(WearUi.spacer(this, 8))
+            root.addView(WearUi.body(this, "Pause/resume is disabled by this server's phone access profile."))
         }
         root.addView(WearUi.button(this, "Back") { finish() })
     }
