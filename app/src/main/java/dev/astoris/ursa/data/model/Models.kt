@@ -127,6 +127,10 @@ data class ServerConnection(
     val alias: String? = null,
     /** Encrypted with the connection; values are never included in UI summaries or logs. */
     val headers: List<RequestHeader> = emptyList(),
+    /** Client-side guard only; missing in legacy records and therefore defaults to current behaviour. */
+    val accessProfile: AccessProfile = AccessProfile.MANAGE,
+    /** Retained when another profile is selected so a user's custom choice is not destroyed. */
+    val customCapabilities: Set<AccessCapability> = emptySet(),
 ) {
     val displayName: String
         get() = alias?.trim()?.takeIf { it.isNotEmpty() }

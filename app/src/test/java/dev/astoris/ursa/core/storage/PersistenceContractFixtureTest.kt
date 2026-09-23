@@ -7,6 +7,7 @@ import dev.astoris.ursa.core.push.PushAlertTimingCodec
 import dev.astoris.ursa.core.push.PushPendingAlertCodec
 import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushSeverity
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.widget.WidgetConfig
 import dev.astoris.ursa.ui.widget.WidgetSource
@@ -35,6 +36,8 @@ class PersistenceContractFixtureTest {
         assertEquals("fixture-client-secret", connections[2].headers[1].value)
         assertTrue(connections[3].insecure)
         assertNull(connections[3].jwt)
+        assertTrue(connections.all { it.accessProfile == AccessProfile.MANAGE })
+        assertTrue(connections.all { it.customCapabilities.isEmpty() })
     }
 
     @Test fun released_backup_v1_decrypts_with_sessions_headers_and_preferences() {
