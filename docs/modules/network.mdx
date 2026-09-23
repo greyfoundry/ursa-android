@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-20
+last-updated: 2026-09-23
 owner: astoris
 status: stable
 ---
@@ -38,6 +38,9 @@ here so the rest of the app sees clean domain models.
   Android 17 runtime local-network access before an explicit test or connection.
 - `.../core/network/ConnectionFailure.kt` - maps transport/authentication/TLS/version
   failures to bounded user-action categories without exposing sensitive causes.
+- `.../core/access/{AccessPolicy,MutationExecutor}.kt` - evaluates a saved
+  connection's client-side capabilities before any repository or notification
+  action can invoke a remote mutation.
 
 **exports**
 - `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
@@ -77,6 +80,8 @@ here so the rest of the app sees clean domain models.
 - Monitor parsing retains server `parent`, `weight`, and tag-assignment metadata.
   Tag changes use Kuma's relation events after the full monitor save; values are
   retained so removals use the server's exact assignment key.
+- `MutationExecutor.execute(required, block)` - returns a typed completed,
+  denied, or no-active-connection result. A denied block is never invoked.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
@@ -126,6 +131,12 @@ here so the rest of the app sees clean domain models.
 - A failed late polling-to-WebSocket upgrade must not replace an already authenticated
   connected state. The socket itself remains authoritative when an upgrade error races
   successful authentication.
+- Remote monitor, maintenance, bulk, and managed-notification writes enter through
+  `MonitorRepository`'s guarded mutation boundary. The non-exported notification
+  action receiver uses the same evaluator before opening its short-lived socket.
+  Account bootstrap/login is classified separately because it occurs before a
+  saved connection policy exists. Access profiles are a client-side safety guard,
+  not server-side authorization; the Kuma session token remains authoritative.
 - `MonitorRepository.addServerByToken` and `testServerToken` validate imported
   Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
   the socket because Kuma limits them to Prometheus HTTP Basic authentication.

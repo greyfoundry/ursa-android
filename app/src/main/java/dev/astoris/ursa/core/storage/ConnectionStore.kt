@@ -69,6 +69,14 @@ class ConnectionStore(context: Context) {
 
     suspend fun snapshot(): List<ServerConnection> = connections.first()
 
+    /** Reads the active connection and its encrypted record from one DataStore snapshot. */
+    suspend fun activeConnection(): ServerConnection? {
+        val prefs = context.dataStore.data.first()
+        val connections = decode(prefs)
+        val active = prefs[activeUrlKey]
+        return connections.firstOrNull { it.url == active } ?: connections.firstOrNull()
+    }
+
     /** Merge a validated portable backup by URL, preserving local sessions when omitted. */
     suspend fun mergeImported(imported: List<ServerConnection>) {
         context.dataStore.edit { prefs ->

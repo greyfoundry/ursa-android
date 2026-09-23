@@ -5,14 +5,16 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
+import dev.astoris.ursa.core.access.MutationExecution
+import dev.astoris.ursa.core.access.MutationExecutor
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
+import dev.astoris.ursa.data.model.AccessCapability
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -44,18 +46,17 @@ class MonitorActionReceiver : BroadcastReceiver() {
 
     private suspend fun perform(context: Context, id: Int, pause: Boolean) {
         val store = ConnectionStore(context)
-        val conns = store.connections.first()
-        val activeUrl = store.activeUrl.first()
-        val conn = conns.firstOrNull { it.url == activeUrl } ?: conns.firstOrNull()
-        val jwt = conn?.jwt ?: return
-
-        val client = KumaClient(conn.url, conn.insecure, conn.headers)
-        try {
-            client.connect()
-            // loginByToken suspends until the server acks auth, so the pause/resume
-            // that follows is authorized. Bounded so we never hang the receiver.
-            val authed = withTimeoutOrNull(AUTH_TIMEOUT_MS) { client.loginByToken(jwt) } == true
-            if (authed) {
+        val execution = MutationExecutor(store::activeConnection).execute(
+            required = setOf(AccessCapability.MONITOR_STATE),
+        ) { conn ->
+            val jwt = conn.jwt ?: return@execute false
+            val client = KumaClient(conn.url, conn.insecure, conn.headers)
+            try {
+                client.connect()
+                // loginByToken suspends until the server acks auth, so the pause/resume
+                // that follows is authorized. Bounded so we never hang the receiver.
+                val authed = withTimeoutOrNull(AUTH_TIMEOUT_MS) { client.loginByToken(jwt) } == true
+                if (!authed) return@execute false
                 val succeeded = withTimeoutOrNull(ACTION_TIMEOUT_MS) {
                     if (pause) client.pauseMonitor(id) else client.resumeMonitor(id)
                 } == true
@@ -68,10 +69,13 @@ class MonitorActionReceiver : BroadcastReceiver() {
                         kind = if (pause) LocalEventKind.PAUSED else LocalEventKind.RESUMED,
                     )
                 }
+                succeeded
+            } finally {
+                client.disconnect()
             }
-        } finally {
-            client.disconnect()
         }
+        // A stale notification action on a restricted connection is intentionally a no-op.
+        if (execution is MutationExecution.Denied) return
     }
 
     companion object {
