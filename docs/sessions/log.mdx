@@ -28,6 +28,11 @@ tests for released deep links, notification actions, notification channels,
 shortcut identifiers, and Wear transport/action identifiers. Both distribution
 flavours pass the focused compatibility tests.
 
+**large-fleet baseline**: Added deterministic 100, 500, and 1,000-monitor
+fixtures plus a four-server, 1,000-monitor reference fleet. The generator keeps
+IDs, groups, statuses, activity, tags, types, telemetry, and freshness stable so
+future UI and benchmark work compares the same data instead of random samples.
+
 ### 2026-09-21 - Dependency and documentation refresh
 
 **changed**: Updated CodeQL Action to 4.38.1, Android Gradle Plugin to 9.4.1,
