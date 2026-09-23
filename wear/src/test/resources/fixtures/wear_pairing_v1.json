@@ -1,0 +1,11 @@
+{
+  "serverUrl": "https://minimal.example.test",
+  "sessionToken": "fixture-wear-session",
+  "serverName": "Home",
+  "headers": [
+    {
+      "name": "X-Fixture",
+      "value": "fixture-header"
+    }
+  ]
+}
