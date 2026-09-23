@@ -66,6 +66,7 @@ import dev.astoris.ursa.core.update.ReleaseClient
 import dev.astoris.ursa.core.update.UpdateNotifier
 import dev.astoris.ursa.ui.monitors.SavedMonitorView
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -129,8 +130,19 @@ sealed interface WearPairingUiState {
 
 sealed interface ConnectionBackupResult {
     data class Document(val content: String) : ConnectionBackupResult
+    data class Preview(val value: ConnectionBackupPreview) : ConnectionBackupResult
     data class Imported(val count: Int) : ConnectionBackupResult
     data class Error(val reason: BackupError) : ConnectionBackupResult
+}
+
+data class ConnectionBackupPreview(
+    val data: ConnectionBackupData,
+    val addedCount: Int,
+    val updatedCount: Int,
+    val preservedRestrictionCount: Int,
+) {
+    val includesAccessProfiles: Boolean
+        get() = data.payloadVersion >= 2
 }
 
 sealed interface UpdateCheckUiState {
@@ -899,7 +911,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun importConnectionBackup(
+    fun prepareConnectionBackupImport(
         document: String,
         password: String,
         onResult: (ConnectionBackupResult) -> Unit,
@@ -917,24 +929,58 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 is BackupDecodeResult.Error -> onResult(ConnectionBackupResult.Error(decoded.reason))
                 is BackupDecodeResult.Success -> {
                     val data = decoded.data
-                    store.mergeImported(data.connections)
-                    if (!_hasSession.value) {
-                        data.connections.firstOrNull { it.jwt != null }?.let { connection ->
-                            repo.switchTo(connection)
-                            _hasSession.value = true
-                        }
-                    }
-                    DynamicColorStore.setEnabled(getApplication(), data.preferences.dynamicColor)
-                    alertStore.setEnabled(data.preferences.slowAlertsEnabled)
-                    alertStore.setGlobalThresholdMs(data.preferences.slowAlertThresholdMs)
-                    alertStore.mergePerMonitorThresholds(data.preferences.perMonitorThresholds)
-                    data.preferences.favoritesByServer.forEach { (url, ids) ->
-                        monitorPreferenceStore.mergeFavorites(url, ids)
-                    }
-                    _slowAlertEnabled.value = data.preferences.slowAlertsEnabled
-                    _slowThresholdMs.value = data.preferences.slowAlertThresholdMs
-                    onResult(ConnectionBackupResult.Imported(data.connections.size))
+                    val existing = store.snapshot()
+                    val existingUrls = existing.mapTo(mutableSetOf()) { it.url }
+                    val importedUrls = data.connections.mapTo(mutableSetOf()) { it.url }
+                    val updatedCount = data.connections.count { it.url in existingUrls }
+                    onResult(
+                        ConnectionBackupResult.Preview(
+                            ConnectionBackupPreview(
+                                data = data,
+                                addedCount = data.connections.size - updatedCount,
+                                updatedCount = updatedCount,
+                                preservedRestrictionCount = existing.count { connection ->
+                                    connection.url in importedUrls &&
+                                        connection.accessProfile != AccessProfile.MANAGE
+                                },
+                            ),
+                        ),
+                    )
                 }
+            }
+        }
+    }
+
+    fun applyConnectionBackupImport(
+        preview: ConnectionBackupPreview,
+        restoreAccessProfiles: Boolean,
+        onResult: (ConnectionBackupResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val data = preview.data
+            try {
+                store.mergeImported(
+                    imported = data.connections,
+                    restoreAccessProfiles = restoreAccessProfiles,
+                )
+                if (!_hasSession.value) {
+                    data.connections.firstOrNull { it.jwt != null }?.let { connection ->
+                        repo.switchTo(connection)
+                        _hasSession.value = true
+                    }
+                }
+                DynamicColorStore.setEnabled(getApplication(), data.preferences.dynamicColor)
+                alertStore.setEnabled(data.preferences.slowAlertsEnabled)
+                alertStore.setGlobalThresholdMs(data.preferences.slowAlertThresholdMs)
+                alertStore.mergePerMonitorThresholds(data.preferences.perMonitorThresholds)
+                data.preferences.favoritesByServer.forEach { (url, ids) ->
+                    monitorPreferenceStore.mergeFavorites(url, ids)
+                }
+                _slowAlertEnabled.value = data.preferences.slowAlertsEnabled
+                _slowThresholdMs.value = data.preferences.slowAlertThresholdMs
+                onResult(ConnectionBackupResult.Imported(data.connections.size))
+            } catch (_: Exception) {
+                onResult(ConnectionBackupResult.Error(BackupError.INVALID_CONTENT))
             }
         }
     }

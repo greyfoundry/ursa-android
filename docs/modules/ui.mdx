@@ -137,10 +137,14 @@ navigation library for M1 - the screen set is small and state-driven).
   Private widgets reuse the encrypted monitor cache; neither widget store duplicates
   JWTs or access-header values. Refresh resolves the matching saved connection only
   in memory, and widget deep links accept only saved exact server/page identifiers.
-- Portable backups merge servers by normalized URL. They include connections,
-  access headers, favorites, dynamic-colour choice, and slow-alert preferences;
-  session JWTs require an explicit opt-in. Device-bound lock keys, push endpoints,
-  cached monitor data, and alert cooldown timestamps are never exported.
+- Portable backups merge servers by normalized URL. Payload v2 includes connection
+  access profiles and custom capability selections alongside access headers,
+  favorites, dynamic-colour choice, and slow-alert preferences; session JWTs
+  require an explicit opt-in. Payload v1 remains readable and maps new imports to
+  Manage. A validated dry-run reports additions and updates before the merge.
+  Existing access restrictions are preserved unless the separate restore-access
+  option is enabled. Device-bound lock keys, push endpoints, cached monitor data,
+  and alert cooldown timestamps are never exported.
 - Wear pairing is explicit and available only when the conditional Data Layer sender
   is present. It sends the active JWT and up to eight access headers to reachable
   same-signed watch apps after confirmation. Self-signed connections are refused.

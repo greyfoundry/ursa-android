@@ -1,5 +1,7 @@
 package dev.astoris.ursa.core.storage
 
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import java.net.URI
@@ -14,6 +16,9 @@ import javax.crypto.spec.SecretKeySpec
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 sealed interface BackupDecodeResult {
     data class Success(val data: ConnectionBackupData) : BackupDecodeResult
@@ -25,6 +30,7 @@ enum class BackupError { INVALID_DOCUMENT, WRONG_PASSWORD_OR_DAMAGED, INVALID_CO
 data class ConnectionBackupData(
     val connections: List<ServerConnection>,
     val preferences: PortablePreferences = PortablePreferences(),
+    val payloadVersion: Int = ConnectionBackupCodec.CURRENT_PAYLOAD_VERSION,
 )
 
 @Serializable
@@ -48,15 +54,18 @@ object ConnectionBackupCodec {
     ): String {
         require(password.size >= MIN_PASSWORD_LENGTH)
         require(data.connections.size <= MAX_CONNECTIONS)
-        val portable = PortableBackup(
+        val portable = PortableBackupV2(
+            version = CURRENT_PAYLOAD_VERSION,
             connections = data.connections.map { connection ->
-                PortableConnection(
+                PortableConnectionV2(
                     url = connection.url,
                     username = connection.username,
                     insecure = connection.insecure,
                     alias = connection.alias,
                     headers = connection.headers,
                     sessionToken = connection.jwt.takeIf { includeSessions },
+                    accessProfile = connection.accessProfile,
+                    customCapabilities = connection.customCapabilities,
                 )
             },
             preferences = data.preferences,
@@ -109,10 +118,31 @@ object ConnectionBackupCodec {
         } catch (_: Exception) {
             return BackupDecodeResult.Error(BackupError.INVALID_DOCUMENT)
         }
-        val backup = runCatching {
-            json.decodeFromString<PortableBackup>(plaintext.decodeToString())
+        val plaintextDocument = plaintext.decodeToString()
+        val payloadVersion = runCatching {
+            json.parseToJsonElement(plaintextDocument).jsonObject["version"]
+                ?.jsonPrimitive
+                ?.intOrNull
+                ?: LEGACY_PAYLOAD_VERSION
         }.getOrNull() ?: return BackupDecodeResult.Error(BackupError.INVALID_CONTENT)
-        if (backup.version != PAYLOAD_VERSION || backup.connections.size > MAX_CONNECTIONS) {
+        val backup = when (payloadVersion) {
+            LEGACY_PAYLOAD_VERSION -> runCatching {
+                val legacy = json.decodeFromString<PortableBackupV1>(plaintextDocument)
+                DecodedPortableBackup(
+                    legacy.connections.map { it.toDecodedConnection() },
+                    legacy.preferences,
+                )
+            }.getOrNull()
+            CURRENT_PAYLOAD_VERSION -> runCatching {
+                val current = json.decodeFromString<PortableBackupV2>(plaintextDocument)
+                DecodedPortableBackup(
+                    current.connections.map { it.toDecodedConnection() },
+                    current.preferences,
+                )
+            }.getOrNull()
+            else -> null
+        } ?: return BackupDecodeResult.Error(BackupError.INVALID_CONTENT)
+        if (backup.connections.size > MAX_CONNECTIONS) {
             return BackupDecodeResult.Error(BackupError.INVALID_CONTENT)
         }
         val connections = backup.connections.mapNotNull(::validate)
@@ -124,10 +154,12 @@ object ConnectionBackupCodec {
         if (!validPreferences(backup.preferences, connections.map { it.url }.toSet())) {
             return BackupDecodeResult.Error(BackupError.INVALID_CONTENT)
         }
-        return BackupDecodeResult.Success(ConnectionBackupData(connections, backup.preferences))
+        return BackupDecodeResult.Success(
+            ConnectionBackupData(connections, backup.preferences, payloadVersion),
+        )
     }
 
-    private fun validate(connection: PortableConnection): ServerConnection? {
+    private fun validate(connection: DecodedPortableConnection): ServerConnection? {
         val uri = runCatching { URI(connection.url.trim()) }.getOrNull() ?: return null
         if (uri.scheme?.lowercase() !in setOf("http", "https") || uri.host.isNullOrBlank()) return null
         if (connection.url.length > 2048 || connection.username.length > 256) return null
@@ -144,6 +176,8 @@ object ConnectionBackupCodec {
             insecure = connection.insecure,
             alias = connection.alias?.trim()?.takeIf { it.isNotEmpty() },
             headers = headers,
+            accessProfile = connection.accessProfile,
+            customCapabilities = connection.customCapabilities,
         )
     }
 
@@ -186,25 +220,83 @@ object ConnectionBackupCodec {
     )
 
     @Serializable
-    private data class PortableBackup(
-        val version: Int = PAYLOAD_VERSION,
-        val connections: List<PortableConnection>,
+    private data class PortableBackupV1(
+        val version: Int = LEGACY_PAYLOAD_VERSION,
+        val connections: List<PortableConnectionV1>,
         val preferences: PortablePreferences = PortablePreferences(),
     )
 
     @Serializable
-    private data class PortableConnection(
+    private data class PortableConnectionV1(
         val url: String,
         val username: String,
         val insecure: Boolean,
         val alias: String?,
         val headers: List<RequestHeader>,
         val sessionToken: String? = null,
+    ) {
+        fun toDecodedConnection() = DecodedPortableConnection(
+            url = url,
+            username = username,
+            insecure = insecure,
+            alias = alias,
+            headers = headers,
+            sessionToken = sessionToken,
+            accessProfile = AccessProfile.MANAGE,
+            customCapabilities = emptySet(),
+        )
+    }
+
+    @Serializable
+    private data class PortableBackupV2(
+        val version: Int,
+        val connections: List<PortableConnectionV2>,
+        val preferences: PortablePreferences = PortablePreferences(),
+    )
+
+    @Serializable
+    private data class PortableConnectionV2(
+        val url: String,
+        val username: String,
+        val insecure: Boolean,
+        val alias: String?,
+        val headers: List<RequestHeader>,
+        val sessionToken: String? = null,
+        val accessProfile: AccessProfile,
+        val customCapabilities: Set<AccessCapability>,
+    ) {
+        fun toDecodedConnection() = DecodedPortableConnection(
+            url = url,
+            username = username,
+            insecure = insecure,
+            alias = alias,
+            headers = headers,
+            sessionToken = sessionToken,
+            accessProfile = accessProfile,
+            customCapabilities = customCapabilities,
+        )
+    }
+
+    private data class DecodedPortableBackup(
+        val connections: List<DecodedPortableConnection>,
+        val preferences: PortablePreferences,
+    )
+
+    private data class DecodedPortableConnection(
+        val url: String,
+        val username: String,
+        val insecure: Boolean,
+        val alias: String?,
+        val headers: List<RequestHeader>,
+        val sessionToken: String?,
+        val accessProfile: AccessProfile,
+        val customCapabilities: Set<AccessCapability>,
     )
 
     const val MIN_PASSWORD_LENGTH = 8
+    const val CURRENT_PAYLOAD_VERSION = 2
     private const val FORMAT_VERSION = 1
-    private const val PAYLOAD_VERSION = 1
+    private const val LEGACY_PAYLOAD_VERSION = 1
     private const val ITERATIONS = 210_000
     private const val MIN_ITERATIONS = 100_000
     private const val MAX_ITERATIONS = 1_000_000

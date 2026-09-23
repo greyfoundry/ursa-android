@@ -32,6 +32,14 @@ preserving existing return shapes for current UI callers. Account bootstrap is
 the documented pre-policy exception. Wear enforcement remains a separate
 versioned-pairing slice because existing watches hold a server-authoritative token.
 
+**backup compatibility**: Kept the password-encrypted envelope at v1 and added an
+explicit payload-v2 decoder/encoder carrying access profiles and retained Custom
+capabilities. Released payload-v1 files still decode with the legacy Manage
+default. Import now validates before mutation, shows additions/updates and
+validation counts, and preserves matching local access restrictions unless the
+user enables a separately explained restore option. Static encrypted v1 and v2
+fixtures and pure merge-policy tests pass in both app flavours.
+
 ### 2026-09-23 - Persistence compatibility fixtures
 
 **changed**: Added synthetic, versioned golden fixtures for released connection

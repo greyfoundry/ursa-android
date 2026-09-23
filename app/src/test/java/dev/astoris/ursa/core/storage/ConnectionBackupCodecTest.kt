@@ -1,5 +1,7 @@
 package dev.astoris.ursa.core.storage
 
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import org.junit.Assert.assertEquals
@@ -16,6 +18,11 @@ class ConnectionBackupCodecTest {
         insecure = false,
         alias = "Home",
         headers = listOf(RequestHeader("CF-Access-Client-Id", "client-value")),
+        accessProfile = AccessProfile.CUSTOM,
+        customCapabilities = setOf(
+            AccessCapability.MONITOR_STATE,
+            AccessCapability.MONITOR_EDIT,
+        ),
     )
 
     @Test fun round_trip_excludes_sessions_by_default() {
@@ -38,6 +45,7 @@ class ConnectionBackupCodecTest {
             assertEquals(connection.copy(jwt = null), restored)
             assertNull(restored.jwt)
             assertEquals(preferences, decoded.preferences)
+            assertEquals(ConnectionBackupCodec.CURRENT_PAYLOAD_VERSION, decoded.payloadVersion)
         } finally {
             password.fill('\u0000')
         }

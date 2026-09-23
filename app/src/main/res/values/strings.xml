@@ -158,6 +158,14 @@
     <string name="backup_import_title">Import encrypted backup</string>
     <string name="backup_export_desc">Choose a password for this file. Servers, access headers, favorites, and alert preferences are encrypted.</string>
     <string name="backup_import_desc">Enter the password used when this backup was created. Valid servers are merged by URL.</string>
+    <string name="backup_preview_title">Review import</string>
+    <string name="backup_preview_summary">%1$d new servers · %2$d existing servers</string>
+    <string name="backup_preview_preferences">Alert, appearance, and favorite preferences from this backup will also be merged.</string>
+    <string name="backup_preview_validation">Validated: %1$d ready · 0 skipped · 0 failed</string>
+    <string name="backup_preview_restrictions">Existing restrictions preserved by default: %1$d</string>
+    <string name="backup_restore_access">Restore access profiles</string>
+    <string name="backup_restore_access_desc">Off by default. Existing server restrictions stay unchanged unless you enable this.</string>
+    <string name="backup_restore_access_legacy_desc">This older backup has no access profiles. Enabling this changes existing servers to Manage.</string>
     <string name="backup_password">Backup password</string>
     <string name="backup_confirm_password">Confirm password</string>
     <string name="backup_include_sessions">Include signed-in sessions</string>

@@ -7,6 +7,7 @@ import dev.astoris.ursa.core.push.PushAlertTimingCodec
 import dev.astoris.ursa.core.push.PushPendingAlertCodec
 import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushSeverity
+import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.widget.WidgetConfig
@@ -40,6 +41,28 @@ class PersistenceContractFixtureTest {
         assertTrue(connections.all { it.customCapabilities.isEmpty() })
     }
 
+    @Test fun current_backup_v2_decrypts_access_profiles_explicitly() {
+        val password = "ursa-fixture-password".toCharArray()
+        try {
+            val result = ConnectionBackupCodec.decrypt(fixture("connection_backup_v2.ursa"), password)
+            assertTrue(result is BackupDecodeResult.Success)
+            val data = (result as BackupDecodeResult.Success).data
+            val connection = data.connections.single()
+
+            assertEquals(2, data.payloadVersion)
+            assertEquals("https://restricted.example.test", connection.url)
+            assertEquals("fixture-v2-session", connection.jwt)
+            assertEquals("fixture-v2-secret", connection.headers.single().value)
+            assertEquals(AccessProfile.CUSTOM, connection.accessProfile)
+            assertEquals(
+                setOf(AccessCapability.MONITOR_STATE, AccessCapability.MONITOR_EDIT),
+                connection.customCapabilities,
+            )
+        } finally {
+            password.fill('\u0000')
+        }
+    }
+
     @Test fun released_backup_v1_decrypts_with_sessions_headers_and_preferences() {
         val password = "ursa-fixture-password".toCharArray()
         try {
@@ -49,11 +72,14 @@ class PersistenceContractFixtureTest {
             val connection = data.connections.single()
 
             assertEquals("https://legacy.example.test", connection.url)
+            assertEquals(1, data.payloadVersion)
             assertEquals("fixture-session", connection.jwt)
             assertEquals("fixture-header", connection.headers.single().value)
             assertTrue(connection.insecure)
             assertTrue(data.preferences.dynamicColor)
             assertTrue(data.preferences.slowAlertsEnabled)
+            assertEquals(AccessProfile.MANAGE, connection.accessProfile)
+            assertTrue(connection.customCapabilities.isEmpty())
             assertEquals(2_500, data.preferences.slowAlertThresholdMs)
             assertEquals(3_500L, data.preferences.perMonitorThresholds["${connection.url}:7"])
             assertEquals(setOf(7, 9), data.preferences.favoritesByServer[connection.url])

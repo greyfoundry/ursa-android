@@ -104,7 +104,12 @@ Portable backups use a separate user-chosen password and a versioned authenticat
 envelope: PBKDF2-HMAC-SHA256 (210,000 iterations, random 128-bit salt) derives an
 AES-256-GCM key; each file has a random 96-bit nonce and fixed format AAD. Import
 caps document size, KDF work factor, connection/header/preference counts, and field
-lengths before merging. Session tokens are excluded by default. Android Keystore
+lengths before merging. Payload v1 remains accepted; payload v2 adds explicit
+client access profiles and custom capability selections without changing the
+encrypted envelope. Import is fail-closed and previewed before mutation. Matching
+local connections retain their existing access profile unless the user separately
+opts into restoring profiles from the file, preventing an older or broader backup
+from silently enabling remote actions. Session tokens are excluded by default. Android Keystore
 keys, local-lock material, push endpoints, caches, alert cooldown state, and device
 event history and incident notes are never portable.
 

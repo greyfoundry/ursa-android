@@ -49,6 +49,7 @@ import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.storage.BackupError
 import dev.astoris.ursa.data.model.ServerConnection
+import dev.astoris.ursa.ui.ConnectionBackupPreview
 import dev.astoris.ursa.ui.ConnectionBackupResult
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.components.UrsaPressableCard
@@ -67,6 +68,7 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var backupDialog by remember { mutableStateOf<BackupDialogMode?>(null) }
     var pendingImport by remember { mutableStateOf<String?>(null) }
     var pendingExport by remember { mutableStateOf<String?>(null) }
+    var importPreview by remember { mutableStateOf<ConnectionBackupPreview?>(null) }
     var backupBusy by remember { mutableStateOf(false) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
 
@@ -241,29 +243,139 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             is ConnectionBackupResult.Error -> {
                                 backupMessage = backupErrorMessage(resources, result.reason)
                             }
+                            is ConnectionBackupResult.Preview -> Unit
                             is ConnectionBackupResult.Imported -> Unit
                         }
                     }
                 } else {
                     val document = pendingImport.orEmpty()
-                    vm.importConnectionBackup(document, password) { result ->
+                    vm.prepareConnectionBackupImport(document, password) { result ->
                         backupBusy = false
                         backupDialog = null
                         pendingImport = null
-                        backupMessage = when (result) {
-                            is ConnectionBackupResult.Imported -> resources.getQuantityString(
-                                R.plurals.backup_imported_count,
-                                result.count,
-                                result.count,
-                            )
-                            is ConnectionBackupResult.Error -> backupErrorMessage(resources, result.reason)
-                            is ConnectionBackupResult.Document -> null
+                        when (result) {
+                            is ConnectionBackupResult.Preview -> importPreview = result.value
+                            is ConnectionBackupResult.Error -> {
+                                backupMessage = backupErrorMessage(resources, result.reason)
+                            }
+                            is ConnectionBackupResult.Document,
+                            is ConnectionBackupResult.Imported -> Unit
                         }
                     }
                 }
             },
         )
     }
+
+    importPreview?.let { preview ->
+        BackupImportPreviewDialog(
+            preview = preview,
+            busy = backupBusy,
+            onDismiss = { if (!backupBusy) importPreview = null },
+            onConfirm = { restoreAccessProfiles ->
+                backupBusy = true
+                vm.applyConnectionBackupImport(preview, restoreAccessProfiles) { result ->
+                    backupBusy = false
+                    importPreview = null
+                    backupMessage = when (result) {
+                        is ConnectionBackupResult.Imported -> resources.getQuantityString(
+                            R.plurals.backup_imported_count,
+                            result.count,
+                            result.count,
+                        )
+                        is ConnectionBackupResult.Error -> backupErrorMessage(resources, result.reason)
+                        is ConnectionBackupResult.Document,
+                        is ConnectionBackupResult.Preview -> null
+                    }
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun BackupImportPreviewDialog(
+    preview: ConnectionBackupPreview,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (restoreAccessProfiles: Boolean) -> Unit,
+) {
+    var restoreAccessProfiles by remember(preview) { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(stringResource(R.string.backup_preview_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    stringResource(
+                        R.string.backup_preview_summary,
+                        preview.addedCount,
+                        preview.updatedCount,
+                    ),
+                )
+                Text(
+                    stringResource(R.string.backup_preview_preferences),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(
+                        R.string.backup_preview_validation,
+                        preview.data.connections.size,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (preview.preservedRestrictionCount > 0) {
+                    Text(
+                        stringResource(
+                            R.string.backup_preview_restrictions,
+                            preview.preservedRestrictionCount,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().toggleable(
+                        value = restoreAccessProfiles,
+                        role = Role.Checkbox,
+                        onValueChange = { restoreAccessProfiles = it },
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = restoreAccessProfiles, onCheckedChange = null)
+                    Column(Modifier.padding(start = 8.dp)) {
+                        Text(stringResource(R.string.backup_restore_access))
+                        Text(
+                            stringResource(
+                                if (preview.includesAccessProfiles) {
+                                    R.string.backup_restore_access_desc
+                                } else {
+                                    R.string.backup_restore_access_legacy_desc
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !busy,
+                onClick = { onConfirm(restoreAccessProfiles) },
+            ) {
+                Text(stringResource(if (busy) R.string.backup_working else R.string.backup_import))
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !busy, onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 @Composable

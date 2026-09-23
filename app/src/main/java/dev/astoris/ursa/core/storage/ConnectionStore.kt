@@ -77,19 +77,17 @@ class ConnectionStore(context: Context) {
         return connections.firstOrNull { it.url == active } ?: connections.firstOrNull()
     }
 
-    /** Merge a validated portable backup by URL, preserving local sessions when omitted. */
-    suspend fun mergeImported(imported: List<ServerConnection>) {
+    /** Merge a validated backup, preserving existing access restrictions unless explicitly restored. */
+    suspend fun mergeImported(
+        imported: List<ServerConnection>,
+        restoreAccessProfiles: Boolean = false,
+    ) {
         context.dataStore.edit { prefs ->
-            val merged = decode(prefs).toMutableList()
-            imported.forEach { incoming ->
-                val index = merged.indexOfFirst { it.url == incoming.url }
-                if (index >= 0) {
-                    val existing = merged[index]
-                    merged[index] = incoming.copy(jwt = incoming.jwt ?: existing.jwt)
-                } else {
-                    merged += incoming
-                }
-            }
+            val merged = ConnectionImportMerge.merge(
+                existing = decode(prefs),
+                imported = imported,
+                restoreAccessProfiles = restoreAccessProfiles,
+            )
             prefs[connectionsKey] = encode(merged)
             val active = prefs[activeUrlKey]
             if (active == null || merged.none { it.url == active }) {
