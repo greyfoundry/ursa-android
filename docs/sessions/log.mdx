@@ -40,6 +40,14 @@ validation counts, and preserves matching local access restrictions unless the
 user enables a separately explained restore option. Static encrypted v1 and v2
 fixtures and pure merge-policy tests pass in both app flavours.
 
+**profile UI**: Added the visible Manage compatibility default, View only, and
+grouped Custom capabilities to server setup/reauthentication, plus a local Access
+editor in the server manager that never asks for or rewrites credentials. Monitor
+state/create/edit/delete, bulk, maintenance, and managed-push affordances derive
+from the central evaluator; restricted surfaces explain the active profile and
+enforcement denials no longer fail silently in the foreground. The full profile
+and all eight capabilities were inspected on the API 37 Pixel 8 AVD.
+
 ### 2026-09-23 - Persistence compatibility fixtures
 
 **changed**: Added synthetic, versioned golden fixtures for released connection

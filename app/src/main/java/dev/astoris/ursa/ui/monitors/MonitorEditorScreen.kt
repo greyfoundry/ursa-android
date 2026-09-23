@@ -49,12 +49,16 @@ import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.SftpAuthMethod
+import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorTagAssignment
+import dev.astoris.ursa.data.model.ServerConnection
+import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.MonitorEditorUiState
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.allows
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +68,7 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val serverTags by vm.serverTags.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
+    val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
     val stateDraft = when (val current = state) {
         is MonitorEditorUiState.Ready -> current.draft
         is MonitorEditorUiState.Saving -> current.draft
@@ -84,6 +89,9 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         vm.consumeLocalServiceSelection()
     }
     val saving = state is MonitorEditorUiState.Saving
+    val canSave = activeConnection.allows(
+        if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
+    )
     val serverError = (state as? MonitorEditorUiState.Error)?.message
     BackHandler(enabled = !saving) { vm.closeMonitorEditor() }
 
@@ -117,6 +125,8 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 draft = draft,
                 onDraftChange = { draft = it },
                 saving = saving,
+                canSave = canSave,
+                accessConnection = activeConnection,
                 serverError = serverError,
                 notifications = notifications,
                 serverTags = serverTags,
@@ -139,6 +149,8 @@ private fun MonitorForm(
     draft: MonitorDraft,
     onDraftChange: (MonitorDraft) -> Unit,
     saving: Boolean,
+    canSave: Boolean,
+    accessConnection: ServerConnection?,
     serverError: String?,
     notifications: List<KumaNotification>,
     serverTags: List<KumaTag>,
@@ -160,6 +172,7 @@ private fun MonitorForm(
         modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        AccessProfileNotice(accessConnection)
         serverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         OutlinedTextField(
             value = draft.name,
@@ -451,7 +464,7 @@ private fun MonitorForm(
         validation?.let { Text(validationMessage(it), color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = onCancel, enabled = !saving) { Text(stringResource(R.string.action_cancel)) }
-            Button(onClick = onSave, enabled = !saving && validation == null) {
+            Button(onClick = onSave, enabled = canSave && !saving && validation == null) {
                 Text(stringResource(if (saving) R.string.action_saving else R.string.action_save))
             }
         }

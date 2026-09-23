@@ -25,9 +25,12 @@ navigation library for M1 - the screen set is small and state-driven).
   imported session-token authentication, conditional 2FA, connection test, and
   explicit self-signed-certificate choice. Its collapsed access-header editor
   supports masked Cloudflare Access credentials and up to eight custom headers.
+  New and reauthenticated connections explicitly show the compatibility-default
+  Manage profile, View only, and grouped Custom capabilities.
 - `.../ui/connections/ConnectionManagerScreen.kt` - add, switch, rename, and
-  confirmed removal of encrypted saved-server sessions, plus password-encrypted
-  document export/import.
+  confirmed removal of encrypted saved-server sessions, local access-profile
+  editing that does not require credentials, plus password-encrypted document
+  export/import.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
   server-weighted nested groups/folders, filter-scoped multi-selection with
   confirmed bulk pause/resume,
@@ -118,6 +121,10 @@ navigation library for M1 - the screen set is small and state-driven).
 - Routing is a `when` on state, not a nav graph. System back is handled per-screen
   with `BackHandler` (detail → list, server form → server manager, status
   page → login).
+- Remote-action controls derive availability from the same `AccessPolicy` used by
+  repository enforcement. Restricted monitor, maintenance, editor, bulk, and
+  managed-push surfaces show the current profile; stale or indirect attempts that
+  reach enforcement surface an explicit denial instead of appearing to succeed.
 - Expanded mode begins at 840dp. Monitor selection replaces the right-pane empty
   prompt without removing the list; phone selection remains a full-screen detail.
   The glance display deliberately stays escapable, warns before keeping the screen

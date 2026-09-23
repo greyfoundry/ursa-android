@@ -62,9 +62,12 @@ import dev.astoris.ursa.core.push.PushSeverity
 import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushEventPolicy
 import dev.astoris.ursa.core.work.CertExpiryWorker
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
+import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.core.push.PushLocalTestResult
 import dev.astoris.ursa.core.push.PushRegistrationError
 import kotlinx.coroutines.launch
@@ -93,6 +96,8 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val quietHours by vm.pushQuietHours.collectAsStateWithLifecycle()
     val eventPreferences by vm.pushEventPreferences.collectAsStateWithLifecycle()
     val overallStatusEnabled by vm.overallStatusEnabled.collectAsStateWithLifecycle()
+    val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val canSetupKuma = activeConnection.allows(AccessCapability.PUSH_SETUP)
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -433,6 +438,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
 
                 Section(stringResource(R.string.push_kuma_section)) {
+                    AccessProfileNotice(activeConnection)
                     Text(
                         stringResource(R.string.push_kuma_desc),
                         style = MaterialTheme.typography.bodySmall,
@@ -489,6 +495,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     .fillMaxWidth()
                                     .toggleable(
                                         value = defaultForNew,
+                                        enabled = canSetupKuma,
                                         role = Role.Checkbox,
                                         onValueChange = { defaultForNew = it },
                                     ),
@@ -496,6 +503,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             ) {
                                 Checkbox(
                                     checked = defaultForNew,
+                                    enabled = canSetupKuma,
                                     onCheckedChange = null,
                                 )
                                 Column(Modifier.weight(1f)) {
@@ -516,10 +524,13 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     style = MaterialTheme.typography.titleSmall,
                                 )
                                 Row {
-                                    TextButton(onClick = { selectedMonitorIds = monitors.mapTo(mutableSetOf()) { it.id } }) {
+                                    TextButton(
+                                        onClick = { selectedMonitorIds = monitors.mapTo(mutableSetOf()) { it.id } },
+                                        enabled = canSetupKuma,
+                                    ) {
                                         Text(stringResource(R.string.push_kuma_all))
                                     }
-                                    TextButton(onClick = { selectedMonitorIds = emptySet() }) {
+                                    TextButton(onClick = { selectedMonitorIds = emptySet() }, enabled = canSetupKuma) {
                                         Text(stringResource(R.string.push_kuma_none))
                                     }
                                 }
@@ -531,6 +542,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                         .fillMaxWidth()
                                         .toggleable(
                                             value = selected,
+                                            enabled = canSetupKuma,
                                             role = Role.Checkbox,
                                             onValueChange = { checked ->
                                                 selectedMonitorIds = if (checked) {
@@ -544,6 +556,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 ) {
                                     Checkbox(
                                         checked = selected,
+                                        enabled = canSetupKuma,
                                         onCheckedChange = null,
                                     )
                                     Column(Modifier.weight(1f)) {
@@ -572,6 +585,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = { vm.saveKumaPushSetup(selectedMonitorIds, defaultForNew) },
+                                    enabled = canSetupKuma,
                                 ) {
                                     Text(
                                         stringResource(
@@ -581,7 +595,10 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     )
                                 }
                                 if (setup.notificationId != null) {
-                                    OutlinedButton(onClick = { confirmRemove = true }) {
+                                    OutlinedButton(
+                                        onClick = { confirmRemove = true },
+                                        enabled = canSetupKuma,
+                                    ) {
                                         Text(stringResource(R.string.push_kuma_remove))
                                     }
                                 }
@@ -645,7 +662,8 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                 onClick = vm::testKumaPushDelivery,
                                 enabled = setup.notificationId != null &&
                                     setup.configurationCurrent &&
-                                    !kumaTestSending,
+                                    !kumaTestSending &&
+                                    canSetupKuma,
                             ) {
                                 Text(stringResource(R.string.push_test_kuma_button))
                             }
@@ -685,6 +703,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             text = { Text(stringResource(R.string.push_kuma_remove_desc)) },
             confirmButton = {
                 TextButton(
+                    enabled = canSetupKuma,
                     onClick = {
                         confirmRemove = false
                         vm.deleteKumaPushSetup()

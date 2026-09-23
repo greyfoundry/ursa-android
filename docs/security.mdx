@@ -31,6 +31,9 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
   client-side access profile. Repository and notification-action mutations pass
   through one typed policy evaluator before a network block can run. This reduces
   accidental actions but does not scope or revoke the underlying Kuma session token.
+  Setup and the credential-free local editor expose View only, Manage, and grouped
+  Custom capabilities; disabled UI controls use the same evaluator and indirect
+  denied attempts are reported explicitly while the app is open.
 
 ## MASVS coverage
 

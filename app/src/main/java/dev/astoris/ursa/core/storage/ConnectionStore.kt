@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -62,6 +64,27 @@ class ConnectionStore(context: Context) {
             val next = decode(prefs).map { connection ->
                 if (connection.url == url) connection.copy(alias = alias?.trim()?.takeIf { it.isNotEmpty() })
                 else connection
+            }
+            prefs[connectionsKey] = encode(next)
+        }
+    }
+
+    /** Update only URSA's local action policy without touching credentials or server settings. */
+    suspend fun updateAccess(
+        url: String,
+        profile: AccessProfile,
+        customCapabilities: Set<AccessCapability>,
+    ) {
+        context.dataStore.edit { prefs ->
+            val next = decode(prefs).map { connection ->
+                if (connection.url == url) {
+                    connection.copy(
+                        accessProfile = profile,
+                        customCapabilities = customCapabilities,
+                    )
+                } else {
+                    connection
+                }
             }
             prefs[connectionsKey] = encode(next)
         }

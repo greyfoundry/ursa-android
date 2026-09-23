@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.astoris.ursa.core.access.AccessDecision
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.network.LocalServiceDiscovery
@@ -67,6 +68,7 @@ import dev.astoris.ursa.core.update.UpdateNotifier
 import dev.astoris.ursa.ui.monitors.SavedMonitorView
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -244,6 +246,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         repo.connections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val activeUrl: StateFlow<String?> =
         repo.activeUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val activeConnection: StateFlow<ServerConnection?> =
+        combine(repo.connections, repo.activeUrl) { connections, url ->
+            connections.firstOrNull { it.url == url } ?: connections.firstOrNull()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val _accessDenial = MutableStateFlow<AccessDecision.Denied?>(null)
+    val accessDenial: StateFlow<AccessDecision.Denied?> = _accessDenial.asStateFlow()
     val localEvents: StateFlow<List<LocalEvent>> =
         combine(eventLogStore.events, repo.activeUrl) { events, url ->
             events.filter { it.serverUrl == null || it.serverUrl == url }
@@ -411,6 +419,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
         }
+        viewModelScope.launch {
+            repo.mutationDenials.collect { _accessDenial.value = it }
+        }
         // Auto-reconnect to the last active server if we have a stored session.
         viewModelScope.launch {
             try {
@@ -454,13 +465,25 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
             _login.value = when (
-                val r = repo.addServerAndLogin(normalized, username, password, token, insecure, alias, headers)
+                val r = repo.addServerAndLogin(
+                    normalized,
+                    username,
+                    password,
+                    token,
+                    insecure,
+                    alias,
+                    headers,
+                    accessProfile,
+                    customCapabilities,
+                )
             ) {
                 is LoginResult.Success -> {
                     OverallStatusService.refreshIfEnabled(getApplication())
@@ -479,13 +502,23 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
             _login.value = when (
-                val result = repo.addServerByToken(normalized, sessionToken.trim(), insecure, alias, headers)
+                val result = repo.addServerByToken(
+                    normalized,
+                    sessionToken.trim(),
+                    insecure,
+                    alias,
+                    headers,
+                    accessProfile,
+                    customCapabilities,
+                )
             ) {
                 is LoginResult.Success -> {
                     OverallStatusService.refreshIfEnabled(getApplication())
@@ -545,6 +578,18 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun renameConnection(url: String, alias: String?) =
         viewModelScope.launch { repo.renameServer(url, alias) }
+
+    fun updateConnectionAccess(
+        url: String,
+        profile: AccessProfile,
+        customCapabilities: Set<AccessCapability>,
+    ) = viewModelScope.launch {
+        repo.updateServerAccess(url, profile, customCapabilities)
+    }
+
+    fun dismissAccessDenial() {
+        _accessDenial.value = null
+    }
 
     fun removeConnection(url: String) {
         viewModelScope.launch {

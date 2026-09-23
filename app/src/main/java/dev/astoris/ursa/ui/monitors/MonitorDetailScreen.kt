@@ -57,11 +57,14 @@ import androidx.core.net.toUri
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ServerWebLink
 import dev.astoris.ursa.data.model.Heartbeat
+import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
+import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.ui.theme.KumaGreen
 import kotlinx.coroutines.launch
 
@@ -80,6 +83,10 @@ fun MonitorDetailScreen(
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
+    val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val canChangeState = activeConnection.allows(AccessCapability.MONITOR_STATE)
+    val canEdit = activeConnection.allows(AccessCapability.MONITOR_EDIT)
+    val canDelete = activeConnection.allows(AccessCapability.MONITOR_DELETE)
     val context = LocalContext.current
     val browserUrl = remember(activeUrl, monitor.id) {
         activeUrl?.let { ServerWebLink.monitor(it, monitor.id) }
@@ -128,6 +135,7 @@ fun MonitorDetailScreen(
                         }
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
+                                enabled = canEdit,
                                 text = { Text(stringResource(R.string.action_edit_monitor)) },
                                 onClick = {
                                     moreOpen = false
@@ -143,6 +151,7 @@ fun MonitorDetailScreen(
                                 },
                             )
                             DropdownMenuItem(
+                                enabled = canDelete,
                                 text = { Text(stringResource(R.string.action_delete_monitor)) },
                                 onClick = {
                                     moreOpen = false
@@ -162,6 +171,7 @@ fun MonitorDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            AccessProfileNotice(activeConnection)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatusPill(monitor.status)
                 monitor.ping?.let { Text("${it}ms", style = MaterialTheme.typography.bodyMedium) }
@@ -215,7 +225,7 @@ fun MonitorDetailScreen(
 
             if (monitor.active) {
                 Button(
-                    enabled = !actionInFlight,
+                    enabled = canChangeState && !actionInFlight,
                     onClick = {
                         actionInFlight = true
                         vm.pause(monitor.id) { succeeded ->
@@ -232,7 +242,7 @@ fun MonitorDetailScreen(
                 }
             } else {
                 Button(
-                    enabled = !actionInFlight,
+                    enabled = canChangeState && !actionInFlight,
                     onClick = {
                         actionInFlight = true
                         vm.resume(monitor.id) { succeeded ->
@@ -316,7 +326,7 @@ fun MonitorDetailScreen(
             },
             confirmButton = {
                 Button(
-                    enabled = !actionInFlight,
+                    enabled = canDelete && !actionInFlight,
                     onClick = {
                         actionInFlight = true
                         vm.deleteMonitor(monitor.id, deleteChildren) { result ->

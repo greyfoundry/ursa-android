@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +49,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val editingConnection by vm.editingConnection.collectAsStateWithLifecycle()
     val monitorEditor by vm.monitorEditor.collectAsStateWithLifecycle()
     val kioskMode by vm.kioskMode.collectAsStateWithLifecycle()
+    val accessDenial by vm.accessDenial.collectAsStateWithLifecycle()
 
     // Re-lock when the app goes to the background (if the lock is enabled).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -77,6 +80,26 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
             selected != null && !expanded -> MonitorDetailScreen(vm, selected!!)
             else -> MainShell(vm, expanded, selected)
         }
+    }
+
+    accessDenial?.let { denial ->
+        AlertDialog(
+            onDismissRequest = vm::dismissAccessDenial,
+            title = { Text(stringResource(R.string.access_denied_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.access_denied_message,
+                        stringResource(denial.profile.labelRes()),
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = vm::dismissAccessDenial) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
+        )
     }
 }
 

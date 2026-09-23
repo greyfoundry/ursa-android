@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -48,6 +51,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.storage.BackupError
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.ConnectionBackupPreview
 import dev.astoris.ursa.ui.ConnectionBackupResult
@@ -64,6 +69,7 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val resources = LocalResources.current
     var editing by remember { mutableStateOf<ServerConnection?>(null) }
+    var accessEditing by remember { mutableStateOf<ServerConnection?>(null) }
     var removing by remember { mutableStateOf<ServerConnection?>(null) }
     var backupDialog by remember { mutableStateOf<BackupDialogMode?>(null) }
     var pendingImport by remember { mutableStateOf<String?>(null) }
@@ -145,6 +151,7 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         vm.exitConnectionManager()
                     },
                     onRename = { editing = connection },
+                    onEditAccess = { accessEditing = connection },
                     onReauthenticate = { vm.reauthenticate(connection) },
                     onRemove = { removing = connection },
                 )
@@ -193,6 +200,17 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             onSave = { alias ->
                 vm.renameConnection(connection.url, alias)
                 editing = null
+            },
+        )
+    }
+
+    accessEditing?.let { connection ->
+        AccessProfileDialog(
+            connection = connection,
+            onDismiss = { accessEditing = null },
+            onSave = { profile, capabilities ->
+                vm.updateConnectionAccess(connection.url, profile, capabilities)
+                accessEditing = null
             },
         )
     }
@@ -385,6 +403,7 @@ private fun ConnectionCard(
     connectionState: ConnectionState,
     onSelect: () -> Unit,
     onRename: () -> Unit,
+    onEditAccess: () -> Unit,
     onReauthenticate: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -417,20 +436,63 @@ private fun ConnectionCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    Text(
+                        stringResource(connection.accessProfile.labelRes()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
                 ConnectionBadge(active = active, state = connectionState)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onRename) { Text(stringResource(R.string.servers_rename)) }
-                TextButton(onClick = onReauthenticate) {
-                    Text(stringResource(R.string.servers_reauthenticate))
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onRename) { Text(stringResource(R.string.servers_rename)) }
+                    TextButton(onClick = onEditAccess) { Text(stringResource(R.string.servers_access)) }
                 }
-                TextButton(onClick = onRemove) {
-                    Text(stringResource(R.string.servers_remove), color = MaterialTheme.colorScheme.error)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onReauthenticate) {
+                        Text(stringResource(R.string.servers_reauthenticate))
+                    }
+                    TextButton(onClick = onRemove) {
+                        Text(stringResource(R.string.servers_remove), color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AccessProfileDialog(
+    connection: ServerConnection,
+    onDismiss: () -> Unit,
+    onSave: (AccessProfile, Set<AccessCapability>) -> Unit,
+) {
+    var profile by remember(connection.url) { mutableStateOf(connection.accessProfile) }
+    var capabilities by remember(connection.url) { mutableStateOf(connection.customCapabilities) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.servers_access_title)) },
+        text = {
+            AccessProfileEditor(
+                profile = profile,
+                customCapabilities = capabilities,
+                onProfileChange = { profile = it },
+                onCapabilityChange = { capability, enabled ->
+                    capabilities = if (enabled) capabilities + capability else capabilities - capability
+                },
+                modifier = Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(profile, capabilities) }) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 @Composable

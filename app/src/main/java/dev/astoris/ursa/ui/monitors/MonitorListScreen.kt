@@ -66,10 +66,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.FaviconCache
+import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.Sparkline
+import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.StatusCircle
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
@@ -77,6 +79,7 @@ import dev.astoris.ursa.ui.UptimeRing
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
 import dev.astoris.ursa.ui.actionRes
+import dev.astoris.ursa.ui.allows
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +100,8 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val savedViews by vm.savedViews.collectAsStateWithLifecycle()
     val incidentOpenRequest by vm.incidentOpenRequest.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
+    val canCreate = activeConnection.allows(AccessCapability.MONITOR_CREATE)
+    val canBulk = activeConnection.allows(AccessCapability.BULK_WRITE)
 
     var searchActive by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -137,6 +142,13 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
     LaunchedEffect(monitors) {
         selectedIds = selectedIds.intersect(monitors.mapTo(mutableSetOf(), Monitor::id))
+    }
+    LaunchedEffect(canBulk) {
+        if (!canBulk) {
+            bulkMode = false
+            selectedIds = emptySet()
+            pendingBulkAction = null
+        }
     }
     LaunchedEffect(incidentOpenRequest) {
         if (incidentOpenRequest != null) {
@@ -241,6 +253,12 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 )
             }
             if (overlay == null) {
+                AccessProfileNotice(
+                    activeConnection,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                )
+            }
+            if (overlay == null) {
                 if (searchActive) {
                 LaunchedEffect(Unit) { searchFocusRequester.requestFocus() }
                 Row(
@@ -328,10 +346,12 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             }
                             DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
+                                enabled = canCreate,
                                 text = { Text(stringResource(R.string.monitor_add_title)) },
                                 onClick = { vm.createMonitor(); moreOpen = false },
                             )
                             DropdownMenuItem(
+                                enabled = canBulk,
                                 text = { Text(stringResource(R.string.bulk_manage_monitors)) },
                                 onClick = { bulkMode = true; selectedIds = emptySet(); moreOpen = false },
                             )
@@ -407,11 +427,11 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     }
                     TextButton(
                         onClick = { pendingBulkAction = BulkMonitorAction.PAUSE },
-                        enabled = pausePlan.targetIds.isNotEmpty() && !bulkInFlight,
+                        enabled = canBulk && pausePlan.targetIds.isNotEmpty() && !bulkInFlight,
                     ) { Text(stringResource(R.string.action_pause)) }
                     TextButton(
                         onClick = { pendingBulkAction = BulkMonitorAction.RESUME },
-                        enabled = resumePlan.targetIds.isNotEmpty() && !bulkInFlight,
+                        enabled = canBulk && resumePlan.targetIds.isNotEmpty() && !bulkInFlight,
                     ) { Text(stringResource(R.string.action_resume)) }
                 }
             }
@@ -588,7 +608,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             }
                         }
                     },
-                    enabled = !bulkInFlight && plan.targetIds.isNotEmpty(),
+                    enabled = canBulk && !bulkInFlight && plan.targetIds.isNotEmpty(),
                 ) { Text(actionLabel) }
             },
             dismissButton = {

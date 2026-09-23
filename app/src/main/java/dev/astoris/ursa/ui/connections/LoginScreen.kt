@@ -54,8 +54,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.LocalNetworkAccess
-import dev.astoris.ursa.data.model.ServerConnection
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.RequestHeader
+import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.ConnectionTestUiState
 import dev.astoris.ursa.ui.LoginUiState
 import dev.astoris.ursa.ui.UrsaViewModel
@@ -97,6 +99,14 @@ fun LoginScreen(
         if (granted) action?.invoke()
     }
     var insecure by remember(initialConnection?.url) { mutableStateOf(initialConnection?.insecure == true) }
+    var accessProfile by remember(initialConnection?.url) {
+        mutableStateOf(initialConnection?.accessProfile ?: AccessProfile.MANAGE)
+    }
+    val customCapabilities = remember(initialConnection?.url) {
+        mutableStateListOf<AccessCapability>().apply {
+            addAll(initialConnection?.customCapabilities.orEmpty())
+        }
+    }
     var headersExpanded by remember(initialConnection?.url) {
         mutableStateOf(initialConnection?.headers?.isNotEmpty() == true)
     }
@@ -455,6 +465,18 @@ fun LoginScreen(
                                 )
                             }
                         }
+                        AccessProfileEditor(
+                            profile = accessProfile,
+                            customCapabilities = customCapabilities.toSet(),
+                            onProfileChange = { accessProfile = it },
+                            onCapabilityChange = { capability, enabled ->
+                                if (enabled) {
+                                    if (capability !in customCapabilities) customCapabilities += capability
+                                } else {
+                                    customCapabilities -= capability
+                                }
+                            },
+                        )
                         (loginState as? LoginUiState.Error)?.let { error ->
                             Surface(
                                 color = MaterialTheme.colorScheme.errorContainer,
@@ -527,6 +549,8 @@ fun LoginScreen(
                                             insecure = insecure,
                                             alias = alias,
                                             headers = requestHeaders,
+                                            accessProfile = accessProfile,
+                                            customCapabilities = customCapabilities.toSet(),
                                             onSuccess = onConnected,
                                         )
                                     } else {
@@ -536,6 +560,8 @@ fun LoginScreen(
                                             insecure = insecure,
                                             alias = alias,
                                             headers = requestHeaders,
+                                            accessProfile = accessProfile,
+                                            customCapabilities = customCapabilities.toSet(),
                                             onSuccess = onConnected,
                                         )
                                     }

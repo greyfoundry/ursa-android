@@ -16,6 +16,7 @@ import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorSnapshot
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
@@ -268,6 +269,8 @@ class MonitorRepository(
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
     ): LoginResult {
         val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
         val client = KumaClient(url, insecure, safeHeaders)
@@ -276,7 +279,18 @@ class MonitorRepository(
         return try {
             val result = client.login(username, password, token)
             if (result is LoginResult.Success) {
-                store.upsert(ServerConnection(url, username, result.jwt, insecure, alias, safeHeaders))
+                store.upsert(
+                    ServerConnection(
+                        url = url,
+                        username = username,
+                        jwt = result.jwt,
+                        insecure = insecure,
+                        alias = alias,
+                        headers = safeHeaders,
+                        accessProfile = accessProfile,
+                        customCapabilities = customCapabilities,
+                    ),
+                )
                 activateClient(url, client)
                 promoted = true
             }
@@ -311,6 +325,8 @@ class MonitorRepository(
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
     ): LoginResult {
         val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
         val client = KumaClient(url, insecure, safeHeaders)
@@ -318,7 +334,18 @@ class MonitorRepository(
         var promoted = false
         return try {
             if (client.loginByToken(token)) {
-                store.upsert(ServerConnection(url, "", token, insecure, alias, safeHeaders))
+                store.upsert(
+                    ServerConnection(
+                        url = url,
+                        username = "",
+                        jwt = token,
+                        insecure = insecure,
+                        alias = alias,
+                        headers = safeHeaders,
+                        accessProfile = accessProfile,
+                        customCapabilities = customCapabilities,
+                    ),
+                )
                 activateClient(url, client)
                 promoted = true
                 LoginResult.Success(token)
@@ -359,6 +386,12 @@ class MonitorRepository(
     }
 
     suspend fun renameServer(url: String, alias: String?) = store.rename(url, alias)
+
+    suspend fun updateServerAccess(
+        url: String,
+        profile: AccessProfile,
+        customCapabilities: Set<AccessCapability>,
+    ) = store.updateAccess(url, profile, customCapabilities)
 
     /** Remove a saved server and switch to the next stored session when necessary. */
     suspend fun removeServer(url: String): ServerConnection? {
