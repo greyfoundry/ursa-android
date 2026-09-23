@@ -38,6 +38,8 @@ here so the rest of the app sees clean domain models.
   Android 17 runtime local-network access before an explicit test or connection.
 - `.../core/network/ConnectionFailure.kt` - maps transport/authentication/TLS/version
   failures to bounded user-action categories without exposing sensitive causes.
+- `.../core/network/ConnectionTransportPolicy.kt` - pure per-connection HTTP
+  classification and legacy/allow/deny policy evaluation used before sockets open.
 - `.../core/access/{AccessPolicy,MutationExecutor}.kt` - evaluates a saved
   connection's client-side capabilities before any repository or notification
   action can invoke a remote mutation.
@@ -145,6 +147,11 @@ here so the rest of the app sees clean domain models.
   accepts the same optional headers for REST when a saved page exactly matches a
   saved connection. Invalid names, empty values, duplicates, and CR/LF injection
   are rejected before a connection action is enabled; at most eight are stored.
+- Saved connections carry a tri-state cleartext policy. Missing legacy fields keep
+  existing HTTP servers working until reviewed; new HTTP servers require an explicit
+  acknowledgement; an explicit deny blocks login, testing, saved-server switching,
+  notification actions, and private widget refresh before a client is created.
+  This policy is separate from HTTPS certificate validation and self-signed trust.
 - Public-page addresses accept HTTP(S) only and reject embedded credentials,
   queries/fragments, traversal segments, encoded separators, invalid Kuma slugs,
   and conflicts between a pasted page URL and a separately entered slug.

@@ -132,6 +132,10 @@
     <string name="login_2fa_code">2FA code</string>
     <string name="login_trust_self_signed">Trust self-signed certificate</string>
     <string name="login_trust_self_signed_desc">Only enable this for a server you control.</string>
+    <string name="login_allow_cleartext">Allow unencrypted HTTP</string>
+    <string name="login_allow_cleartext_desc">Anyone on the network path may read or alter credentials and monitoring data. Use HTTPS whenever possible.</string>
+    <string name="login_cleartext_existing">This saved HTTP server keeps its existing access until you review its transport setting in Servers.</string>
+    <string name="login_cleartext_blocked">HTTP is blocked for this saved server. Review its transport setting in Servers.</string>
     <string name="login_verify">Verify</string>
     <string name="login_connect">Connect</string>
     <string name="login_reconnect">Reconnect</string>
@@ -153,6 +157,7 @@
     <string name="servers_saved">Saved</string>
     <string name="servers_reauthenticate">Sign in again</string>
     <string name="servers_access">Access</string>
+    <string name="servers_transport">Transport</string>
     <string name="servers_access_title">URSA access</string>
     <string name="access_profile_title">Access profile</string>
     <string name="access_profile_scope_notice">Controls actions in URSA only. It does not change permissions on your Uptime Kuma server.</string>
@@ -176,6 +181,17 @@
     <string name="access_denied_title">Action unavailable</string>
     <string name="access_denied_message">This action is blocked by the %1$s access profile for this server.</string>
     <string name="access_profile_active_notice">URSA access: %1$s. Some server actions are unavailable; change this under Servers › Access.</string>
+    <string name="connection_reason_cleartext_blocked">Unencrypted HTTP is blocked. Review this server’s transport setting.</string>
+    <string name="cleartext_status_legacy">HTTP allowed · review recommended</string>
+    <string name="cleartext_status_allowed">HTTP allowed explicitly</string>
+    <string name="cleartext_status_blocked">HTTP blocked</string>
+    <string name="cleartext_review_title">Review unencrypted HTTP</string>
+    <string name="cleartext_review_desc">%1$s uses HTTP, so credentials and monitoring data are not protected in transit.</string>
+    <string name="cleartext_legacy_desc">This connection predates the transport policy. It remains usable until you choose.</string>
+    <string name="cleartext_allow">Allow HTTP</string>
+    <string name="cleartext_block">Block HTTP</string>
+    <string name="cleartext_allow_desc">Continue only on a network you trust. HTTPS is strongly recommended.</string>
+    <string name="cleartext_block_desc">URSA will disconnect and refuse this URL until you explicitly allow HTTP or add it again with HTTPS.</string>
     <string name="backup_export">Export</string>
     <string name="backup_import">Import</string>
     <string name="backup_export_title">Export encrypted backup</string>

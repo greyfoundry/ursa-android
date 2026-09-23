@@ -22,3 +22,14 @@ enum class AccessCapability {
     PUSH_SETUP,
     STATUS_INCIDENT_WRITE,
 }
+
+/** Per-connection handling for unencrypted HTTP transport. */
+@Serializable
+enum class CleartextPolicy {
+    /** Released records had no field; preserve their existing behaviour until reviewed. */
+    LEGACY,
+    /** Refuse an HTTP connection. HTTPS is unaffected. */
+    DENY,
+    /** The user explicitly accepted HTTP for this connection. */
+    ALLOW,
+}

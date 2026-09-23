@@ -131,6 +131,8 @@ data class ServerConnection(
     val accessProfile: AccessProfile = AccessProfile.MANAGE,
     /** Retained when another profile is selected so a user's custom choice is not destroyed. */
     val customCapabilities: Set<AccessCapability> = emptySet(),
+    /** Missing in released records; LEGACY preserves existing HTTP connections until reviewed. */
+    val cleartextPolicy: CleartextPolicy = CleartextPolicy.LEGACY,
 ) {
     val displayName: String
         get() = alias?.trim()?.takeIf { it.isNotEmpty() }

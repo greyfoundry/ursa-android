@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import dev.astoris.ursa.core.access.MutationExecution
 import dev.astoris.ursa.core.access.MutationExecutor
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.EventLogStore
@@ -49,6 +50,7 @@ class MonitorActionReceiver : BroadcastReceiver() {
         val execution = MutationExecutor(store::activeConnection).execute(
             required = setOf(AccessCapability.MONITOR_STATE),
         ) { conn ->
+            if (!ConnectionTransportPolicy.allows(conn)) return@execute false
             val jwt = conn.jwt ?: return@execute false
             val client = KumaClient(conn.url, conn.insecure, conn.headers)
             try {

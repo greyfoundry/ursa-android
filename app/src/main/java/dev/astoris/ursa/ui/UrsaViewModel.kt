@@ -69,6 +69,7 @@ import dev.astoris.ursa.ui.monitors.SavedMonitorView
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
 import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
@@ -467,6 +468,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         headers: List<RequestHeader> = emptyList(),
         accessProfile: AccessProfile = AccessProfile.MANAGE,
         customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
@@ -483,6 +485,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     headers,
                     accessProfile,
                     customCapabilities,
+                    cleartextPolicy,
                 )
             ) {
                 is LoginResult.Success -> {
@@ -504,6 +507,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         headers: List<RequestHeader> = emptyList(),
         accessProfile: AccessProfile = AccessProfile.MANAGE,
         customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
@@ -518,6 +522,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     headers,
                     accessProfile,
                     customCapabilities,
+                    cleartextPolicy,
                 )
             ) {
                 is LoginResult.Success -> {
@@ -543,12 +548,21 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         token: String = "",
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _connectionTest.value = ConnectionTestUiState.Loading
             _connectionTest.value = when (
-                val result = repo.testServer(normalized, username, password, token, insecure, headers)
+                val result = repo.testServer(
+                    normalized,
+                    username,
+                    password,
+                    token,
+                    insecure,
+                    headers,
+                    cleartextPolicy,
+                )
             ) {
                 is LoginResult.Success -> ConnectionTestUiState.Success
                 LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
@@ -562,12 +576,19 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         sessionToken: String,
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _connectionTest.value = ConnectionTestUiState.Loading
             _connectionTest.value = when (
-                val result = repo.testServerToken(normalized, sessionToken.trim(), insecure, headers)
+                val result = repo.testServerToken(
+                    normalized,
+                    sessionToken.trim(),
+                    insecure,
+                    headers,
+                    cleartextPolicy,
+                )
             ) {
                 is LoginResult.Success -> ConnectionTestUiState.Success
                 LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
@@ -590,6 +611,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun dismissAccessDenial() {
         _accessDenial.value = null
     }
+
+    fun updateConnectionCleartextPolicy(url: String, policy: CleartextPolicy) =
+        viewModelScope.launch { repo.updateServerCleartextPolicy(url, policy) }
 
     fun removeConnection(url: String) {
         viewModelScope.launch {

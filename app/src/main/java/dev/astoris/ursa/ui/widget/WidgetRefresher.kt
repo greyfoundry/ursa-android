@@ -1,6 +1,7 @@
 package dev.astoris.ursa.ui.widget
 
 import android.content.Context
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.storage.ConnectionStore
@@ -24,6 +25,7 @@ object WidgetRefresher {
         val connection = ConnectionStore(context).snapshot().firstOrNull { it.url == config.sourceId }
             ?: return false
         val token = connection.jwt ?: return false
+        if (!ConnectionTransportPolicy.allows(connection)) return false
         val client = KumaClient(connection.url, connection.insecure, connection.headers)
         return try {
             client.connect()

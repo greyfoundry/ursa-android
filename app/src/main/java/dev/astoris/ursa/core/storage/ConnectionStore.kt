@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -87,6 +88,16 @@ class ConnectionStore(context: Context) {
                 }
             }
             prefs[connectionsKey] = encode(next)
+        }
+    }
+
+    suspend fun updateCleartextPolicy(url: String, policy: CleartextPolicy) {
+        context.dataStore.edit { prefs ->
+            prefs[connectionsKey] = encode(
+                decode(prefs).map { connection ->
+                    if (connection.url == url) connection.copy(cleartextPolicy = policy) else connection
+                },
+            )
         }
     }
 

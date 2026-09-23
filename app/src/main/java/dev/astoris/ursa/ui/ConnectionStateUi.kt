@@ -23,6 +23,7 @@ val ConnectionFailureReason.actionRes: Int
         ConnectionFailureReason.SERVER_UNREACHABLE -> R.string.connection_reason_server
         ConnectionFailureReason.AUTHENTICATION -> R.string.connection_reason_auth
         ConnectionFailureReason.CERTIFICATE -> R.string.connection_reason_certificate
+        ConnectionFailureReason.CLEARTEXT_BLOCKED -> R.string.connection_reason_cleartext_blocked
         ConnectionFailureReason.INCOMPATIBLE_RESPONSE -> R.string.connection_reason_incompatible
         ConnectionFailureReason.UNKNOWN -> R.string.connection_reason_unknown
     }

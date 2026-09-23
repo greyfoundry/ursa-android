@@ -12,6 +12,7 @@ enum class ConnectionFailureReason {
     SERVER_UNREACHABLE,
     AUTHENTICATION,
     CERTIFICATE,
+    CLEARTEXT_BLOCKED,
     INCOMPATIBLE_RESPONSE,
     UNKNOWN,
 }

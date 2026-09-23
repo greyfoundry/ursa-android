@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.storage
 
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import org.junit.Assert.assertEquals
@@ -23,6 +24,7 @@ class ConnectionBackupCodecTest {
             AccessCapability.MONITOR_STATE,
             AccessCapability.MONITOR_EDIT,
         ),
+        cleartextPolicy = CleartextPolicy.DENY,
     )
 
     @Test fun round_trip_excludes_sessions_by_default() {

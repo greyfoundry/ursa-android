@@ -50,9 +50,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.storage.BackupError
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.ConnectionBackupPreview
 import dev.astoris.ursa.ui.ConnectionBackupResult
@@ -70,6 +72,7 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val resources = LocalResources.current
     var editing by remember { mutableStateOf<ServerConnection?>(null) }
     var accessEditing by remember { mutableStateOf<ServerConnection?>(null) }
+    var transportEditing by remember { mutableStateOf<ServerConnection?>(null) }
     var removing by remember { mutableStateOf<ServerConnection?>(null) }
     var backupDialog by remember { mutableStateOf<BackupDialogMode?>(null) }
     var pendingImport by remember { mutableStateOf<String?>(null) }
@@ -152,6 +155,11 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     },
                     onRename = { editing = connection },
                     onEditAccess = { accessEditing = connection },
+                    onReviewTransport = if (ConnectionTransportPolicy.isCleartext(connection.url)) {
+                        { transportEditing = connection }
+                    } else {
+                        null
+                    },
                     onReauthenticate = { vm.reauthenticate(connection) },
                     onRemove = { removing = connection },
                 )
@@ -211,6 +219,17 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             onSave = { profile, capabilities ->
                 vm.updateConnectionAccess(connection.url, profile, capabilities)
                 accessEditing = null
+            },
+        )
+    }
+
+    transportEditing?.let { connection ->
+        CleartextPolicyDialog(
+            connection = connection,
+            onDismiss = { transportEditing = null },
+            onSave = { policy ->
+                vm.updateConnectionCleartextPolicy(connection.url, policy)
+                transportEditing = null
             },
         )
     }
@@ -404,6 +423,7 @@ private fun ConnectionCard(
     onSelect: () -> Unit,
     onRename: () -> Unit,
     onEditAccess: () -> Unit,
+    onReviewTransport: (() -> Unit)?,
     onReauthenticate: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -425,6 +445,17 @@ private fun ConnectionCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
+                    if (ConnectionTransportPolicy.isCleartext(connection.url)) {
+                        Text(
+                            stringResource(connection.cleartextPolicy.labelRes()),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = when (connection.cleartextPolicy) {
+                                CleartextPolicy.DENY -> MaterialTheme.colorScheme.error
+                                CleartextPolicy.LEGACY -> MaterialTheme.colorScheme.tertiary
+                                CleartextPolicy.ALLOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
                     if (connection.headers.isNotEmpty()) {
                         Text(
                             pluralStringResource(
@@ -448,6 +479,9 @@ private fun ConnectionCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = onRename) { Text(stringResource(R.string.servers_rename)) }
                     TextButton(onClick = onEditAccess) { Text(stringResource(R.string.servers_access)) }
+                    onReviewTransport?.let { action ->
+                        TextButton(onClick = action) { Text(stringResource(R.string.servers_transport)) }
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = onReauthenticate) {
@@ -460,6 +494,78 @@ private fun ConnectionCard(
             }
         }
     }
+}
+
+@Composable
+private fun CleartextPolicyDialog(
+    connection: ServerConnection,
+    onDismiss: () -> Unit,
+    onSave: (CleartextPolicy) -> Unit,
+) {
+    var policy by remember(connection.url) {
+        mutableStateOf(
+            if (connection.cleartextPolicy == CleartextPolicy.DENY) {
+                CleartextPolicy.DENY
+            } else {
+                CleartextPolicy.ALLOW
+            },
+        )
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.cleartext_review_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.cleartext_review_desc, connection.displayName))
+                if (connection.cleartextPolicy == CleartextPolicy.LEGACY) {
+                    Text(
+                        stringResource(R.string.cleartext_legacy_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.FilterChip(
+                        selected = policy == CleartextPolicy.ALLOW,
+                        onClick = { policy = CleartextPolicy.ALLOW },
+                        label = { Text(stringResource(R.string.cleartext_allow)) },
+                    )
+                    androidx.compose.material3.FilterChip(
+                        selected = policy == CleartextPolicy.DENY,
+                        onClick = { policy = CleartextPolicy.DENY },
+                        label = { Text(stringResource(R.string.cleartext_block)) },
+                    )
+                }
+                Text(
+                    stringResource(
+                        if (policy == CleartextPolicy.DENY) {
+                            R.string.cleartext_block_desc
+                        } else {
+                            R.string.cleartext_allow_desc
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (policy == CleartextPolicy.DENY) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(policy) }) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+private fun CleartextPolicy.labelRes(): Int = when (this) {
+    CleartextPolicy.LEGACY -> R.string.cleartext_status_legacy
+    CleartextPolicy.DENY -> R.string.cleartext_status_blocked
+    CleartextPolicy.ALLOW -> R.string.cleartext_status_allowed
 }
 
 @Composable

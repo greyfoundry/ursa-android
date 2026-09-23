@@ -54,8 +54,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.LocalNetworkAccess
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.ConnectionTestUiState
@@ -99,6 +101,9 @@ fun LoginScreen(
         if (granted) action?.invoke()
     }
     var insecure by remember(initialConnection?.url) { mutableStateOf(initialConnection?.insecure == true) }
+    var cleartextAccepted by remember(initialConnection?.url) {
+        mutableStateOf(initialConnection?.cleartextPolicy == CleartextPolicy.ALLOW)
+    }
     var accessProfile by remember(initialConnection?.url) {
         mutableStateOf(initialConnection?.accessProfile ?: AccessProfile.MANAGE)
     }
@@ -145,6 +150,13 @@ fun LoginScreen(
     val headersValid = !hasPartialHeaders &&
         requestHeaders.size == headerCandidates.size &&
         requestHeaders.map { it.name.lowercase() }.distinct().size == requestHeaders.size
+    val isCleartext = ConnectionTransportPolicy.isCleartext(url)
+    val cleartextPolicy = when {
+        initialConnection != null -> initialConnection.cleartextPolicy
+        isCleartext && cleartextAccepted -> CleartextPolicy.ALLOW
+        else -> CleartextPolicy.DENY
+    }
+    val cleartextReady = !isCleartext || cleartextPolicy != CleartextPolicy.DENY
 
     fun withLocalNetworkAccess(action: () -> Unit) {
         val needsPermission = LocalNetworkAccess.requiresPermission(url, Build.VERSION.SDK_INT) &&
@@ -260,6 +272,54 @@ fun LoginScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        if (isCleartext && initialConnection == null) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .toggleable(
+                                            value = cleartextAccepted,
+                                            role = Role.Checkbox,
+                                            onValueChange = { cleartextAccepted = it },
+                                        )
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Checkbox(checked = cleartextAccepted, onCheckedChange = null)
+                                    Column(Modifier.padding(start = 8.dp)) {
+                                        Text(
+                                            stringResource(R.string.login_allow_cleartext),
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                        )
+                                        Text(
+                                            stringResource(R.string.login_allow_cleartext_desc),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (isCleartext) {
+                            Text(
+                                stringResource(
+                                    if (cleartextPolicy == CleartextPolicy.DENY) {
+                                        R.string.login_cleartext_blocked
+                                    } else {
+                                        R.string.login_cleartext_existing
+                                    },
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (cleartextPolicy == CleartextPolicy.DENY) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
                         OutlinedTextField(
                             value = url,
                             onValueChange = {
@@ -438,31 +498,33 @@ fun LoginScreen(
                                 )
                             }
                         }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .toggleable(
-                                    value = insecure,
-                                    role = Role.Checkbox,
-                                    onValueChange = {
-                                        insecure = it
-                                        vm.resetConnectionTest()
-                                    },
-                                )
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(checked = insecure, onCheckedChange = null)
-                            Column(Modifier.padding(start = 8.dp)) {
-                                Text(
-                                    stringResource(R.string.login_trust_self_signed),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Text(
-                                    stringResource(R.string.login_trust_self_signed_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                        if (!isCleartext) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = insecure,
+                                        role = Role.Checkbox,
+                                        onValueChange = {
+                                            insecure = it
+                                            vm.resetConnectionTest()
+                                        },
+                                    )
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(checked = insecure, onCheckedChange = null)
+                                Column(Modifier.padding(start = 8.dp)) {
+                                    Text(
+                                        stringResource(R.string.login_trust_self_signed),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Text(
+                                        stringResource(R.string.login_trust_self_signed_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
                         AccessProfileEditor(
@@ -522,13 +584,21 @@ fun LoginScreen(
                                             token = token,
                                             insecure = insecure,
                                             headers = requestHeaders,
+                                            cleartextPolicy = cleartextPolicy,
                                         )
                                     } else {
-                                        vm.testSessionToken(url, sessionToken, insecure, requestHeaders)
+                                        vm.testSessionToken(
+                                            url,
+                                            sessionToken,
+                                            insecure,
+                                            requestHeaders,
+                                            cleartextPolicy,
+                                        )
                                     }
                                 }
                             },
-                            enabled = !loading && url.isNotBlank() && credentialsReady && headersValid,
+                            enabled = !loading && url.isNotBlank() && credentialsReady &&
+                                headersValid && cleartextReady,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (testState is ConnectionTestUiState.Loading) {
@@ -551,6 +621,7 @@ fun LoginScreen(
                                             headers = requestHeaders,
                                             accessProfile = accessProfile,
                                             customCapabilities = customCapabilities.toSet(),
+                                            cleartextPolicy = cleartextPolicy,
                                             onSuccess = onConnected,
                                         )
                                     } else {
@@ -562,12 +633,14 @@ fun LoginScreen(
                                             headers = requestHeaders,
                                             accessProfile = accessProfile,
                                             customCapabilities = customCapabilities.toSet(),
+                                            cleartextPolicy = cleartextPolicy,
                                             onSuccess = onConnected,
                                         )
                                     }
                                 }
                             },
-                            enabled = !loading && url.isNotBlank() && credentialsReady && headersValid,
+                            enabled = !loading && url.isNotBlank() && credentialsReady &&
+                                headersValid && cleartextReady,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (loading) {

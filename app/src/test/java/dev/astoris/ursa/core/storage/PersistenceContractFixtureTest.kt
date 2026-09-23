@@ -9,6 +9,7 @@ import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushSeverity
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.widget.WidgetConfig
 import dev.astoris.ursa.ui.widget.WidgetSource
@@ -39,6 +40,7 @@ class PersistenceContractFixtureTest {
         assertNull(connections[3].jwt)
         assertTrue(connections.all { it.accessProfile == AccessProfile.MANAGE })
         assertTrue(connections.all { it.customCapabilities.isEmpty() })
+        assertTrue(connections.all { it.cleartextPolicy == CleartextPolicy.LEGACY })
     }
 
     @Test fun current_backup_v2_decrypts_access_profiles_explicitly() {
@@ -58,6 +60,7 @@ class PersistenceContractFixtureTest {
                 setOf(AccessCapability.MONITOR_STATE, AccessCapability.MONITOR_EDIT),
                 connection.customCapabilities,
             )
+            assertEquals(CleartextPolicy.LEGACY, connection.cleartextPolicy)
         } finally {
             password.fill('\u0000')
         }
@@ -80,6 +83,7 @@ class PersistenceContractFixtureTest {
             assertTrue(data.preferences.slowAlertsEnabled)
             assertEquals(AccessProfile.MANAGE, connection.accessProfile)
             assertTrue(connection.customCapabilities.isEmpty())
+            assertEquals(CleartextPolicy.LEGACY, connection.cleartextPolicy)
             assertEquals(2_500, data.preferences.slowAlertThresholdMs)
             assertEquals(3_500L, data.preferences.perMonitorThresholds["${connection.url}:7"])
             assertEquals(setOf(7, 9), data.preferences.favoritesByServer[connection.url])

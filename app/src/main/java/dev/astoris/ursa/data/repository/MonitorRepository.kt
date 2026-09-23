@@ -4,6 +4,8 @@ import dev.astoris.ursa.core.access.AccessDecision
 import dev.astoris.ursa.core.access.MutationExecution
 import dev.astoris.ursa.core.access.MutationExecutor
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.ConnectionFailureReason
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.network.KumaClient
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MaintenanceDraft
@@ -17,6 +19,7 @@ import dev.astoris.ursa.core.storage.MonitorSnapshot
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
@@ -84,6 +87,7 @@ class MonitorRepository(
     private var activeUrlValue: String? = null
     private val mutationExecutor = MutationExecutor(store::activeConnection)
     private val _mutationDenials = MutableSharedFlow<AccessDecision.Denied>(extraBufferCapacity = 1)
+    private val _localConnectionFailure = MutableStateFlow<ConnectionFailureReason?>(null)
 
     /** Typed denials for presentation; remote blocks never run when one is emitted. */
     val mutationDenials: SharedFlow<AccessDecision.Denied> = _mutationDenials.asSharedFlow()
@@ -114,13 +118,19 @@ class MonitorRepository(
         combine(liveMonitors, cachedMonitors) { live, cached -> live.isEmpty() && cached.isNotEmpty() }
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val state: StateFlow<ConnectionState> = activeClient
+    private val remoteState = activeClient
         .flatMapLatest { client -> client?.state ?: flowOf(ConnectionState.Disconnected) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
+    val state: StateFlow<ConnectionState> = combine(remoteState, _localConnectionFailure) { remote, local ->
+        if (local == null) remote else ConnectionState.Error
+    }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
 
-    val connectionFailure: StateFlow<dev.astoris.ursa.core.network.ConnectionFailureReason?> = activeClient
+    private val remoteConnectionFailure = activeClient
         .flatMapLatest { client -> client?.failure ?: flowOf(null) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+    val connectionFailure: StateFlow<ConnectionFailureReason?> =
+        combine(remoteConnectionFailure, _localConnectionFailure) { remote, local -> local ?: remote }
+            .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
 
     // Declared before init: the cert-expiry collector below reads this flow.
     val certs: StateFlow<Map<Int, CertInfo>> = activeClient
@@ -271,7 +281,11 @@ class MonitorRepository(
         headers: List<RequestHeader> = emptyList(),
         accessProfile: AccessProfile = AccessProfile.MANAGE,
         customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
         val client = KumaClient(url, insecure, safeHeaders)
         client.connect()
@@ -289,6 +303,7 @@ class MonitorRepository(
                         headers = safeHeaders,
                         accessProfile = accessProfile,
                         customCapabilities = customCapabilities,
+                        cleartextPolicy = cleartextPolicy,
                     ),
                 )
                 activateClient(url, client)
@@ -308,7 +323,11 @@ class MonitorRepository(
         token: String = "",
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val client = KumaClient(url, insecure, headers)
         client.connect()
         return try {
@@ -327,7 +346,11 @@ class MonitorRepository(
         headers: List<RequestHeader> = emptyList(),
         accessProfile: AccessProfile = AccessProfile.MANAGE,
         customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
         val client = KumaClient(url, insecure, safeHeaders)
         client.connect()
@@ -344,6 +367,7 @@ class MonitorRepository(
                         headers = safeHeaders,
                         accessProfile = accessProfile,
                         customCapabilities = customCapabilities,
+                        cleartextPolicy = cleartextPolicy,
                     ),
                 )
                 activateClient(url, client)
@@ -363,7 +387,11 @@ class MonitorRepository(
         token: String,
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val client = KumaClient(url, insecure, headers)
         client.connect()
         return try {
@@ -379,6 +407,16 @@ class MonitorRepository(
         conn: ServerConnection,
         onConnectionStarted: () -> Unit = {},
     ) {
+        if (!ConnectionTransportPolicy.allows(conn)) {
+            activeClient.value?.disconnect()
+            activeClient.value = null
+            activeUrlValue = conn.url
+            selectServerContext(conn.url)
+            _localConnectionFailure.value = ConnectionFailureReason.CLEARTEXT_BLOCKED
+            store.setActive(conn.url)
+            onConnectionStarted()
+            return
+        }
         val client = connectFresh(conn.url, conn.insecure, conn.headers)
         onConnectionStarted()
         conn.jwt?.let { client.loginByToken(it) }
@@ -392,6 +430,13 @@ class MonitorRepository(
         profile: AccessProfile,
         customCapabilities: Set<AccessCapability>,
     ) = store.updateAccess(url, profile, customCapabilities)
+
+    suspend fun updateServerCleartextPolicy(url: String, policy: CleartextPolicy) {
+        store.updateCleartextPolicy(url, policy)
+        if (store.activeUrl.first() == url) {
+            store.activeConnection()?.let { switchTo(it) }
+        }
+    }
 
     /** Remove a saved server and switch to the next stored session when necessary. */
     suspend fun removeServer(url: String): ServerConnection? {
@@ -523,6 +568,7 @@ class MonitorRepository(
         activeClient.value?.disconnect()
         activeClient.value = null
         activeUrlValue = null
+        _localConnectionFailure.value = null
         cachedMonitors.value = emptyList()
         lastUpdatedMs.value = null
     }
@@ -550,6 +596,7 @@ class MonitorRepository(
         insecure: Boolean,
         headers: List<RequestHeader> = emptyList(),
     ): KumaClient {
+        _localConnectionFailure.value = null
         val client = KumaClient(url, insecure, headers)
         activateClient(url, client)
         client.connect()
@@ -559,6 +606,11 @@ class MonitorRepository(
     private fun activateClient(url: String, client: KumaClient) {
         activeClient.value?.disconnect()
         activeUrlValue = url
+        selectServerContext(url)
+        activeClient.value = client
+    }
+
+    private fun selectServerContext(url: String) {
         // Show this server's last-known list immediately while the socket reconnects.
         cachedMonitors.value = emptyList()
         lastUpdatedMs.value = null
@@ -568,12 +620,12 @@ class MonitorRepository(
                 lastUpdatedMs.value = snap.updatedAt
             }
         }
-        activeClient.value = client
     }
 
     private companion object {
         const val CHART_REQUEST_CONCURRENCY = 4
         const val NOTIFICATION_READ_CONCURRENCY = 4
+        const val CLEARTEXT_BLOCKED_MESSAGE = "Unencrypted HTTP is blocked for this server"
         const val NOTIFICATION_LIST_TIMEOUT_MS = 5_000L
         const val TOKEN_REJECTED_MESSAGE =
             "Session token was rejected, expired, or the server did not respond"

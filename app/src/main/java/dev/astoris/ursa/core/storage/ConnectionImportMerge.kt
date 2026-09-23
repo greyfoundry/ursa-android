@@ -28,6 +28,7 @@ object ConnectionImportMerge {
                     } else {
                         local.customCapabilities
                     },
+                    cleartextPolicy = local.cleartextPolicy,
                 )
             }
         }

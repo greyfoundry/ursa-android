@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.storage
 
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.ServerConnection
 import java.net.URI
@@ -66,6 +67,7 @@ object ConnectionBackupCodec {
                     sessionToken = connection.jwt.takeIf { includeSessions },
                     accessProfile = connection.accessProfile,
                     customCapabilities = connection.customCapabilities,
+                    cleartextPolicy = connection.cleartextPolicy,
                 )
             },
             preferences = data.preferences,
@@ -178,6 +180,7 @@ object ConnectionBackupCodec {
             headers = headers,
             accessProfile = connection.accessProfile,
             customCapabilities = connection.customCapabilities,
+            cleartextPolicy = connection.cleartextPolicy,
         )
     }
 
@@ -244,6 +247,7 @@ object ConnectionBackupCodec {
             sessionToken = sessionToken,
             accessProfile = AccessProfile.MANAGE,
             customCapabilities = emptySet(),
+            cleartextPolicy = CleartextPolicy.LEGACY,
         )
     }
 
@@ -264,6 +268,7 @@ object ConnectionBackupCodec {
         val sessionToken: String? = null,
         val accessProfile: AccessProfile,
         val customCapabilities: Set<AccessCapability>,
+        val cleartextPolicy: CleartextPolicy = CleartextPolicy.LEGACY,
     ) {
         fun toDecodedConnection() = DecodedPortableConnection(
             url = url,
@@ -274,6 +279,7 @@ object ConnectionBackupCodec {
             sessionToken = sessionToken,
             accessProfile = accessProfile,
             customCapabilities = customCapabilities,
+            cleartextPolicy = cleartextPolicy,
         )
     }
 
@@ -291,6 +297,7 @@ object ConnectionBackupCodec {
         val sessionToken: String?,
         val accessProfile: AccessProfile,
         val customCapabilities: Set<AccessCapability>,
+        val cleartextPolicy: CleartextPolicy,
     )
 
     const val MIN_PASSWORD_LENGTH = 8

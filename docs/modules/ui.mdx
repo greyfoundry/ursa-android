@@ -23,14 +23,15 @@ navigation library for M1 - the screen set is small and state-driven).
   attention-first fleet summary for tablet and glance-display surfaces.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
   imported session-token authentication, conditional 2FA, connection test, and
-  explicit self-signed-certificate choice. Its collapsed access-header editor
+  explicit self-signed-certificate choice for HTTPS. New plain-HTTP connections
+  require a separate unencrypted-transport acknowledgement. Its collapsed access-header editor
   supports masked Cloudflare Access credentials and up to eight custom headers.
   New and reauthenticated connections explicitly show the compatibility-default
   Manage profile, View only, and grouped Custom capabilities.
 - `.../ui/connections/ConnectionManagerScreen.kt` - add, switch, rename, and
   confirmed removal of encrypted saved-server sessions, local access-profile
-  editing that does not require credentials, plus password-encrypted document
-  export/import.
+  and HTTP transport-policy editing that does not require credentials, plus
+  password-encrypted document export/import.
 - `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
   server-weighted nested groups/folders, filter-scoped multi-selection with
   confirmed bulk pause/resume,
@@ -140,12 +141,17 @@ navigation library for M1 - the screen set is small and state-driven).
   saved server inherits that server's encrypted headers only at request time.
 - Connection summaries show only the number of encrypted access headers. Header
   values are masked during entry and never rendered after save.
+- Existing HTTP connections retain legacy access and display a review action in
+  the server manager. Review can explicitly allow or block HTTP per connection;
+  new HTTP setup stays disabled until its risk acknowledgement is selected. The
+  self-signed control is shown only for HTTPS because certificate trust and
+  unencrypted transport are independent choices.
 - Widget configuration and cached public-page rows are encrypted by `WidgetStore`.
   Private widgets reuse the encrypted monitor cache; neither widget store duplicates
   JWTs or access-header values. Refresh resolves the matching saved connection only
   in memory, and widget deep links accept only saved exact server/page identifiers.
 - Portable backups merge servers by normalized URL. Payload v2 includes connection
-  access profiles and custom capability selections alongside access headers,
+  access profiles, custom capability selections, and cleartext policy alongside access headers,
   favorites, dynamic-colour choice, and slow-alert preferences; session JWTs
   require an explicit opt-in. Payload v1 remains readable and maps new imports to
   Manage. A validated dry-run reports additions and updates before the merge.

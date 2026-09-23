@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.storage
 
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.ServerConnection
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -14,6 +15,7 @@ class ConnectionImportMergeTest {
         jwt = "local-session",
         accessProfile = AccessProfile.CUSTOM,
         customCapabilities = setOf(AccessCapability.MONITOR_STATE),
+        cleartextPolicy = CleartextPolicy.DENY,
     )
 
     @Test fun default_merge_preserves_existing_access_and_omitted_session() {
@@ -22,6 +24,7 @@ class ConnectionImportMergeTest {
             jwt = null,
             accessProfile = AccessProfile.MANAGE,
             customCapabilities = emptySet(),
+            cleartextPolicy = CleartextPolicy.ALLOW,
         )
 
         val merged = ConnectionImportMerge.merge(listOf(restricted), listOf(imported)).single()
@@ -30,6 +33,7 @@ class ConnectionImportMergeTest {
         assertEquals("local-session", merged.jwt)
         assertEquals(AccessProfile.CUSTOM, merged.accessProfile)
         assertEquals(setOf(AccessCapability.MONITOR_STATE), merged.customCapabilities)
+        assertEquals(CleartextPolicy.DENY, merged.cleartextPolicy)
     }
 
     @Test fun explicit_restore_replaces_access_and_included_session() {
