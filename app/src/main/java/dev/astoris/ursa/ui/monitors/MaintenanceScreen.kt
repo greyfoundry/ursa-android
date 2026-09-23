@@ -1,6 +1,7 @@
 package dev.astoris.ursa.ui.monitors
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.MaintenanceCodec
 import dev.astoris.ursa.core.network.MaintenanceDraft
@@ -45,6 +47,7 @@ import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.MaintenanceEditorUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.ui.lock.BiometricGate
 
 @Composable
 fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier = Modifier) {
@@ -52,6 +55,8 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
     val editor by vm.maintenanceEditor.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current as? FragmentActivity
     val canWrite = activeConnection.allows(AccessCapability.MAINTENANCE_WRITE)
     var confirmDelete by remember { mutableStateOf<MaintenanceDraft?>(null) }
 
@@ -143,7 +148,15 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
             text = { Text(stringResource(R.string.maintenance_delete_message, maintenance.title)) },
             confirmButton = {
                 Button(enabled = canWrite, onClick = {
-                    maintenance.id?.let { id -> vm.deleteMaintenance(id) { if (it) confirmDelete = null } }
+                    maintenance.id?.let { id ->
+                        BiometricGate.confirmDestructiveAction(
+                            activity = activity,
+                            enabled = destructiveStepUpEnabled,
+                            onSuccess = {
+                                vm.deleteMaintenance(id) { if (it) confirmDelete = null }
+                            },
+                        )
+                    }
                 }) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.action_cancel)) } },

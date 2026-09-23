@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.LocalActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,6 +56,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.push.PushAlertMode
 import dev.astoris.ursa.core.push.PushAlertTiming
@@ -68,6 +70,7 @@ import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
 import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.core.push.PushLocalTestResult
 import dev.astoris.ursa.core.push.PushRegistrationError
 import kotlinx.coroutines.launch
@@ -81,6 +84,7 @@ import java.util.Date
 @Composable
 fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val activity = LocalActivity.current as? FragmentActivity
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val distributors by vm.distributors.collectAsStateWithLifecycle()
@@ -97,6 +101,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val eventPreferences by vm.pushEventPreferences.collectAsStateWithLifecycle()
     val overallStatusEnabled by vm.overallStatusEnabled.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
     val canSetupKuma = activeConnection.allows(AccessCapability.PUSH_SETUP)
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var defaultForNew by remember { mutableStateOf(true) }
@@ -705,8 +710,14 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 TextButton(
                     enabled = canSetupKuma,
                     onClick = {
-                        confirmRemove = false
-                        vm.deleteKumaPushSetup()
+                        BiometricGate.confirmDestructiveAction(
+                            activity = activity,
+                            enabled = destructiveStepUpEnabled,
+                            onSuccess = {
+                                confirmRemove = false
+                                vm.deleteKumaPushSetup()
+                            },
+                        )
                     },
                 ) { Text(stringResource(R.string.push_kuma_remove)) }
             },

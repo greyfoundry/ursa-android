@@ -55,6 +55,7 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val canLock = remember { BiometricGate.canAuthenticate(context) }
     val lockEnabled by vm.lockEnabled.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val slowThresholdMs by vm.slowThresholdMs.collectAsStateWithLifecycle()
     val dynamicColorEnabled by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
@@ -184,6 +185,33 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     checked = lockEnabled && canLock,
                     enabled = canLock,
                     onCheckedChange = { vm.setLockEnabled(it) },
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        stringResource(R.string.settings_confirm_destructive),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        stringResource(
+                            if (canLock) R.string.settings_confirm_destructive_desc
+                            else R.string.settings_require_unlock_unavailable,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = destructiveStepUpEnabled && canLock,
+                    enabled = canLock,
+                    onCheckedChange = vm::setDestructiveStepUpEnabled,
                 )
             }
 

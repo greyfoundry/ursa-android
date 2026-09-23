@@ -364,6 +364,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- App lock ---
     val lockEnabled: StateFlow<Boolean> = LockStore.enabled
+    val destructiveStepUpEnabled: StateFlow<Boolean> = LockStore.destructiveStepUpEnabled
     private val _locked = MutableStateFlow(false)
     val locked: StateFlow<Boolean> = _locked.asStateFlow()
 
@@ -1325,6 +1326,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun setLockEnabled(enabled: Boolean) {
         LockStore.setEnabled(getApplication(), enabled)
         if (!enabled) _locked.value = false
+    }
+
+    fun setDestructiveStepUpEnabled(enabled: Boolean) {
+        LockStore.setDestructiveStepUpEnabled(getApplication(), enabled)
     }
 
     fun sendActiveSessionToWear() {

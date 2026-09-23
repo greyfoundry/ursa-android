@@ -3,6 +3,7 @@ package dev.astoris.ursa.ui.connections
 import android.content.res.Resources
 import java.io.InputStream
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +49,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
@@ -61,6 +63,7 @@ import dev.astoris.ursa.ui.ConnectionBackupResult
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
+import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +71,8 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val connectionState by vm.state.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current as? FragmentActivity
     val context = LocalContext.current
     val resources = LocalResources.current
     var editing by remember { mutableStateOf<ServerConnection?>(null) }
@@ -242,8 +247,14 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        vm.removeConnection(connection.url)
-                        removing = null
+                        BiometricGate.confirmDestructiveAction(
+                            activity = activity,
+                            enabled = destructiveStepUpEnabled,
+                            onSuccess = {
+                                vm.removeConnection(connection.url)
+                                removing = null
+                            },
+                        )
                     },
                 ) {
                     Text(stringResource(R.string.servers_remove), color = MaterialTheme.colorScheme.error)

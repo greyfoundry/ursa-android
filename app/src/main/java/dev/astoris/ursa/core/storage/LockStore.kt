@@ -15,19 +15,28 @@ object LockStore {
 
     private const val PREFS = "ursa_lock"
     private const val KEY_ENABLED = "enabled"
+    private const val KEY_DESTRUCTIVE_STEP_UP = "destructive_step_up"
 
     private val _enabled = MutableStateFlow(false)
     val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
+    private val _destructiveStepUpEnabled = MutableStateFlow(false)
+    val destructiveStepUpEnabled: StateFlow<Boolean> = _destructiveStepUpEnabled.asStateFlow()
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun load(context: Context) {
         _enabled.value = prefs(context).getBoolean(KEY_ENABLED, false)
+        _destructiveStepUpEnabled.value = prefs(context).getBoolean(KEY_DESTRUCTIVE_STEP_UP, false)
     }
 
     fun setEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit { putBoolean(KEY_ENABLED, enabled) }
         _enabled.value = enabled
+    }
+
+    fun setDestructiveStepUpEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit { putBoolean(KEY_DESTRUCTIVE_STEP_UP, enabled) }
+        _destructiveStepUpEnabled.value = enabled
     }
 }

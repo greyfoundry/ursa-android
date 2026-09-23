@@ -126,6 +126,10 @@ navigation library for M1 - the screen set is small and state-driven).
   repository enforcement. Restricted monitor, maintenance, editor, bulk, and
   managed-push surfaces show the current profile; stale or indirect attempts that
   reach enforcement surface an explicit denial instead of appearing to succeed.
+- An opt-in destructive-action safeguard reuses the existing Keystore-backed
+  biometric/device-credential proof before monitor deletion, maintenance deletion,
+  managed-push removal, or saved-server removal. It is an additional confirmation;
+  repository access policy remains the authorization boundary.
 - Expanded mode begins at 840dp. Monitor selection replaces the right-pane empty
   prompt without removing the list; phone selection remains a full-screen detail.
   The glance display deliberately stays escapable, warns before keeping the screen

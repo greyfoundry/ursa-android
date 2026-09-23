@@ -35,6 +35,9 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
   Setup and the credential-free local editor expose View only, Manage, and grouped
   Custom capabilities; disabled UI controls use the same evaluator and indirect
   denied attempts are reported explicitly while the app is open.
+- **Step up destructive confirmation when requested.** Users can opt into the same
+  Keystore-backed biometric/device-credential proof used by app lock before destructive
+  foreground actions. This safeguard does not grant capabilities or replace policy.
 
 ## MASVS coverage
 
@@ -46,7 +49,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | CRYPTO-2 key management | met | Keystore-backed master key |
 | AUTH-1 secure auth | partial (server-dependent) | login + TOTP → token, `KumaClient` |
 | AUTH-2 local auth | met (opt-in) | Keystore-bound biometric/credential app lock, `ui/lock` |
-| AUTH-3 step-up auth | n/a (read-heavy client) | - |
+| AUTH-3 step-up auth | met (opt-in) | Keystore-bound proof before destructive foreground actions |
 | NETWORK-1 secure transport | partial | TLS default; opt-in session TOFU + app-enforced per-connection HTTP policy |
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
 | PLATFORM-1 IPC | met | strict BROWSABLE launcher routes + bounded exported system surfaces |
@@ -127,6 +130,12 @@ Strength therefore depends on the server's configuration. The client holds the t
 only. The optional local app lock requires a proof signed by an Android Keystore key
 whose use is bound to a strong biometric or device credential; a prompt callback alone
 cannot unlock the UI.
+
+The separate destructive-action preference is off by default for compatibility. When
+enabled, monitor deletion, maintenance deletion, managed-push removal, and saved-server
+removal require a fresh proof through the same authentication-bound Keystore key. The
+normal confirmation dialog remains visible first. This is a local confirmation safeguard;
+the lower-layer access policy still decides whether a remote mutation may run.
 
 **NETWORK.** All traffic runs over TLS by default (OkHttp for Socket.IO, Ktor for
 status pages). Two deliberate downgrades exist for self-hosted reality. The per-

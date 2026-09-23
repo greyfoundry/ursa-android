@@ -2,6 +2,7 @@ package dev.astoris.ursa.ui.monitors
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.net.toUri
+import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ServerWebLink
 import dev.astoris.ursa.data.model.Heartbeat
@@ -65,6 +67,7 @@ import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.ui.theme.KumaGreen
 import kotlinx.coroutines.launch
 
@@ -84,10 +87,12 @@ fun MonitorDetailScreen(
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
     val canChangeState = activeConnection.allows(AccessCapability.MONITOR_STATE)
     val canEdit = activeConnection.allows(AccessCapability.MONITOR_EDIT)
     val canDelete = activeConnection.allows(AccessCapability.MONITOR_DELETE)
     val context = LocalContext.current
+    val activity = LocalActivity.current as? FragmentActivity
     val browserUrl = remember(activeUrl, monitor.id) {
         activeUrl?.let { ServerWebLink.monitor(it, monitor.id) }
     }
@@ -328,15 +333,21 @@ fun MonitorDetailScreen(
                 Button(
                     enabled = canDelete && !actionInFlight,
                     onClick = {
-                        actionInFlight = true
-                        vm.deleteMonitor(monitor.id, deleteChildren) { result ->
-                            actionInFlight = false
-                            if (!result.ok) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(result.message ?: deleteFailedMessage)
+                        BiometricGate.confirmDestructiveAction(
+                            activity = activity,
+                            enabled = destructiveStepUpEnabled,
+                            onSuccess = {
+                                actionInFlight = true
+                                vm.deleteMonitor(monitor.id, deleteChildren) { result ->
+                                    actionInFlight = false
+                                    if (!result.ok) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(result.message ?: deleteFailedMessage)
+                                        }
+                                    }
                                 }
-                            }
-                        }
+                            },
+                        )
                     },
                 ) { Text(stringResource(R.string.action_delete_monitor)) }
             },

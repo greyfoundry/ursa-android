@@ -9,6 +9,17 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-23 - Optional destructive-action step-up
+
+**changed**: Added an off-by-default setting that asks for a fresh strong biometric
+or device credential before monitor deletion, maintenance deletion, managed-push
+removal, or saved-server removal. It reuses the existing cryptographic Keystore proof
+and keeps each operation's normal confirmation dialog.
+
+**boundary**: Step-up is a confirmation safeguard, not authorization. Repository
+capability enforcement remains mandatory even after successful local authentication,
+and existing users retain released behaviour unless they enable the preference.
+
 ### 2026-09-23 - Capability-aware Wear pairing
 
 **changed**: Added pairing protocol v2 with explicit protocol/policy versions and

@@ -38,10 +38,12 @@ object BiometricGate {
         activity: FragmentActivity,
         onSuccess: () -> Unit,
         onError: (CharSequence) -> Unit = {},
+        titleRes: Int = R.string.lock_prompt_title,
+        subtitleRes: Int = R.string.lock_prompt_subtitle,
     ) {
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(activity.getString(R.string.lock_prompt_title))
-            .setSubtitle(activity.getString(R.string.lock_prompt_subtitle))
+            .setTitle(activity.getString(titleRes))
+            .setSubtitle(activity.getString(subtitleRes))
             .apply {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
@@ -91,6 +93,30 @@ object BiometricGate {
             },
         )
         prompt.authenticate(info, BiometricPrompt.CryptoObject(signingSignature))
+    }
+
+    /** Optional confirmation safeguard; it does not replace repository access policy. */
+    fun confirmDestructiveAction(
+        activity: FragmentActivity?,
+        enabled: Boolean,
+        onSuccess: () -> Unit,
+        onError: (CharSequence) -> Unit = {},
+    ) {
+        if (!enabled) {
+            onSuccess()
+            return
+        }
+        if (activity == null) {
+            onError(AUTHENTICATION_ERROR)
+            return
+        }
+        prompt(
+            activity = activity,
+            onSuccess = onSuccess,
+            onError = onError,
+            titleRes = R.string.destructive_prompt_title,
+            subtitleRes = R.string.destructive_prompt_subtitle,
+        )
     }
 
     private fun signingSignature(): Signature {
