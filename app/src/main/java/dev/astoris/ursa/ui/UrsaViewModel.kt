@@ -234,6 +234,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val monitors: StateFlow<List<Monitor>> = repo.monitors
     val maintenances: StateFlow<List<MaintenanceDraft>> = repo.maintenances
     val state: StateFlow<ConnectionState> = repo.state
+    val kumaCompatibility = repo.compatibility
     val connectionFailure: StateFlow<ConnectionFailureReason?> =
         combine(repo.connectionFailure, repo.state) { reason, connectionState ->
             when {

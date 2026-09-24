@@ -12,6 +12,7 @@ import dev.astoris.ursa.data.model.MonitorTagAssignment
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -27,6 +28,10 @@ import kotlinx.serialization.json.longOrNull
  * the JVM. Shapes verified live against Kuma 2.5.3 - see docs/references/uptime-kuma-api.mdx.
  */
 object KumaParse {
+
+    /** Public server metadata emitted by Kuma's unauthenticated `info` event. */
+    fun serverVersion(obj: JsonObject): String? =
+        (obj["version"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
 
     /** Kuma serializes some positional Socket.IO IDs as JSON strings. */
     fun positionalInt(value: Any?): Int? = when (value) {

@@ -759,6 +759,7 @@
     <string name="monitor_name_label">Name</string>
     <string name="monitor_type_label">Monitor type</string>
     <string name="monitor_create_types_note">Common monitor types can be created here. Existing advanced types can be safely edited without losing their server-only settings.</string>
+    <string name="monitor_type_not_write_verified">This monitor type is not write-verified for the connected Uptime Kuma version.</string>
     <string name="monitor_advanced_preserved">Advanced settings stay on the server unchanged.</string>
     <string name="monitor_url_label">URL</string>
     <string name="monitor_host_label">Host</string>

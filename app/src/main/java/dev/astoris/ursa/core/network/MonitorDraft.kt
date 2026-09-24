@@ -72,6 +72,9 @@ object MonitorTypeCatalog {
 
     val creatable: List<MonitorTypeOption> = all.filter(MonitorTypeOption::createSupported)
 
+    fun creatableFor(compatibility: KumaCompatibility): List<MonitorTypeOption> =
+        creatable.filter { compatibility.supportsMonitorSchema(it.key) }
+
     fun find(type: String): MonitorTypeOption? = all.firstOrNull { it.key == type }
 }
 

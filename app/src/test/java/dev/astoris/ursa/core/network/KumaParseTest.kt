@@ -21,6 +21,13 @@ class KumaParseTest {
 
     private fun obj(json: String) = Json.parseToJsonElement(json).jsonObject
 
+    @Test fun info_extracts_trimmed_server_version() {
+        assertEquals("2.5.5", KumaParse.serverVersion(obj("""{"version":" 2.5.5 "}""")))
+        assertNull(KumaParse.serverVersion(obj("""{"latestVersion":"2.5.5"}""")))
+        assertNull(KumaParse.serverVersion(obj("""{"version":"   "}""")))
+        assertNull(KumaParse.serverVersion(obj("""{"version":{"major":2}}""")))
+    }
+
     @Test fun monitor_parses_core_fields() {
         val m = KumaParse.monitor(
             obj("""{"id":2,"name":"down-test","url":"http://127.0.0.1:9","type":"http","active":true,"parent":7,"weight":42,"tags":[{"tag_id":3,"monitor_id":2,"name":"prod","color":"#e74c3c","value":"eu"}]}""")

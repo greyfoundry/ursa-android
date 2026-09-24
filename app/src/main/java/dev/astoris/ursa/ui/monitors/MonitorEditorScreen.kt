@@ -48,6 +48,7 @@ import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
+import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.SftpAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
@@ -69,6 +70,7 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val compatibility by vm.kumaCompatibility.collectAsStateWithLifecycle()
     val stateDraft = when (val current = state) {
         is MonitorEditorUiState.Ready -> current.draft
         is MonitorEditorUiState.Saving -> current.draft
@@ -89,9 +91,10 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         vm.consumeLocalServiceSelection()
     }
     val saving = state is MonitorEditorUiState.Saving
-    val canSave = activeConnection.allows(
-        if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
-    )
+    val canSave = compatibility.supportsMonitorSchema(draft.type) &&
+        activeConnection.allows(
+            if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
+        )
     val serverError = (state as? MonitorEditorUiState.Error)?.message
     BackHandler(enabled = !saving) { vm.closeMonitorEditor() }
 
@@ -126,6 +129,7 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 onDraftChange = { draft = it },
                 saving = saving,
                 canSave = canSave,
+                compatibility = compatibility,
                 accessConnection = activeConnection,
                 serverError = serverError,
                 notifications = notifications,
@@ -150,6 +154,7 @@ private fun MonitorForm(
     onDraftChange: (MonitorDraft) -> Unit,
     saving: Boolean,
     canSave: Boolean,
+    compatibility: KumaCompatibility,
     accessConnection: ServerConnection?,
     serverError: String?,
     notifications: List<KumaNotification>,
@@ -174,6 +179,12 @@ private fun MonitorForm(
     ) {
         AccessProfileNotice(accessConnection)
         serverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (!compatibility.supportsMonitorSchema(draft.type)) {
+            Text(
+                stringResource(R.string.monitor_type_not_write_verified),
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         OutlinedTextField(
             value = draft.name,
             onValueChange = { onDraftChange(draft.copy(name = it.take(250))) },
@@ -194,7 +205,7 @@ private fun MonitorForm(
                         .fillMaxWidth(),
                 )
                 ExposedDropdownMenu(expanded = typeMenuOpen, onDismissRequest = { typeMenuOpen = false }) {
-                    MonitorTypeCatalog.creatable.forEach { next ->
+                    MonitorTypeCatalog.creatableFor(compatibility).forEach { next ->
                         DropdownMenuItem(
                             text = { Text(next.label) },
                             onClick = {

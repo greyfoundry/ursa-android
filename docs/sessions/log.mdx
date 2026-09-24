@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-23
+last-updated: 2026-09-24
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,27 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-24 - Kuma version and capability matrix
+
+**changed**: Added strict stable-version parsing, an authenticated live
+compatibility flow, and one central feature matrix for the supported 2.4.0-2.5.5
+range. Known version-specific editor schemas now share the same guard: SFTP is
+hidden and rejected unless the server reports 2.5.4 or 2.5.5. Unknown, older,
+newer, malformed, and prerelease versions remain readable without being described
+as write-verified.
+
+**live verification**: Added a digest-pinned disposable Docker probe and ran it
+against every official 2.4.0 and 2.5.0-2.5.5 image. Authentication, reported
+version, NTP/PM2, and SFTP boundaries matched the matrix. The 2.4.0 floor also
+passed monitor, maintenance, and Webhook notification write lifecycles. Kuma
+2.5.1 reports 2.5.0 and 2.5.2 reports 2.5.1 over the socket; this upstream
+ambiguity is preserved explicitly rather than guessed around.
+
+**phase gate**: All phone and Wear unit-test, lint, and debug-assembly tasks passed
+for both F-Droid and GitHub distributions. The F-Droid phone APK was installed on
+the visible API 37 Pixel 8 AVD, cold-launched to the server setup flow, and produced
+no fatal runtime entry.
 
 ### 2026-09-23 - Optional destructive-action step-up
 

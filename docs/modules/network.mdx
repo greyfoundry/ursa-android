@@ -17,6 +17,8 @@ here so the rest of the app sees clean domain models.
 - `app/src/main/java/dev/astoris/ursa/core/network/KumaClient.kt` - one Socket.IO
   connection per server; auth, event wiring, pause/resume, heartbeat history,
   and server chart/important-transition queries.
+- `.../core/network/KumaCapabilities.kt` - strict stable-version parsing and the
+  live-tested 2.4.0-2.5.5 read/write and type-schema capability matrix.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
 - `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
@@ -54,11 +56,14 @@ here so the rest of the app sees clean domain models.
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
   active-state changes, and `disconnect()`.
-  Flows: `state`,
+  Flows: `state`, `compatibility`,
   `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
   and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
-  `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`.
+  `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`, `serverVersion`.
+- `KumaCapabilities.evaluate(version)` - classifies the authenticated server's
+  reported stable version, exposes verified feature thresholds, and leaves
+  unknown/older/newer versions readable without claiming their writes are verified.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
   resolves a custom-domain or configured default status page through Kuma's
   public entry contract. Fetch combines page configuration, the latest 100
@@ -123,6 +128,11 @@ here so the rest of the app sees clean domain models.
   secret values. Other credentials, advanced settings, and fields introduced by
   future Kuma versions never leave the network adapter and are preserved in the
   round trip.
+- Kuma's first unauthenticated `info` event intentionally omits the version. The
+  authenticated event updates the compatibility flow. Kuma 2.5.1 reports 2.5.0
+  and 2.5.2 reports 2.5.1; schema gates use that honest wire value. SFTP is hidden
+  and rejected below its verified 2.5.4 threshold, while common legacy monitor
+  types preserve their released behavior.
 - `emitAck` waits for a connected transport inside the same 15-second acknowledgement
   budget. An inaccessible server therefore cannot leave a UI action loading forever,
   and actions are not silently stranded in Socket.IO's pre-connect queue.

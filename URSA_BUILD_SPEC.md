@@ -2,7 +2,7 @@
 
 Build specification for package `dev.astoris.ursa`.
 
-Status: Implemented and verified against live Uptime Kuma 2.4.x and 2.5.0-2.5.5.
+Status: Implemented and verified against live Uptime Kuma 2.4.0-2.5.5.
 Stack: Kotlin, Jetpack Compose, native Android, and a separate native Wear OS module.
 
 ## Product boundary

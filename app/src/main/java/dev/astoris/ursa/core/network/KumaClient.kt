@@ -60,6 +60,9 @@ class KumaClient(
     private val _failure = MutableStateFlow<ConnectionFailureReason?>(null)
     val failure: StateFlow<ConnectionFailureReason?> = _failure.asStateFlow()
 
+    private val _compatibility = MutableStateFlow(KumaCapabilities.evaluate(null))
+    val compatibility: StateFlow<KumaCompatibility> = _compatibility.asStateFlow()
+
     private val _monitors = MutableStateFlow<Map<Int, Monitor>>(emptyMap())
     val monitors: StateFlow<Map<Int, Monitor>> = _monitors.asStateFlow()
 
@@ -138,6 +141,12 @@ class KumaClient(
             _state.value = ConnectionState.Error
         }
         s.on(Socket.EVENT_DISCONNECT) { _ -> _state.value = ConnectionState.Disconnected }
+
+        s.on("info") { args ->
+            args.jsonAt(0)?.let(KumaParse::serverVersion)?.let { version ->
+                _compatibility.value = KumaCapabilities.evaluate(version)
+            }
+        }
 
         s.on("monitorList") { args ->
             val payload = args.jsonAt(0)
@@ -279,6 +288,12 @@ class KumaClient(
 
     /** Creates a supported monitor or safely patches typed fields on any known Kuma 2.5.5 type. */
     suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult {
+        if (!_compatibility.value.supportsMonitorSchema(draft.type)) {
+            return MonitorMutationResult(
+                false,
+                message = "This monitor type is not write-verified for the connected Uptime Kuma version.",
+            )
+        }
         MonitorDraftCodec.validate(draft)?.let { error ->
             return MonitorMutationResult(false, message = error.name)
         }

@@ -7,6 +7,8 @@ import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.network.KumaClient
+import dev.astoris.ursa.core.network.KumaCapabilities
+import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
@@ -131,6 +133,14 @@ class MonitorRepository(
     val connectionFailure: StateFlow<ConnectionFailureReason?> =
         combine(remoteConnectionFailure, _localConnectionFailure) { remote, local -> local ?: remote }
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val compatibility: StateFlow<KumaCompatibility> = activeClient
+        .flatMapLatest { client -> client?.compatibility ?: flowOf(KumaCapabilities.evaluate(null)) }
+        .stateIn(
+            scope,
+            SharingStarted.WhileSubscribed(5_000),
+            KumaCapabilities.evaluate(null),
+        )
 
     // Declared before init: the cert-expiry collector below reads this flow.
     val certs: StateFlow<Map<Int, CertInfo>> = activeClient
