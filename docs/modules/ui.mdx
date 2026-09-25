@@ -25,6 +25,11 @@ route stack while screens migrate incrementally.
   destination entries, and route-level system/predictive-back ownership.
 - `.../ui/MainShell.kt` - window-aware navigation suite plus the canonical monitor
   list-detail pane navigator and predictive-back bridge.
+- `.../ui/home/` - attention-first active-server Home. It composes existing live
+  and cached monitor state into issue rows, fleet counts, explicit connection
+  freshness, recent scoped transitions/actions, and saved-view shortcuts without
+  adding network polling. Server-backed public incidents and scoped alert groups
+  remain later roadmap inputs.
 - `.../ui/KioskData.kt` - bounded, attention-first fleet summary for the
   glance-display surface.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
@@ -146,6 +151,8 @@ route stack while screens migrate incrementally.
   checks. Monitor selection survives resize and process recreation, replaces the
   detail placeholder without removing an available list pane, and remains a
   full-screen detail when only one pane fits.
+  Home is the fresh-session default; an old restored main route still restores its
+  previous tab because existing serialized enum names remain unchanged.
   The glance display deliberately stays escapable, warns before keeping the screen
   awake, and restores the prior `keepScreenOn` value on exit.
 - Startup routing remains behind the one-way `startupReady` gate until encrypted

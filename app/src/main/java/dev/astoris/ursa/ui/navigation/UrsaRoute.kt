@@ -44,6 +44,7 @@ sealed interface UrsaRoute : NavKey {
 
 @Serializable
 enum class MainSection {
+    HOME,
     MONITORS,
     NOTIFICATIONS,
     SETTINGS,
@@ -109,12 +110,14 @@ fun LegacyRouteState.toNavigationStack(): List<UrsaRoute> {
 }
 
 fun MainTab.toMainSection(): MainSection = when (this) {
+    MainTab.HOME -> MainSection.HOME
     MainTab.MONITORS -> MainSection.MONITORS
     MainTab.NOTIFICATIONS -> MainSection.NOTIFICATIONS
     MainTab.SETTINGS -> MainSection.SETTINGS
 }
 
 fun MainSection.toMainTab(): MainTab = when (this) {
+    MainSection.HOME -> MainTab.HOME
     MainSection.MONITORS -> MainTab.MONITORS
     MainSection.NOTIFICATIONS -> MainTab.NOTIFICATIONS
     MainSection.SETTINGS -> MainTab.SETTINGS

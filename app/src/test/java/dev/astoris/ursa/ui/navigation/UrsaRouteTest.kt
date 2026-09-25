@@ -99,7 +99,11 @@ class UrsaRouteTest {
         )
     }
 
-    @Test fun currentTabsMapWithoutInventingNewDestinations() {
+    @Test fun currentTabsMapToTypedDestinations() {
+        assertEquals(
+            UrsaRoute.Main(MainSection.HOME),
+            state(mainTab = MainTab.HOME, selectedMonitorId = 42).toRoute(),
+        )
         assertEquals(UrsaRoute.Main(MainSection.MONITORS), state().toRoute())
         assertEquals(
             UrsaRoute.Main(MainSection.NOTIFICATIONS),
@@ -127,6 +131,7 @@ class UrsaRouteTest {
 
     @Test fun navigationStackRoundTripsForProcessRestoration() {
         val stack = listOf<UrsaRoute>(
+            UrsaRoute.Main(MainSection.HOME),
             UrsaRoute.Main(MainSection.MONITORS, selectedMonitorId = 42),
             UrsaRoute.MonitorDetail(42),
         )

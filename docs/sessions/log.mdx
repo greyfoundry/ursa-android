@@ -9,6 +9,34 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-25 - Attention-first Home destination
+
+**changed**: Added a dedicated Home destination and made it the default for a
+fresh authenticated session. Home prioritizes monitors needing attention, then
+shows a compact fleet summary, active-server connection and freshness context,
+recent distinct monitor changes, and saved views. Rows retain direct monitor
+navigation and the reconnect action delegates to the existing connection path.
+
+**correctness and compatibility**: The screen derives from existing repository,
+cache, event-history, and saved-view state without adding polling or another
+source of truth. Provider-neutral push events are not joined to a server merely
+because their numeric monitor IDs happen to match. Existing main-section enum
+values remain stable, old persisted destinations still deserialize, and a
+one-shot filter handoff opens the current monitor list without changing its
+saved-view behavior.
+
+**adaptive and live verification**: Safe-drawing insets prevent status-bar
+overlap on compact devices, while large windows use a centered 840dp maximum
+content width beside the navigation rail. Phone Home-to-detail-to-back and a
+1200x900dp tablet layout were exercised against official Uptime Kuma 2.5.5 on
+the visible API 37 Pixel 8 emulator without a fatal runtime entry.
+
+**quality gate**: Both app flavors passed complete unit tests, lint, and debug
+assembly; F-Droid release assembly and vital lint also passed. A same-host,
+seven-process-cold F-Droid release comparison measured a 754 ms median versus
+878 ms for the immediately previous phase, a 14.1% reduction and therefore no
+startup regression.
+
 ### 2026-09-25 - Shared operational UI component foundation
 
 **changed**: Added reusable Compose primitives for server context, dense status

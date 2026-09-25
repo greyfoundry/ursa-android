@@ -28,9 +28,50 @@
     <string name="shortcut_settings_long">Open settings</string>
 
     <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
     <string name="nav_monitors">Monitors</string>
     <string name="nav_notifications">Notifications</string>
     <string name="nav_settings">Settings</string>
+
+    <!-- Home -->
+    <string name="home_title">Home</string>
+    <string name="home_subtitle">What needs attention right now</string>
+    <string name="home_attention_title">Needs attention</string>
+    <string name="home_attention_clear">No active monitor issues</string>
+    <string name="home_attention_clear_desc">Down, pending, and maintenance checks will appear here.</string>
+    <plurals name="home_attention_more">
+        <item quantity="one">Show %d more</item>
+        <item quantity="other">Show %d more</item>
+    </plurals>
+    <string name="home_fleet_title">Current server</string>
+    <plurals name="home_fleet_attention">
+        <item quantity="one">%d check needs attention</item>
+        <item quantity="other">%d checks need attention</item>
+    </plurals>
+    <plurals name="home_maintenance_count">
+        <item quantity="one">%d maintenance</item>
+        <item quantity="other">%d maintenance</item>
+    </plurals>
+    <string name="home_no_active_checks">No active checks</string>
+    <string name="home_open_monitors">Open monitors</string>
+    <string name="home_server_title">Connection and freshness</string>
+    <string name="home_server_unknown">Uptime Kuma</string>
+    <string name="home_server_not_selected">No server selected</string>
+    <string name="home_refresh">Refresh connection</string>
+    <string name="home_data_live">Live</string>
+    <string name="home_data_cached">Cached %1$s</string>
+    <string name="home_recent_title">Recently changed</string>
+    <string name="home_recent_empty">No recent changes</string>
+    <string name="home_recent_empty_desc">Observed state changes and device actions will appear here.</string>
+    <string name="home_saved_views_title">Saved monitor views</string>
+    <string name="home_loading">Connecting to your server</string>
+    <string name="home_loading_desc">URSA will show live checks as soon as Uptime Kuma responds.</string>
+    <string name="home_offline">No live connection</string>
+    <string name="home_offline_desc">Check this device’s network or reconnect the current server.</string>
+    <string name="home_unavailable">Server data unavailable</string>
+    <string name="home_unavailable_desc">Review the connection, certificate, VPN, DNS, or sign-in state.</string>
+    <string name="home_empty_desc">Create a monitor in Uptime Kuma or refresh after adding one.</string>
+    <string name="home_retry">Try again</string>
 
     <!-- Common -->
     <string name="action_pause">Pause</string>

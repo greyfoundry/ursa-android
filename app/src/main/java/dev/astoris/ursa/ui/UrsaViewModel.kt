@@ -68,6 +68,7 @@ import dev.astoris.ursa.core.update.AvailableRelease
 import dev.astoris.ursa.core.update.ReleaseClient
 import dev.astoris.ursa.core.update.UpdateNotifier
 import dev.astoris.ursa.ui.monitors.SavedMonitorView
+import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
 import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.AccessCapability
@@ -217,8 +218,8 @@ private sealed interface StatusPageResolution {
     data class Failure(val result: StatusPageFormResult) : StatusPageResolution
 }
 
-/** The three primary destinations in the bottom navigation bar. */
-enum class MainTab { MONITORS, NOTIFICATIONS, SETTINGS }
+/** Authenticated destinations currently exposed by the adaptive navigation suite. */
+enum class MainTab { HOME, MONITORS, NOTIFICATIONS, SETTINGS }
 
 class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -249,6 +250,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
     private val _savedViews = MutableStateFlow<List<SavedMonitorView>>(emptyList())
     val savedViews: StateFlow<List<SavedMonitorView>> = _savedViews.asStateFlow()
+    private val _monitorFilterRequest = MutableStateFlow<MonitorViewFilter?>(null)
+    val monitorFilterRequest: StateFlow<MonitorViewFilter?> = _monitorFilterRequest.asStateFlow()
     val connections: StateFlow<List<ServerConnection>> =
         repo.connections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val activeUrl: StateFlow<String?> =
@@ -345,7 +348,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val overallStatusEnabled: StateFlow<Boolean> = _overallStatusEnabled.asStateFlow()
 
     // Which bottom-nav tab is selected.
-    private val _tab = MutableStateFlow(MainTab.MONITORS)
+    private val _tab = MutableStateFlow(MainTab.HOME)
     val tab: StateFlow<MainTab> = _tab.asStateFlow()
     private val _kioskMode = MutableStateFlow(false)
     val kioskMode: StateFlow<Boolean> = _kioskMode.asStateFlow()
@@ -546,6 +549,11 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun switchTo(conn: ServerConnection) = viewModelScope.launch {
         repo.switchTo(conn)
         OverallStatusService.refreshIfEnabled(getApplication())
+    }
+
+    fun refreshActiveServer() {
+        val connection = activeConnection.value ?: return
+        switchTo(connection)
     }
 
     fun testConnection(
@@ -910,6 +918,21 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             refreshKumaPushSetup()
         }
         _tab.value = t
+    }
+
+    fun openMonitors(filter: MonitorViewFilter? = null) {
+        _monitorFilterRequest.value = filter
+        _tab.value = MainTab.MONITORS
+    }
+
+    fun consumeMonitorFilterRequest() {
+        _monitorFilterRequest.value = null
+    }
+
+    fun openMonitor(monitorId: Int) {
+        if (monitors.value.none { it.id == monitorId }) return
+        _tab.value = MainTab.MONITORS
+        select(monitorId)
     }
     // Deep-link entry points (app shortcuts) map onto tabs.
     fun enterPush() = selectTab(MainTab.NOTIFICATIONS)

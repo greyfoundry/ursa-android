@@ -98,6 +98,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val compactDisplay by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
     val savedViews by vm.savedViews.collectAsStateWithLifecycle()
+    val monitorFilterRequest by vm.monitorFilterRequest.collectAsStateWithLifecycle()
     val incidentOpenRequest by vm.incidentOpenRequest.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
     val canCreate = activeConnection.allows(AccessCapability.MONITOR_CREATE)
@@ -142,6 +143,12 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
     LaunchedEffect(monitors) {
         selectedIds = selectedIds.intersect(monitors.mapTo(mutableSetOf(), Monitor::id))
+    }
+    LaunchedEffect(monitorFilterRequest) {
+        monitorFilterRequest?.let { requested ->
+            viewFilter = requested
+            vm.consumeMonitorFilterRequest()
+        }
     }
     LaunchedEffect(canBulk) {
         if (!canBulk) {

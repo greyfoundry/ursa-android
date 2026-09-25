@@ -22,7 +22,8 @@ and forwards only validated URSA deep links to the typed Navigation 3 route shel
 - `app/src/main/java/dev/astoris/ursa/ui/navigation/UrsaNavigation.kt` - saveable
   back-stack reconciliation, safe restoration, route entries, and back handling.
 - `app/src/main/java/dev/astoris/ursa/ui/MainShell.kt` - window-aware navigation
-  bar/rail and the nested monitor list-detail navigator.
+  bar/rail for Home and the released destinations, plus the nested monitor
+  list-detail navigator.
 - `app/src/main/AndroidManifest.xml` - launcher/BROWSABLE activity, network and
   notification permissions, widgets, tile, workers, and non-exported receivers.
 - `app/src/main/res/values/themes.xml` - XML launch theme before Compose renders.
@@ -52,5 +53,8 @@ route still resolves only against data already saved by URSA.
 - Material 3 Adaptive owns pane presentation and pane predictive back. The
   ViewModel continues to own the selected monitor so deep links and released
   actions use the same state boundary on every window size.
+- Home is additive to the released monitor/notification/settings destinations.
+  Fresh sessions start there; restored typed routes and existing deep links retain
+  their previous destination and selection semantics.
 - Startup and app-lock content renders synchronously ahead of a restored back stack,
   so authenticated content cannot flash while encrypted startup or unlock is pending.
