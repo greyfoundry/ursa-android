@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-24
+last-updated: 2026-09-25
 owner: astoris
 status: stable
 ---
@@ -23,8 +23,10 @@ route stack while screens migrate incrementally.
   keys, legacy-state adapter, and deterministic parent/child stack construction.
 - `.../ui/navigation/UrsaNavigation.kt` - saveable route host, safe restoration,
   destination entries, and route-level system/predictive-back ownership.
-- `.../ui/AdaptiveLayout.kt` - pure expanded-width decision and bounded,
-  attention-first fleet summary for tablet and glance-display surfaces.
+- `.../ui/MainShell.kt` - window-aware navigation suite plus the canonical monitor
+  list-detail pane navigator and predictive-back bridge.
+- `.../ui/KioskData.kt` - bounded, attention-first fleet summary for the
+  glance-display surface.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
   imported session-token authentication, conditional 2FA, connection test, and
   explicit self-signed-certificate choice for HTTPS. New plain-HTTP connections
@@ -61,8 +63,9 @@ route stack while screens migrate incrementally.
   current state, latency, compact recent checks, unpin, and detail deep links.
 - `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
   heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume,
-  and a confirmed external-browser link to the monitor's Kuma dashboard. At
-  840dp and wider it occupies the detail pane beside the retained monitor list.
+  and a confirmed external-browser link to the monitor's Kuma dashboard. The
+  adaptive scaffold shows it alone in compact windows and beside the retained
+  monitor list when the live window constraints allow two panes.
 - `.../ui/monitors/KioskScreen.kt` - opt-in fleet glance display with a bounded
   attention-first list, status counts, cached-data age, and a visible exit action.
   It keeps the screen awake only while composed and does not enter Android lock-task
@@ -118,7 +121,8 @@ route stack while screens migrate incrementally.
   widget deep-link entry points.
 
 **depends on**
-- `data/repository`, `core/network` (StatusPageClient), Compose Material 3,
+- `data/repository`, `core/network` (StatusPageClient), Compose Material 3 and
+  Material 3 Adaptive,
   lifecycle-viewmodel-compose, lifecycle-runtime-compose.
 
 ## gotchas
@@ -134,8 +138,11 @@ route stack while screens migrate incrementally.
   biometric/device-credential proof before monitor deletion, maintenance deletion,
   managed-push removal, or saved-server removal. It is an additional confirmation;
   repository access policy remains the authorization boundary.
-- Expanded mode begins at 840dp. Monitor selection replaces the right-pane empty
-  prompt without removing the list; phone selection remains a full-screen detail.
+- The Material 3 Adaptive window/posture policy controls the navigation bar/rail
+  and one-/two-pane transitions; do not reintroduce hard-coded device or orientation
+  checks. Monitor selection survives resize and process recreation, replaces the
+  detail placeholder without removing an available list pane, and remains a
+  full-screen detail when only one pane fits.
   The glance display deliberately stays escapable, warns before keeping the screen
   awake, and restores the prior `keepScreenOn` value on exit.
 - Startup routing remains behind the one-way `startupReady` gate until encrypted

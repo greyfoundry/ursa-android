@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-24
+last-updated: 2026-09-25
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,33 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-25 - Adaptive navigation and monitor list-detail shell
+
+**changed**: Replaced the fixed bottom bar and manual 840dp monitor split with
+Material 3's window-aware `NavigationSuiteScaffold` and canonical
+`ListDetailPaneScaffold`. Compact windows retain a one-pane monitor flow; larger
+windows switch to a navigation rail and keep monitor list and detail visible
+together. Selection remains ViewModel-owned and is mirrored with a non-secret
+monitor ID in both the pane navigator and typed main-route key.
+
+**compatibility and back**: Existing tabs, deep links, toolbar actions, and monitor
+actions retain their released state boundary. Compact pane back uses the adaptive
+predictive-back handler and clears selection after returning to the list. The old
+serialized monitor-detail route stays readable so a saved pre-migration stack can
+be reconciled after an in-place update.
+
+**live verification**: Against official Uptime Kuma 2.5.5 on the visible API 37
+Pixel 8 emulator, compact row selection, toolbar back, edge predictive back,
+1200x900dp live resize to rail plus simultaneous panes, resize back to compact,
+and killed-process detail restoration all preserved the intended selection. No
+fatal runtime entry was produced.
+
+**quality gate**: Both app flavor unit-test, lint, and debug-assembly tasks passed,
+as did F-Droid release assembly and lint-vital. A same-host, seven-process-cold
+release comparison measured a 1,114 ms median versus 1,085 ms for the immediately
+previous phase, a 2.7% increase within the 10% budget. The 3,901 ms UI-02 outlier
+remains included in the recorded private range and mean.
 
 ### 2026-09-24 - Typed Navigation 3 route shell
 

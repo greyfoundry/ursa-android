@@ -1,0 +1,68 @@
+---
+last-updated: 2026-09-25
+owner: astoris
+status: stable
+---
+
+## contract
+
+URSA uses stable Compose Material 3 Adaptive **1.3.0** for canonical pane
+layouts. `material3-adaptive-navigation-suite` resolves to stable Material 3
+**1.4.0** through Compose BOM **2026.09.00**. Preview, alpha, beta, and
+release-candidate artifacts are excluded.
+
+The authenticated shell uses `NavigationSuiteScaffold` without a device-name or
+orientation check. Its standard window and posture policy chooses a bottom
+navigation bar for compact constraints and a navigation rail when the available
+window supports it. The monitor destination uses `ListDetailPaneScaffold` with a
+saveable `ThreePaneScaffoldNavigator<Int>` and the library predictive-back
+handler. Monitor IDs are the only pane content keys; URLs and credentials never
+enter adaptive navigation state.
+
+Primary references:
+
+- https://developer.android.com/develop/adaptive-apps/guides/build-adaptive-navigation
+- https://developer.android.com/develop/adaptive-apps/guides/list-detail
+- https://developer.android.com/develop/adaptive-apps/guides/adaptive-dos-and-donts
+- https://developer.android.com/develop/ui/compose/state-lifespans
+- https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive
+
+## state ownership
+
+`UrsaViewModel` remains the product-state owner. Selecting a monitor updates its
+existing selected ID; the pane navigator mirrors that ID into the detail
+destination. A compact predictive-back gesture moves the navigator to the list
+and then clears ViewModel selection. The toolbar back action clears selection and
+the navigator follows. This two-way boundary keeps released actions and deep links
+working without creating a second monitor repository.
+
+The typed `UrsaRoute.Main` key also carries the selected monitor ID. Navigation 3
+therefore restores safe selection after process recreation, while the pane
+navigator preserves list/detail intent across resize. The former
+`UrsaRoute.MonitorDetail` key remains decodable so an older saved stack can be
+reconciled after an in-place app update.
+
+## layout and back behaviour
+
+- Compact windows show one pane; selecting a row displays detail with an explicit
+  back action.
+- Expanded windows retain list and detail simultaneously and use the standard
+  pane proportions and transitions supplied by the library.
+- Resizing changes layout, not state ownership or composition identity.
+- Predictive back uses `PopUntilScaffoldValueChange`, the library-recommended
+  default for list-detail navigation. Explicit selection clearing uses
+  `PopUntilCurrentDestinationChange` so a compact toolbar back always returns to
+  the list.
+- Top-level navigation stays visible while pane content changes and adapts from a
+  bottom bar to a rail at runtime.
+
+Animations come from the canonical `AnimatedPane` implementation and URSA's
+existing low-cost destination fades. No custom size animation, blur, shader, or
+per-row transition was added.
+
+## compatibility boundary
+
+The feature does not change server, monitor, backup, widget, Wear, or deep-link
+formats. Android 8.0 remains the minimum. Predictive back is enabled by the app's
+API 37 target, while older supported Android releases continue to receive normal
+back handling from the same navigator.

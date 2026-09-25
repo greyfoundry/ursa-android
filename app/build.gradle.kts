@@ -96,8 +96,12 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material3.adaptive.navigation.suite)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.material3.adaptive)
+    implementation(libs.androidx.material3.adaptive.layout)
+    implementation(libs.androidx.material3.adaptive.navigation)
 
     // storage
     implementation(libs.androidx.datastore.preferences)

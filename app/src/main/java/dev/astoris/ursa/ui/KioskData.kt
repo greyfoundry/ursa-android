@@ -4,12 +4,6 @@ import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import java.util.Locale
 
-object AdaptiveLayout {
-    const val EXPANDED_MIN_WIDTH_DP = 840f
-
-    fun isExpanded(widthDp: Float): Boolean = widthDp >= EXPANDED_MIN_WIDTH_DP
-}
-
 data class KioskSummary(
     val up: Int,
     val down: Int,

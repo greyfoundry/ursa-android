@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-24
+last-updated: 2026-09-25
 owner: astoris
 status: stable
 ---
@@ -11,8 +11,9 @@ keys implement `NavKey`, are Kotlin-serializable, and contain only non-secret
 identifiers. The back stack is created with `rememberNavBackStack`, so supported
 navigation intent survives resize, rotation, and process recreation.
 
-Material 3 Adaptive is pinned to stable **1.3.0** for the next adaptive-shell
-slice. Preview, alpha, beta, and release-candidate artifacts are not used.
+Material 3 Adaptive owns the nested monitor list-detail navigator; see
+`docs/references/material3-adaptive.mdx`. Preview, alpha, beta, and
+release-candidate artifacts are not used.
 
 Primary references:
 
@@ -33,8 +34,8 @@ drafts, server URLs, or authorization state.
 The startup and app-lock gates render synchronously in front of a restored stack.
 This prevents process restoration from briefly drawing authenticated content before
 encrypted startup selection or local authentication completes. Unlocking reveals
-the prior safe route. Restorable intent includes the main destination, monitor
-detail ID, public status-page ID, server manager, and glance display. Unsaved server
+the prior safe route. Restorable intent includes the main destination and its
+selected monitor ID, public status-page ID, server manager, and glance display. Unsaved server
 and monitor editor fields are deliberately not reconstructed after process death.
 
 ## back behaviour
@@ -47,7 +48,7 @@ reconciled to the typed stack.
 
 Main-shell, status-page, and editor entries use stable content identities across
 typed-key updates. This keeps per-entry saveable state without treating a tab,
-selected two-pane monitor, or asynchronously loaded editor ID as a whole-screen
+selected adaptive-pane monitor, or asynchronously loaded editor ID as a whole-screen
 navigation transition.
 
 ## compatibility boundary

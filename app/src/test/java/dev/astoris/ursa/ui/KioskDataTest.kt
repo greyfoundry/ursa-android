@@ -3,17 +3,9 @@ package dev.astoris.ursa.ui
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class AdaptiveLayoutTest {
-    @Test
-    fun expandedPaneStartsAtStableTabletWidth() {
-        assertFalse(AdaptiveLayout.isExpanded(839.9f))
-        assertTrue(AdaptiveLayout.isExpanded(840f))
-    }
-
+class KioskDataTest {
     @Test
     fun kioskSummaryCountsEveryOperationalState() {
         val summary = KioskData.summarize(

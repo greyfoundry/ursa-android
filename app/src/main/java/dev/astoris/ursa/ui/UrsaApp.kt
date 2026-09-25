@@ -2,7 +2,6 @@ package dev.astoris.ursa.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -59,34 +58,29 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val expanded = AdaptiveLayout.isExpanded(maxWidth.value)
-        val routeState = LegacyRouteState(
-            locked = locked,
-            startupReady = startupReady,
-            statusPageMode = statusPageMode,
-            selectedStatusPageId = selectedStatusPageId,
-            connectionManagerMode = connectionManagerMode,
-            addingConnection = addingConnection,
-            editingConnection = editingConnection != null,
-            hasSession = hasSession,
-            monitorEditorOpen = monitorEditor !is MonitorEditorUiState.Idle,
-            monitorEditorId = monitorEditor.monitorId(),
-            kioskMode = kioskMode,
-            selectedMonitorId = selectedId,
-            expanded = expanded,
-            mainTab = mainTab,
-        )
-        UrsaNavHost(
-            vm = vm,
-            routeState = routeState,
-            selected = selected,
-            editingConnection = editingConnection,
-            monitorEditor = monitorEditor,
-            expanded = expanded,
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
+    val routeState = LegacyRouteState(
+        locked = locked,
+        startupReady = startupReady,
+        statusPageMode = statusPageMode,
+        selectedStatusPageId = selectedStatusPageId,
+        connectionManagerMode = connectionManagerMode,
+        addingConnection = addingConnection,
+        editingConnection = editingConnection != null,
+        hasSession = hasSession,
+        monitorEditorOpen = monitorEditor !is MonitorEditorUiState.Idle,
+        monitorEditorId = monitorEditor.monitorId(),
+        kioskMode = kioskMode,
+        selectedMonitorId = selectedId,
+        mainTab = mainTab,
+    )
+    UrsaNavHost(
+        vm = vm,
+        routeState = routeState,
+        selected = selected,
+        editingConnection = editingConnection,
+        monitorEditor = monitorEditor,
+        modifier = Modifier.fillMaxSize(),
+    )
 
     accessDenial?.let { denial ->
         AlertDialog(

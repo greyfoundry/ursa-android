@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-21
+last-updated: 2026-09-25
 owner: astoris
 status: stable
 ---
@@ -404,7 +404,7 @@ copy, and an update to this ledger.
 | ID | Status | Capability | Evidence sources | Acceptance boundary |
 | --- | --- | --- | --- | --- |
 | CP-038 | complete | Detailed configurable home widgets | KumaAlert, Kuma : Status, UptimeKuma Android Widget | Private monitor and public-page widgets, chosen rows, heartbeat/uptime, manual refresh, interval guidance, and deep links. |
-| CP-039 | complete | Adaptive tablet and kiosk mode | KumaAlert, InfraLab | At 840dp and wider the monitor list remains beside an independently populated detail pane. Settings offers an opt-in, attention-first glance display that keeps the screen awake only while visible, warns about power use and OLED burn-in, restores the window flag on exit, and remains intentionally escapable rather than using Android lock-task mode. |
+| CP-039 | complete | Adaptive tablet and kiosk mode | KumaAlert, InfraLab | Material 3 Adaptive keeps the monitor list beside an independently populated detail pane whenever live window constraints allow it, and changes the top-level bar into a rail without device-name or orientation checks. Settings offers an opt-in, attention-first glance display that keeps the screen awake only while visible, warns about power use and OLED burn-in, restores the window flag on exit, and remains intentionally escapable rather than using Android lock-task mode. |
 | CP-040 | complete | Full Wear OS app and complications | KumaAlert, Uptime Mate, Wuma | Standalone public overview, attention-first rows, latency/uptime/groups/tags, validated detail routes, tile, and short/long complications. Optional confirmed pause/resume uses a phone-paired encrypted session and access headers; no credentials are entered on-watch. |
 | CP-041 | complete | Connection/monitor/incident deep links | KumaAlert, KumaCheck | Strict `ursa://` routes use a one-way server scope rather than a server URL, reject malformed IDs and encoded path tricks, and route widgets and notifications to the matching saved server. |
 | CP-042 | complete | Compact display preference | Uptime Flutter | The persisted compact option reduces list spacing and secondary text while retaining 56dp row targets and existing accessibility descriptions. |

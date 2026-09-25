@@ -62,7 +62,6 @@ data class LegacyRouteState(
     val monitorEditorId: Int?,
     val kioskMode: Boolean,
     val selectedMonitorId: Int?,
-    val expanded: Boolean,
     val mainTab: MainTab,
 )
 
@@ -76,12 +75,9 @@ fun LegacyRouteState.toRoute(): UrsaRoute = when {
     !hasSession -> UrsaRoute.Login
     monitorEditorOpen -> UrsaRoute.MonitorEditor(monitorEditorId)
     kioskMode -> UrsaRoute.Kiosk
-    selectedMonitorId != null && !expanded -> UrsaRoute.MonitorDetail(selectedMonitorId)
     else -> UrsaRoute.Main(
         tab = mainTab.toMainSection(),
-        selectedMonitorId = selectedMonitorId.takeIf {
-            expanded && mainTab == MainTab.MONITORS
-        },
+        selectedMonitorId = selectedMonitorId.takeIf { mainTab == MainTab.MONITORS },
     )
 }
 

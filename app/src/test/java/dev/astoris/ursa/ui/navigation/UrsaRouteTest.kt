@@ -24,7 +24,6 @@ class UrsaRouteTest {
         monitorEditorId: Int? = null,
         kioskMode: Boolean = false,
         selectedMonitorId: Int? = null,
-        expanded: Boolean = false,
         mainTab: MainTab = MainTab.MONITORS,
     ) = LegacyRouteState(
         locked,
@@ -39,7 +38,6 @@ class UrsaRouteTest {
         monitorEditorId,
         kioskMode,
         selectedMonitorId,
-        expanded,
         mainTab,
     )
 
@@ -84,24 +82,20 @@ class UrsaRouteTest {
             ).toNavigationStack(),
         )
         assertEquals(
-            listOf(
-                UrsaRoute.Main(MainSection.MONITORS),
-                UrsaRoute.MonitorDetail(42),
-            ),
+            listOf(UrsaRoute.Main(MainSection.MONITORS, selectedMonitorId = 42)),
             state(selectedMonitorId = 42).toNavigationStack(),
         )
     }
 
-    @Test fun authenticatedRoutesPreserveEditorKioskAndAdaptiveDetailOrder() {
+    @Test fun authenticatedRoutesPreserveEditorKioskAndAdaptiveSelectionOrder() {
         assertEquals(
             UrsaRoute.MonitorEditor(42),
             state(monitorEditorOpen = true, monitorEditorId = 42, kioskMode = true).toRoute(),
         )
         assertEquals(UrsaRoute.Kiosk, state(kioskMode = true, selectedMonitorId = 42).toRoute())
-        assertEquals(UrsaRoute.MonitorDetail(42), state(selectedMonitorId = 42).toRoute())
         assertEquals(
             UrsaRoute.Main(MainSection.MONITORS, selectedMonitorId = 42),
-            state(selectedMonitorId = 42, expanded = true).toRoute(),
+            state(selectedMonitorId = 42).toRoute(),
         )
     }
 
@@ -109,7 +103,7 @@ class UrsaRouteTest {
         assertEquals(UrsaRoute.Main(MainSection.MONITORS), state().toRoute())
         assertEquals(
             UrsaRoute.Main(MainSection.NOTIFICATIONS),
-            state(mainTab = MainTab.NOTIFICATIONS).toRoute(),
+            state(mainTab = MainTab.NOTIFICATIONS, selectedMonitorId = 42).toRoute(),
         )
         assertEquals(
             UrsaRoute.Main(MainSection.SETTINGS),

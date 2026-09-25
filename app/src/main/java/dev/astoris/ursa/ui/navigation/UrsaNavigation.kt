@@ -36,7 +36,6 @@ internal fun UrsaNavHost(
     selected: Monitor?,
     editingConnection: ServerConnection?,
     monitorEditor: MonitorEditorUiState,
-    expanded: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val activity = LocalContext.current.findActivity()
@@ -186,7 +185,7 @@ internal fun UrsaNavHost(
                     )
                 }
                 is UrsaRoute.Main -> NavEntry(key, contentKey = MAIN_CONTENT_KEY) {
-                    MainShell(vm, expanded, selected)
+                    MainShell(vm, selected)
                 }
                 is UrsaRoute.MonitorDetail -> NavEntry(key) {
                     val monitor = selected?.takeIf { it.id == key.monitorId }
