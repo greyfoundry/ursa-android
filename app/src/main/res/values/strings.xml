@@ -109,6 +109,9 @@
     <string name="cache_banner">Showing last-known data</string>
     <string name="monitors_empty">No monitors yet</string>
     <string name="monitors_none_match">No monitors match</string>
+    <string name="inventory_filters">Filters</string>
+    <string name="inventory_result_count">%1$d of %2$d monitors</string>
+    <string name="monitor_row_context">%1$s · %2$s</string>
     <plurals name="monitors_need_attention">
         <item quantity="one">%d monitor needs attention</item>
         <item quantity="other">%d monitors need attention</item>
