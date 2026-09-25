@@ -1,14 +1,23 @@
 package dev.astoris.ursa.ui
 
+import androidx.navigation3.runtime.NavKey
 import java.net.URI
 import java.security.MessageDigest
+import kotlinx.serialization.Serializable
 
-sealed interface AppRoute {
+@Serializable
+sealed interface AppRoute : NavKey {
+    @Serializable
     data object Push : AppRoute
+    @Serializable
     data object Settings : AppRoute
+    @Serializable
     data class Connection(val serverScope: String) : AppRoute
+    @Serializable
     data class Monitor(val serverScope: String, val monitorId: Int) : AppRoute
+    @Serializable
     data class Incident(val serverScope: String, val monitorId: Int) : AppRoute
+    @Serializable
     data class StatusPage(val pageId: String) : AppRoute
 }
 

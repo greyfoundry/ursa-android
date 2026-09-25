@@ -45,7 +45,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KioskScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun KioskScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    handleSystemBack: Boolean = true,
+) {
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
@@ -61,7 +65,7 @@ fun KioskScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = previous }
     }
-    BackHandler(onBack = vm::exitKioskMode)
+    BackHandler(enabled = handleSystemBack, onBack = vm::exitKioskMode)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

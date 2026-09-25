@@ -67,7 +67,11 @@ import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun ConnectionManagerScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    handleSystemBack: Boolean = true,
+) {
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val connectionState by vm.state.collectAsStateWithLifecycle()
@@ -118,7 +122,7 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         }
     }
 
-    BackHandler { vm.exitConnectionManager() }
+    BackHandler(enabled = handleSystemBack) { vm.exitConnectionManager() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

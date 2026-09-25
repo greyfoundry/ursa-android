@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-24 - Typed Navigation 3 route shell
+
+**changed**: Replaced the top-level screen switch with a stable Navigation 3 1.2.0
+`NavDisplay` and serializable, non-secret route keys. A compatibility adapter maps
+the released ViewModel precedence into deterministic parent/child history, so the
+existing screens and actions remain available while later adaptive destinations
+migrate independently. Legacy `ursa://` routes are now navigation keys without
+changing their strict parsing or local-resolution boundaries.
+
+**safety and restoration**: Startup and app-lock gates render synchronously in
+front of any restored authenticated stack. Main-tab, monitor-detail, public-page,
+server-manager, and glance-display intent can be restored; unsaved connection and
+monitor form contents are not reconstructed. Route-level system and predictive
+back now flow through `NavDisplay`, while nested public-page state retains its local
+back ordering and an active monitor save cannot be dismissed.
+
+**verification**: Route precedence, parent history, deep-link key coverage, and
+serialization round trips have focused unit coverage. Both phone flavors passed
+their complete unit-test, lint, and debug-assembly gates; F-Droid release assembly
+and vital lint also passed. On the visible API 37 Pixel 8 emulator, public-page
+button/back navigation, predictive back, rotation, and killed-process restoration
+were exercised without a fatal runtime entry. A same-host release A/B measured the
+new shell 7.7% above the recorded baseline commit, within the approved 10% budget.
+
 ### 2026-09-24 - Kuma version and capability matrix
 
 **changed**: Added strict stable-version parsing, an authenticated live

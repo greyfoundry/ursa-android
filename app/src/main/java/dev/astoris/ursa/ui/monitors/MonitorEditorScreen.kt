@@ -63,7 +63,11 @@ import dev.astoris.ursa.ui.allows
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun MonitorEditorScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    handleSystemBack: Boolean = true,
+) {
     val state by vm.monitorEditor.collectAsStateWithLifecycle()
     val notifications by vm.notifications.collectAsStateWithLifecycle()
     val serverTags by vm.serverTags.collectAsStateWithLifecycle()
@@ -96,7 +100,7 @@ fun MonitorEditorScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
         )
     val serverError = (state as? MonitorEditorUiState.Error)?.message
-    BackHandler(enabled = !saving) { vm.closeMonitorEditor() }
+    BackHandler(enabled = handleSystemBack && !saving) { vm.closeMonitorEditor() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

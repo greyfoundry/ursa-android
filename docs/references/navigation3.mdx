@@ -1,0 +1,58 @@
+---
+last-updated: 2026-09-24
+owner: astoris
+status: stable
+---
+
+## contract
+
+URSA uses stable AndroidX Navigation 3 **1.2.0** for its phone route shell. Route
+keys implement `NavKey`, are Kotlin-serializable, and contain only non-secret
+identifiers. The back stack is created with `rememberNavBackStack`, so supported
+navigation intent survives resize, rotation, and process recreation.
+
+Material 3 Adaptive is pinned to stable **1.3.0** for the next adaptive-shell
+slice. Preview, alpha, beta, and release-candidate artifacts are not used.
+
+Primary references:
+
+- https://developer.android.com/guide/navigation/navigation-3
+- https://developer.android.com/guide/navigation/navigation-3/basics
+- https://developer.android.com/guide/navigation/navigation-3/save-state
+- https://developer.android.com/jetpack/androidx/releases/navigation3
+- https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive
+
+## ownership boundary
+
+`UrsaViewModel` remains the product-state owner during the incremental migration.
+`LegacyRouteState` converts the released state precedence into typed route keys and
+parent/child history. Navigation events update the existing ViewModel actions, and
+the route adapter reconciles the back stack; it does not duplicate credentials,
+drafts, server URLs, or authorization state.
+
+The startup and app-lock gates render synchronously in front of a restored stack.
+This prevents process restoration from briefly drawing authenticated content before
+encrypted startup selection or local authentication completes. Unlocking reveals
+the prior safe route. Restorable intent includes the main destination, monitor
+detail ID, public status-page ID, server manager, and glance display. Unsaved server
+and monitor editor fields are deliberately not reconstructed after process death.
+
+## back behaviour
+
+`NavDisplay` owns system and predictive back for route-level destinations. Existing
+in-screen state, such as a public-page editor or selected public dashboard, consumes
+back before the route is popped. Monitor saving cannot be dismissed mid-write.
+Toolbar back actions continue to call the same ViewModel transitions and are then
+reconciled to the typed stack.
+
+Main-shell, status-page, and editor entries use stable content identities across
+typed-key updates. This keeps per-entry saveable state without treating a tab,
+selected two-pane monitor, or asynchronously loaded editor ID as a whole-screen
+navigation transition.
+
+## compatibility boundary
+
+Existing `ursa://` parsing remains strict and backwards compatible. `AppRoute`
+values are now serializable `NavKey` instances, but intent handling still resolves
+server scopes and public-page IDs only against locally saved data. URLs, tokens,
+headers, and credentials never enter a route key.

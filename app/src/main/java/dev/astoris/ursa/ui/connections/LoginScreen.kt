@@ -72,6 +72,7 @@ fun LoginScreen(
     initialConnection: ServerConnection? = null,
     onBack: (() -> Unit)? = null,
     onConnected: () -> Unit = {},
+    handleSystemBack: Boolean = true,
 ) {
     val context = LocalContext.current
     val loginState by vm.login.collectAsStateWithLifecycle()
@@ -171,7 +172,7 @@ fun LoginScreen(
         }
     }
 
-    BackHandler(enabled = onBack != null) { onBack?.invoke() }
+    BackHandler(enabled = handleSystemBack && onBack != null) { onBack?.invoke() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

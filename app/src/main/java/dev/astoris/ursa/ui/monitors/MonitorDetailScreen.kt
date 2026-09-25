@@ -78,6 +78,7 @@ fun MonitorDetailScreen(
     monitor: Monitor,
     modifier: Modifier = Modifier,
     showBack: Boolean = true,
+    handleSystemBack: Boolean = true,
 ) {
     val beats by vm.beats.collectAsStateWithLifecycle()
     val certs by vm.certs.collectAsStateWithLifecycle()
@@ -112,7 +113,7 @@ fun MonitorDetailScreen(
     val deleteFailedMessage = stringResource(R.string.monitor_delete_failed)
     LaunchedEffect(monitor.id) { overrideText = vm.monitorThresholdMs(monitor.id)?.toString() ?: "" }
 
-    BackHandler { vm.back() }
+    BackHandler(enabled = handleSystemBack) { vm.back() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

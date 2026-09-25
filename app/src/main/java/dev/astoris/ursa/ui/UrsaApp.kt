@@ -29,19 +29,16 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.astoris.ursa.R
-import dev.astoris.ursa.ui.connections.LoginScreen
-import dev.astoris.ursa.ui.connections.ConnectionManagerScreen
-import dev.astoris.ursa.ui.lock.LockScreen
-import dev.astoris.ursa.ui.monitors.MonitorDetailScreen
-import dev.astoris.ursa.ui.monitors.MonitorEditorScreen
-import dev.astoris.ursa.ui.monitors.KioskScreen
-import dev.astoris.ursa.ui.statuspage.StatusPageScreen
+import dev.astoris.ursa.ui.navigation.LegacyRouteState
+import dev.astoris.ursa.ui.navigation.UrsaNavHost
 
 @Composable
 fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val startupReady by vm.startupReady.collectAsStateWithLifecycle()
     val selected by vm.selectedMonitor.collectAsStateWithLifecycle()
+    val selectedId by vm.selectedId.collectAsStateWithLifecycle()
     val statusPageMode by vm.statusPageMode.collectAsStateWithLifecycle()
+    val selectedStatusPageId by vm.selectedStatusPageId.collectAsStateWithLifecycle()
     val hasSession by vm.hasSession.collectAsStateWithLifecycle()
     val locked by vm.locked.collectAsStateWithLifecycle()
     val connectionManagerMode by vm.connectionManagerMode.collectAsStateWithLifecycle()
@@ -49,6 +46,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     val editingConnection by vm.editingConnection.collectAsStateWithLifecycle()
     val monitorEditor by vm.monitorEditor.collectAsStateWithLifecycle()
     val kioskMode by vm.kioskMode.collectAsStateWithLifecycle()
+    val mainTab by vm.tab.collectAsStateWithLifecycle()
     val accessDenial by vm.accessDenial.collectAsStateWithLifecycle()
 
     // Re-lock when the app goes to the background (if the lock is enabled).
@@ -63,23 +61,31 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val expanded = AdaptiveLayout.isExpanded(maxWidth.value)
-        when {
-            locked -> LockScreen(vm)
-            !startupReady -> StartupLoadingScreen()
-            statusPageMode -> StatusPageScreen(vm)
-            connectionManagerMode && addingConnection -> LoginScreen(
-                vm = vm,
-                initialConnection = editingConnection,
-                onBack = { vm.cancelAddingConnection() },
-                onConnected = { vm.finishAddingConnection() },
-            )
-            connectionManagerMode -> ConnectionManagerScreen(vm)
-            !hasSession -> LoginScreen(vm)
-            monitorEditor !is MonitorEditorUiState.Idle -> MonitorEditorScreen(vm)
-            kioskMode -> KioskScreen(vm)
-            selected != null && !expanded -> MonitorDetailScreen(vm, selected!!)
-            else -> MainShell(vm, expanded, selected)
-        }
+        val routeState = LegacyRouteState(
+            locked = locked,
+            startupReady = startupReady,
+            statusPageMode = statusPageMode,
+            selectedStatusPageId = selectedStatusPageId,
+            connectionManagerMode = connectionManagerMode,
+            addingConnection = addingConnection,
+            editingConnection = editingConnection != null,
+            hasSession = hasSession,
+            monitorEditorOpen = monitorEditor !is MonitorEditorUiState.Idle,
+            monitorEditorId = monitorEditor.monitorId(),
+            kioskMode = kioskMode,
+            selectedMonitorId = selectedId,
+            expanded = expanded,
+            mainTab = mainTab,
+        )
+        UrsaNavHost(
+            vm = vm,
+            routeState = routeState,
+            selected = selected,
+            editingConnection = editingConnection,
+            monitorEditor = monitorEditor,
+            expanded = expanded,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 
     accessDenial?.let { denial ->
@@ -103,8 +109,17 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
     }
 }
 
+private fun MonitorEditorUiState.monitorId(): Int? = when (this) {
+    is MonitorEditorUiState.Ready -> draft.id
+    is MonitorEditorUiState.Saving -> draft.id
+    is MonitorEditorUiState.Error -> draft?.id
+    MonitorEditorUiState.Idle,
+    MonitorEditorUiState.Loading,
+    -> null
+}
+
 @Composable
-private fun StartupLoadingScreen(modifier: Modifier = Modifier) {
+internal fun StartupLoadingScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,

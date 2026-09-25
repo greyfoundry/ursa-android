@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-21
+last-updated: 2026-09-24
 owner: astoris
 status: stable
 ---
@@ -15,6 +15,8 @@ actually resolves, the build wins - update this file.
 **toolchain (verified building on this machine 2026-09-21)**
 - Kotlin **2.4.10** (pinned via root `buildscript` classpath - see gotchas)
 - Jetpack Compose - BOM **2026.09.00**
+- AndroidX Navigation 3 **1.2.0**
+- Material 3 Adaptive **1.3.0** (pinned for the adaptive-shell slice)
 - Android Gradle Plugin **9.4.1**, Gradle **9.7.1**
 - compileSdk **37**, minSdk **26**, targetSdk **37**
 - JDK: build runs on Android Studio's bundled JBR 21, targets Java/Kotlin 17
@@ -31,6 +33,8 @@ actually resolves, the build wins - update this file.
   `docs/references/datastore-tink.mdx`.
 - `org.unifiedpush.android:connector` (**3.3.5**) - FOSS push, no relay. See
   `docs/references/unifiedpush.mdx`.
+- `androidx.navigation3:navigation3-{runtime,ui}` (**1.2.0**) - typed,
+  serializable route stack. See `docs/references/navigation3.mdx`.
 
 **depends on**
 - `gradle/libs.versions.toml` - single source of truth for versions.

@@ -78,7 +78,11 @@ private data class StatusPageDraft(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun StatusPageScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    handleRootSystemBack: Boolean = true,
+) {
     val pages by vm.savedStatusPages.collectAsStateWithLifecycle()
     val selectedId by vm.selectedStatusPageId.collectAsStateWithLifecycle()
     val ui by vm.statusPage.collectAsStateWithLifecycle()
@@ -96,7 +100,10 @@ fun StatusPageScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             else -> vm.exitStatusPage()
         }
     }
-    BackHandler(onBack = ::navigateBack)
+    BackHandler(
+        enabled = handleRootSystemBack || editorOpen || selectedId != null,
+        onBack = ::navigateBack,
+    )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

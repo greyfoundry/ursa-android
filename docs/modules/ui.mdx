@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-20
+last-updated: 2026-09-24
 owner: astoris
 status: stable
 ---
@@ -7,8 +7,8 @@ status: stable
 ## what this is
 
 The screens and the single ViewModel behind them. One `UrsaViewModel` holds all
-app state; a top-level `when` in `UrsaApp` picks the screen from that state (no
-navigation library for M1 - the screen set is small and state-driven).
+product state; a typed Navigation 3 shell maps that released state to a saveable
+route stack while screens migrate incrementally.
 
 ## technical map
 
@@ -19,6 +19,10 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/UrsaApp.kt` - root; holds a minimal startup loading bridge while the
   encrypted saved-session route is restored, then routes server manager /
   status-page / login / detail / list or the opt-in always-on glance display.
+- `.../ui/navigation/UrsaRoute.kt` - serializable root and authenticated route
+  keys, legacy-state adapter, and deterministic parent/child stack construction.
+- `.../ui/navigation/UrsaNavigation.kt` - saveable route host, safe restoration,
+  destination entries, and route-level system/predictive-back ownership.
 - `.../ui/AdaptiveLayout.kt` - pure expanded-width decision and bounded,
   attention-first fleet summary for tablet and glance-display surfaces.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
@@ -119,9 +123,9 @@ navigation library for M1 - the screen set is small and state-driven).
 
 ## gotchas
 
-- Routing is a `when` on state, not a nav graph. System back is handled per-screen
-  with `BackHandler` (detail → list, server form → server manager, status
-  page → login).
+- Navigation 3 owns route-level system and predictive back. Nested screen state
+  keeps local back handling (for example public-page editor → page list) before
+  the route itself pops. Toolbar actions use the same ViewModel transitions.
 - Remote-action controls derive availability from the same `AccessPolicy` used by
   repository enforcement. Restricted monitor, maintenance, editor, bulk, and
   managed-push surfaces show the current profile; stale or indirect attempts that

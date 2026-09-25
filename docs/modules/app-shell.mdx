@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-19
+last-updated: 2026-09-24
 owner: astoris
 status: stable
 ---
@@ -8,15 +8,19 @@ status: stable
 
 The phone app's Android entry point and Compose host. It applies release UI privacy,
 restores the encrypted startup route, handles Android 17 local-network permission,
-and forwards only validated URSA deep links to the state-driven UI router.
+and forwards only validated URSA deep links to the typed Navigation 3 route shell.
 
 ## technical map
 
 - `app/src/main/java/dev/astoris/ursa/MainActivity.kt` - edge-to-edge
   `FragmentActivity`, app lock host, startup intent handling, permission launcher,
   and `UrsaTheme`/`UrsaApp` composition.
-- `app/src/main/java/dev/astoris/ursa/core/navigation/AppDeepLink.kt` - strict
+- `app/src/main/java/dev/astoris/ursa/ui/AppDeepLink.kt` - strict
   `ursa://` route construction and parsing.
+- `app/src/main/java/dev/astoris/ursa/ui/navigation/UrsaRoute.kt` - serializable,
+  non-secret route keys plus the released-state compatibility adapter.
+- `app/src/main/java/dev/astoris/ursa/ui/navigation/UrsaNavigation.kt` - saveable
+  back-stack reconciliation, safe restoration, route entries, and back handling.
 - `app/src/main/AndroidManifest.xml` - launcher/BROWSABLE activity, network and
   notification permissions, widgets, tile, workers, and non-exported receivers.
 - `app/src/main/res/values/themes.xml` - XML launch theme before Compose renders.
@@ -41,5 +45,7 @@ route still resolves only against data already saved by URSA.
 - Android 17 local-network access is requested only immediately before testing or
   connecting to a recognized direct LAN or mesh-VPN address. DNS-SD's system picker
   is separate.
-- Routing remains state-driven rather than using a navigation library. Keep intent
-  parsing pure and bounded before changing ViewModel state.
+- Navigation 3 owns the saveable route stack while `UrsaViewModel` remains the
+  product-state owner. Keep intent parsing pure and bounded before changing either.
+- Startup and app-lock content renders synchronously ahead of a restored back stack,
+  so authenticated content cannot flash while encrypted startup or unlock is pending.
