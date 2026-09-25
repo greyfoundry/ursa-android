@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-09-25
 owner: astoris
 status: complete
 ---
@@ -19,6 +19,9 @@ active incidents, trends, then the complete monitor list.
 
 ## Implemented system
 
+- Shared operational components keep server context, freshness, telemetry, state
+  handling, capability explanations, destructive confirmations, inventory
+  controls, and timelines consistent as destinations migrate.
 - A concise fleet hero answers "is anything broken?" and exposes freshness.
 - High-density monitor rows keep a minimum 48dp target. Optional compact mode hides
   secondary URLs while retaining actions and accessibility semantics.
@@ -43,7 +46,8 @@ active incidents, trends, then the complete monitor list.
 - Press feedback uses transform/alpha only. State changes use short fades; lists do
   not animate layout or allocate per frame.
 - Loading uses one purposeful indicator. Motion follows the system duration scale
-  and never blocks input or delays monitoring data.
+  and never blocks input or delays monitoring data. Optional press feedback snaps
+  when platform animations are disabled.
 - Dynamic color remains opt-in and never changes semantic status colors.
 
 ## Quality gates

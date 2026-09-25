@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-25 - Shared operational UI component foundation
+
+**changed**: Added reusable Compose primitives for server context, dense status
+rows, freshness, telemetry summaries, designed loading/empty/offline/error/partial
+states, capability explanations, confirmed destructive sheets,
+filter/sort/saved-view controls, and grouped timelines. The components accept
+caller-owned text and actions so screen migrations can reuse existing state,
+localization, and authorization boundaries instead of introducing a parallel UI
+model.
+
+**accessibility and motion**: Interactive surfaces keep at least a 48dp target or
+use Material controls with expanded targets. Status and freshness remain textual,
+not colour-only. Important state summaries use polite live-region semantics and
+explicitly avoid high-frequency heartbeat announcements. Optional press feedback
+snaps when platform animations are disabled.
+
+**verification**: Pure tests cover conservative freshness boundaries, offline
+precedence, invalid policy values, and local-calendar timeline grouping. Both app
+flavors passed complete unit tests, lint, and debug assembly; F-Droid release and
+vital lint also passed. The F-Droid debug APK cold-launched on the visible API 37
+Pixel 8 emulator with no fatal runtime entry.
+
 ### 2026-09-25 - Adaptive navigation and monitor list-detail shell
 
 **changed**: Replaced the fixed bottom bar and manual 840dp monitor split with

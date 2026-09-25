@@ -92,8 +92,11 @@ route stack while screens migrate incrementally.
 - `.../ui/theme/` - `Color.kt`, `Theme.kt`, and `Motion.kt`: semantic Kuma status
   colours over URSA's quiet neutral light/dark surfaces, compact type/shape scale,
   and the shared low-cost motion vocabulary.
-- `.../ui/components/` - reusable product surfaces. `UrsaPressableCard` provides
-  GPU-only tactile press feedback without list-row layout animation.
+- `.../ui/components/` - reusable operational surfaces and pure presentation
+  policy: server context, dense status rows, freshness, telemetry, designed
+  loading/empty/offline/error/partial states, capability explanations, confirmed
+  destructive actions, filter/sort/saved-view controls, timelines, polite state
+  announcements, and reduced-motion-aware press feedback.
 - `.../ui/settings/SettingsScreen.kt`, `.../ui/lock/`, `.../ui/push/PushScreen.kt`,
   `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, QS tile, and
   exact-size Glance widgets. Widgets choose up to six rows from a private server
