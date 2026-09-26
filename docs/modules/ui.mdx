@@ -66,7 +66,11 @@ route stack while screens migrate incrementally.
   order is independent of live status, while attention sort intentionally reacts
   to it. Filter-scoped multi-selection retains confirmed bulk pause/resume. The
   overflow now contains only monitor management; specialist dashboards moved to
-  Browse after live reachability parity was verified.
+  Browse after live reachability parity was verified. Tag extraction,
+  hierarchy/filter/sort output, and bulk plans are remembered across unrelated
+  heartbeat-history recompositions; query parent lookup is linear rather than
+  per-row scanning. Deterministic 1,000-monitor tests protect stable server order,
+  hierarchy depth, tag search, and parent-name search during live telemetry changes.
 - `.../ui/monitors/FleetIncidentCenter.kt` - embeddable active-first outage transitions
   across monitors with all/active/resolved filters and detail deep links, plus
   windowed observed downtime, MTTR, flakiest-monitor, and history-coverage

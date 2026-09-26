@@ -31,8 +31,9 @@ internal fun monitorInventoryRows(
     sort: MonitorSort,
     favorites: Set<Int>,
 ): List<MonitorHierarchyRow> {
+    val namesById = if (query.isBlank()) emptyMap() else monitors.associate { it.id to it.name }
     val visibleIds = monitors.asSequence()
-        .filter { it.matchesInventoryQuery(query, monitors) }
+        .filter { it.matchesInventoryQuery(query, namesById) }
         .filter { filter.matches(it, monitors, certificateIds) }
         .mapTo(mutableSetOf(), Monitor::id)
     return monitorHierarchy(monitors, sort.comparator(favorites))
@@ -40,9 +41,14 @@ internal fun monitorInventoryRows(
 }
 
 internal fun Monitor.matchesInventoryQuery(query: String, monitors: List<Monitor>): Boolean {
+    val namesById = monitors.associate { it.id to it.name }
+    return matchesInventoryQuery(query, namesById)
+}
+
+private fun Monitor.matchesInventoryQuery(query: String, namesById: Map<Int, String>): Boolean {
     val normalized = query.trim()
     if (normalized.isEmpty()) return true
-    val parentName = parentId?.let { id -> monitors.firstOrNull { it.id == id }?.name }
+    val parentName = parentId?.let(namesById::get)
     return sequenceOf(name, url, type, parentName)
         .filterNotNull()
         .any { it.contains(normalized, ignoreCase = true) } ||

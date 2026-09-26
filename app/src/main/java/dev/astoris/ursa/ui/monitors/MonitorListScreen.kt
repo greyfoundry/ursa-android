@@ -111,19 +111,26 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val resources = LocalResources.current
     val favorites by vm.favorites.collectAsStateWithLifecycle()
 
-    val availableTags = monitors.flatMap { it.tags }.distinct().sorted()
+    val availableTags = remember(monitors) { monitors.flatMap { it.tags }.distinct().sorted() }
     val tagFilter = viewFilter.tags.singleOrNull()
-    val shown = monitorInventoryRows(
-        monitors = monitors,
-        query = query,
-        filter = viewFilter,
-        certificateIds = certs.keys,
-        sort = sortMode,
-        favorites = favorites,
-    )
+    val certificateIds = certs.keys
+    val shown = remember(monitors, query, viewFilter, certificateIds, sortMode, favorites) {
+        monitorInventoryRows(
+            monitors = monitors,
+            query = query,
+            filter = viewFilter,
+            certificateIds = certificateIds,
+            sort = sortMode,
+            favorites = favorites,
+        )
+    }
     val defaultFilter = MonitorViewFilter(activity = ActivityFilter.ACTIVE)
-    val pausePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.PAUSE)
-    val resumePlan = planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.RESUME)
+    val pausePlan = remember(monitors, selectedIds) {
+        planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.PAUSE)
+    }
+    val resumePlan = remember(monitors, selectedIds) {
+        planBulkMonitorAction(monitors, selectedIds, BulkMonitorAction.RESUME)
+    }
 
     LaunchedEffect(monitors) {
         selectedIds = selectedIds.intersect(monitors.mapTo(mutableSetOf(), Monitor::id))

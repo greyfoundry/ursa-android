@@ -9,6 +9,27 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-26 - Stable live updates and density
+
+**changed**: Removed avoidable 1,000-row work from heartbeat-history
+recompositions by remembering tag extraction, composed inventory rows, and bulk
+plans against only their real inputs. Parent-name search now builds one ID/name
+map instead of scanning the fleet per row. Existing stable monitor-ID keys and
+server-order semantics remain canonical; attention sorting still reacts to live
+state by design.
+
+**density and scale**: Preserved the released Standard/Compact boolean mapping;
+no speculative third density was added. Deterministic 1,000-monitor tests verify
+stable IDs and hierarchy depths across fleet-wide status/ping changes plus exact
+tag and parent-name query counts. On the visible API 37 Pixel 8, Standard showed
+addresses, Compact hid them while retaining full-size rows, and Compact survived
+a process restart. Standard was restored after QA.
+
+**verification**: Both flavor unit tests, lint, and debug assemblies passed, as
+did F-Droid release assembly and vital lint (146 tasks). Uptime Kuma 2.5.5 stayed
+healthy throughout. Release macrobenchmarks and Baseline Profiles remain the
+separate `QL-03` deliverable rather than being approximated by timing unit tests.
+
 ### 2026-09-26 - Global resource search
 
 **changed**: Added global local-metadata search to Browse. The index covers

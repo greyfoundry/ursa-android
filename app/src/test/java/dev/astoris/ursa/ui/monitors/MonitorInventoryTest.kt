@@ -2,6 +2,7 @@ package dev.astoris.ursa.ui.monitors
 
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.fixtures.LargeFleetFixtures
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -59,6 +60,41 @@ class MonitorInventoryTest {
 
         assertEquals(before.map { it.monitor.id }, after.map { it.monitor.id })
     }
+
+    @Test
+    fun thousandMonitorOrderStaysStableAcrossLiveTelemetryUpdates() {
+        val fleet = LargeFleetFixtures.snapshot(1_000).monitors
+        val updated = fleet.map { monitor ->
+            monitor.copy(
+                status = if (monitor.status == MonitorStatus.UP) MonitorStatus.DOWN else MonitorStatus.UP,
+                ping = monitor.ping?.plus(1),
+            )
+        }
+        val before = inventory(fleet)
+        val after = inventory(updated)
+
+        assertEquals(1_000, before.size)
+        assertEquals(before.map { it.monitor.id }, after.map { it.monitor.id })
+        assertEquals(before.map(MonitorHierarchyRow::depth), after.map(MonitorHierarchyRow::depth))
+        assertEquals(MonitorStatus.DOWN, after.first { it.monitor.id == 2 }.monitor.status)
+    }
+
+    @Test
+    fun thousandMonitorQueryUsesTagsAndParentNames() {
+        val fleet = LargeFleetFixtures.snapshot(1_000).monitors
+
+        assertEquals(500, inventory(fleet, query = "production").size)
+        assertEquals(25, inventory(fleet, query = "Group 20").size)
+    }
+
+    private fun inventory(monitors: List<Monitor>, query: String = "") = monitorInventoryRows(
+        monitors = monitors,
+        query = query,
+        filter = MonitorViewFilter(),
+        certificateIds = emptySet(),
+        sort = MonitorSort.SERVER,
+        favorites = emptySet(),
+    )
 
     private fun monitor(
         id: Int,

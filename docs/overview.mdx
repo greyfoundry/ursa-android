@@ -77,7 +77,9 @@ and the module docs under `docs/modules/`.
   existing deep links retain their previous destinations. Monitors now exposes
   visible inventory search/filter/sort/saved-view controls and a three-section
   Overview/History/Configuration workspace without changing the adaptive
-  list-detail or mutation boundaries. Incidents is now a first-class adaptive
+  list-detail or mutation boundaries. Derived inventory work is memoized away
+  from unrelated heartbeat-history updates, parent-name queries are linear, and
+  deterministic 1,000-monitor tests protect stable server ordering. Incidents is now a first-class adaptive
   destination backed by Kuma monitor history, with explicit source labelling,
   reliability windows, encrypted local notes, redacted sharing, and direct
   monitor navigation. Browse is now the fourth primary destination and gives
