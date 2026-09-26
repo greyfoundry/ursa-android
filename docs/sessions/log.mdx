@@ -9,6 +9,27 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-26 - Authenticated public-incident adapter
+
+**changed**: Added app-owned public-incident targets, drafts, acknowledged models,
+supported styles, validation, and authenticated Socket.IO adapters for create,
+edit/pin, unpin, resolve, and delete. Every target carries active-server, saved-page,
+and Kuma-slug identity. Repository entry points use the existing
+`STATUS_INCIDENT_WRITE` policy boundary; no parallel permission system was added.
+
+**failure semantics**: Rejected acknowledgements remain safely retryable after
+correction. Missing or incomplete acknowledgements are explicitly indeterminate;
+callers must refresh instead of automatically replaying a create that Kuma may
+already have committed. Incident bodies remain ephemeral and are not logged or
+persisted by the adapter.
+
+**verification**: The digest-pinned compatibility probe exercised create, edit,
+unpin, history reflection, resolve, and delete successfully on Uptime Kuma 2.4.0
+and every 2.5.0-2.5.5 release. Focused JVM tests cover target/input validation,
+the bounded wire payload, response parsing, style fallback, feature gating, and
+the no-blind-retry outcome. The complete 243-task two-flavor phone/Wear test,
+lint, debug-assembly, F-Droid release, and vital-lint gate passed.
+
 ### 2026-09-26 - Stable live updates and density
 
 **changed**: Removed avoidable 1,000-row work from heartbeat-history

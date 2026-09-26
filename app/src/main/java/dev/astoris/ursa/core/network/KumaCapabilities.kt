@@ -37,6 +37,7 @@ enum class KumaFeature {
     MONITOR_DELETE,
     MAINTENANCE_WRITE,
     MANAGED_PUSH_WRITE,
+    PUBLIC_INCIDENT_WRITE,
     NTP_PM2_SCHEMA,
     SFTP_SCHEMA,
 }
@@ -74,6 +75,7 @@ object KumaCapabilities {
         KumaFeature.MONITOR_DELETE,
         KumaFeature.MAINTENANCE_WRITE,
         KumaFeature.MANAGED_PUSH_WRITE,
+        KumaFeature.PUBLIC_INCIDENT_WRITE,
     )
 
     fun evaluate(rawVersion: String?): KumaCompatibility {

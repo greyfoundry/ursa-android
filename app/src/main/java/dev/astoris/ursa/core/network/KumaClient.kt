@@ -403,6 +403,96 @@ class KumaClient(
     suspend fun deleteMaintenance(id: Int): Boolean =
         emitAck("deleteMaintenance", id)?.optBoolean("ok") == true
 
+    suspend fun createPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult {
+        incidentWriteRejection(draft, requireId = false)?.let { return it }
+        val response = emitAck(
+            "postIncident",
+            draft.target.statusPageSlug,
+            JSONObject(PublicIncidentCodec.payload(draft).toString()),
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, draft.target, requireIncident = true)
+    }
+
+    suspend fun editPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult {
+        incidentWriteRejection(draft, requireId = true)?.let { return it }
+        val response = emitAck(
+            "editIncident",
+            draft.target.statusPageSlug,
+            draft.id!!,
+            JSONObject(PublicIncidentCodec.payload(draft).toString()),
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, draft.target, requireIncident = true)
+    }
+
+    suspend fun unpinPublicIncident(target: PublicIncidentTarget): IncidentMutationResult {
+        incidentTargetRejection(target)?.let { return it }
+        val response = emitAck("unpinIncident", target.statusPageSlug) ?: return incidentIndeterminate()
+        return incidentResponse(response, target)
+    }
+
+    suspend fun resolvePublicIncident(incident: PublicIncident): IncidentMutationResult {
+        incidentWriteRejection(incident.toDraft(), requireId = true)?.let { return it }
+        val response = emitAck(
+            "resolveIncident",
+            incident.target.statusPageSlug,
+            incident.id,
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, incident.target, requireIncident = true)
+    }
+
+    suspend fun deletePublicIncident(incident: PublicIncident): IncidentMutationResult {
+        incidentWriteRejection(incident.toDraft(), requireId = true)?.let { return it }
+        val response = emitAck(
+            "deleteIncident",
+            incident.target.statusPageSlug,
+            incident.id,
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, incident.target)
+    }
+
+    private fun incidentWriteRejection(
+        draft: PublicIncidentDraft,
+        requireId: Boolean,
+    ): IncidentMutationResult? =
+        PublicIncidentCodec.validate(draft, requireId)?.let(::incidentRejected)
+            ?: incidentTargetRejection(draft.target)
+
+    private fun incidentTargetRejection(target: PublicIncidentTarget): IncidentMutationResult? = when {
+        !_compatibility.value.supports(KumaFeature.PUBLIC_INCIDENT_WRITE) ->
+            incidentRejected("Public incident actions are not verified for this Uptime Kuma version")
+        target.serverUrl != baseUrl -> incidentRejected("Status page belongs to another server")
+        !StatusPageAddress.isValidSlug(target.statusPageSlug) -> incidentRejected("Invalid status page")
+        else -> null
+    }
+
+    private fun incidentResponse(
+        response: JSONObject,
+        target: PublicIncidentTarget,
+        requireIncident: Boolean = false,
+    ): IncidentMutationResult {
+        if (!response.optBoolean("ok")) {
+            return incidentRejected(response.optString("msg").ifBlank { "Incident action failed" })
+        }
+        val incident = response.optJSONObject("incident")?.let { raw ->
+            runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
+                ?.let { PublicIncidentCodec.incident(it, target) }
+        }
+        return if (requireIncident && incident == null) {
+            incidentIndeterminate("Server applied the action but returned an incomplete response; refresh before retrying")
+        } else {
+            IncidentMutationResult(IncidentMutationOutcome.APPLIED, incident)
+        }
+    }
+
+    private fun incidentRejected(message: String) = IncidentMutationResult(
+        IncidentMutationOutcome.REJECTED,
+        message = message,
+    )
+
+    private fun incidentIndeterminate(
+        message: String = "Server did not confirm the action within 15 seconds; refresh before retrying",
+    ) = IncidentMutationResult(IncidentMutationOutcome.INDETERMINATE, message = message)
+
     /** Recent heartbeat history for the detail view. Rows are snake_case (see KumaParse). */
     suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> {
         val res = emitAck("getMonitorBeats", id, hours) ?: return emptyList()

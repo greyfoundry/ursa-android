@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-23
+last-updated: 2026-09-26
 owner: astoris
 status: stable
 ---
@@ -32,6 +32,8 @@ here so the rest of the app sees clean domain models.
   confirmed external-browser dashboard and monitor links.
 - `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.5 type catalogue,
   typed common-field validation, safe patching, and create defaults.
+- `.../core/network/PublicIncident.kt` - app-owned authenticated public-incident
+  identity, supported styles, validation, acknowledgement outcomes, and wire mapping.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
   API 37 uses the system service picker without broad LAN permission, while older
   devices show a foreground result list and resolve only the selected service.
@@ -55,7 +57,8 @@ here so the rest of the app sees clean domain models.
   notification relation reads/updates, `testManagedPushNotification`, monitor
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
-  active-state changes, and `disconnect()`.
+  active-state changes, authenticated public-incident create/edit/unpin/resolve/delete,
+  and `disconnect()`.
   Flows: `state`, `compatibility`,
   `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
   and marked managed notifications.
@@ -89,6 +92,9 @@ here so the rest of the app sees clean domain models.
   retained so removals use the server's exact assignment key.
 - `MutationExecutor.execute(required, block)` - returns a typed completed,
   denied, or no-active-connection result. A denied block is never invoked.
+- `PublicIncidentTarget` binds every public-incident action to its active server,
+  locally saved status-page ID, and Kuma slug. `IncidentMutationResult` distinguishes
+  applied, rejected, and acknowledgement-indeterminate outcomes.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
@@ -149,6 +155,11 @@ here so the rest of the app sees clean domain models.
   Account bootstrap/login is classified separately because it occurs before a
   saved connection policy exists. Access profiles are a client-side safety guard,
   not server-side authorization; the Kuma session token remains authoritative.
+- Authenticated public-incident writes use the same boundary with
+  `STATUS_INCIDENT_WRITE`, require the target's server to remain active, and are
+  version-gated to the live-tested matrix. A missing or incomplete acknowledgement
+  is indeterminate, not a normal failure: callers must refresh before retrying so
+  an acknowledged-late create cannot be duplicated.
 - `MonitorRepository.addServerByToken` and `testServerToken` validate imported
   Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
   the socket because Kuma limits them to Prometheus HTTP Basic authentication.

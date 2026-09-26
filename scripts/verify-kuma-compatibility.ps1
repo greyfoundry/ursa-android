@@ -179,6 +179,47 @@ function Invoke-FloorWriteProbe {
     }
 }
 
+function Invoke-IncidentWriteProbe {
+    param([Parameter(Mandatory)][string]$Version)
+    $slug = "ursa-incident-$($Version.Replace('.', '-'))"
+    Assert-Ok (Invoke-KumaEvent "addStatusPage" @("URSA incident probe", $slug)) "add status page"
+    try {
+        $created = Invoke-KumaEvent "postIncident" @(
+            $slug,
+            [ordered]@{ title = "Investigating"; content = "Initial update"; style = "primary" }
+        )
+        Assert-Ok $created "post incident"
+        $incidentId = [int]$created.Ack.incident.id
+        if ($incidentId -le 0 -or $created.Ack.incident.active -ne $true -or $created.Ack.incident.pin -ne $true) {
+            throw "post incident returned an incomplete incident"
+        }
+
+        $edited = Invoke-KumaEvent "editIncident" @(
+            $slug,
+            $incidentId,
+            [ordered]@{ title = "Identified"; content = "Mitigation underway"; style = "danger"; pin = $true }
+        )
+        Assert-Ok $edited "edit incident"
+        if ($edited.Ack.incident.title -ne "Identified" -or $edited.Ack.incident.style -ne "danger") {
+            throw "edit incident did not round-trip supported fields"
+        }
+
+        Assert-Ok (Invoke-KumaEvent "unpinIncident" @($slug)) "unpin incident"
+        $history = Invoke-KumaEvent "getIncidentHistory" @($slug, $null)
+        Assert-Ok $history "get incident history"
+        $row = @($history.Ack.incidents) | Where-Object { [int]$_.id -eq $incidentId } | Select-Object -First 1
+        if ($null -eq $row -or $row.pin -ne $false) { throw "unpin incident was not reflected in history" }
+
+        $resolved = Invoke-KumaEvent "resolveIncident" @($slug, $incidentId)
+        Assert-Ok $resolved "resolve incident"
+        if ($resolved.Ack.incident.active -ne $false) { throw "resolve incident left the incident active" }
+
+        Assert-Ok (Invoke-KumaEvent "deleteIncident" @($slug, $incidentId)) "delete incident"
+    } finally {
+        Assert-Ok (Invoke-KumaEvent "deleteStatusPage" @($slug)) "delete status page"
+    }
+}
+
 $results = @()
 foreach ($image in $images) {
     if ($Versions.Count -gt 0 -and $Versions -notcontains $image.Version) { continue }
@@ -225,6 +266,11 @@ foreach ($image in $images) {
         if (($parsedVersion -ge [version]"2.5.4") -and $typeNames -notcontains "sftp") {
             throw "$($image.Version) did not advertise SFTP"
         }
+        $incidentWrites = "not-run"
+        if (-not $SkipWriteProbe) {
+            Invoke-IncidentWriteProbe $image.Version
+            $incidentWrites = "passed"
+        }
         $writes = "not-run"
         if ($image.Version -eq "2.4.0" -and -not $SkipWriteProbe) {
             Invoke-FloorWriteProbe
@@ -237,6 +283,7 @@ foreach ($image in $images) {
             NtpPm2 = ($typeNames -contains "ntp" -and $typeNames -contains "pm2")
             Sftp = $typeNames -contains "sftp"
             FloorWrites = $writes
+            IncidentWrites = $incidentWrites
         }
     } finally {
         & docker rm -f $container 2>$null | Out-Null

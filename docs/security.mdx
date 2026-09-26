@@ -188,6 +188,13 @@ Notification assignment exposes only provider ID, display name, type, and defaul
 flag; the double-encoded provider configuration (including passwords, tokens, and
 destinations) is discarded inside the parser and never reaches UI state.
 
+Public-incident mutations are bound to the active saved server and status-page
+identity, pass through the `STATUS_INCIDENT_WRITE` access capability, and send only
+title, content, style, pin state, slug, and incident ID. Bodies remain in memory and
+are never logged or persisted by the authenticated adapter. A missing acknowledgement
+is surfaced as indeterminate and must be refreshed before retry, preventing blind
+duplicate creates after a late acknowledgement.
+
 Push diagnostics retain timestamps, normalized registration error categories, and
 local/end-to-end test outcomes in the existing non-backed-up push preferences. They
 never persist message bodies, monitor names, server URLs, or a second endpoint copy.

@@ -48,6 +48,7 @@ class KumaCapabilitiesTest {
         assertTrue(result.supports(KumaFeature.MONITOR_DELETE))
         assertTrue(result.supports(KumaFeature.MAINTENANCE_WRITE))
         assertTrue(result.supports(KumaFeature.MANAGED_PUSH_WRITE))
+        assertTrue(result.supports(KumaFeature.PUBLIC_INCIDENT_WRITE))
         assertFalse(result.supports(KumaFeature.NTP_PM2_SCHEMA))
         assertFalse(result.supports(KumaFeature.SFTP_SCHEMA))
         assertFalse(result.supportsMonitorSchema("sftp"))

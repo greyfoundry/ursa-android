@@ -12,6 +12,11 @@ import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
+import dev.astoris.ursa.core.network.PublicIncident
+import dev.astoris.ursa.core.network.PublicIncidentDraft
+import dev.astoris.ursa.core.network.PublicIncidentTarget
+import dev.astoris.ursa.core.network.IncidentMutationOutcome
+import dev.astoris.ursa.core.network.IncidentMutationResult
 import dev.astoris.ursa.core.storage.CertExpiry
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.CertExpiryUtil
@@ -513,6 +518,21 @@ class MonitorRepository(
         unavailable = false,
         denied = false,
     ) { client -> client.deleteMaintenance(id) }
+
+    suspend fun createPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult =
+        guardedIncidentMutation(draft.target.serverUrl) { it.createPublicIncident(draft) }
+
+    suspend fun editPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult =
+        guardedIncidentMutation(draft.target.serverUrl) { it.editPublicIncident(draft) }
+
+    suspend fun unpinPublicIncident(target: PublicIncidentTarget): IncidentMutationResult =
+        guardedIncidentMutation(target.serverUrl) { it.unpinPublicIncident(target) }
+
+    suspend fun resolvePublicIncident(incident: PublicIncident): IncidentMutationResult =
+        guardedIncidentMutation(incident.target.serverUrl) { it.resolvePublicIncident(incident) }
+
+    suspend fun deletePublicIncident(incident: PublicIncident): IncidentMutationResult =
+        guardedIncidentMutation(incident.target.serverUrl) { it.deletePublicIncident(incident) }
     suspend fun newMonitorDraft(): MonitorDraft {
         val client = activeClient.value
         if (client != null) {
@@ -599,6 +619,26 @@ class MonitorRepository(
             denied
         }
         MutationExecution.NoActiveConnection -> unavailable
+    }
+
+    private suspend fun guardedIncidentMutation(
+        serverUrl: String,
+        block: suspend (KumaClient) -> IncidentMutationResult,
+    ): IncidentMutationResult {
+        val unavailable = IncidentMutationResult(
+            IncidentMutationOutcome.REJECTED,
+            message = "Server unavailable",
+        )
+        if (serverUrl != activeUrlValue) return unavailable
+        return guardedMutation(
+            required = setOf(AccessCapability.STATUS_INCIDENT_WRITE),
+            unavailable = unavailable,
+            denied = IncidentMutationResult(
+                IncidentMutationOutcome.REJECTED,
+                message = "Action not allowed for this connection",
+            ),
+            block = block,
+        )
     }
 
     private fun connectFresh(

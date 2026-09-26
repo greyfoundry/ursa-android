@@ -94,6 +94,13 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   `recurring-weekday`, and `recurring-day-of-month`. Payloads use `dateRange`,
   `{ hours, minutes }` `timeRange` entries, `timezoneOption`, `intervalDay`,
   `weekdays`, `daysOfMonth`, `cron`, and `durationMinutes`.
+- Authenticated public-incident operations are status-page-slug scoped:
+  `postIncident(slug, { title, content, style })` creates an active pinned incident
+  and returns `{ ok, incident }`; `editIncident(slug, id, { title, content, style,
+  pin })` returns the updated incident; `unpinIncident(slug)` clears the page's pin;
+  `resolveIncident(slug, id)` returns the now inactive/unpinned incident; and
+  `deleteIncident(slug, id)` returns `{ ok }`. Supported styles are `info`,
+  `warning`, `danger`, `primary`, `light`, and `dark`.
 
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
@@ -103,19 +110,20 @@ endpoint. Passing one to `loginByToken` is rejected by design.
 URSA's stable write-verified range is 2.4.0 through 2.5.5. The probe boots each
 exact digest, creates an administrator, authenticates over the real Socket.IO
 polling contract, checks `info.version` and `monitorTypeList`, and removes its
-container and volume. At the 2.4.0 floor it also exercises monitor
+container and volume. Every image exercises the complete public-incident mutation
+lifecycle. At the 2.4.0 floor it also exercises monitor
 create/get/round-trip edit/pause/resume/delete, maintenance
 create/assign/pause/resume/delete, and Webhook notification create/delete.
 
-| Image tag | OCI index digest | Reported `info.version` | NTP/PM2 | SFTP |
-|---|---|---|---|---|
-| 2.4.0 | `sha256:91e963bfda569ba115206e843febb446f473ab525add4e08b2b9e3beffa16985` | 2.4.0 | no | no |
-| 2.5.0 | `sha256:a8610b3b4c38077922ba51b036691e06887d7cefd91fe620fd3d6d23d03dc240` | 2.5.0 | yes | no |
-| 2.5.1 | `sha256:ecd5b8c8b49fe9436c735de9c72b161fcc2b6d8710599393d369a2f6e0167d02` | 2.5.0 | yes | no |
-| 2.5.2 | `sha256:68ef1413af569e3e480ae4a04edf5a884255a78736241e0bf7e2b2980ac1327c` | 2.5.1 | yes | no |
-| 2.5.3 | `sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c` | 2.5.3 | yes | no |
-| 2.5.4 | `sha256:917318f9d7be5257f43ba412c766a473be336eb451d70744f3b482d0c3997c0e` | 2.5.4 | yes | yes |
-| 2.5.5 | `sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe` | 2.5.5 | yes | yes |
+| Image tag | OCI index digest | Reported `info.version` | NTP/PM2 | SFTP | Incident writes |
+|---|---|---|---|---|---|
+| 2.4.0 | `sha256:91e963bfda569ba115206e843febb446f473ab525add4e08b2b9e3beffa16985` | 2.4.0 | no | no | yes |
+| 2.5.0 | `sha256:a8610b3b4c38077922ba51b036691e06887d7cefd91fe620fd3d6d23d03dc240` | 2.5.0 | yes | no | yes |
+| 2.5.1 | `sha256:ecd5b8c8b49fe9436c735de9c72b161fcc2b6d8710599393d369a2f6e0167d02` | 2.5.0 | yes | no | yes |
+| 2.5.2 | `sha256:68ef1413af569e3e480ae4a04edf5a884255a78736241e0bf7e2b2980ac1327c` | 2.5.1 | yes | no | yes |
+| 2.5.3 | `sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c` | 2.5.3 | yes | no | yes |
+| 2.5.4 | `sha256:917318f9d7be5257f43ba412c766a473be336eb451d70744f3b482d0c3997c0e` | 2.5.4 | yes | yes | yes |
+| 2.5.5 | `sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe` | 2.5.5 | yes | yes | yes |
 
 Kuma 2.5.1 and 2.5.2 publish the previous release number over the socket. Their
 feature boundaries are unchanged by that ambiguity: both advertise NTP/PM2 and
@@ -124,6 +132,10 @@ stable version, not an invented tag. Missing, malformed, prerelease, older, and
 newer versions retain safe reads but are not advertised as write-verified. Known
 type-specific schemas are separately gated, so SFTP create/edit is available only
 when the server reports 2.5.4 or 2.5.5.
+
+Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
+is therefore an unknown outcome: refresh incident history before allowing another
+create instead of automatically replaying it.
 
 Kuma 2.5.0 adds `ntp` and `pm2` monitor types plus the authenticated
 `getPM2ProcessList` event. Those additions do not change URSA's read,
