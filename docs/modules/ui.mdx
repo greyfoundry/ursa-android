@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-25
+last-updated: 2026-09-26
 owner: astoris
 status: stable
 ---
@@ -43,11 +43,12 @@ route stack while screens migrate incrementally.
   confirmed removal of encrypted saved-server sessions, local access-profile
   and HTTP transport-policy editing that does not require credentials, plus
   password-encrypted document export/import.
-- `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
-  server-weighted nested groups/folders, filter-scoped multi-selection with
-  confirmed bulk pause/resume,
-  attention/favourite/name sorting, optional compact rows, advanced filters, and
-  up to ten server-scoped saved views.
+- `.../ui/monitors/MonitorInventory.kt` and `MonitorListScreen.kt` - pure composed
+  query/filter/sort/hierarchy rules plus the active-server inventory. Search,
+  filters, sort, saved views, and the primary add action stay visible; dense rows
+  show status, type, server, address, response trend, latency, and uptime. Server
+  order is independent of live status, while attention sort intentionally reacts
+  to it. Filter-scoped multi-selection retains confirmed bulk pause/resume.
 - `.../ui/monitors/FleetIncidentCenter.kt` - active-first outage transitions
   across monitors with all/active/resolved filters and detail deep links, plus
   windowed observed downtime, MTTR, flakiest-monitor, and history-coverage
@@ -66,11 +67,14 @@ route stack while screens migrate incrementally.
   exclusions, calculation method, per-monitor values, refresh, and detail links.
 - `.../ui/monitors/PinnedLivePanel.kt` - favourite-monitor live panel with
   current state, latency, compact recent checks, unpin, and detail deep links.
-- `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
-  heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume,
-  and a confirmed external-browser link to the monitor's Kuma dashboard. The
-  adaptive scaffold shows it alone in compact windows and beside the retained
-  monitor list when the live window constraints allow two panes.
+- `.../ui/monitors/MonitorDetailScreen.kt` - an Overview/History/Configuration
+  workspace. Overview carries state, freshness, key telemetry, server/type/group/
+  tag context, last transition, favourite, and pause/resume. History owns the
+  period-selectable chart, heartbeat strip, transition timeline, and certificate
+  details. Configuration explains the safe native subset, opens the full-fidelity
+  editor, and retains the confirmed browser escape. Its tab row scrolls for large
+  text. The adaptive scaffold shows it alone in compact windows and beside the
+  retained inventory when two panes fit.
 - `.../ui/monitors/KioskScreen.kt` - opt-in fleet glance display with a bounded
   attention-first list, status counts, cached-data age, and a visible exit action.
   It keeps the screen awake only while composed and does not enter Android lock-task

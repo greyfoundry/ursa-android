@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-25
+last-updated: 2026-09-26
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,33 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-26 - Monitor inventory and workspace
+
+**changed**: Re-composed Monitors around an always-visible search field and
+filter/sort/saved-view controls. Dense rows now identify monitor type and active
+server alongside address, textual status, response trend, latency, and uptime;
+Add is a primary action while bulk management and specialist dashboards remain
+progressively disclosed. Query matching covers names, addresses, types, tags, and
+parent groups. Server-order rows do not jump when live status changes; attention
+sort deliberately follows status.
+
+**workspace**: Monitor detail now separates Overview, History, and Configuration.
+Overview carries live/cache freshness, telemetry, server/type/group/tag context,
+last transition, favourite, and state action. History owns range selection, chart,
+heartbeats, transitions, and certificate context. Configuration explains and opens
+the existing safe round-trip editor and retains the confirmed Kuma browser escape.
+The adaptive list-detail boundary, access policy, mutation paths, and editor
+fidelity rules are unchanged.
+
+**verification**: Both flavor unit tests, lint, and debug assemblies passed, as did
+F-Droid release assembly and vital lint (146 tasks). The visible API 37 Pixel 8
+covered live 2.5.5 data, every workspace tab, compact back navigation, 1200x900dp
+two-pane resize, and 200% text with a scrollable tab row; no fatal runtime entry
+appeared. A same-host release list-detail loop measured p90 at 42 ms versus 40 ms
+for UI-04 (+5%, within budget), with lower p95/p99 and jank ratio. The scripted
+input-latency counters are harness noise; the 1,000-row performance gate remains
+tracked by UI-09.
 
 ### 2026-09-25 - Attention-first Home destination
 

@@ -361,6 +361,23 @@
 
     <!-- Monitor detail -->
     <string name="detail_type">Type: %1$s</string>
+    <string name="monitor_workspace_overview">Overview</string>
+    <string name="monitor_workspace_history">History</string>
+    <string name="monitor_workspace_configuration">Configuration</string>
+    <string name="monitor_workspace_server">Server</string>
+    <string name="monitor_workspace_type">Monitor type</string>
+    <string name="monitor_workspace_address">Address</string>
+    <string name="monitor_workspace_parent">Parent group</string>
+    <string name="monitor_workspace_tags">Tags</string>
+    <string name="monitor_workspace_last_transition">Last transition</string>
+    <string name="monitor_workspace_no_transition">No state transition in the loaded history.</string>
+    <string name="monitor_workspace_average">Average %d ms</string>
+    <string name="monitor_workspace_uptime">Uptime</string>
+    <string name="monitor_workspace_last_24_hours">Last 24 hours</string>
+    <string name="monitor_workspace_expires">Expires</string>
+    <string name="monitor_workspace_issuer">Issuer</string>
+    <string name="monitor_workspace_subject">Subject</string>
+    <string name="monitor_workspace_configuration_desc">Edit the native fields URSA can round-trip safely. Advanced server-only settings remain unchanged; open Uptime Kuma for anything outside this supported subset.</string>
     <string name="detail_response_time">Response time</string>
     <string name="detail_no_response_time">No response-time data in this period</string>
     <string name="response_time_summary">Response time chart. Minimum %1$d ms, average %2$d ms, maximum %3$d ms.</string>
