@@ -24,9 +24,10 @@ route stack while screens migrate incrementally.
 - `.../ui/navigation/UrsaNavigation.kt` - saveable route host, safe restoration,
   destination entries, and route-level system/predictive-back ownership.
 - `.../ui/MainShell.kt` - window-aware navigation suite for Home, Monitors,
-  Incidents, and Settings, plus the canonical monitor list-detail pane navigator
-  and predictive-back bridge. Existing notification deep links still render the
-  push destination; Settings provides its visible entry until Browse replaces it.
+  Incidents, and Browse, plus the canonical monitor list-detail pane navigator
+  and predictive-back bridge. Released Settings and Notifications enum names
+  remain valid for restored state, shortcuts, and deep links without occupying
+  primary navigation.
 - `.../ui/home/` - attention-first active-server Home. It composes existing live
   and cached monitor state into issue rows, fleet counts, explicit connection
   freshness, recent scoped transitions/actions, and saved-view shortcuts without
@@ -37,6 +38,10 @@ route stack while screens migrate incrementally.
   the Kuma-history source explicitly and routes incident selection into the
   adaptive monitor workspace; authenticated public incidents remain a separate
   later network model rather than inferred data.
+- `.../ui/browse/BrowseScreen.kt` - sectioned catalogue for existing secondary
+  operations, insights/reports, and management surfaces. It reuses maintenance,
+  status-page, notification, certificate, domain, event, aggregate, live-panel,
+  monitor-view, connection, and settings flows instead of duplicating them.
 - `.../ui/KioskData.kt` - bounded, attention-first fleet summary for the
   glance-display surface.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
@@ -55,7 +60,9 @@ route stack while screens migrate incrementally.
   filters, sort, saved views, and the primary add action stay visible; dense rows
   show status, type, server, address, response trend, latency, and uptime. Server
   order is independent of live status, while attention sort intentionally reacts
-  to it. Filter-scoped multi-selection retains confirmed bulk pause/resume.
+  to it. Filter-scoped multi-selection retains confirmed bulk pause/resume. The
+  overflow now contains only monitor management; specialist dashboards moved to
+  Browse after live reachability parity was verified.
 - `.../ui/monitors/FleetIncidentCenter.kt` - embeddable active-first outage transitions
   across monitors with all/active/resolved filters and detail deep links, plus
   windowed observed downtime, MTTR, flakiest-monitor, and history-coverage
@@ -112,7 +119,7 @@ route stack while screens migrate incrementally.
   policy: server context, dense status rows, freshness, telemetry, designed
   loading/empty/offline/error/partial states, capability explanations, confirmed
   destructive actions, filter/sort/saved-view controls, timelines, polite state
-  announcements, and reduced-motion-aware press feedback.
+  announcements, section headings, and reduced-motion-aware press feedback.
 - `.../ui/settings/SettingsScreen.kt`, `.../ui/lock/`, `.../ui/push/PushScreen.kt`,
   `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, QS tile, and
   exact-size Glance widgets. Widgets choose up to six rows from a private server
@@ -164,7 +171,9 @@ route stack while screens migrate incrementally.
   full-screen detail when only one pane fits.
   Home is the fresh-session default; an old restored main route still restores its
   previous tab because existing serialized enum names remain unchanged.
-  Incidents was appended to those enums for the same compatibility reason.
+  Incidents and Browse were appended to those enums for the same compatibility
+  reason. Hidden Settings and Notifications values are retained for released
+  restoration and deep-link contracts.
   The glance display deliberately stays escapable, warns before keeping the screen
   awake, and restores the prior `keepScreenOn` value on exit.
 - Startup routing remains behind the one-way `startupReady` gate until encrypted

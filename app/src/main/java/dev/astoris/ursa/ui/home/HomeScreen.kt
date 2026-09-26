@@ -46,6 +46,7 @@ import dev.astoris.ursa.ui.components.FreshnessState
 import dev.astoris.ursa.ui.components.OperationalStateKind
 import dev.astoris.ursa.ui.components.OperationalStatePanel
 import dev.astoris.ursa.ui.components.ServerContextHeader
+import dev.astoris.ursa.ui.components.SectionHeading
 import dev.astoris.ursa.ui.components.resolveFreshness
 import dev.astoris.ursa.ui.monitors.ActivityFilter
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
@@ -364,18 +365,6 @@ private fun HomeDataState(
         } else {
             onRetry
         },
-    )
-}
-
-@Composable
-private fun SectionHeading(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp)
-            .semantics { heading() },
     )
 }
 

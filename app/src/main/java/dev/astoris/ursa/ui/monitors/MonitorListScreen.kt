@@ -86,8 +86,6 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
     val certs by vm.certs.collectAsStateWithLifecycle()
-    val localEvents by vm.localEvents.collectAsStateWithLifecycle()
-    val incidentNotes by vm.incidentNotes.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val compactDisplay by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
@@ -103,7 +101,6 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var sortOpen by remember { mutableStateOf(false) }
     var advancedFilterOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
-    var overlay by remember { mutableStateOf<MonitorOverlay?>(null) }
     var sortMode by remember { mutableStateOf(MonitorSort.SERVER) }
     var bulkMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -247,161 +244,129 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
-            if (overlay == null) {
-                AccessProfileNotice(
-                    activeConnection,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            }
-            if (overlay == null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (bulkMode) {
-                        Text(
-                            text = pluralStringResource(
-                                R.plurals.bulk_monitors_selected,
-                                selectedIds.size,
-                                selectedIds.size,
-                            ),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(
-                            onClick = { bulkMode = false; selectedIds = emptySet() },
-                            enabled = !bulkInFlight,
-                        ) { Text(stringResource(R.string.action_cancel)) }
-                    } else {
-                        Text(
-                            text = stringResource(R.string.monitors_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Box {
-                            IconButton(onClick = { moreOpen = true }) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_more_vertical),
-                                    contentDescription = stringResource(R.string.action_more),
-                                )
-                            }
-                            DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+            AccessProfileNotice(
+                activeConnection,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (bulkMode) {
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.bulk_monitors_selected,
+                            selectedIds.size,
+                            selectedIds.size,
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = { bulkMode = false; selectedIds = emptySet() },
+                        enabled = !bulkInFlight,
+                    ) { Text(stringResource(R.string.action_cancel)) }
+                } else {
+                    Text(
+                        text = stringResource(R.string.monitors_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Box {
+                        IconButton(onClick = { moreOpen = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_more_vertical),
+                                contentDescription = stringResource(R.string.action_more),
+                            )
+                        }
+                        DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(
                                 enabled = canBulk,
                                 text = { Text(stringResource(R.string.bulk_manage_monitors)) },
                                 onClick = { bulkMode = true; selectedIds = emptySet(); moreOpen = false },
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.status_maintenance)) },
-                                onClick = { overlay = MonitorOverlay.MAINTENANCE; moreOpen = false },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.incident_center_title)) },
-                                onClick = { overlay = MonitorOverlay.INCIDENTS; moreOpen = false },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.certificate_dashboard_title)) },
-                                onClick = { overlay = MonitorOverlay.CERTIFICATES; moreOpen = false },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.domain_dashboard_title)) },
-                                onClick = { overlay = MonitorOverlay.DOMAINS; moreOpen = false },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.event_log_title)) },
-                                onClick = { overlay = MonitorOverlay.EVENTS; moreOpen = false },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.fleet_aggregate_title)) },
-                                onClick = { overlay = MonitorOverlay.FLEET_SUMMARY; moreOpen = false },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.pinned_live_title)) },
-                                onClick = { overlay = MonitorOverlay.PINNED_LIVE; moreOpen = false },
-                            )
-                            }
                         }
                     }
                 }
-                if (!bulkMode) {
-                    TextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = { Text(stringResource(R.string.search_hint)) },
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_search),
-                                contentDescription = null,
-                            )
-                        },
-                        trailingIcon = if (query.isNotEmpty()) {
-                            {
-                                IconButton(onClick = { query = "" }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_close),
-                                        contentDescription = stringResource(R.string.action_close_search),
-                                    )
-                                }
-                            }
-                        } else {
-                            null
-                        },
-                        singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    )
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    ) {
-                        OperationalControlsRow(
-                            filterLabel = stringResource(R.string.inventory_filters),
-                            sortLabel = stringResource(sortMode.labelRes),
-                            savedViewLabel = stringResource(R.string.saved_views_title),
-                            onFilterClick = { filterOpen = true },
-                            onSortClick = { sortOpen = true },
-                            onSavedViewClick = { advancedFilterOpen = true },
-                            filterSelected = viewFilter != defaultFilter,
-                            savedViewSelected = savedViews.any { it.filter == viewFilter },
+            }
+            if (!bulkMode) {
+                TextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(stringResource(R.string.search_hint)) },
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_search),
+                            contentDescription = null,
                         )
-                        MonitorFilterMenu(
-                            filterOpen = filterOpen,
-                            onFilterOpenChange = { filterOpen = it },
-                            availableTags = availableTags,
-                            onAll = { viewFilter = MonitorViewFilter() },
-                            onActive = { viewFilter = viewFilter.copy(activity = ActivityFilter.ACTIVE) },
-                            onPaused = {
-                                viewFilter = viewFilter.copy(activity = ActivityFilter.PAUSED, statuses = emptySet())
-                            },
-                            onStatus = { viewFilter = viewFilter.copy(statuses = setOf(it)) },
-                            onTag = {
-                                viewFilter = viewFilter.copy(tags = if (tagFilter == it) emptySet() else setOf(it))
-                            },
-                            onAdvanced = { advancedFilterOpen = true },
-                        )
-                        DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                            MonitorSort.entries.forEach { sort ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(sort.labelRes)) },
-                                    onClick = { sortMode = sort; sortOpen = false },
+                    },
+                    trailingIcon = if (query.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { query = "" }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_close),
+                                    contentDescription = stringResource(R.string.action_close_search),
                                 )
                             }
                         }
-                    }
-                    Text(
-                        text = stringResource(R.string.inventory_result_count, shown.size, monitors.size),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+                    } else {
+                        null
+                    },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                ) {
+                    OperationalControlsRow(
+                        filterLabel = stringResource(R.string.inventory_filters),
+                        sortLabel = stringResource(sortMode.labelRes),
+                        savedViewLabel = stringResource(R.string.saved_views_title),
+                        onFilterClick = { filterOpen = true },
+                        onSortClick = { sortOpen = true },
+                        onSavedViewClick = { advancedFilterOpen = true },
+                        filterSelected = viewFilter != defaultFilter,
+                        savedViewSelected = savedViews.any { it.filter == viewFilter },
                     )
+                    MonitorFilterMenu(
+                        filterOpen = filterOpen,
+                        onFilterOpenChange = { filterOpen = it },
+                        availableTags = availableTags,
+                        onAll = { viewFilter = MonitorViewFilter() },
+                        onActive = { viewFilter = viewFilter.copy(activity = ActivityFilter.ACTIVE) },
+                        onPaused = {
+                            viewFilter = viewFilter.copy(activity = ActivityFilter.PAUSED, statuses = emptySet())
+                        },
+                        onStatus = { viewFilter = viewFilter.copy(statuses = setOf(it)) },
+                        onTag = {
+                            viewFilter = viewFilter.copy(tags = if (tagFilter == it) emptySet() else setOf(it))
+                        },
+                        onAdvanced = { advancedFilterOpen = true },
+                    )
+                    DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                        MonitorSort.entries.forEach { sort ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(sort.labelRes)) },
+                                onClick = { sortMode = sort; sortOpen = false },
+                            )
+                        }
+                    }
                 }
+                Text(
+                    text = stringResource(R.string.inventory_result_count, shown.size, monitors.size),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+                )
             }
-            if (overlay == null && bulkMode) {
+            if (bulkMode) {
                 val shownIds = shown.mapTo(mutableSetOf()) { it.monitor.id }
                 val allShownSelected = shownIds.isNotEmpty() && shownIds.all { it in selectedIds }
                 Row(
@@ -431,72 +396,15 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     ) { Text(stringResource(R.string.action_resume)) }
                 }
             }
-            when (overlay) {
-                MonitorOverlay.MAINTENANCE -> MaintenanceScreen(
-                    vm = vm,
-                    onClose = { overlay = null },
-                    modifier = Modifier.fillMaxSize(),
-                )
-                MonitorOverlay.INCIDENTS -> FleetIncidentCenter(
-                        monitors = monitors,
-                        history = history,
-                        notes = incidentNotes,
-                        serverUrl = activeUrl,
-                        loadImportantHeartbeats = vm::importantHeartbeatHistory,
-                        onClose = { overlay = null },
-                        onIncidentClick = vm::select,
-                        onSaveNote = vm::saveIncidentNote,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                MonitorOverlay.CERTIFICATES -> CertificateDashboard(
-                    monitors = monitors,
-                    certs = certs,
-                    onClose = { overlay = null },
-                    onCertificateClick = vm::select,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                MonitorOverlay.DOMAINS -> DomainDashboard(
-                    monitors = monitors,
-                    certs = certs,
-                    onClose = { overlay = null },
-                    onMonitorClick = vm::select,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                MonitorOverlay.EVENTS -> GlobalEventLog(
-                    monitors = monitors,
-                    history = history,
-                    localEvents = localEvents,
-                    onClose = { overlay = null },
-                    onMonitorClick = vm::select,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                MonitorOverlay.FLEET_SUMMARY -> FleetAggregateDashboard(
-                    monitors = monitors,
-                    loadChartData = vm::fleetChartData,
-                    onClose = { overlay = null },
-                    onMonitorClick = vm::select,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                MonitorOverlay.PINNED_LIVE -> PinnedLivePanel(
-                    monitors = monitors,
-                    history = history,
-                    pinnedIds = favorites,
-                    onClose = { overlay = null },
-                    onMonitorClick = vm::select,
-                    onUnpin = vm::toggleFavorite,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                null -> Unit
-            }
-            if (overlay == null && monitors.isEmpty()) {
+            if (monitors.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (overlay == null && shown.isEmpty()) {
+            } else if (shown.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.monitors_none_match), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            } else if (overlay == null) {
+            } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = if (compactDisplay) 8.dp else 16.dp),
@@ -671,16 +579,6 @@ private fun MonitorFilterMenu(
                 onClick = { onFilterOpenChange(false); onAdvanced() },
             )
     }
-}
-
-private enum class MonitorOverlay {
-    MAINTENANCE,
-    INCIDENTS,
-    CERTIFICATES,
-    DOMAINS,
-    EVENTS,
-    FLEET_SUMMARY,
-    PINNED_LIVE,
 }
 
 private val MonitorSort.labelRes: Int

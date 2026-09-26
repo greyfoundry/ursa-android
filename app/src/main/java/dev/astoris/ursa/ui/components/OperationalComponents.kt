@@ -42,6 +42,18 @@ import androidx.compose.ui.unit.dp
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
 
+@Composable
+fun SectionHeading(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .semantics { heading() },
+    )
+}
+
 /** Compact, always-visible context that helps prevent actions on the wrong server. */
 @Composable
 fun ServerContextHeader(

@@ -117,6 +117,10 @@ class UrsaRouteTest {
             UrsaRoute.Main(MainSection.INCIDENTS),
             state(mainTab = MainTab.INCIDENTS).toRoute(),
         )
+        assertEquals(
+            UrsaRoute.Main(MainSection.BROWSE),
+            state(mainTab = MainTab.BROWSE).toRoute(),
+        )
     }
 
     @Test fun everyLegacyDeepLinkIsAlreadyANavigationKey() {
@@ -138,6 +142,7 @@ class UrsaRouteTest {
             UrsaRoute.Main(MainSection.HOME),
             UrsaRoute.Main(MainSection.MONITORS, selectedMonitorId = 42),
             UrsaRoute.Main(MainSection.INCIDENTS),
+            UrsaRoute.Main(MainSection.BROWSE),
             UrsaRoute.MonitorDetail(42),
         )
 

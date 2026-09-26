@@ -51,7 +51,11 @@ import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    onNotificationsClick: () -> Unit = vm::enterPush,
+) {
     val context = LocalContext.current
     val canLock = remember { BiometricGate.canAuthenticate(context) }
     val lockEnabled by vm.lockEnabled.collectAsStateWithLifecycle()
@@ -106,7 +110,7 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
             }
             Spacer(Modifier.height(10.dp))
-            OutlinedButton(onClick = vm::enterPush, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onNotificationsClick, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.nav_notifications), style = MaterialTheme.typography.labelLarge)
                     Text(

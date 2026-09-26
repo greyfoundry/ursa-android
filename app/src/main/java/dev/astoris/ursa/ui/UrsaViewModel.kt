@@ -219,7 +219,7 @@ private sealed interface StatusPageResolution {
 }
 
 /** Authenticated destinations currently exposed by the adaptive navigation suite. */
-enum class MainTab { HOME, MONITORS, NOTIFICATIONS, SETTINGS, INCIDENTS }
+enum class MainTab { HOME, MONITORS, NOTIFICATIONS, SETTINGS, INCIDENTS, BROWSE }
 
 class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 

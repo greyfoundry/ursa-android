@@ -9,6 +9,29 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-26 - Browse destination
+
+**changed**: Replaced Settings in primary navigation with a sectioned Browse
+catalogue. Operations exposes maintenance, status pages, and notifications;
+Insights/reports exposes certificate, domain, event, 30-day fleet, and live-panel
+tools; Manage exposes monitor views, servers, and device/app settings. Each entry
+reuses the existing screen and state owner. After phone reachability parity was
+verified, the duplicate specialist-dashboard routes were removed from the
+Monitors overflow, leaving its monitor-management action intact.
+
+**navigation and compatibility**: Browse was appended to the serialized main
+enums. Released Settings and Notifications names remain accepted for restored
+state, shortcuts, and deep links, but no longer consume primary navigation slots.
+Nested Browse back behaviour returns Notifications to Settings when entered from
+Settings and otherwise returns to the Browse catalogue.
+
+**verification**: Both flavor unit tests, lint, and debug assemblies passed, as
+did F-Droid release assembly and vital lint (146 tasks). A visible API 37 Pixel 8
+ran every Browse entry against Uptime Kuma 2.5.5 at phone size, 200% text, and
+1200x900dp rail size. Monitor views, server management, status pages, nested
+Settings-to-Notifications back behaviour, and the simplified Monitors overflow
+were also exercised.
+
 ### 2026-09-26 - Incidents destination
 
 **changed**: Promoted the existing active-server incident center into a typed,

@@ -33,7 +33,26 @@
     <string name="nav_incidents">Incidents</string>
     <string name="nav_notifications">Notifications</string>
     <string name="nav_settings">Settings</string>
+    <string name="nav_browse">Browse</string>
     <string name="settings_notifications_desc">Configure UnifiedPush alerts and notification diagnostics</string>
+
+    <!-- Browse -->
+    <string name="browse_title">Browse</string>
+    <string name="browse_subtitle">Operations, insights, and server tools</string>
+    <string name="browse_operations">Operations</string>
+    <string name="browse_insights">Insights and reports</string>
+    <string name="browse_manage">Manage</string>
+    <string name="browse_maintenance_desc">Schedule and manage maintenance windows</string>
+    <string name="browse_certificates_desc">Review expiry and certificate health across monitors</string>
+    <string name="browse_domains_desc">Group HTTP monitors by host and TLS coverage</string>
+    <string name="browse_events_desc">Filter observed state changes and device actions</string>
+    <string name="browse_fleet_desc">Compare 30-day uptime and latency across active monitors</string>
+    <string name="browse_live_desc">Watch favourite monitors and recent checks</string>
+    <string name="browse_monitors_title">Monitor views</string>
+    <string name="browse_monitors_desc">Tags, filters, saved views, and bulk actions</string>
+    <string name="browse_servers_desc">Connections, access profiles, backups, and compatibility</string>
+    <string name="browse_settings_title">Device and app settings</string>
+    <string name="browse_settings_desc">Lock, appearance, glance display, Wear OS, updates, and help</string>
 
     <!-- Home -->
     <string name="home_title">Home</string>

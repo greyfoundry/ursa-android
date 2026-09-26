@@ -49,6 +49,7 @@ enum class MainSection {
     NOTIFICATIONS,
     SETTINGS,
     INCIDENTS,
+    BROWSE,
 }
 
 data class LegacyRouteState(
@@ -116,6 +117,7 @@ fun MainTab.toMainSection(): MainSection = when (this) {
     MainTab.NOTIFICATIONS -> MainSection.NOTIFICATIONS
     MainTab.SETTINGS -> MainSection.SETTINGS
     MainTab.INCIDENTS -> MainSection.INCIDENTS
+    MainTab.BROWSE -> MainSection.BROWSE
 }
 
 fun MainSection.toMainTab(): MainTab = when (this) {
@@ -124,6 +126,7 @@ fun MainSection.toMainTab(): MainTab = when (this) {
     MainSection.NOTIFICATIONS -> MainTab.NOTIFICATIONS
     MainSection.SETTINGS -> MainTab.SETTINGS
     MainSection.INCIDENTS -> MainTab.INCIDENTS
+    MainSection.BROWSE -> MainTab.BROWSE
 }
 
 /** Legacy URSA deep links are already strict, scoped, non-secret typed keys. */
