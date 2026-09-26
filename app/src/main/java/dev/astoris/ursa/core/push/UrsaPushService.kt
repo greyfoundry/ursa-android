@@ -54,6 +54,7 @@ class UrsaPushService : PushService() {
         )
         val deliveryTest = PushStore.recordMessage(this, notice.body)
         val policyStore = PushAlertModeStore(this)
+        val scope = if (deliveryTest) null else ManagedPushScopeStore(this).load(notice.serverId)
         val enriched = if (deliveryTest) {
             notice.copy(
                 monitorName = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_title),
@@ -116,18 +117,20 @@ class UrsaPushService : PushService() {
                 idOverride = managedIdentity.notificationId,
                 severity = configuredSeverity,
                 routeOverride = eventRoute,
+                serverUrl = scope?.serverUrl,
             )
             else -> postNotification(
                 this,
                 enriched,
                 severity = configuredSeverity,
                 routeOverride = eventRoute,
+                serverUrl = scope?.serverUrl,
             )
         }
         if (result == PushLocalTestResult.POSTED && !deliveryTest) {
             eventScope.launch {
                 EventLogStore(this@UrsaPushService).append(
-                    serverUrl = null,
+                    serverUrl = scope?.serverUrl,
                     monitorId = enriched.monitorId,
                     monitorName = enriched.monitorName,
                     kind = LocalEventKind.PUSH_ALERT,
@@ -143,9 +146,9 @@ class UrsaPushService : PushService() {
         val id = notice.monitorId ?: return notice
         val store = DownSinceStore(this)
         return when (notice.status) {
-            0 -> { store.markDown(id, System.currentTimeMillis()); notice }
+            0 -> { store.markDown(notice.serverId, id, System.currentTimeMillis()); notice }
             1 -> {
-                val since = store.takeDown(id) ?: return notice
+                val since = store.takeDown(notice.serverId, id) ?: return notice
                 val elapsed = System.currentTimeMillis() - since
                 notice.copy(body = "${notice.body}\nWas down for ${PushParse.formatDowntime(elapsed)}.")
             }
@@ -194,6 +197,7 @@ class UrsaPushService : PushService() {
             idOverride: Int? = null,
             severity: PushSeverity = PushSeverity.CRITICAL,
             routeOverride: PushChannelRoute? = null,
+            serverUrl: String? = null,
         ): PushLocalTestResult {
             ensureChannel(context)
             val route = routeOverride ?: PushSeverityPolicy.route(severity)
@@ -244,6 +248,7 @@ class UrsaPushService : PushService() {
             val alertServerId = notice.serverId
             val alertMonitorId = notice.monitorId
             val managedIdentity = PushAlertWork.identity(alertServerId, alertMonitorId)
+            val id = idOverride ?: notice.monitorId ?: notice.title.hashCode()
             if (
                 notice.status == 0 &&
                 managedIdentity != null &&
@@ -270,19 +275,18 @@ class UrsaPushService : PushService() {
                         PushAlertActionReceiver.ACTION_SNOOZE,
                     ),
                 )
-            } else notice.monitorId?.let { monitorId ->
+            } else if (serverUrl != null) notice.monitorId?.let { monitorId ->
                 builder.addAction(
                     android.R.drawable.ic_media_pause,
                     "Pause",
-                    monitorActionIntent(context, monitorId, MonitorActionReceiver.ACTION_PAUSE),
+                    monitorActionIntent(context, serverUrl, monitorId, id, MonitorActionReceiver.ACTION_PAUSE),
                 )
                 builder.addAction(
                     android.R.drawable.ic_media_play,
                     "Resume",
-                    monitorActionIntent(context, monitorId, MonitorActionReceiver.ACTION_RESUME),
+                    monitorActionIntent(context, serverUrl, monitorId, id, MonitorActionReceiver.ACTION_RESUME),
                 )
             }
-            val id = idOverride ?: notice.monitorId ?: notice.title.hashCode()
             notifications.notify(id, builder.build())
             return PushLocalTestResult.POSTED
         }
@@ -306,12 +310,20 @@ class UrsaPushService : PushService() {
             )
         }
 
-        private fun monitorActionIntent(context: Context, monitorId: Int, action: String): PendingIntent {
+        private fun monitorActionIntent(
+            context: Context,
+            serverUrl: String,
+            monitorId: Int,
+            notificationId: Int,
+            action: String,
+        ): PendingIntent {
             val intent = Intent()
             intent.setClassName(context.packageName, MonitorActionReceiver::class.java.name)
             intent.action = action
             intent.putExtra(MonitorActionReceiver.EXTRA_MONITOR_ID, monitorId)
-            val requestCode = "$monitorId:$action".hashCode()
+            intent.putExtra(MonitorActionReceiver.EXTRA_SERVER_URL, serverUrl)
+            intent.putExtra(MonitorActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+            val requestCode = "$serverUrl:$monitorId:$action".hashCode()
             return PendingIntent.getBroadcast(
                 context,
                 requestCode,

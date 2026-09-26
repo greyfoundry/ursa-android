@@ -42,6 +42,7 @@ import dev.astoris.ursa.core.push.PushTransitionStore
 import dev.astoris.ursa.core.push.OverallStatusService
 import dev.astoris.ursa.core.push.OverallStatusStore
 import dev.astoris.ursa.core.push.KumaWebhook
+import dev.astoris.ursa.core.push.ManagedPushScopeStore
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
@@ -184,7 +185,13 @@ sealed interface StatusPageFormResult {
     data class NetworkError(val message: String) : StatusPageFormResult
 }
 
-enum class KumaPushSetupError { INVALID_ENDPOINT, SERVER_UNAVAILABLE, SAVE_FAILED, DELETE_FAILED }
+enum class KumaPushSetupError {
+    INVALID_ENDPOINT,
+    SERVER_UNAVAILABLE,
+    SAVE_FAILED,
+    SCOPE_SAVE_FAILED,
+    DELETE_FAILED,
+}
 
 sealed interface KumaPushSetupUiState {
     data object Idle : KumaPushSetupUiState
@@ -339,6 +346,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _kumaPushTestSending = MutableStateFlow(false)
     val kumaPushTestSending: StateFlow<Boolean> = _kumaPushTestSending.asStateFlow()
     private val pushAlertModeStore = PushAlertModeStore(app)
+    private val managedPushScopeStore = ManagedPushScopeStore(app)
     private val _pushAlertModes = MutableStateFlow<Map<Int, PushAlertMode>>(emptyMap())
     val pushAlertModes: StateFlow<Map<Int, PushAlertMode>> = _pushAlertModes.asStateFlow()
     private val _pushSeverities = MutableStateFlow<Map<Int, PushSeverity>>(emptyMap())
@@ -1168,7 +1176,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             _kumaPushSetup.value = KumaPushSetupUiState.Loading
-            val ids = monitors.value.map(Monitor::id)
+            val monitorRows = monitors.value
+            val ids = monitorRows.map(Monitor::id)
             val snapshot = repo.managedPushAssignments(ids) ?: run {
                 _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SERVER_UNAVAILABLE)
                 _pushAlertModes.value = emptyMap()
@@ -1178,12 +1187,14 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             }
             val notification = snapshot.notification
             val serverId = notification?.serverId
+            val providerCurrent = notification?.webhookUrl == deliveryUrl &&
+                notification.schemaVersion == ManagedPushNotification.CURRENT_SCHEMA &&
+                ManagedPushNotification.isValidServerId(serverId)
+            val scopeCurrent = providerCurrent && serverId != null && bindManagedPushScope(serverId, monitorRows)
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = notification?.id,
                 serverId = serverId,
-                configurationCurrent = notification?.webhookUrl == deliveryUrl &&
-                    notification.schemaVersion == ManagedPushNotification.CURRENT_SCHEMA &&
-                    ManagedPushNotification.isValidServerId(serverId),
+                configurationCurrent = scopeCurrent,
                 isDefault = notification?.isDefault ?: true,
                 selectedMonitorIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds,
                 unavailableMonitorIds = snapshot.unavailableMonitorIds,
@@ -1203,10 +1214,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             _kumaPushSetup.value = KumaPushSetupUiState.Loading
-            val ids = monitors.value.map(Monitor::id)
+            val monitorRows = monitors.value
+            val ids = monitorRows.map(Monitor::id)
             val result = repo.saveManagedPushSetup(deliveryUrl, isDefault, selectedMonitorIds, ids)
             if (result == null) {
                 _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SAVE_FAILED)
+                return@launch
+            }
+            if (!bindManagedPushScope(result.serverId, monitorRows)) {
+                _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SCOPE_SAVE_FAILED)
                 return@launch
             }
             val snapshot = repo.managedPushAssignments(ids)
@@ -1235,6 +1251,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             PushAlertWorker.cancel(getApplication(), serverId, monitorId)
         }
         _pushAlertModes.value = _pushAlertModes.value + (monitorId to mode)
+    }
+
+    private suspend fun bindManagedPushScope(serverId: String, monitorRows: List<Monitor>): Boolean {
+        val connection = store.activeConnection() ?: return false
+        return withContext(Dispatchers.IO) {
+            managedPushScopeStore.bind(serverId, connection.url, monitorRows) != null
+        }
     }
 
     fun setPushSeverity(monitorId: Int, severity: PushSeverity) {
@@ -1281,6 +1304,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 pushAlertModeStore.clearServer(serverId)
+                managedPushScopeStore.remove(serverId)
                 PushTransitionStore(getApplication()).clearServer(serverId)
                 _pushAlertModes.value = emptyMap()
                 _pushSeverities.value = emptyMap()

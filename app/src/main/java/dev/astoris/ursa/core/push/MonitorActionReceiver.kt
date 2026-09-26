@@ -13,6 +13,7 @@ import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
 import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,32 +23,36 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Handles the Pause / Resume actions on a monitor notification. Not exported: it is
  * only ever triggered by the app's own notification PendingIntents. Because a push can
- * arrive while the app is closed, this opens a short-lived connection to the active
- * server, applies the action, and disconnects.
+ * arrive while the app is closed, this opens a short-lived connection to the exact
+ * saved server bound to the managed provider, applies the action, and disconnects.
  */
 class MonitorActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getIntExtra(EXTRA_MONITOR_ID, -1)
-        if (id < 0) return
+        val serverUrl = intent.getStringExtra(EXTRA_SERVER_URL)
+        val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, id)
+        if (id < 0 || serverUrl.isNullOrBlank()) return
         val pause = intent.action == ACTION_PAUSE
         val appContext = context.applicationContext
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                perform(appContext, id, pause)
+                perform(appContext, serverUrl, id, pause)
             } catch (e: Exception) {
                 Log.w(TAG, "Monitor action failed: ${e.message}")
             } finally {
-                NotificationManagerCompat.from(appContext).cancel(id)
+                NotificationManagerCompat.from(appContext).cancel(notificationId)
                 pending.finish()
             }
         }
     }
 
-    private suspend fun perform(context: Context, id: Int, pause: Boolean) {
+    private suspend fun perform(context: Context, serverUrl: String, id: Int, pause: Boolean) {
         val store = ConnectionStore(context)
-        val execution = MutationExecutor(store::activeConnection).execute(
+        val execution = MutationExecutor {
+            targetConnection(store.snapshot(), serverUrl)
+        }.execute(
             required = setOf(AccessCapability.MONITOR_STATE),
         ) { conn ->
             if (!ConnectionTransportPolicy.allows(conn)) return@execute false
@@ -85,6 +90,12 @@ class MonitorActionReceiver : BroadcastReceiver() {
         const val ACTION_PAUSE = "dev.astoris.ursa.action.PAUSE"
         const val ACTION_RESUME = "dev.astoris.ursa.action.RESUME"
         const val EXTRA_MONITOR_ID = "monitor_id"
+        const val EXTRA_SERVER_URL = "server_url"
+        const val EXTRA_NOTIFICATION_ID = "notification_id"
+        internal fun targetConnection(
+            connections: List<ServerConnection>,
+            serverUrl: String,
+        ) = connections.firstOrNull { it.url == serverUrl }
         private const val AUTH_TIMEOUT_MS = 8_000L
         private const val ACTION_TIMEOUT_MS = 5_000L
     }

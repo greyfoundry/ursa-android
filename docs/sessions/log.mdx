@@ -9,6 +9,32 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-26 - Encrypted managed-push scope registry
+
+**changed**: Added a versioned, bounded encrypted binding from each verified managed
+provider's random server ID to its exact saved connection and a lightweight monitor
+directory. The directory contains only ID, name, type, parent, tags, and active state;
+monitor URLs, full configurations, JWTs, and custom headers are not duplicated. A
+current provider is bound after authenticated verification, a saved provider is bound
+only after Kuma accepts setup, and successful provider deletion removes the binding.
+
+**identity safety**: Bound push events now carry exact server identity into encrypted
+device history. Notification Pause/Resume actions are created only when a local
+binding exists, carry that server through an immutable explicit PendingIntent, and
+re-resolve the saved connection before enforcing its current Access Profile and
+transport policy. They never fall back to the active server. Down/recovery duration
+keys now include the managed server scope, preventing identical monitor IDs on two
+Kuma servers from sharing outage state. Unknown and legacy payloads keep safe
+provider-neutral notification behaviour.
+
+**verification**: Focused JVM tests cover version/identity rejection, bounded metadata
+round-trip, exclusion of monitor URLs, server-scoped downtime keys, and exact action
+target selection. The complete 243-task two-flavor phone/Wear unit-test, lint,
+debug-assembly, F-Droid release, and vital-lint gate passed. The F-Droid release
+smoke-tested on the visible API 37 Pixel 8 against healthy Kuma 2.5.5. The QA device
+has no UnifiedPush distributor endpoint, so live provider creation/binding is retained
+as an explicit `PS-02` device gate rather than being simulated in production code.
+
 ### 2026-09-26 - Public status-page incident operations
 
 **changed**: Extended the existing saved status-page viewer into a guarded incident

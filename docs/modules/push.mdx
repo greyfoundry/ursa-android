@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-21
+last-updated: 2026-09-26
 owner: astoris
 status: stable
 ---
@@ -28,6 +28,9 @@ connection: push works while the app is closed.
   random marker used to distinguish a requested Kuma test from unrelated pushes.
 - `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
   for transition modes, severity, bounded timing, and snooze expiry.
+- `.../core/push/ManagedPushScopeStore.kt` - encrypted, versioned binding from a
+  managed provider's random server scope to the exact saved connection and a
+  bounded lightweight monitor directory.
 - `.../core/push/PushAlertLifecycle.kt` - pure delay/repeat/acknowledgement policy
   plus privacy-safe WorkManager and notification identities.
 - `.../core/push/PushPendingAlertStore.kt` - encrypted rendered payloads for
@@ -56,6 +59,8 @@ connection: push works while the app is closed.
 - `PushStore.endpoint` / `.distributor` (StateFlow), `load`/`setDistributor`/
   `clear`; `diagnostics` exposes timestamps and normalized result
   categories without retaining endpoint copies or message contents.
+- `ManagedPushScopeStore.bind/load/remove` persists only server URL plus bounded
+  monitor ID/name/type/parent/tag/active metadata after managed setup is verified.
 - `KumaWebhook.deliveryUrl(endpoint, distributor)` returns a validated HTTP(S)
   endpoint ready for Kuma, or null.
 - ViewModel: `pushEndpoint`, `pushDistributor`, `distributors`, `pushMode`;
@@ -86,7 +91,10 @@ connection: push works while the app is closed.
 - Managed providers use Kuma's custom Webhook body with Liquid's JSON filter and a
   random 32-hex `ursaServerId`. The scope is not a credential and is never shown;
   it prevents identical monitor IDs on different saved servers from sharing an
-  alert policy. Legacy managed providers must be saved once to gain this scope.
+  alert policy. A current provider is also bound locally to its exact saved
+  connection in encrypted storage. Legacy managed providers are bound when the
+  authenticated setup screen verifies them; unbound payloads retain notification
+  delivery but cannot expose remote monitor actions.
 - Per-monitor modes are non-sensitive device preferences keyed by server scope and
   monitor ID. Muted posts nothing; down-only accepts status 0; down-and-recovery
   accepts 0 and 1; all-transitions also accepts pending, maintenance, and unknown
@@ -154,11 +162,18 @@ connection: push works while the app is closed.
 - Managed alerts derive a stable, hashed notification ID from server scope and
   monitor ID, so a new status replaces the old one without colliding across servers.
   Manual legacy payloads retain the previous monitor-ID fallback.
+- Down-to-recovery duration state is scoped by the same server ID when available;
+  manual/legacy payloads retain the released monitor-only fallback.
 - A notification that is actually posted is also appended to the encrypted,
-  bounded device event log. The webhook body has no trustworthy server identity,
-  so the entry remains provider-neutral rather than being assigned to a guessed
-  connection. Missing notification permission produces neither a notification nor
-  a false history entry.
+  bounded device event log. A verified local scope binding supplies the exact saved
+  server URL; unknown or legacy payloads remain provider-neutral rather than being
+  guessed. Missing notification permission produces neither a notification nor a
+  false history entry.
+- Pause/Resume actions are created only for a locally bound managed provider and
+  carry its exact saved server identity to the non-exported receiver. The receiver
+  re-resolves that connection, enforces its current Access Profile and cleartext
+  policy, then opens a bounded short-lived socket. It never falls back to whichever
+  server happens to be active.
 - Notification content and monitor actions use immutable PendingIntents with explicit
   app-owned activity/receiver components.
 - Notification content routes through strict `ursa://` deep links. Private monitor

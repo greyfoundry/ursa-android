@@ -1045,6 +1045,7 @@ private val KumaPushSetupError.messageRes: Int
         KumaPushSetupError.INVALID_ENDPOINT -> R.string.push_kuma_invalid_endpoint
         KumaPushSetupError.SERVER_UNAVAILABLE -> R.string.push_kuma_server_unavailable
         KumaPushSetupError.SAVE_FAILED -> R.string.push_kuma_save_failed
+        KumaPushSetupError.SCOPE_SAVE_FAILED -> R.string.push_kuma_scope_save_failed
         KumaPushSetupError.DELETE_FAILED -> R.string.push_kuma_delete_failed
     }
 

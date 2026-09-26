@@ -807,6 +807,7 @@
     <string name="push_kuma_invalid_endpoint">The UnifiedPush endpoint is not a valid HTTP or HTTPS URL.</string>
     <string name="push_kuma_server_unavailable">Kuma did not return its notification configuration. Reconnect and try again.</string>
     <string name="push_kuma_save_failed">Kuma could not save the managed Webhook provider.</string>
+    <string name="push_kuma_scope_save_failed">Kuma saved the provider, but URSA could not secure its local server binding. Try saving again.</string>
     <string name="push_kuma_delete_failed">Kuma could not remove the managed Webhook provider.</string>
     <string name="push_alert_modes_title">Per-monitor alerts</string>
     <string name="push_alert_modes_desc">Choose which transitions notify this phone and how strongly Android should signal them. These settings stay on this device.</string>
