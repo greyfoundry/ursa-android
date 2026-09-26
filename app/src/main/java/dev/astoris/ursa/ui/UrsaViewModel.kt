@@ -219,7 +219,7 @@ private sealed interface StatusPageResolution {
 }
 
 /** Authenticated destinations currently exposed by the adaptive navigation suite. */
-enum class MainTab { HOME, MONITORS, NOTIFICATIONS, SETTINGS }
+enum class MainTab { HOME, MONITORS, NOTIFICATIONS, SETTINGS, INCIDENTS }
 
 class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -352,9 +352,6 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val tab: StateFlow<MainTab> = _tab.asStateFlow()
     private val _kioskMode = MutableStateFlow(false)
     val kioskMode: StateFlow<Boolean> = _kioskMode.asStateFlow()
-    private val _incidentOpenRequest = MutableStateFlow<Int?>(null)
-    val incidentOpenRequest: StateFlow<Int?> = _incidentOpenRequest.asStateFlow()
-
     private val releaseClient = ReleaseClient()
     private val _updateCheck = MutableStateFlow<UpdateCheckUiState>(UpdateCheckUiState.Idle)
     val updateCheck: StateFlow<UpdateCheckUiState> = _updateCheck.asStateFlow()
@@ -858,15 +855,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             if (!known) return@launch
             _selectedId.value = null
             _statusPageMode.value = false
-            _tab.value = MainTab.MONITORS
-            _incidentOpenRequest.value = monitorId
+            _tab.value = MainTab.INCIDENTS
         }
     }
 
     private suspend fun connectionForScope(scope: String): ServerConnection? =
         store.snapshot().firstOrNull { AppDeepLink.serverScope(it.url) == scope }
-
-    fun consumeIncidentOpenRequest() { _incidentOpenRequest.value = null }
 
     fun openStatusPageDeepLink(pageId: String) {
         if (pageId.isBlank() || pageId.length > 100) return

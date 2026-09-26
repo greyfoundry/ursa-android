@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.ui.home.HomeScreen
+import dev.astoris.ursa.ui.incidents.IncidentsScreen
 import dev.astoris.ursa.ui.monitors.MonitorDetailScreen
 import dev.astoris.ursa.ui.monitors.MonitorListScreen
 import dev.astoris.ursa.ui.push.PushScreen
@@ -49,7 +50,7 @@ fun MainShell(vm: UrsaViewModel, selected: Monitor? = null) {
         navigationSuiteItems = {
             NavItem(tab, MainTab.HOME, R.drawable.ic_nav_home, R.string.nav_home, vm)
             NavItem(tab, MainTab.MONITORS, R.drawable.ic_nav_monitors, R.string.nav_monitors, vm)
-            NavItem(tab, MainTab.NOTIFICATIONS, R.drawable.ic_nav_notifications, R.string.nav_notifications, vm)
+            NavItem(tab, MainTab.INCIDENTS, R.drawable.ic_nav_incidents, R.string.nav_incidents, vm)
             NavItem(tab, MainTab.SETTINGS, R.drawable.ic_nav_settings, R.string.nav_settings, vm)
         },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -65,6 +66,7 @@ fun MainShell(vm: UrsaViewModel, selected: Monitor? = null) {
                 when (destination) {
                     MainTab.HOME -> HomeScreen(vm)
                     MainTab.MONITORS -> MonitorListDetailPane(vm, selected)
+                    MainTab.INCIDENTS -> IncidentsScreen(vm)
                     MainTab.NOTIFICATIONS -> PushScreen(vm)
                     MainTab.SETTINGS -> SettingsScreen(vm)
                 }

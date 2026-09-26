@@ -9,6 +9,29 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-26 - Incidents destination
+
+**changed**: Promoted the existing active-server incident center into a typed,
+adaptive top-level destination. The screen keeps the durable Kuma monitor-history
+timeline, status and time-window filters, reliability summary, encrypted local
+notes, redacted shares, and monitor-detail navigation. Its source is labelled
+explicitly; it does not present monitor outages as authenticated public status-page
+incidents. Existing incident deep links now land on the destination, while the old
+Monitors overflow entry stays temporarily for reachability parity.
+
+**navigation and compatibility**: Incidents was appended to the serialized main
+enums, preserving all released names. Four primary destinations remain visible at
+large text: Home, Monitors, Incidents, and Settings. Notifications moved to a
+visible Settings entry and retains its released deep link and screen state until
+the planned Browse destination absorbs secondary tools.
+
+**verification**: Both flavor unit tests, lint, and debug assemblies passed, as did
+F-Droid release assembly and vital lint (146 tasks). A visible API 37 Pixel 8 ran
+the destination against Uptime Kuma 2.5.5 at phone size, 200% text, and 1200x900dp
+rail size. Incident-to-monitor routing, Settings-to-Notifications reachability,
+and a real scoped incident deep link passed; the status-bar inset regression found
+in the first device pass was fixed at the destination boundary.
+
 ### 2026-09-26 - Monitor inventory and workspace
 
 **changed**: Re-composed Monitors around an always-visible search field and

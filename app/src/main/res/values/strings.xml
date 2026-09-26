@@ -30,8 +30,10 @@
     <!-- Bottom navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_monitors">Monitors</string>
+    <string name="nav_incidents">Incidents</string>
     <string name="nav_notifications">Notifications</string>
     <string name="nav_settings">Settings</string>
+    <string name="settings_notifications_desc">Configure UnifiedPush alerts and notification diagnostics</string>
 
     <!-- Home -->
     <string name="home_title">Home</string>
@@ -399,6 +401,7 @@
     <string name="incident_recovered">Recovered</string>
     <string name="incident_status_changed">Status changed</string>
     <string name="incident_center_title">Incident center</string>
+    <string name="incident_center_source">Source: Uptime Kuma monitor history</string>
     <string name="incident_center_close">Close</string>
     <string name="incident_center_empty">No incidents in the available history</string>
     <string name="incident_filter_active">Active</string>

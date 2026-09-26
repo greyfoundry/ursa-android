@@ -106,6 +106,17 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
             }
             Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = vm::enterPush, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.nav_notifications), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.settings_notifications_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
             OutlinedButton(onClick = { showKioskWarning = true }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.settings_kiosk_title), style = MaterialTheme.typography.labelLarge)

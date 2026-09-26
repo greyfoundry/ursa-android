@@ -93,7 +93,6 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val compactDisplay by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
     val savedViews by vm.savedViews.collectAsStateWithLifecycle()
     val monitorFilterRequest by vm.monitorFilterRequest.collectAsStateWithLifecycle()
-    val incidentOpenRequest by vm.incidentOpenRequest.collectAsStateWithLifecycle()
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
     val canCreate = activeConnection.allows(AccessCapability.MONITOR_CREATE)
     val canBulk = activeConnection.allows(AccessCapability.BULK_WRITE)
@@ -145,13 +144,6 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             pendingBulkAction = null
         }
     }
-    LaunchedEffect(incidentOpenRequest) {
-        if (incidentOpenRequest != null) {
-            overlay = MonitorOverlay.INCIDENTS
-            vm.consumeIncidentOpenRequest()
-        }
-    }
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },

@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -38,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.storage.IncidentNote
@@ -287,12 +291,12 @@ internal fun FleetIncidentCenter(
     notes: List<IncidentNote>,
     serverUrl: String?,
     loadImportantHeartbeats: suspend () -> List<Heartbeat>?,
-    onClose: () -> Unit,
+    onClose: (() -> Unit)? = null,
     onIncidentClick: (Int) -> Unit,
     onSaveNote: (Int, String?, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    BackHandler(onBack = onClose)
+    onClose?.let { BackHandler(onBack = it) }
     val context = LocalContext.current
     var importantHistory by remember { mutableStateOf<ImportantHistoryState>(ImportantHistoryState.Loading) }
     LaunchedEffect(Unit) {
@@ -334,11 +338,23 @@ internal fun FleetIncidentCenter(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.incident_center_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onClose) { Text(stringResource(R.string.incident_center_close)) }
+            Text(
+                stringResource(R.string.incident_center_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f).semantics { heading() },
+            )
+            onClose?.let { close ->
+                TextButton(onClick = close) { Text(stringResource(R.string.incident_center_close)) }
+            }
         }
+        Text(
+            stringResource(R.string.incident_center_source),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             FleetIncidentFilter.entries.forEach { option ->
@@ -372,7 +388,7 @@ internal fun FleetIncidentCenter(
             )
         }
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             HeartbeatRange.entries.forEach { option ->
