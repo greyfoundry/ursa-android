@@ -1,5 +1,6 @@
 package dev.astoris.ursa.core.network
 
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -58,6 +59,12 @@ data class PublicIncident(
     )
 }
 
+data class PublicIncidentHistory(
+    val incidents: List<PublicIncident>,
+    val total: Int,
+    val hasMore: Boolean,
+)
+
 enum class IncidentMutationOutcome {
     APPLIED,
     REJECTED,
@@ -108,6 +115,9 @@ object PublicIncidentCodec {
             lastUpdatedDate = raw.string("lastUpdatedDate"),
         )
     }
+
+    fun incidents(raw: JsonArray, target: PublicIncidentTarget): List<PublicIncident> =
+        raw.mapNotNull { (it as? JsonObject)?.let { row -> incident(row, target) } }
 
     private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
 }

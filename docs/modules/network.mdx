@@ -57,7 +57,8 @@ here so the rest of the app sees clean domain models.
   notification relation reads/updates, `testManagedPushNotification`, monitor
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
-  active-state changes, authenticated public-incident create/edit/unpin/resolve/delete,
+  active-state changes, authenticated public-incident history plus
+  create/edit/unpin/resolve/delete,
   and `disconnect()`.
   Flows: `state`, `compatibility`,
   `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
@@ -95,6 +96,8 @@ here so the rest of the app sees clean domain models.
 - `PublicIncidentTarget` binds every public-incident action to its active server,
   locally saved status-page ID, and Kuma slug. `IncidentMutationResult` distinguishes
   applied, rejected, and acknowledgement-indeterminate outcomes.
+  `PublicIncidentHistory` maps the authenticated socket result used to refresh a
+  page immediately after mutation.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
@@ -160,6 +163,10 @@ here so the rest of the app sees clean domain models.
   version-gated to the live-tested matrix. A missing or incomplete acknowledgement
   is indeterminate, not a normal failure: callers must refresh before retrying so
   an acknowledged-late create cannot be duplicated.
+- Kuma's public incident-history REST response can remain cached after an
+  authenticated mutation. For a saved page whose normalized base URL exactly
+  matches the active server, the viewer overlays the authenticated
+  `getIncidentHistory` socket result; unmatched public pages remain REST-only.
 - `MonitorRepository.addServerByToken` and `testServerToken` validate imported
   Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
   the socket because Kuma limits them to Prometheus HTTP Basic authentication.

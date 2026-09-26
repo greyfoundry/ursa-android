@@ -36,8 +36,8 @@ route stack while screens migrate incrementally.
 - `.../ui/incidents/IncidentsScreen.kt` - top-level active-server incident
   destination that reuses the durable monitor-history incident center. It labels
   the Kuma-history source explicitly and routes incident selection into the
-  adaptive monitor workspace; authenticated public incidents remain a separate
-  later network model rather than inferred data.
+  adaptive monitor workspace; authenticated public incidents remain separately
+  sourced from saved status pages rather than inferred from monitor history.
 - `.../ui/browse/BrowseScreen.kt` - sectioned catalogue for existing secondary
   operations, insights/reports, and management surfaces. It reuses maintenance,
   status-page, notification, certificate, domain, event, aggregate, live-panel,
@@ -115,7 +115,10 @@ route stack while screens migrate incrementally.
 - `.../ui/statuspage/StatusPageScreen.kt` - unlimited encrypted local public-page
   manager with add/edit/remove, favourite, ordering, URL discovery/testing,
   refresh, native groups and heartbeat bars, maintenance notices, and
-  active/resolved incident history.
+  active/resolved incident history. When a page exactly maps to the active
+  authenticated server, it also exposes access- and version-gated incident
+  create/edit/pin/unpin/resolve/delete actions with explicit source context and
+  confirmed deletion.
 - `.../ui/StatusUi.kt` - status -> Kuma color / label string-resource.
 - `.../ui/StatusPill.kt` - Kuma-style rounded status badge (colored pill, white text).
 - `.../ui/Sparkline.kt`, `.../ui/UptimeRing.kt` - static, dependency-free dashboard
@@ -151,8 +154,8 @@ route stack while screens migrate incrementally.
   `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
   `pause`/`resume`, monitor create/edit/delete, `toggleFavorite`, and saved
-  status-page CRUD/order/open/refresh, glance-display entry/exit, plus validated
-  widget deep-link entry points.
+  status-page CRUD/order/open/refresh plus public-incident operations,
+  glance-display entry/exit, plus validated widget deep-link entry points.
 
 **depends on**
 - `data/repository`, `core/network` (StatusPageClient), Compose Material 3 and
@@ -193,6 +196,11 @@ route stack while screens migrate incrementally.
 - Saved public pages are encrypted by `StatusPageStore`; public-page URLs never
   duplicate access headers. A page whose normalized base URL exactly matches a
   saved server inherits that server's encrypted headers only at request time.
+- Public-incident controls appear only when the selected page exactly maps to the
+  active authenticated server, the connection allows `STATUS_INCIDENT_WRITE`, and
+  the reported Kuma version is write-verified. Other saved pages remain visibly
+  read-only. Delete retains the normal confirmation and uses optional destructive
+  step-up when enabled.
 - Connection summaries show only the number of encrypted access headers. Header
   values are masked during entry and never rendered after save.
 - Existing HTTP connections retain legacy access and display a review action in

@@ -2,8 +2,11 @@ package dev.astoris.ursa.ui.statuspage
 
 import android.text.format.DateUtils
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,12 +15,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -25,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,8 +59,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.IncidentMutationOutcome
+import dev.astoris.ursa.core.network.IncidentMutationResult
+import dev.astoris.ursa.core.network.KumaFeature
+import dev.astoris.ursa.core.network.PublicIncidentStyle
 import dev.astoris.ursa.core.network.StatusPageAddressError
+import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.StatusCheckView
@@ -63,7 +77,10 @@ import dev.astoris.ursa.ui.StatusPageUiState
 import dev.astoris.ursa.ui.StatusPageFormResult
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.AccessProfileNotice
+import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.ui.components.UrsaPressableCard
+import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.ui.theme.KumaBlue
 import dev.astoris.ursa.ui.theme.KumaGreen
 import dev.astoris.ursa.ui.theme.KumaOrange
@@ -86,12 +103,36 @@ fun StatusPageScreen(
     val pages by vm.savedStatusPages.collectAsStateWithLifecycle()
     val selectedId by vm.selectedStatusPageId.collectAsStateWithLifecycle()
     val ui by vm.statusPage.collectAsStateWithLifecycle()
+    val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val compatibility by vm.kumaCompatibility.collectAsStateWithLifecycle()
+    val connectionState by vm.state.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current as? FragmentActivity
     val selected = pages.firstOrNull { it.id == selectedId }
     var adding by rememberSaveable { mutableStateOf(false) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingRemove by remember { mutableStateOf<SavedStatusPage?>(null) }
+    var incidentEditorOpen by rememberSaveable(selectedId) { mutableStateOf(false) }
+    var editingIncident by remember { mutableStateOf<StatusIncidentView?>(null) }
+    var pendingIncidentDelete by remember { mutableStateOf<StatusIncidentView?>(null) }
+    var incidentBusy by rememberSaveable(selectedId) { mutableStateOf(false) }
+    var incidentMessage by remember(selectedId) { mutableStateOf<String?>(null) }
     val editing = pages.firstOrNull { it.id == editingId }
     val editorOpen = adding || editing != null
+    val mappedConnection = activeConnection?.takeIf { it.url == selected?.url }
+    val canWriteIncidents = mappedConnection.allows(AccessCapability.STATUS_INCIDENT_WRITE) &&
+        compatibility.supports(KumaFeature.PUBLIC_INCIDENT_WRITE) &&
+        connectionState == ConnectionState.Authenticated
+
+    fun finishIncident(result: IncidentMutationResult) {
+        incidentBusy = false
+        incidentMessage = result.message
+        if (result.applied || result.outcome == IncidentMutationOutcome.INDETERMINATE) {
+            incidentEditorOpen = false
+            editingIncident = null
+            pendingIncidentDelete = null
+        }
+    }
 
     fun navigateBack() {
         when {
@@ -162,7 +203,38 @@ fun StatusPageScreen(
                     vm.testStatusPage(draft.address, draft.slug, draft.insecure, callback)
                 },
             )
-            selected != null -> StatusPageViewer(ui, Modifier.padding(padding), vm::refreshStatusPage)
+            selected != null -> StatusPageViewer(
+                ui = ui,
+                page = selected,
+                operatorServerName = mappedConnection?.displayName,
+                operatorConnection = mappedConnection,
+                canWriteIncidents = canWriteIncidents,
+                incidentBusy = incidentBusy,
+                incidentMessage = incidentMessage,
+                modifier = Modifier.padding(padding),
+                onRetry = vm::refreshStatusPage,
+                onCreate = {
+                    editingIncident = null
+                    incidentMessage = null
+                    incidentEditorOpen = true
+                },
+                onEdit = {
+                    editingIncident = it
+                    incidentMessage = null
+                    incidentEditorOpen = true
+                },
+                onPinnedChange = { incident, pinned ->
+                    incidentBusy = true
+                    incidentMessage = null
+                    vm.setPublicIncidentPinned(selected, incident, pinned, ::finishIncident)
+                },
+                onResolve = { incident ->
+                    incidentBusy = true
+                    incidentMessage = null
+                    vm.resolvePublicIncident(selected, incident, ::finishIncident)
+                },
+                onDelete = { pendingIncidentDelete = it },
+            )
             else -> SavedStatusPageList(
                 pages = pages,
                 modifier = Modifier.padding(padding),
@@ -188,6 +260,66 @@ fun StatusPageScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingRemove = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    if (incidentEditorOpen && selected != null) {
+        PublicIncidentEditorDialog(
+            incident = editingIncident,
+            busy = incidentBusy,
+            error = incidentMessage,
+            onDismiss = {
+                if (!incidentBusy) {
+                    incidentEditorOpen = false
+                    editingIncident = null
+                    incidentMessage = null
+                }
+            },
+            onSave = { title, content, style, pinned ->
+                incidentBusy = true
+                incidentMessage = null
+                vm.savePublicIncident(
+                    selected,
+                    editingIncident,
+                    title,
+                    content,
+                    style,
+                    pinned,
+                    ::finishIncident,
+                )
+            },
+        )
+    }
+
+    if (pendingIncidentDelete != null && selected != null) {
+        val incident = requireNotNull(pendingIncidentDelete)
+        AlertDialog(
+            onDismissRequest = { if (!incidentBusy) pendingIncidentDelete = null },
+            title = { Text(stringResource(R.string.statuspage_incident_delete_title)) },
+            text = { Text(stringResource(R.string.statuspage_incident_delete_message, incident.title)) },
+            confirmButton = {
+                TextButton(
+                    enabled = !incidentBusy,
+                    onClick = {
+                        BiometricGate.confirmDestructiveAction(
+                            activity = activity,
+                            enabled = destructiveStepUpEnabled,
+                            onSuccess = {
+                                incidentBusy = true
+                                incidentMessage = null
+                                vm.deletePublicIncident(selected, incident, ::finishIncident)
+                            },
+                            onError = { incidentMessage = it.toString() },
+                        )
+                    },
+                ) { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !incidentBusy,
+                    onClick = { pendingIncidentDelete = null },
+                ) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -451,7 +583,22 @@ private fun statusPageFormMessage(result: StatusPageFormResult): String = when (
 }
 
 @Composable
-private fun StatusPageViewer(ui: StatusPageUiState, modifier: Modifier, onRetry: () -> Unit) {
+private fun StatusPageViewer(
+    ui: StatusPageUiState,
+    page: SavedStatusPage,
+    operatorServerName: String?,
+    operatorConnection: dev.astoris.ursa.data.model.ServerConnection?,
+    canWriteIncidents: Boolean,
+    incidentBusy: Boolean,
+    incidentMessage: String?,
+    modifier: Modifier,
+    onRetry: () -> Unit,
+    onCreate: () -> Unit,
+    onEdit: (StatusIncidentView) -> Unit,
+    onPinnedChange: (StatusIncidentView, Boolean) -> Unit,
+    onResolve: (StatusIncidentView) -> Unit,
+    onDelete: (StatusIncidentView) -> Unit,
+) {
     when (ui) {
         StatusPageUiState.Idle, StatusPageUiState.Loading -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -464,12 +611,40 @@ private fun StatusPageViewer(ui: StatusPageUiState, modifier: Modifier, onRetry:
             Text(ui.message, color = MaterialTheme.colorScheme.error)
             TextButton(onClick = onRetry) { Text(stringResource(R.string.statuspage_retry)) }
         }
-        is StatusPageUiState.Loaded -> StatusPageContent(ui.view, modifier)
+        is StatusPageUiState.Loaded -> StatusPageContent(
+            view = ui.view,
+            page = page,
+            operatorServerName = operatorServerName,
+            operatorConnection = operatorConnection,
+            canWriteIncidents = canWriteIncidents,
+            incidentBusy = incidentBusy,
+            incidentMessage = incidentMessage,
+            modifier = modifier,
+            onCreate = onCreate,
+            onEdit = onEdit,
+            onPinnedChange = onPinnedChange,
+            onResolve = onResolve,
+            onDelete = onDelete,
+        )
     }
 }
 
 @Composable
-private fun StatusPageContent(view: StatusPageView, modifier: Modifier) {
+private fun StatusPageContent(
+    view: StatusPageView,
+    page: SavedStatusPage,
+    operatorServerName: String?,
+    operatorConnection: dev.astoris.ursa.data.model.ServerConnection?,
+    canWriteIncidents: Boolean,
+    incidentBusy: Boolean,
+    incidentMessage: String?,
+    modifier: Modifier,
+    onCreate: () -> Unit,
+    onEdit: (StatusIncidentView) -> Unit,
+    onPinnedChange: (StatusIncidentView, Boolean) -> Unit,
+    onResolve: (StatusIncidentView) -> Unit,
+    onDelete: (StatusIncidentView) -> Unit,
+) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -494,6 +669,36 @@ private fun StatusPageContent(view: StatusPageView, modifier: Modifier) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    if (operatorServerName == null) {
+                        stringResource(R.string.statuspage_incident_source_public, page.name)
+                    } else {
+                        stringResource(R.string.statuspage_incident_source_server, page.name, operatorServerName)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (operatorConnection != null) AccessProfileNotice(operatorConnection)
+                if (canWriteIncidents) {
+                    Button(onClick = onCreate, enabled = !incidentBusy) {
+                        Text(stringResource(R.string.statuspage_incident_create))
+                    }
+                } else {
+                    Text(
+                        stringResource(
+                            if (operatorConnection == null) {
+                                R.string.statuspage_incident_connect_to_manage
+                            } else {
+                                R.string.statuspage_incident_read_only
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                incidentMessage?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
             }
         }
         if (view.maintenances.isNotEmpty()) {
@@ -518,7 +723,15 @@ private fun StatusPageContent(view: StatusPageView, modifier: Modifier) {
         if (activeIncidents.isNotEmpty()) {
             item { SectionLabel(stringResource(R.string.statuspage_active_incidents)) }
             items(activeIncidents, key = { "active-incident-${it.id}" }) { incident ->
-                StatusIncidentCard(incident)
+                StatusIncidentCard(
+                    incident = incident,
+                    canWrite = canWriteIncidents,
+                    busy = incidentBusy,
+                    onEdit = { onEdit(incident) },
+                    onPinnedChange = { onPinnedChange(incident, it) },
+                    onResolve = { onResolve(incident) },
+                    onDelete = { onDelete(incident) },
+                )
             }
         }
         if (view.groups.isEmpty()) item {
@@ -568,7 +781,15 @@ private fun StatusPageContent(view: StatusPageView, modifier: Modifier) {
             }
         } else {
             items(resolvedIncidents, key = { "resolved-incident-${it.id}" }) { incident ->
-                StatusIncidentCard(incident)
+                StatusIncidentCard(
+                    incident = incident,
+                    canWrite = canWriteIncidents,
+                    busy = incidentBusy,
+                    onEdit = { onEdit(incident) },
+                    onPinnedChange = { onPinnedChange(incident, it) },
+                    onResolve = { onResolve(incident) },
+                    onDelete = { onDelete(incident) },
+                )
             }
         }
         if (view.incidentHasMore) item {
@@ -635,7 +856,15 @@ private fun PublicHeartbeatBar(checks: List<StatusCheckView>) {
 }
 
 @Composable
-private fun StatusIncidentCard(incident: StatusIncidentView) {
+private fun StatusIncidentCard(
+    incident: StatusIncidentView,
+    canWrite: Boolean,
+    busy: Boolean,
+    onEdit: () -> Unit,
+    onPinnedChange: (Boolean) -> Unit,
+    onResolve: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val accent = when (incident.style) {
         "danger" -> KumaRed
         "warning" -> KumaOrange
@@ -669,6 +898,134 @@ private fun StatusIncidentCard(incident: StatusIncidentView) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (canWrite) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onEdit, enabled = !busy) {
+                        Text(stringResource(R.string.statuspage_incident_edit))
+                    }
+                    TextButton(onClick = { onPinnedChange(!incident.pinned) }, enabled = !busy) {
+                        Text(
+                            stringResource(
+                                if (incident.pinned) {
+                                    R.string.statuspage_incident_unpin
+                                } else {
+                                    R.string.statuspage_incident_pin
+                                },
+                            ),
+                        )
+                    }
+                    if (incident.active) {
+                        TextButton(onClick = onResolve, enabled = !busy) {
+                            Text(stringResource(R.string.statuspage_incident_resolve))
+                        }
+                    }
+                    TextButton(onClick = onDelete, enabled = !busy) {
+                        Text(
+                            stringResource(R.string.action_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
         }
     }
 }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PublicIncidentEditorDialog(
+    incident: StatusIncidentView?,
+    busy: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSave: (String, String, PublicIncidentStyle, Boolean) -> Unit,
+) {
+    var title by rememberSaveable(incident?.id) { mutableStateOf(incident?.title.orEmpty()) }
+    var content by rememberSaveable(incident?.id) { mutableStateOf(incident?.content.orEmpty()) }
+    var style by rememberSaveable(incident?.id) {
+        mutableStateOf(PublicIncidentStyle.fromWire(incident?.style))
+    }
+    var pinned by rememberSaveable(incident?.id) { mutableStateOf(incident?.pinned ?: true) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (incident == null) {
+                        R.string.statuspage_incident_create
+                    } else {
+                        R.string.statuspage_incident_edit
+                    },
+                ),
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    enabled = !busy,
+                    label = { Text(stringResource(R.string.statuspage_incident_title)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = { content = it },
+                    enabled = !busy,
+                    label = { Text(stringResource(R.string.statuspage_incident_content)) },
+                    minLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(stringResource(R.string.statuspage_incident_style), style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PublicIncidentStyle.entries.forEach { option ->
+                        FilterChip(
+                            selected = style == option,
+                            onClick = { style = option },
+                            enabled = !busy,
+                            label = { Text(incidentStyleLabel(option)) },
+                        )
+                    }
+                }
+                if (incident == null) {
+                    Text(
+                        stringResource(R.string.statuspage_incident_create_pinned),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = pinned, onCheckedChange = { pinned = it }, enabled = !busy)
+                        Text(stringResource(R.string.statuspage_incident_pinned))
+                    }
+                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = title.isNotBlank() && content.isNotBlank() && !busy,
+                onClick = { onSave(title, content, style, pinned) },
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = {
+            TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun incidentStyleLabel(style: PublicIncidentStyle): String = stringResource(
+    when (style) {
+        PublicIncidentStyle.INFO -> R.string.statuspage_incident_style_info
+        PublicIncidentStyle.WARNING -> R.string.statuspage_incident_style_warning
+        PublicIncidentStyle.DANGER -> R.string.statuspage_incident_style_danger
+        PublicIncidentStyle.PRIMARY -> R.string.statuspage_incident_style_primary
+        PublicIncidentStyle.LIGHT -> R.string.statuspage_incident_style_light
+        PublicIncidentStyle.DARK -> R.string.statuspage_incident_style_dark
+    },
+)

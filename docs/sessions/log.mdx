@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-26 - Public status-page incident operations
+
+**changed**: Extended the existing saved status-page viewer into a guarded incident
+operator when the page exactly maps to the active authenticated Kuma server. It now
+shows explicit page/server source context and supports create, edit, all six styles,
+pin/unpin, resolve, and confirmed delete. Controls require both
+`STATUS_INCIDENT_WRITE` and the write-verified Kuma capability; unmatched,
+disconnected, restricted, and unverified pages remain visibly read-only. Optional
+destructive-action step-up covers deletion.
+
+**freshness**: Live testing exposed that Kuma's unauthenticated incident-history
+REST endpoint can keep a stale cache after an acknowledged socket mutation. Mapped
+pages now overlay the authenticated `getIncidentHistory` result after each mutation,
+using the existing client/repository path and no new persistence or background work.
+
+**verification**: On the visible API 37 Pixel 8 against Uptime Kuma 2.5.5, two
+pre-existing incidents appeared through the authenticated overlay, then edit/style,
+unpin, re-pin, resolve-to-history, and delete all reflected immediately. Confirmation
+was exercised and the Kuma incident table was clean afterward. The viewer and editor
+also passed 200% text and 1200x900dp checks; physical display metrics and normal text
+were restored. Focused codec tests passed, followed by the complete 243-task
+two-flavor phone/Wear unit-test, lint, debug-assembly, F-Droid release, and vital-lint
+gate.
+
 ### 2026-09-26 - Authenticated public-incident adapter
 
 **changed**: Added app-owned public-incident targets, drafts, acknowledged models,

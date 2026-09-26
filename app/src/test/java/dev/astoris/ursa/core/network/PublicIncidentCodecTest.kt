@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.network
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
@@ -59,6 +60,14 @@ class PublicIncidentCodecTest {
 
     @Test fun incompleteAcknowledgementIsNotAcceptedAsAnIncident() {
         assertNull(PublicIncidentCodec.incident(Json.parseToJsonElement("{}").jsonObject, target))
+    }
+
+    @Test fun historyDropsMalformedRowsWithoutLosingValidIncidents() {
+        val raw = Json.parseToJsonElement(
+            """[{"id":7,"title":"API issue","active":true}, {"title":"missing id"}]""",
+        ).jsonArray
+
+        assertEquals(listOf(7), PublicIncidentCodec.incidents(raw, target).map(PublicIncident::id))
     }
 
     @Test fun unknownStyleFallsBackToKumaWarningDefault() {

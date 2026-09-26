@@ -450,6 +450,20 @@ class KumaClient(
         return incidentResponse(response, incident.target)
     }
 
+    suspend fun publicIncidentHistory(target: PublicIncidentTarget): PublicIncidentHistory? {
+        if (target.serverUrl != baseUrl || !StatusPageAddress.isValidSlug(target.statusPageSlug)) return null
+        val response = emitAck("getIncidentHistory", target.statusPageSlug, JSONObject.NULL) ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONArray("incidents") ?: return null
+        val array = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull() ?: return null
+        val incidents = PublicIncidentCodec.incidents(array, target)
+        return PublicIncidentHistory(
+            incidents = incidents,
+            total = response.optInt("total", incidents.size).coerceAtLeast(incidents.size),
+            hasMore = response.optBoolean("hasMore"),
+        )
+    }
+
     private fun incidentWriteRejection(
         draft: PublicIncidentDraft,
         requireId: Boolean,

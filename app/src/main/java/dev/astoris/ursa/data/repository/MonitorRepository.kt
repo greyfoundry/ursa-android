@@ -14,6 +14,7 @@ import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
 import dev.astoris.ursa.core.network.PublicIncident
 import dev.astoris.ursa.core.network.PublicIncidentDraft
+import dev.astoris.ursa.core.network.PublicIncidentHistory
 import dev.astoris.ursa.core.network.PublicIncidentTarget
 import dev.astoris.ursa.core.network.IncidentMutationOutcome
 import dev.astoris.ursa.core.network.IncidentMutationResult
@@ -533,6 +534,11 @@ class MonitorRepository(
 
     suspend fun deletePublicIncident(incident: PublicIncident): IncidentMutationResult =
         guardedIncidentMutation(incident.target.serverUrl) { it.deletePublicIncident(incident) }
+
+    suspend fun publicIncidentHistory(target: PublicIncidentTarget): PublicIncidentHistory? {
+        if (target.serverUrl != activeUrlValue) return null
+        return activeClient.value?.publicIncidentHistory(target)
+    }
     suspend fun newMonitorDraft(): MonitorDraft {
         val client = activeClient.value
         if (client != null) {

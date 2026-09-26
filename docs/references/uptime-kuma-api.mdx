@@ -101,6 +101,10 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   `resolveIncident(slug, id)` returns the now inactive/unpinned incident; and
   `deleteIncident(slug, id)` returns `{ ok }`. Supported styles are `info`,
   `warning`, `danger`, `primary`, `light`, and `dark`.
+- `getIncidentHistory(slug, null)` returns `{ ok, incidents, total, hasMore }` over
+  the authenticated socket. Use it after a mutation: Kuma's unauthenticated REST
+  incident-history response can retain a stale cache even after the socket
+  acknowledgement succeeds.
 
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
@@ -179,6 +183,9 @@ gain only the SFTP additions.
   never log/store it, preserve unknown fields, and mutate only the intended field.
 - **Public incident overlap**: a pinned active incident is returned by both the
   main page endpoint and incident history. De-duplicate by numeric incident ID.
+- **Public incident cache**: the REST history endpoint can lag an acknowledged
+  authenticated write. A mapped authenticated viewer should refresh through
+  `getIncidentHistory`; an unmatched public page has only the cached REST view.
 - Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON
   array) on Kuma 2.x - absent from the wiki.
 - Kuma 2.x boots into a separate "setup-database" mode; the app socket isn't

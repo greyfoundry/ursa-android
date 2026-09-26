@@ -34,7 +34,8 @@ and the module docs under `docs/modules/`.
 **status**
 - M1 (core viewing) implemented: login incl. 2FA, live monitor list, monitor
   detail (response chart + heartbeat history + TLS cert), saved public status pages with native
-  recent checks and incident history, pause/resume.
+  recent checks and incident history plus guarded incident operations when the page maps to the
+  active authenticated server, pause/resume.
 - M2 done: Tink AES-256-GCM credential encryption (Keystore master key), resilient
   reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
 - M3 done: UnifiedPush push - receive path (non-exported `PushService`, webhook

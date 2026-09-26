@@ -16,6 +16,12 @@ import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
+import dev.astoris.ursa.core.network.IncidentMutationOutcome
+import dev.astoris.ursa.core.network.IncidentMutationResult
+import dev.astoris.ursa.core.network.PublicIncident
+import dev.astoris.ursa.core.network.PublicIncidentDraft
+import dev.astoris.ursa.core.network.PublicIncidentStyle
+import dev.astoris.ursa.core.network.PublicIncidentTarget
 import dev.astoris.ursa.core.network.ResolvedStatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddressError
@@ -85,6 +91,7 @@ import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.StatusPageView
+import dev.astoris.ursa.data.model.StatusIncidentView
 import dev.astoris.ursa.data.repository.MonitorRepository
 import dev.astoris.ursa.data.repository.BulkMonitorUpdateResult
 import org.unifiedpush.android.connector.UnifiedPush
@@ -1512,6 +1519,121 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _statusPage.value = StatusPageUiState.Idle
     }
 
+    fun savePublicIncident(
+        page: SavedStatusPage,
+        existing: StatusIncidentView?,
+        title: String,
+        content: String,
+        style: PublicIncidentStyle,
+        pinned: Boolean,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            val draft = PublicIncidentDraft(
+                target = target,
+                id = existing?.id,
+                title = title,
+                content = content,
+                style = style,
+                pinned = existing?.let { pinned } ?: true,
+            )
+            finishPublicIncidentMutation(
+                page,
+                if (existing == null) repo.createPublicIncident(draft) else repo.editPublicIncident(draft),
+                onResult,
+            )
+        }
+    }
+
+    fun setPublicIncidentPinned(
+        page: SavedStatusPage,
+        incident: StatusIncidentView,
+        pinned: Boolean,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            val result = repo.editPublicIncident(
+                incident.toPublicIncident(target).toDraft().copy(pinned = pinned),
+            )
+            finishPublicIncidentMutation(page, result, onResult)
+        }
+    }
+
+    fun resolvePublicIncident(
+        page: SavedStatusPage,
+        incident: StatusIncidentView,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            finishPublicIncidentMutation(
+                page,
+                repo.resolvePublicIncident(incident.toPublicIncident(target)),
+                onResult,
+            )
+        }
+    }
+
+    fun deletePublicIncident(
+        page: SavedStatusPage,
+        incident: StatusIncidentView,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            finishPublicIncidentMutation(
+                page,
+                repo.deletePublicIncident(incident.toPublicIncident(target)),
+                onResult,
+            )
+        }
+    }
+
+    private suspend fun publicIncidentTarget(page: SavedStatusPage): PublicIncidentTarget? {
+        val connection = store.activeConnection() ?: return null
+        if (normalizeUrl(connection.url) != page.url) return null
+        return PublicIncidentTarget(connection.url, page.id, page.slug)
+    }
+
+    private fun StatusIncidentView.toPublicIncident(target: PublicIncidentTarget) = PublicIncident(
+        target = target,
+        id = id,
+        title = title,
+        content = content,
+        style = PublicIncidentStyle.fromWire(style),
+        pinned = pinned,
+        active = active,
+        createdDate = createdDate,
+        lastUpdatedDate = lastUpdatedDate,
+    )
+
+    private fun PublicIncident.toStatusIncidentView() = StatusIncidentView(
+        id = id,
+        style = style.wireValue,
+        title = title,
+        content = content,
+        active = active,
+        pinned = pinned,
+        createdDate = createdDate,
+        lastUpdatedDate = lastUpdatedDate,
+    )
+
+    private fun finishPublicIncidentMutation(
+        page: SavedStatusPage,
+        result: IncidentMutationResult,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        if (result.applied || result.outcome == IncidentMutationOutcome.INDETERMINATE) loadStatusPage(page)
+        onResult(result)
+    }
+
+    private fun incidentPageUnavailable() = IncidentMutationResult(
+        IncidentMutationOutcome.REJECTED,
+        message = "Connect to the status page's saved server before changing incidents",
+    )
+
     private fun loadStatusPage(page: SavedStatusPage) {
         viewModelScope.launch {
             _statusPage.value = StatusPageUiState.Loading
@@ -1520,8 +1642,18 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     .firstOrNull { normalizeUrl(it.url) == page.url }
                     ?.headers
                     .orEmpty()
+                val publicView = statusClient.fetch(page.url, page.slug, page.insecure, headers)
+                val history = publicIncidentTarget(page)?.let { repo.publicIncidentHistory(it) }
                 StatusPageUiState.Loaded(
-                    statusClient.fetch(page.url, page.slug, page.insecure, headers),
+                    if (history == null) {
+                        publicView
+                    } else {
+                        publicView.copy(
+                            incidents = history.incidents.map { it.toStatusIncidentView() },
+                            incidentTotal = history.total,
+                            incidentHasMore = history.hasMore,
+                        )
+                    },
                 )
             } catch (e: Exception) {
                 StatusPageUiState.Error(e.message ?: "Failed to load status page")
