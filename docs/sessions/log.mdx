@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-26 - Global resource search
+
+**changed**: Added global local-metadata search to Browse. The index covers
+monitor, group, tag, observed incident, maintenance, saved status-page, server,
+saved-view, and tool names, shows resource type plus server context, and routes
+through each existing screen owner. Exact and prefix title matches rank first;
+rendering is bounded to 50 results. Monitors retains its existing advanced
+filters and persisted saved views, which are now also reachable from search.
+
+**privacy and compatibility**: The index is rebuilt in memory from already
+permitted state and adds no persistence or network work. Monitor/full server
+URLs, usernames, JWTs, custom headers, incident messages, and maintenance bodies
+are not searchable. Existing navigation, saved filters, and storage formats are
+unchanged.
+
+**verification**: Both flavor unit tests, lint, and debug assemblies passed, as
+did F-Droid release assembly and vital lint (146 tasks). A focused regression
+test covers ranking, category coverage, bounds, and sensitive-field exclusion.
+A visible API 37 Pixel 8 exercised tool, monitor, incident, server, empty-result,
+and routing cases against Uptime Kuma 2.5.5 at phone size, 200% text, and
+1200x900dp rail size.
+
 ### 2026-09-26 - Browse destination
 
 **changed**: Replaced Settings in primary navigation with a sectioned Browse

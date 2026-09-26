@@ -39,6 +39,22 @@
     <!-- Browse -->
     <string name="browse_title">Browse</string>
     <string name="browse_subtitle">Operations, insights, and server tools</string>
+    <string name="browse_search_hint">Search monitors, incidents, servers, and tools</string>
+    <string name="browse_search_results">Search results</string>
+    <string name="browse_search_empty_title">No matching resources</string>
+    <string name="browse_search_empty_message">Nothing matches “%1$s” in local metadata</string>
+    <string name="browse_result_context">%1$s · %2$s</string>
+    <string name="browse_resource_monitor">Monitor</string>
+    <string name="browse_resource_group">Group</string>
+    <string name="browse_resource_tag">Tag</string>
+    <string name="browse_resource_incident">Incident</string>
+    <string name="browse_resource_maintenance">Maintenance</string>
+    <string name="browse_resource_status_page">Status page</string>
+    <string name="browse_resource_server">Server</string>
+    <string name="browse_resource_saved_view">Saved view</string>
+    <string name="browse_resource_tool">Tool</string>
+    <string name="browse_public_status_page">Public status page</string>
+    <string name="browse_current_server">Current server</string>
     <string name="browse_operations">Operations</string>
     <string name="browse_insights">Insights and reports</string>
     <string name="browse_manage">Manage</string>

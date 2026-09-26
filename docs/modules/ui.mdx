@@ -42,6 +42,10 @@ route stack while screens migrate incrementally.
   operations, insights/reports, and management surfaces. It reuses maintenance,
   status-page, notification, certificate, domain, event, aggregate, live-panel,
   monitor-view, connection, and settings flows instead of duplicating them.
+  `BrowseSearch.kt` ranks a bounded local metadata index over monitor/group/tag,
+  observed-incident, maintenance, saved-page, server, saved-view, and tool names.
+  Results identify resource type and server and route through existing owners;
+  secrets, headers, full URLs, and incident/maintenance bodies are excluded.
 - `.../ui/KioskData.kt` - bounded, attention-first fleet summary for the
   glance-display surface.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
