@@ -89,6 +89,7 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
             val identity = PushAlertWork.identity(serverId, monitorId) ?: return
             WorkManager.getInstance(context).cancelAllWorkByTag(identity.tag)
             NotificationManagerCompat.from(context).cancel(identity.notificationId)
+            PushNotificationGroups.refresh(context, serverId)
             if (removePending) PushPendingAlertStore(context).removeActive(serverId, monitorId)
         }
 

@@ -9,6 +9,33 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-27 - Managed Android alert summaries
+
+**changed**: Locally bound managed alerts now use one hashed Android group per
+server. The first urgent child posts immediately; the second adds a bounded inbox
+summary with up to five sanitized title lines. Manual, legacy, test, and unbound
+payloads remain ungrouped, and no correlation or suppression is inferred from
+presentation grouping. Acknowledge, recovery, snooze, and dismissal reconcile the
+summary. The last child is detached before summary cancellation to preserve it on
+Android versions that remove grouped children with their summary.
+
+**security and compatibility**: Group keys and summary IDs expose only a truncated
+hash of the existing random server scope. Summary text is limited to titles already
+shown by its children. The dismissal receiver is non-exported and validates the
+scope. Existing immediate delivery, channel, action, legacy-payload, and persisted
+alert-policy behavior is unchanged.
+
+**live QA**: On the visible API 37 Pixel 8, a real ntfy registration and temporary
+Kuma 2.5.5 managed Webhook produced one standalone Down alert, then two children
+plus a same-server summary after the second Down event. Acknowledging either child
+removed the summary while preserving the remaining alert as a standalone
+notification. The temporary provider and all test notifications were removed; a
+cold reconnect still reported no managed provider on the server.
+
+**verification**: Focused grouping tests and F-Droid release compilation/vital
+lint passed. The complete 243-task two-flavor phone/Wear unit-test, lint,
+debug-assembly, F-Droid release, and vital-lint gate passed.
+
 ### 2026-09-27 - Local alert dependencies
 
 **changed**: Managed monitors can now opt into local dependency suppression by

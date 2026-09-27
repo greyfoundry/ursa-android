@@ -63,6 +63,11 @@
             android:name=".core.push.PushAlertActionReceiver"
             android:exported="false" />
 
+        <!-- Keeps app-owned group summaries current when a child alert is dismissed. -->
+        <receiver
+            android:name=".core.push.PushNotificationDismissReceiver"
+            android:exported="false" />
+
         <!-- Home-screen widget. Exported as required by the AppWidget framework;
              it only receives system APPWIDGET broadcasts and renders encrypted cache data. -->
         <receiver

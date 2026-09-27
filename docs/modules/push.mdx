@@ -45,6 +45,8 @@ connection: push works while the app is closed.
   repeat chaining. WorkManager input contains only an opaque alert ID.
 - `.../core/push/PushAlertActionReceiver.kt` - non-exported acknowledge and
   one-hour snooze notification actions.
+- `.../core/push/PushNotificationGrouping.kt` - same-server Android grouping,
+  bounded inbox summaries, and non-exported dismissal reconciliation.
 - `.../core/push/PushQuietHours.kt` / `PushQuietHoursStore.kt` - local weekly
   schedule that routes delivery-time alerts to the existing silent channel.
 - `.../core/push/PushEventPolicy.kt` / `PushEventPreferencesStore.kt` - recovery,
@@ -127,6 +129,15 @@ connection: push works while the app is closed.
   appended to encrypted local history. Delayed and repeated alerts re-check the
   graph at delivery time. Unknown and legacy payloads never use dependency rules,
   preserving the released immediate-delivery behavior.
+- Locally bound managed alerts share a stable group derived from a hash of the
+  random server scope. The first alert posts immediately without a summary. A
+  second active alert adds one Android inbox summary with at most five sanitized,
+  96-character title lines; manual, legacy, delivery-test, and unbound payloads
+  stay ungrouped. Acknowledge, recovery, snooze, and dismissal refresh the summary.
+  When only one alert remains, it is detached before the summary is cancelled so
+  Android cannot remove the surviving child with its former group. This is native
+  presentation grouping only; storm-correlation claims and suppression remain
+  separate policy.
 - Per-monitor severity uses the same server scope. Critical, standard, and silent
   map to stable Android channels. Critical defaults to high importance with sound
   and vibration; standard defaults to normal importance with sound and no forced

@@ -860,7 +860,11 @@
         <item quantity="other">On · %1$d dependencies are not currently known Down</item>
     </plurals>
     <string name="push_policy_grouping">Grouping</string>
-    <string name="push_policy_grouping_default">Individual notification · URSA default</string>
+    <string name="push_policy_grouping_default">Grouped by server when 2+ alerts are active · URSA default</string>
+    <plurals name="push_group_summary_title">
+        <item quantity="one">%1$d monitor alert</item>
+        <item quantity="other">%1$d monitor alerts</item>
+    </plurals>
     <string name="push_policy_precedence_note">Precedence is monitor → tag → group → server → default. URSA currently stores monitor overrides only; unconfigured scopes do not affect this result.</string>
     <string name="push_dependency_none">No dependencies</string>
     <plurals name="push_dependency_count">

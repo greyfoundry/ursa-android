@@ -12,8 +12,6 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import dev.astoris.ursa.MainActivity
-import androidx.core.net.toUri
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
 import kotlinx.coroutines.CoroutineScope
@@ -31,8 +29,9 @@ import org.unifiedpush.android.connector.data.PushMessage
  * manifest - the connector ships its own internal receiver that forwards events here,
  * so there is no exported push surface to harden (MASVS-PLATFORM-1).
  *
- * The push body is Kuma's Webhook JSON; it is untrusted input, parsed tolerantly by
- * [PushParse] and only ever rendered into a notification (never acted upon).
+ * The push body is Kuma's Webhook JSON; it is untrusted input and parsed tolerantly
+ * by [PushParse]. Bound managed status may update local delivery state, but never
+ * authorizes a remote server mutation.
  */
 class UrsaPushService : PushService() {
 
@@ -234,24 +233,13 @@ class UrsaPushService : PushService() {
                 return PushLocalTestResult.CHANNEL_DISABLED
             }
 
-            val open = Intent()
-            open.setClassName(context.packageName, MainActivity::class.java.name)
-            open.action = Intent.ACTION_VIEW
-            open.data = "ursa://push".toUri()
-            open.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            val contentIntent = PendingIntent.getActivity(
-                context,
-                0,
-                open,
-                PendingIntent.FLAG_IMMUTABLE,
-            )
             val builder = NotificationCompat.Builder(context, route.channelId)
                 .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
                 .setContentTitle(notice.title)
                 .setContentText(notice.body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(notice.body))
                 .setAutoCancel(true)
-                .setContentIntent(contentIntent)
+                .setContentIntent(PushNotificationGroups.contentIntent(context))
                 .setPriority(
                     when {
                         route.highPriority -> NotificationCompat.PRIORITY_HIGH
@@ -264,6 +252,10 @@ class UrsaPushService : PushService() {
             val alertMonitorId = notice.monitorId
             val managedIdentity = PushAlertWork.identity(alertServerId, alertMonitorId)
             val id = idOverride ?: notice.monitorId ?: notice.title.hashCode()
+            val groupIdentity = PushNotificationGroups.boundIdentity(context, alertServerId)
+            if (groupIdentity != null && alertServerId != null) {
+                PushNotificationGroups.applyToChild(context, builder, alertServerId, id, groupIdentity)
+            }
             if (
                 notice.status == 0 &&
                 managedIdentity != null &&
@@ -303,6 +295,9 @@ class UrsaPushService : PushService() {
                 )
             }
             notifications.notify(id, builder.build())
+            if (groupIdentity != null && alertServerId != null) {
+                PushNotificationGroups.refresh(context, alertServerId)
+            }
             return PushLocalTestResult.POSTED
         }
 

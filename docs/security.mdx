@@ -245,6 +245,11 @@ detail, so
 they are encrypted with the same Keystore-backed Tink AEAD as other private local
 state. WorkManager receives only an opaque random alert ID; work tags and system
 notification IDs are derived from a truncated hash rather than exposing server scope.
+Managed notification group keys and summary IDs likewise derive from a truncated
+hash of that random scope. The summary reuses only bounded, newline-sanitized titles
+already visible in its child notifications; it never renders a server URL, endpoint,
+credential, access header, or raw payload body. Legacy and unbound notifications are
+not assigned to a managed group.
 Custom channel sounds remain wholly owned by Android settings; URSA persists no
 sound URI or media permission.
 
@@ -264,8 +269,10 @@ it is intentionally skipped in **debuggable** builds so developers can take
 screenshots (release security is unaffected). The push service (`UrsaPushService`)
 is `exported="false"` - the
 UnifiedPush connector ships its own internal receiver that forwards to it - so there
-is no exported push surface. The acknowledge/snooze receiver is also non-exported
-and is reachable only through immutable, explicit app-created PendingIntents. The
+is no exported push surface. The acknowledge/snooze and group-dismissal receivers
+are also non-exported and are reachable only through immutable, explicit app-created
+PendingIntents. The dismissal receiver validates the bounded managed server scope
+before reconciling a summary. The
 push body is treated as untrusted input and parsed tolerantly by `PushParse`. Manual
 and legacy bodies are render-only. Verified managed status may affect local alert
 state, but never authorizes a remote mutation.
