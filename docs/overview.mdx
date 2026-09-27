@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-26
+last-updated: 2026-09-27
 owner: astoris
 status: stable
 ---
@@ -40,7 +40,9 @@ and the module docs under `docs/modules/`.
   reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
 - M3 done: UnifiedPush push - receive path (non-exported `PushService`, webhook
   parser, notifications), registration UI, and encrypted exact-server binding for
-  managed providers. See `docs/modules/push.mdx`.
+  managed providers. Setup identifies the exact connection/provider/delivery/test
+  state, and push-monitor creation exposes its masked heartbeat URL with explicit
+  copy/share guidance. See `docs/modules/push.mdx`.
 - M4 done: native depth - offline last-known cache, biometric app lock,
   notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,
   Quick Settings tile, app shortcuts, and full i18n. See

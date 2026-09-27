@@ -6,6 +6,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -200,10 +201,23 @@ class MonitorDraftCodecTest {
         )
         assertEquals(8, grouped["parent"]!!.jsonPrimitive.content.toInt())
 
-        val push = MonitorDraftCodec.newPayload(
-            MonitorDraft.create("push").copy(name = "Heartbeat"),
+        val pushDraft = MonitorDraft.create("push").copy(name = "Heartbeat")
+        val push = MonitorDraftCodec.newPayload(pushDraft)
+        assertTrue(pushDraft.pushToken.matches(Regex("^[A-Za-z0-9]{32}$")))
+        assertEquals(pushDraft.pushToken, push["pushToken"]!!.jsonPrimitive.content)
+        assertEquals(
+            "https://kuma.example/base/api/push/${pushDraft.pushToken}?status=up&msg=OK&ping=",
+            MonitorDraftCodec.pushUrl("https://kuma.example/base/", pushDraft.pushToken),
         )
-        assertTrue(push["pushToken"]!!.jsonPrimitive.content.matches(Regex("^[a-f0-9]{32}$")))
+        val existingPush = MonitorDraftCodec.from(
+            Json.parseToJsonElement(
+                """{"id":9,"type":"push","name":"Agent","pushToken":"${pushDraft.pushToken}"}""",
+            ).jsonObject,
+        )!!
+        assertEquals(pushDraft.pushToken, existingPush.pushToken)
+        assertNull(MonitorDraftCodec.validate(existingPush))
+        assertNull(MonitorDraftCodec.pushUrl("https://user:secret@kuma.example", pushDraft.pushToken))
+        assertNull(MonitorDraftCodec.pushUrl("https://kuma.example", "invalid"))
     }
 
     @Test

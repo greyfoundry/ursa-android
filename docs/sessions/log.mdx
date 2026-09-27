@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-26
+last-updated: 2026-09-27
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,29 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-27 - Managed push and push-monitor UX
+
+**changed**: Managed setup now identifies the exact saved connection, fixed Kuma
+Webhook provider, current distributor delivery path, and latest end-to-end test
+outcome. Push-monitor creation and editing use Kuma's exact persisted 32-character
+token and expose a reverse-proxy-safe heartbeat URL masked by default, with explicit
+copy, native share, reveal, request guidance, and write-capability warnings. The
+token remains editor-memory-only and is not logged or added to local persistence.
+Android clipboard previews are suppressed for both it and the UnifiedPush endpoint.
+
+**compatibility and QA**: Uptime Kuma 2.4.0 and 2.5.5 source both use the same
+62-character alphabet, 32-character token, and `/api/push/<token>` URL contract. On
+the visible API 37 Pixel 8 against healthy Kuma 2.5.5, a real Push monitor was
+created, triggered through its exact generated endpoint, observed Up in URSA,
+reopened with the same token, and deleted with confirmation. The form remained
+usable at 200% text. The QA device has no UnifiedPush distributor endpoint, so live
+provider delivery was not simulated.
+
+**verification**: Focused codec tests cover token generation, payload identity,
+existing-token round-trip, base-path URL construction, invalid tokens, and embedded
+credential rejection. The complete 243-task two-flavor phone/Wear unit-test, lint,
+debug-assembly, F-Droid release, and vital-lint gate passed.
 
 ### 2026-09-26 - Encrypted managed-push scope registry
 

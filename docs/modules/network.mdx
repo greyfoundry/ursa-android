@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-26
+last-updated: 2026-09-27
 owner: astoris
 status: stable
 ---
@@ -31,7 +31,8 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
   confirmed external-browser dashboard and monitor links.
 - `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.5 type catalogue,
-  typed common-field validation, safe patching, and create defaults.
+  typed common-field validation, safe patching, create defaults, and exact push
+  heartbeat URL construction from a cryptographically generated token.
 - `.../core/network/PublicIncident.kt` - app-owned authenticated public-incident
   identity, supported styles, validation, acknowledgement outcomes, and wire mapping.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
@@ -85,6 +86,10 @@ here so the rest of the app sees clean domain models.
   typed defaults for common and SFTP create flows. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
   fields retain the server value only when the authentication method is unchanged.
+  Push creation generates one 32-character alphanumeric token in the draft and sends
+  that same token to Kuma, so the masked copy/share URL shown before save is exact.
+  Existing push tokens are loaded only for the in-memory editor and are never stored
+  in URSA's local caches or logs.
 - `KumaParse.notifications` returns only provider ID, name, type, and default
   status. The double-encoded provider configuration is parsed only far enough to
   identify its type and is then discarded.

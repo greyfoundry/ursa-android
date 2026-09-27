@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-26
+last-updated: 2026-09-27
 owner: astoris
 status: stable
 ---
@@ -51,7 +51,9 @@ connection: push works while the app is closed.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, configure per-monitor alert modes and
-  delivery severity and timing, show setup status, and remove it safely.
+  delivery severity and timing, show setup status, and remove it safely. The setup
+  summary names the exact saved connection, managed Webhook provider, UnifiedPush
+  distributor, and last end-to-end test outcome in one place.
 
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).

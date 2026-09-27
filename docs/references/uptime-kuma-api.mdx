@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-24
+last-updated: 2026-09-27
 owner: astoris
 status: stable
 source: verified from Uptime Kuma source and live 2.4.0 through 2.5.5 containers
@@ -76,6 +76,12 @@ endpoint. Passing one to `loginByToken` is rejected by design.
 - `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
   is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
   restarts the edited monitor, so bulk callers should update sequentially.
+- `add(fullMonitorObject)` returns `{ ok, msg, monitorID }`. Push monitors require
+  a 32-character alphanumeric `pushToken`; Kuma 2.4.0 through 2.5.5 generate it
+  from the same 62-character alphabet. Their public heartbeat endpoint is
+  `<baseURL>/api/push/<pushToken>?status=up&msg=OK&ping=`. `status` accepts `up`
+  or `down`, `msg` is optional display text, and `ping` is an optional non-negative
+  millisecond value. The token is a write capability and must be treated as secret.
 - `getTags()` returns `{ ok, tags: [{ id, name, color }] }`.
   `addMonitorTag(tagID, monitorID, value)` and
   `deleteMonitorTag(tagID, monitorID, value)` update assignments and push an

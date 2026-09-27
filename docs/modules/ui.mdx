@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-26
+last-updated: 2026-09-27
 owner: astoris
 status: stable
 ---
@@ -137,6 +137,10 @@ route stack while screens migrate incrementally.
   or saved public page, retain encrypted per-instance configuration/snapshots,
   show status/latency/uptime/recent checks, refresh on demand, and deep-link back
   to their validated server or page.
+- The monitor editor gives push monitors a masked heartbeat URL generated from the
+  exact token saved to Kuma, explicit copy/share/reveal actions, request-shape help,
+  and a security warning. Existing push monitors recover the same URL on demand;
+  the token remains in memory only.
 - `.../ui/settings/SettingsScreen.kt` also exposes Notifications, connection/setup
   guidance, compact density, optional update notifications, and a user-triggered
   official-release check. It does not download or install packages.

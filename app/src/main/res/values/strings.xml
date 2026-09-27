@@ -789,6 +789,14 @@
     <string name="push_kuma_not_configured">Not configured on this server</string>
     <string name="push_kuma_update_needed">Configured Webhook needs updating</string>
     <string name="push_kuma_configured">Configured on this server</string>
+    <string name="push_kuma_connection_label">Saved connection</string>
+    <string name="push_kuma_connection_unavailable">No active saved connection</string>
+    <string name="push_kuma_provider_label">Kuma provider</string>
+    <string name="push_kuma_provider_value">URSA UnifiedPush · Webhook</string>
+    <string name="push_kuma_delivery_label">Delivery</string>
+    <string name="push_kuma_delivery_value">UnifiedPush via %1$s</string>
+    <string name="push_kuma_delivery_endpoint">UnifiedPush endpoint</string>
+    <string name="push_kuma_test_label">Last end-to-end test</string>
     <string name="push_kuma_saved">Kuma setup saved</string>
     <string name="push_kuma_default">Use for new monitors by default</string>
     <string name="push_kuma_default_desc">Kuma will preselect this provider when a monitor is created.</string>
@@ -881,6 +889,14 @@
     <string name="monitor_name_label">Name</string>
     <string name="monitor_type_label">Monitor type</string>
     <string name="monitor_create_types_note">Common monitor types can be created here. Existing advanced types can be safely edited without losing their server-only settings.</string>
+    <string name="monitor_push_url_title">Push heartbeat URL</string>
+    <string name="monitor_push_url_new_desc">This generated URL becomes active after you save the monitor.</string>
+    <string name="monitor_push_url_existing_desc">Send heartbeats to this URL from the service you want Kuma to monitor.</string>
+    <string name="monitor_push_url_unavailable">The push URL is unavailable. Reconnect to this server and try again.</string>
+    <string name="monitor_push_share">Share</string>
+    <string name="monitor_push_share_chooser">Share push heartbeat URL</string>
+    <string name="monitor_push_delivery_desc">Send a request for each heartbeat. Use status=up or status=down, set msg to a short result, and optionally append a ping value in milliseconds.</string>
+    <string name="monitor_push_security_desc">Anyone with this URL can submit monitor status. Treat it like a password and share it only with the sending service.</string>
     <string name="monitor_type_not_write_verified">This monitor type is not write-verified for the connected Uptime Kuma version.</string>
     <string name="monitor_advanced_preserved">Advanced settings stay on the server unchanged.</string>
     <string name="monitor_url_label">URL</string>
@@ -932,6 +948,7 @@
     <string name="monitor_error_port">Enter a port from 1 to 65535.</string>
     <string name="monitor_error_interval">Intervals must be at least one second.</string>
     <string name="monitor_error_retries">Retries must be between 0 and 100.</string>
+    <string name="monitor_error_push_token">Kuma did not provide a valid push token. Reopen this monitor and try again.</string>
     <string name="monitor_error_sftp_username">Enter the SFTP username.</string>
     <string name="monitor_error_sftp_password">Enter the SFTP password.</string>
     <string name="monitor_error_sftp_private_key">Paste the SFTP private key.</string>

@@ -1,5 +1,8 @@
 package dev.astoris.ursa.ui.monitors
 
+import android.content.ClipData
+import android.content.Intent
+import android.os.PersistableBundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -30,9 +34,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -60,6 +68,7 @@ import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.MonitorEditorUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.allows
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -245,6 +254,13 @@ private fun MonitorForm(
                 stringResource(R.string.monitor_advanced_preserved),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (draft.type == "push") {
+            PushMonitorSetup(
+                pushUrl = accessConnection?.url?.let { MonitorDraftCodec.pushUrl(it, draft.pushToken) },
+                pushToken = draft.pushToken,
+                isNew = draft.isNew,
             )
         }
         if (option?.endpointKind != MonitorEndpointKind.NONE) {
@@ -612,6 +628,71 @@ private fun SftpFields(
 }
 
 @Composable
+private fun PushMonitorSetup(pushUrl: String?, pushToken: String, isNew: Boolean) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var revealed by remember(pushToken) { mutableStateOf(false) }
+
+    Text(stringResource(R.string.monitor_push_url_title), style = MaterialTheme.typography.titleSmall)
+    Text(
+        stringResource(if (isNew) R.string.monitor_push_url_new_desc else R.string.monitor_push_url_existing_desc),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (pushUrl == null) {
+        Text(stringResource(R.string.monitor_push_url_unavailable), color = MaterialTheme.colorScheme.error)
+        return
+    }
+    Card(Modifier.fillMaxWidth()) {
+        Text(
+            if (revealed) pushUrl else pushUrl.replace(pushToken, "••••••••"),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(12.dp),
+        )
+    }
+    val shareChooserTitle = stringResource(R.string.monitor_push_share_chooser)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                scope.launch {
+                    val clip = ClipData.newPlainText("Uptime Kuma push URL", pushUrl).apply {
+                        description.extras = PersistableBundle().apply {
+                            putBoolean("android.content.extra.IS_SENSITIVE", true)
+                        }
+                    }
+                    clipboard.setClipEntry(ClipEntry(clip))
+                }
+            },
+        ) { Text(stringResource(R.string.push_copy)) }
+        OutlinedButton(
+            onClick = {
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, pushUrl)
+                }
+                context.startActivity(
+                    Intent.createChooser(send, shareChooserTitle),
+                )
+            },
+        ) { Text(stringResource(R.string.monitor_push_share)) }
+        TextButton(onClick = { revealed = !revealed }) {
+            Text(stringResource(if (revealed) R.string.action_hide else R.string.action_show))
+        }
+    }
+    Text(
+        stringResource(R.string.monitor_push_delivery_desc),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+        stringResource(R.string.monitor_push_security_desc),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.error,
+    )
+}
+
+@Composable
 private fun SensitiveField(
     value: String,
     onValueChange: (String) -> Unit,
@@ -674,6 +755,7 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.PORT_REQUIRED -> R.string.monitor_error_port
         MonitorDraftError.INVALID_INTERVAL -> R.string.monitor_error_interval
         MonitorDraftError.INVALID_RETRIES -> R.string.monitor_error_retries
+        MonitorDraftError.INVALID_PUSH_TOKEN -> R.string.monitor_error_push_token
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

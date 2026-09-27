@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-26
+last-updated: 2026-09-27
 owner: astoris
 status: in-flux
 ---
@@ -197,6 +197,16 @@ an explicit named-target confirmation, with group-child removal as a separate op
 Notification assignment exposes only provider ID, display name, type, and default
 flag; the double-encoded provider configuration (including passwords, tokens, and
 destinations) is discarded inside the parser and never reaches UI state.
+
+A push monitor's heartbeat URL is a bearer-style write capability: anyone who knows
+it can submit status to that monitor. New monitors use a cryptographically random
+32-character alphanumeric token and send the exact in-memory token shown by the
+editor to Kuma. The URL is masked by default, excluded from logs and local caches,
+and protected from screenshots by the app's secure window. Clipboard entries for
+it and the UnifiedPush endpoint suppress Android's sensitive-content preview. Copy,
+reveal, and native share are explicit user actions with an on-screen
+password-equivalent warning; once copied or shared, the destination is outside
+URSA's security boundary.
 
 Public-incident mutations are bound to the active saved server and status-page
 identity, pass through the `STATUS_INCIDENT_WRITE` access capability, and send only

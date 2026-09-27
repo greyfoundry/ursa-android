@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PersistableBundle
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.LocalActivity
@@ -72,6 +73,7 @@ import dev.astoris.ursa.ui.KumaPushSetupUiState
 import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.core.push.PushLocalTestResult
+import dev.astoris.ursa.core.push.PushDiagnostics
 import dev.astoris.ursa.core.push.PushRegistrationError
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -434,7 +436,12 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         Button(
                             onClick = {
                                 scope.launch {
-                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("UnifiedPush endpoint", ep)))
+                                    val clip = ClipData.newPlainText("UnifiedPush endpoint", ep).apply {
+                                        description.extras = PersistableBundle().apply {
+                                            putBoolean("android.content.extra.IS_SENSITIVE", true)
+                                        }
+                                    }
+                                    clipboard.setClipEntry(ClipEntry(clip))
                                 }
                             },
                         ) { Text(stringResource(R.string.push_copy)) }
@@ -474,20 +481,43 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         }
                         is KumaPushSetupUiState.Ready -> {
                             Card(Modifier.fillMaxWidth()) {
-                                Text(
-                                    stringResource(
-                                        when {
-                                            setup.notificationId == null -> R.string.push_kuma_not_configured
-                                            !setup.configurationCurrent -> R.string.push_kuma_update_needed
-                                            else -> R.string.push_kuma_configured
-                                        },
-                                    ),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (setup.notificationId != null && setup.configurationCurrent) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else MaterialTheme.colorScheme.onSurface,
+                                Column(
                                     modifier = Modifier.padding(12.dp),
-                                )
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Text(
+                                        stringResource(
+                                            when {
+                                                setup.notificationId == null -> R.string.push_kuma_not_configured
+                                                !setup.configurationCurrent -> R.string.push_kuma_update_needed
+                                                else -> R.string.push_kuma_configured
+                                            },
+                                        ),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (setup.notificationId != null && setup.configurationCurrent) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    DiagnosticRow(
+                                        stringResource(R.string.push_kuma_connection_label),
+                                        activeConnection?.displayName
+                                            ?: stringResource(R.string.push_kuma_connection_unavailable),
+                                    )
+                                    DiagnosticRow(
+                                        stringResource(R.string.push_kuma_provider_label),
+                                        stringResource(R.string.push_kuma_provider_value),
+                                    )
+                                    DiagnosticRow(
+                                        stringResource(R.string.push_kuma_delivery_label),
+                                        distributor?.let {
+                                            stringResource(R.string.push_kuma_delivery_value, it)
+                                        } ?: stringResource(R.string.push_kuma_delivery_endpoint),
+                                    )
+                                    DiagnosticRow(
+                                        stringResource(R.string.push_kuma_test_label),
+                                        diagnostics.deliveryTestSummary(),
+                                    )
+                                }
                             }
                             if (setup.recentlySaved) {
                                 Text(
@@ -1077,6 +1107,16 @@ private fun DiagnosticRow(label: String, value: String) {
 private fun Long?.diagnosticTimeOrNever(): String = this?.let { timestamp ->
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(timestamp))
 } ?: stringResource(R.string.push_diagnostics_never)
+
+@Composable
+private fun PushDiagnostics.deliveryTestSummary(): String = when {
+    deliveryTestRequestedAtMs == null -> stringResource(R.string.push_diagnostics_never)
+    deliveryTestRejectedAtMs.isAtOrAfter(deliveryTestRequestedAtMs) ->
+        stringResource(R.string.push_test_kuma_rejected)
+    deliveryTestReceivedAtMs.isAtOrAfter(deliveryTestRequestedAtMs) ->
+        stringResource(R.string.push_test_kuma_received, deliveryTestReceivedAtMs.diagnosticTimeOrNever())
+    else -> stringResource(R.string.push_test_kuma_waiting)
+}
 
 private fun Long?.isAtOrAfter(reference: Long?): Boolean =
     this != null && reference != null && this >= reference

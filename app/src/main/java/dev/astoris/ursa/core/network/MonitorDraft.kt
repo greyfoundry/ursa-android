@@ -12,7 +12,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.net.URI
-import java.util.UUID
+import java.security.SecureRandom
 import dev.astoris.ursa.data.model.MonitorTagAssignment
 
 enum class MonitorEndpointKind { NONE, URL, HOST, HOST_PORT }
@@ -103,6 +103,7 @@ data class MonitorDraft(
     val notificationIds: Set<Int> = emptySet(),
     val parentId: Int? = null,
     val tagAssignments: List<MonitorTagAssignment> = emptyList(),
+    val pushToken: String = "",
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -124,8 +125,17 @@ data class MonitorDraft(
                 type = option.key,
                 endpoint = "",
                 port = option.defaultPort,
+                pushToken = if (option.key == "push") newPushToken() else "",
             )
         }
+
+        internal fun newPushToken(): String = buildString(PUSH_TOKEN_LENGTH) {
+            repeat(PUSH_TOKEN_LENGTH) { append(PUSH_TOKEN_ALPHABET[pushTokenRandom.nextInt(PUSH_TOKEN_ALPHABET.length)]) }
+        }
+
+        private val pushTokenRandom = SecureRandom()
+        private const val PUSH_TOKEN_LENGTH = 32
+        private const val PUSH_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     }
 }
 
@@ -137,6 +147,7 @@ enum class MonitorDraftError {
     PORT_REQUIRED,
     INVALID_INTERVAL,
     INVALID_RETRIES,
+    INVALID_PUSH_TOKEN,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -167,6 +178,7 @@ object MonitorDraftCodec {
                 }?.toSet().orEmpty(),
             parentId = raw.int("parent"),
             tagAssignments = KumaParse.tagAssignments(raw),
+            pushToken = raw.string("pushToken").orEmpty(),
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -215,6 +227,9 @@ object MonitorDraftCodec {
                     }
                 }
             }
+        }
+        if (draft.type == "push" && !isValidPushToken(draft.pushToken)) {
+            return MonitorDraftError.INVALID_PUSH_TOKEN
         }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
             return MonitorDraftError.INVALID_INTERVAL
@@ -271,7 +286,7 @@ object MonitorDraftCodec {
             put("active", draft.active)
             put("timeout", if (draft.type in setOf("ping", "sftp")) 10 else 48)
             put("manual_status", 1)
-            if (draft.type == "push") put("pushToken", UUID.randomUUID().toString().replace("-", ""))
+            if (draft.type == "push") put("pushToken", draft.pushToken)
         }.toMutableMap()
         applyEndpoint(mutable, draft)
         applySftp(mutable, draft)
@@ -361,6 +376,18 @@ object MonitorDraftCodec {
 
     private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
     private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull
+
+    fun pushUrl(serverUrl: String, pushToken: String): String? {
+        if (!isValidPushToken(pushToken)) return null
+        val base = serverUrl.trim().trimEnd('/')
+        val uri = runCatching { URI(base) }.getOrNull() ?: return null
+        if (uri.scheme?.lowercase() !in setOf("http", "https") || uri.rawAuthority.isNullOrBlank()) return null
+        if (uri.userInfo != null || uri.rawQuery != null || uri.rawFragment != null) return null
+        return "$base/api/push/$pushToken?status=up&msg=OK&ping="
+    }
+
+    private fun isValidPushToken(token: String): Boolean =
+        token.length == 32 && token.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' }
 }
 
 data class MonitorMutationResult(
