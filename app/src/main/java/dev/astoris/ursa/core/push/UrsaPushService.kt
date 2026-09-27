@@ -54,6 +54,7 @@ class UrsaPushService : PushService() {
         )
         val deliveryTest = PushStore.recordMessage(this, notice.body)
         val policyStore = PushAlertModeStore(this)
+        val transitionStore = PushTransitionStore(this)
         val scope = if (deliveryTest) null else ManagedPushScopeStore(this).load(notice.serverId)
         val enriched = if (deliveryTest) {
             notice.copy(
@@ -66,6 +67,9 @@ class UrsaPushService : PushService() {
             enrichWithDowntime(notice)
         }
         val managedIdentity = PushAlertWork.identity(enriched.serverId, enriched.monitorId)
+        if (!deliveryTest && scope != null) {
+            transitionStore.recordStatus(enriched.serverId, enriched.monitorId, enriched.status)
+        }
         if (!deliveryTest && enriched.status == 1 && managedIdentity != null) {
             val serverId = enriched.serverId ?: return
             val monitorId = enriched.monitorId ?: return
@@ -85,13 +89,24 @@ class UrsaPushService : PushService() {
         if (!deliveryTest && !PushEventPolicy.shouldNotify(enriched.status, eventPreferences)) return
         if (
             !deliveryTest &&
-            !PushTransitionStore(this).shouldDeliver(
+            !transitionStore.shouldDeliver(
                 enriched.serverId,
                 enriched.monitorId,
                 enriched.status,
             )
         ) {
             return
+        }
+        if (!deliveryTest && enriched.status == 0 && scope != null && managedIdentity != null) {
+            val serverId = enriched.serverId ?: return
+            val monitorId = enriched.monitorId ?: return
+            val suppression = PushDependencyStore(this).suppression(serverId, monitorId, transitionStore)
+            if (suppression != null) {
+                eventScope.launch {
+                    recordPushDependencySuppression(this@UrsaPushService, scope, monitorId, enriched.monitorName, suppression)
+                }
+                return
+            }
         }
         val configuredSeverity = policyStore.severity(enriched.serverId, enriched.monitorId)
         val quietSeverity = if (deliveryTest) configuredSeverity else PushQuietHoursPolicy.effectiveSeverity(

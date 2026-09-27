@@ -18,6 +18,21 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val alertId = inputData.getString(INPUT_ALERT_ID) ?: return Result.success()
         val store = PushPendingAlertStore(applicationContext)
         val alert = store.load(alertId)?.takeIf(store::isActive) ?: return Result.success()
+        val scope = ManagedPushScopeStore(applicationContext).load(alert.serverId)
+        val suppression = scope?.let {
+            PushDependencyStore(applicationContext).suppression(alert.serverId, alert.monitorId)
+        }
+        if (scope != null && suppression != null) {
+            store.removeActive(alert.serverId, alert.monitorId)
+            recordPushDependencySuppression(
+                applicationContext,
+                scope,
+                alert.monitorId,
+                alert.monitorName,
+                suppression,
+            )
+            return Result.success()
+        }
         val deliverySeverity = PushQuietHoursPolicy.effectiveSeverity(
             alert.severity,
             PushQuietHoursStore(applicationContext).load(),

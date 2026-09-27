@@ -15,7 +15,7 @@ private val Context.eventLogDataStore by preferencesDataStore(name = "ursa_event
 
 /** Events that URSA itself can timestamp reliably. Kuma heartbeat transitions stay live-derived. */
 @Serializable
-enum class LocalEventKind { PAUSED, RESUMED, SLOW_RESPONSE, CERTIFICATE_EXPIRY, PUSH_ALERT }
+enum class LocalEventKind { PAUSED, RESUMED, SLOW_RESPONSE, CERTIFICATE_EXPIRY, PUSH_ALERT, PUSH_SUPPRESSED }
 
 @Serializable
 data class LocalEvent(

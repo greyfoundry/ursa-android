@@ -9,6 +9,35 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-27 - Local alert dependencies
+
+**changed**: Managed monitors can now opt into local dependency suppression by
+selecting one or more parents assigned to the same verified provider. The encrypted,
+versioned graph is scoped by random server ID plus monitor ID, capped at 32 parents,
+and rejects cycles during editing and evaluation. Down events fail open unless a
+configured parent was last received as Down. Delayed and repeated alerts re-check
+the graph at delivery time. Policy explanation names the exact suppressing parent,
+and suppressed events remain visible in encrypted local history.
+
+**compatibility and UI**: Existing users keep no dependencies and immediate
+delivery. Unknown or legacy payloads cannot use scoped dependency rules. Removing
+managed setup clears its graph and status state. The Notifications monitor controls
+now use compact wrapping action rows with dividers rather than five trailing buttons
+stacked beside each name; normal and 200% text layouts remained usable.
+
+**live QA**: On the visible API 37 Pixel 8, a real ntfy registration and temporary
+Kuma 2.5.5 managed Webhook bound five monitors. A Down event for `Expired TLS`
+posted normally; a following Down for dependent `Wrong host TLS` produced no second
+notification and added `Push alert suppressed` to the Event Log with the exact
+parent. The explanation reported the active parent state, a reverse dependency edit
+was rejected as a cycle, and the rule survived app reinstall/process recreation.
+The dependency was cleared and temporary provider removed afterward; the device
+registration remains for later alert phases.
+
+**verification**: Focused dependency, effective-policy, receive/worker, transition,
+and Event Log tests passed. The complete 243-task two-flavor phone/Wear unit-test,
+lint, debug-assembly, F-Droid release, and vital-lint gate passed.
+
 ### 2026-09-27 - Explainable effective alert policy
 
 **changed**: Managed monitors now expose a human-readable policy explanation built

@@ -139,8 +139,11 @@ route stack while screens migrate incrementally.
   to their validated server or page.
 - Notifications exposes a per-monitor explanation of the effective alert mode,
   severity, timing, quiet hours, snooze, recovery/maintenance behavior, assignment,
-  and current Android delivery blockers. The scrollable dialog retains its action
-  at 200% text.
+  dependency state, and current Android delivery blockers. Assigned managed
+  monitors can select multiple local parents in a cycle-safe editor; the current
+  last-received status and exact suppressing parent remain visible. Per-monitor
+  actions use compact wrapping rows rather than a tall trailing column. The editor
+  and explanation dialogs remain complete and actionable at 200% text.
 - The monitor editor gives push monitors a masked heartbeat URL generated from the
   exact token saved to Kuma, explicit copy/share/reveal actions, request-shape help,
   and a security warning. Existing push monitors recover the same URL on demand;

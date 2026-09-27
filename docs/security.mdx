@@ -230,6 +230,16 @@ preference. These settings contain no server address, endpoint, credential, or
 notification content. The effective-policy explanation derives only from these
 preferences, managed assignment/setup state, and Android notification availability;
 it does not render endpoints, server URLs, credentials, headers, or payload bodies.
+Local dependency rules are versioned, bounded, encrypted with the Keystore-backed
+AEAD, and keyed only by the random managed-provider scope and monitor IDs. Latest
+status mirrors the existing non-sensitive transition state. Rules apply only after
+the provider scope is bound to an exact saved connection; unknown and legacy
+payloads fail open. Suppressed events enter the encrypted bounded event history
+with the exact locally resolved parent name, never endpoint or credential data.
+Because Kuma's Webhook payload has no origin authentication, anyone who obtains
+both the delivery endpoint and the managed random scope could forge local status
+and influence opt-in suppression. Scope binding prevents endpoint-only or legacy
+messages from doing so; push input never authorizes a remote server mutation.
 Delayed/repeating rendered alerts can contain infrastructure
 detail, so
 they are encrypted with the same Keystore-backed Tink AEAD as other private local
@@ -255,8 +265,10 @@ screenshots (release security is unaffected). The push service (`UrsaPushService
 is `exported="false"` - the
 UnifiedPush connector ships its own internal receiver that forwards to it - so there
 is no exported push surface. The acknowledge/snooze receiver is also non-exported
-and is reachable only through immutable, explicit app-created PendingIntents. The push body is treated as untrusted input: parsed
-tolerantly by `PushParse` and only rendered into a notification, never acted upon.
+and is reachable only through immutable, explicit app-created PendingIntents. The
+push body is treated as untrusted input and parsed tolerantly by `PushParse`. Manual
+and legacy bodies are render-only. Verified managed status may affect local alert
+state, but never authorizes a remote mutation.
 The optional persistent-status service is non-exported and user-started. Android 14+
 sees its declared `specialUse` type and free-form subtype; the required foreground
 permissions are normal/app-op permissions with no runtime data grant. Its ongoing
@@ -321,9 +333,10 @@ Prioritized by value/effort. Tracked items - none are silently dropped.
    release CI validates the resolved dependency set.
 6. ~~**M3 push receiver** - minimal export surface, treat payload as untrusted.~~
    **Done (2026-07-04)** - `PushService` is `exported="false"`; body is parsed
-   tolerantly and render-only. Endpoint origin is not cryptographically validated
-   (Kuma sends plain JSON, not web-push-encrypted) - acceptable: render-only, and
-   the endpoint is a user-held secret.
+   tolerantly. Endpoint origin is not cryptographically validated (Kuma sends plain
+   JSON, not web-push-encrypted). Manual/legacy input remains render-only; managed
+   status can affect local policy only after its random scope matches an encrypted
+   connection binding, and cannot authorize remote mutation.
 7. ~~**Optional local-auth gate** (biometric/device credential) before revealing
    sessions (AUTH-2).~~ **Done (2026-08-24)** - the opt-in app lock uses
    BiometricPrompt with device-credential fallback and requires a cryptographic proof

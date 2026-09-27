@@ -38,6 +38,9 @@ import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushQuietHoursStore
 import dev.astoris.ursa.core.push.PushEventPreferences
 import dev.astoris.ursa.core.push.PushEventPreferencesStore
+import dev.astoris.ursa.core.push.PushDependencyGraph
+import dev.astoris.ursa.core.push.PushDependencyPolicy
+import dev.astoris.ursa.core.push.PushDependencyStore
 import dev.astoris.ursa.core.push.PushTransitionStore
 import dev.astoris.ursa.core.push.OverallStatusService
 import dev.astoris.ursa.core.push.OverallStatusStore
@@ -347,6 +350,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val kumaPushTestSending: StateFlow<Boolean> = _kumaPushTestSending.asStateFlow()
     private val pushAlertModeStore = PushAlertModeStore(app)
     private val managedPushScopeStore = ManagedPushScopeStore(app)
+    private val pushDependencyStore = PushDependencyStore(app)
+    private val pushTransitionStore = PushTransitionStore(app)
     private val _pushAlertModes = MutableStateFlow<Map<Int, PushAlertMode>>(emptyMap())
     val pushAlertModes: StateFlow<Map<Int, PushAlertMode>> = _pushAlertModes.asStateFlow()
     private val _pushSeverities = MutableStateFlow<Map<Int, PushSeverity>>(emptyMap())
@@ -355,6 +360,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val pushAlertTimings: StateFlow<Map<Int, PushAlertTiming>> = _pushAlertTimings.asStateFlow()
     private val _pushSnoozes = MutableStateFlow<Map<Int, Long>>(emptyMap())
     val pushSnoozes: StateFlow<Map<Int, Long>> = _pushSnoozes.asStateFlow()
+    private val _pushDependencyGraph = MutableStateFlow(PushDependencyGraph())
+    val pushDependencyGraph: StateFlow<PushDependencyGraph> = _pushDependencyGraph.asStateFlow()
+    private val _pushDependencyStatuses = MutableStateFlow<Map<Int, Int?>>(emptyMap())
+    val pushDependencyStatuses: StateFlow<Map<Int, Int?>> = _pushDependencyStatuses.asStateFlow()
     private val pushQuietHoursStore = PushQuietHoursStore(app)
     private val _pushQuietHours = MutableStateFlow(pushQuietHoursStore.load())
     val pushQuietHours: StateFlow<PushQuietHours> = _pushQuietHours.asStateFlow()
@@ -1133,6 +1142,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _pushSeverities.value = emptyMap()
         _pushAlertTimings.value = emptyMap()
         _pushSnoozes.value = emptyMap()
+        _pushDependencyGraph.value = PushDependencyGraph()
+        _pushDependencyStatuses.value = emptyMap()
     }
 
     fun testLocalPushNotification() {
@@ -1170,6 +1181,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
             _pushSnoozes.value = emptyMap()
+            _pushDependencyGraph.value = PushDependencyGraph()
+            _pushDependencyStatuses.value = emptyMap()
             return
         }
         val deliveryUrl = KumaWebhook.deliveryUrl(endpoint, pushDistributor.value) ?: run {
@@ -1178,6 +1191,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
             _pushSnoozes.value = emptyMap()
+            _pushDependencyGraph.value = PushDependencyGraph()
+            _pushDependencyStatuses.value = emptyMap()
             return
         }
         viewModelScope.launch {
@@ -1190,6 +1205,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
                 _pushSnoozes.value = emptyMap()
+                _pushDependencyGraph.value = PushDependencyGraph()
+                _pushDependencyStatuses.value = emptyMap()
                 return@launch
             }
             val notification = snapshot.notification
@@ -1198,18 +1215,20 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 notification.schemaVersion == ManagedPushNotification.CURRENT_SCHEMA &&
                 ManagedPushNotification.isValidServerId(serverId)
             val scopeCurrent = providerCurrent && serverId != null && bindManagedPushScope(serverId, monitorRows)
+            val selectedIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = notification?.id,
                 serverId = serverId,
                 configurationCurrent = scopeCurrent,
                 isDefault = notification?.isDefault ?: true,
-                selectedMonitorIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds,
+                selectedMonitorIds = selectedIds,
                 unavailableMonitorIds = snapshot.unavailableMonitorIds,
             )
             _pushAlertModes.value = pushAlertModeStore.modes(serverId, ids)
             _pushSeverities.value = pushAlertModeStore.severities(serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(serverId, ids)
             _pushSnoozes.value = pushAlertModeStore.snoozes(serverId, ids)
+            loadPushDependencies(serverId, selectedIds)
         }
     }
 
@@ -1235,12 +1254,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             }
             val snapshot = repo.managedPushAssignments(ids)
             val unavailable = result.failedMonitorIds + snapshot?.unavailableMonitorIds.orEmpty()
+            val effectiveSelectedIds = snapshot?.selectedMonitorIds ?: (selectedMonitorIds - result.failedMonitorIds)
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = result.notificationId,
                 serverId = result.serverId,
                 configurationCurrent = true,
                 isDefault = isDefault,
-                selectedMonitorIds = snapshot?.selectedMonitorIds ?: (selectedMonitorIds - result.failedMonitorIds),
+                selectedMonitorIds = effectiveSelectedIds,
                 unavailableMonitorIds = unavailable,
                 recentlySaved = true,
             )
@@ -1248,7 +1268,37 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSeverities.value = pushAlertModeStore.severities(result.serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(result.serverId, ids)
             _pushSnoozes.value = pushAlertModeStore.snoozes(result.serverId, ids)
+            loadPushDependencies(result.serverId, effectiveSelectedIds)
         }
+    }
+
+    private fun loadPushDependencies(serverId: String?, validIds: Set<Int>) {
+        val loaded = pushDependencyStore.load(serverId)
+        val retained = loaded.parentsByMonitor.mapNotNull { (monitorId, parents) ->
+            if (monitorId !in validIds) null else monitorId to parents.filterTo(sortedSetOf()) { it in validIds }
+        }.toMap()
+        val safeGraph = PushDependencyPolicy.validated(retained, validIds) ?: PushDependencyGraph()
+        if (serverId != null && safeGraph != loaded) pushDependencyStore.save(serverId, safeGraph, validIds)
+        _pushDependencyGraph.value = safeGraph
+        _pushDependencyStatuses.value = pushTransitionStore.statuses(serverId, validIds)
+    }
+
+    fun refreshPushDependencyStatuses() {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return
+        val serverId = setup.serverId ?: return
+        _pushDependencyStatuses.value = pushTransitionStore.statuses(serverId, monitors.value.map(Monitor::id))
+    }
+
+    fun setPushDependencies(monitorId: Int, parentIds: Set<Int>): Boolean {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return false
+        if (!setup.configurationCurrent) return false
+        val serverId = setup.serverId ?: return false
+        val validIds = setup.selectedMonitorIds
+        val updated = PushDependencyPolicy.updated(_pushDependencyGraph.value, monitorId, parentIds, validIds)
+            ?: return false
+        if (!pushDependencyStore.save(serverId, updated, validIds)) return false
+        _pushDependencyGraph.value = updated
+        return true
     }
 
     fun setPushAlertMode(monitorId: Int, mode: PushAlertMode) {
@@ -1313,12 +1363,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 pushAlertModeStore.clearServer(serverId)
+                pushDependencyStore.clearServer(serverId)
                 managedPushScopeStore.remove(serverId)
-                PushTransitionStore(getApplication()).clearServer(serverId)
+                pushTransitionStore.clearServer(serverId)
                 _pushAlertModes.value = emptyMap()
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
                 _pushSnoozes.value = emptyMap()
+                _pushDependencyGraph.value = PushDependencyGraph()
+                _pushDependencyStatuses.value = emptyMap()
                 refreshKumaPushSetup()
             }
             else _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.DELETE_FAILED)

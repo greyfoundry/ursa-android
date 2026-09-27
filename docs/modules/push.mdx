@@ -29,7 +29,10 @@ connection: push works while the app is closed.
 - `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
   for transition modes, severity, bounded timing, and snooze expiry.
 - `.../core/push/PushEffectivePolicy.kt` - pure resolver for effective values,
-  source precedence, current delivery blockers, quiet hours, and snooze timing.
+  source precedence, current delivery blockers, dependency suppression, quiet
+  hours, and snooze timing.
+- `.../core/push/PushDependencyStore.kt` - encrypted, versioned per-server
+  dependency graph with bounded multi-parent rules and cycle-safe evaluation.
 - `.../core/push/ManagedPushScopeStore.kt` - encrypted, versioned binding from a
   managed provider's random server scope to the exact saved connection and a
   bounded lightweight monitor directory.
@@ -47,14 +50,16 @@ connection: push works while the app is closed.
 - `.../core/push/PushEventPolicy.kt` / `PushEventPreferencesStore.kt` - recovery,
   maintenance, certificate, and update opt-ins plus stable event-channel routes.
 - `.../core/push/PushTransitionStore.kt` - server-scoped two-minute exact-transition
-  de-duplication; real status changes always pass.
+  de-duplication and latest received monitor statuses; real status changes always
+  pass.
 - `.../core/push/OverallStatusService.kt` - optional special-use foreground service
   that keeps a direct authenticated socket and an ongoing live fleet notification.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, configure per-monitor alert modes and
-  delivery severity and timing, explain the resulting policy, show setup status,
-  and remove it safely. The setup
+  delivery severity, timing, and dependencies, explain the resulting policy, show
+  setup status, and remove it safely. Per-monitor actions wrap into compact rows
+  instead of creating a tall trailing button column. The setup
   summary names the exact saved connection, managed Webhook provider, UnifiedPush
   distributor, and last end-to-end test outcome in one place.
 
@@ -84,8 +89,11 @@ connection: push works while the app is closed.
   is `exported="false"` - the connector's own internal receiver forwards to it - so
   there is no exported push surface to harden.
 - No VAPID / web-push encryption: Kuma sends plain JSON, so `PushMessage.decrypted`
-  is false and `content` is the raw body. The body is untrusted input - parsed
-  tolerantly, render-only, never acted upon.
+  is false and `content` is the raw body. The body is untrusted input and parsed
+  tolerantly. Manual and legacy payloads are render-only. A payload carrying a
+  locally bound managed scope may update non-sensitive local transition state used
+  for de-duplication, recovery cleanup, and opt-in dependency suppression; it can
+  never authorize a remote mutation.
 - `POST_NOTIFICATIONS` is a runtime permission on API 33+; the service drops the
   notification (logs a warning) if it isn't granted. `PushScreen` requests it.
 - ntfy endpoints need `up=1` so ntfy forwards Kuma's raw bytes. Managed setup adds
@@ -107,10 +115,18 @@ connection: push works while the app is closed.
   transitions so an upgrade cannot silently suppress alerts.
 - Each managed monitor can explain its effective Down, recovery, and maintenance
   behavior from the same mode, severity, timing, quiet-hours, snooze, assignment,
-  setup, and Android-notification state used by delivery. The resolver has stable
-  `monitor > tag > group > server > default` precedence for later policy scopes;
-  today only default and monitor values are persisted, so the UI says the other
-  scopes are unconfigured instead of implying rules that do not exist.
+  dependency, setup, and Android-notification state used by delivery. The resolver
+  has stable `monitor > tag > group > server > default` precedence for later policy
+  scopes; today only default and monitor values are persisted, so the UI says the
+  other scopes are unconfigured instead of implying rules that do not exist.
+- Dependency suppression is explicit opt-in and limited to monitors currently
+  assigned to the same verified managed provider. A monitor may have up to 32
+  parents. Edits and reads reject cycles; corrupt graphs fail open. A bound Down
+  event is suppressed only while a configured parent was last received as Down.
+  The exact parent is shown in policy explanation, and the suppressed event is
+  appended to encrypted local history. Delayed and repeated alerts re-check the
+  graph at delivery time. Unknown and legacy payloads never use dependency rules,
+  preserving the released immediate-delivery behavior.
 - Per-monitor severity uses the same server scope. Critical, standard, and silent
   map to stable Android channels. Critical defaults to high importance with sound
   and vibration; standard defaults to normal importance with sound and no forced

@@ -582,6 +582,8 @@
     <string name="event_slow_response">Slow-response alert</string>
     <string name="event_certificate_expiry">Certificate-expiry alert</string>
     <string name="event_push_alert">Push notification</string>
+    <string name="event_push_suppressed">Push alert suppressed</string>
+    <string name="push_dependency_suppressed_detail">Suppressed because %1$s was last received as Down.</string>
     <string name="event_source_kuma">Kuma history</string>
     <string name="event_source_device">Recorded on this device</string>
     <string name="event_slow_response_detail">%1$dms response, %2$dms limit</string>
@@ -826,6 +828,7 @@
     <string name="push_policy_down_unassigned">A Down transition will not arrive because this provider is not assigned to the monitor.</string>
     <string name="push_policy_down_device_blocked">A Down transition is eligible, but Android notifications are blocked for URSA.</string>
     <string name="push_policy_down_mode_blocked">A Down transition will not notify under the current mode.</string>
+    <string name="push_policy_down_dependency_suppressed">A Down transition will be suppressed because %1$s was last received as Down.</string>
     <string name="push_policy_down_delayed">A Down transition will be delivered at %1$s after the configured delay.</string>
     <string name="push_policy_down_snoozed">A Down transition is snoozed until %1$s.</string>
     <string name="push_policy_down_immediate">A Down transition will be delivered now.</string>
@@ -851,9 +854,26 @@
     <string name="push_policy_will_not_notify">Will not notify</string>
     <string name="push_policy_dependencies">Dependency suppression</string>
     <string name="push_policy_dependencies_default">Off · URSA default</string>
+    <string name="push_policy_dependency_suppressed">On · currently suppressed by %1$s</string>
+    <plurals name="push_policy_dependency_clear">
+        <item quantity="one">On · %1$d dependency is not currently known Down</item>
+        <item quantity="other">On · %1$d dependencies are not currently known Down</item>
+    </plurals>
     <string name="push_policy_grouping">Grouping</string>
     <string name="push_policy_grouping_default">Individual notification · URSA default</string>
     <string name="push_policy_precedence_note">Precedence is monitor → tag → group → server → default. URSA currently stores monitor overrides only; unconfigured scopes do not affect this result.</string>
+    <string name="push_dependency_none">No dependencies</string>
+    <plurals name="push_dependency_count">
+        <item quantity="one">%1$d dependency</item>
+        <item quantity="other">%1$d dependencies</item>
+    </plurals>
+    <string name="push_dependency_title">Dependencies for %1$s</string>
+    <string name="push_dependency_desc">Suppress this monitor’s Down alert while any selected monitor was last received as Down. Recovery and maintenance alerts are unchanged. Rules stay on this device.</string>
+    <string name="push_dependency_no_candidates">Assign another monitor to this managed provider before adding a dependency.</string>
+    <string name="push_dependency_last_status">Last received: %1$s</string>
+    <string name="push_dependency_status_unknown">Unknown</string>
+    <string name="push_dependency_cycle_error">That selection would create a dependency cycle or includes a monitor that is no longer available.</string>
+    <string name="push_dependency_unknown_parent">an unavailable dependency</string>
     <string name="push_alert_mode_dialog_title">Alerts for %1$s</string>
     <string name="push_alert_mode_muted">Muted</string>
     <string name="push_alert_mode_muted_desc">Receive no alert notifications for this monitor.</string>

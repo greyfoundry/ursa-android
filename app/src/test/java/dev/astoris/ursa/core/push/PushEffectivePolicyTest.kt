@@ -89,6 +89,29 @@ class PushEffectivePolicyTest {
     }
 
     @Test
+    fun downParentSuppressesBeforeDelayAndNamesItsStableIdentity() {
+        val policy = PushEffectivePolicyResolver.resolve(
+            layers = emptyList(),
+            quietHours = quietOff,
+            eventPreferences = events,
+            setupCurrent = true,
+            providerAssigned = true,
+            notificationsAllowed = true,
+            snoozedUntilMillis = null,
+            dependencyGraph = PushDependencyGraph(mapOf(42 to setOf(7))),
+            monitorId = 42,
+            dependencyStatuses = mapOf(7 to 0),
+            nowMillis = NOW,
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(PushDownDelivery.DEPENDENCY_SUPPRESSED, policy.downDelivery)
+        assertEquals(7, policy.dependencySuppression?.parentId)
+        assertEquals(setOf(7), policy.dependencyParentIds)
+        assertNull(policy.scheduledAtMillis)
+    }
+
+    @Test
     fun recoveryAndMaintenanceRespectModeAndGlobalOptIns() {
         val policy = resolve(
             layers = listOf(

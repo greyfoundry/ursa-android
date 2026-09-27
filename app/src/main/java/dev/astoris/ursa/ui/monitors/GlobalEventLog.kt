@@ -59,6 +59,7 @@ internal enum class EventLogKind {
     SLOW_RESPONSE,
     CERTIFICATE_EXPIRY,
     PUSH_ALERT,
+    PUSH_SUPPRESSED,
 }
 
 internal enum class EventLogFilter { ALL, STATE, MAINTENANCE, ACTIONS, ALERTS }
@@ -138,6 +139,7 @@ internal fun combinedEventLog(
                 LocalEventKind.SLOW_RESPONSE -> EventLogKind.SLOW_RESPONSE
                 LocalEventKind.CERTIFICATE_EXPIRY -> EventLogKind.CERTIFICATE_EXPIRY
                 LocalEventKind.PUSH_ALERT -> EventLogKind.PUSH_ALERT
+                LocalEventKind.PUSH_SUPPRESSED -> EventLogKind.PUSH_SUPPRESSED
             },
             atMillis = event.atMillis,
             detail = event.detail,
@@ -161,6 +163,7 @@ internal fun EventLogEntry.matches(filter: EventLogFilter): Boolean = when (filt
         EventLogKind.SLOW_RESPONSE,
         EventLogKind.CERTIFICATE_EXPIRY,
         EventLogKind.PUSH_ALERT,
+        EventLogKind.PUSH_SUPPRESSED,
     )
 }
 
@@ -334,13 +337,15 @@ private val EventLogKind.labelRes: Int
         EventLogKind.SLOW_RESPONSE -> R.string.event_slow_response
         EventLogKind.CERTIFICATE_EXPIRY -> R.string.event_certificate_expiry
         EventLogKind.PUSH_ALERT -> R.string.event_push_alert
+        EventLogKind.PUSH_SUPPRESSED -> R.string.event_push_suppressed
     }
 
 @Composable
 private fun eventColor(kind: EventLogKind): Color = when (kind) {
     EventLogKind.DOWN -> KumaRed
     EventLogKind.UP, EventLogKind.RECOVERED, EventLogKind.RESUMED -> KumaGreen
-    EventLogKind.PENDING, EventLogKind.SLOW_RESPONSE, EventLogKind.CERTIFICATE_EXPIRY -> KumaOrange
+    EventLogKind.PENDING, EventLogKind.SLOW_RESPONSE, EventLogKind.CERTIFICATE_EXPIRY,
+    EventLogKind.PUSH_SUPPRESSED -> KumaOrange
     EventLogKind.MAINTENANCE_STARTED, EventLogKind.MAINTENANCE_ENDED -> KumaBlue
     EventLogKind.PAUSED -> MaterialTheme.colorScheme.onSurfaceVariant
     EventLogKind.PUSH_ALERT -> MaterialTheme.colorScheme.primary

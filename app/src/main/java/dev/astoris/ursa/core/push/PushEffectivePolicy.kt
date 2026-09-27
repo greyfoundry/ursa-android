@@ -29,6 +29,7 @@ enum class PushDownDelivery {
     NOT_ASSIGNED,
     DEVICE_BLOCKED,
     MODE_BLOCKED,
+    DEPENDENCY_SUPPRESSED,
     DELAYED,
     SNOOZED,
     IMMEDIATE,
@@ -43,6 +44,8 @@ data class PushEffectivePolicy(
     val snoozedUntilMillis: Long?,
     val downDelivery: PushDownDelivery,
     val scheduledAtMillis: Long?,
+    val dependencyParentIds: Set<Int>,
+    val dependencySuppression: PushDependencySuppression?,
     val recoveryWillNotify: Boolean,
     val maintenanceWillNotify: Boolean,
 )
@@ -56,6 +59,9 @@ object PushEffectivePolicyResolver {
         providerAssigned: Boolean,
         notificationsAllowed: Boolean,
         snoozedUntilMillis: Long?,
+        dependencyGraph: PushDependencyGraph = PushDependencyGraph(),
+        monitorId: Int? = null,
+        dependencyStatuses: Map<Int, Int?> = emptyMap(),
         nowMillis: Long = System.currentTimeMillis(),
         zoneId: ZoneId = ZoneId.systemDefault(),
     ): PushEffectivePolicy {
@@ -67,11 +73,17 @@ object PushEffectivePolicyResolver {
         val effectiveSeverity = if (quiet) PushSeverity.SILENT else severity.value
         val eligible = setupCurrent && providerAssigned && notificationsAllowed
         val decision = PushAlertLifecycle.onDown(timing.value, nowMillis, snoozedUntilMillis)
+        val safeDependencies = PushDependencyPolicy.validated(dependencyGraph.parentsByMonitor)
+            ?: PushDependencyGraph()
+        val dependencySuppression = monitorId?.let {
+            PushDependencyPolicy.suppression(safeDependencies, it, dependencyStatuses)
+        }
         val downDelivery = when {
             !setupCurrent -> PushDownDelivery.SETUP_REQUIRED
             !providerAssigned -> PushDownDelivery.NOT_ASSIGNED
             !notificationsAllowed -> PushDownDelivery.DEVICE_BLOCKED
             !PushAlertPolicy.shouldNotify(mode.value, 0) -> PushDownDelivery.MODE_BLOCKED
+            dependencySuppression != null -> PushDownDelivery.DEPENDENCY_SUPPRESSED
             decision is PushAlertDecision.WaitUntil &&
                 snoozedUntilMillis != null && decision.atMillis == snoozedUntilMillis -> PushDownDelivery.SNOOZED
             decision is PushAlertDecision.WaitUntil -> PushDownDelivery.DELAYED
@@ -87,6 +99,8 @@ object PushEffectivePolicyResolver {
             downDelivery = downDelivery,
             scheduledAtMillis = (decision as? PushAlertDecision.WaitUntil)?.atMillis
                 ?.takeIf { downDelivery == PushDownDelivery.DELAYED || downDelivery == PushDownDelivery.SNOOZED },
+            dependencyParentIds = monitorId?.let(safeDependencies::parentsOf).orEmpty(),
+            dependencySuppression = dependencySuppression,
             recoveryWillNotify = eligible &&
                 PushAlertPolicy.shouldNotify(mode.value, 1) &&
                 PushEventPolicy.shouldNotify(1, eventPreferences),
