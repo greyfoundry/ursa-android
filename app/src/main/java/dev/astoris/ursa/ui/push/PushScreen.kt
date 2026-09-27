@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,12 +56,21 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.push.PushAlertMode
 import dev.astoris.ursa.core.push.PushAlertTiming
+import dev.astoris.ursa.core.push.PushDownDelivery
+import dev.astoris.ursa.core.push.PushEffectivePolicy
+import dev.astoris.ursa.core.push.PushEffectivePolicyResolver
+import dev.astoris.ursa.core.push.PushPolicyLayer
+import dev.astoris.ursa.core.push.PushPolicyScope
 import dev.astoris.ursa.core.push.PushSeverity
 import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushEventPolicy
@@ -99,6 +109,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val alertModes by vm.pushAlertModes.collectAsStateWithLifecycle()
     val severities by vm.pushSeverities.collectAsStateWithLifecycle()
     val alertTimings by vm.pushAlertTimings.collectAsStateWithLifecycle()
+    val snoozes by vm.pushSnoozes.collectAsStateWithLifecycle()
     val quietHours by vm.pushQuietHours.collectAsStateWithLifecycle()
     val eventPreferences by vm.pushEventPreferences.collectAsStateWithLifecycle()
     val overallStatusEnabled by vm.overallStatusEnabled.collectAsStateWithLifecycle()
@@ -111,6 +122,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var modeMonitorId by remember { mutableStateOf<Int?>(null) }
     var severityMonitorId by remember { mutableStateOf<Int?>(null) }
     var timingMonitorId by remember { mutableStateOf<Int?>(null) }
+    var policyMonitorId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(endpoint) {
         if (endpoint != null) vm.refreshKumaPushSetup()
@@ -130,6 +142,14 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     }
 
     var granted by remember { mutableStateOf(notifGranted()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) granted = notifGranted()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted = it }
@@ -679,6 +699,9 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                             TextButton(onClick = { timingMonitorId = monitor.id }) {
                                                 Text(timing.summary())
                                             }
+                                            TextButton(onClick = { policyMonitorId = monitor.id }) {
+                                                Text(stringResource(R.string.push_policy_explain))
+                                            }
                                         }
                                     }
                                 }
@@ -910,6 +933,141 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             },
         )
     }
+    val policyMonitor = policyMonitorId?.let { id -> monitors.firstOrNull { it.id == id } }
+    if (policyMonitor != null) {
+        val mode = alertModes[policyMonitor.id] ?: PushAlertMode.ALL_TRANSITIONS
+        val severity = severities[policyMonitor.id] ?: PushSeverity.CRITICAL
+        val timing = alertTimings[policyMonitor.id] ?: PushAlertTiming()
+        val ready = kumaSetup as? KumaPushSetupUiState.Ready
+        val policy = PushEffectivePolicyResolver.resolve(
+            layers = listOf(
+                PushPolicyLayer(
+                    scope = PushPolicyScope.MONITOR,
+                    stableKey = policyMonitor.id.toString(),
+                    mode = mode.takeUnless { it == PushAlertMode.ALL_TRANSITIONS },
+                    severity = severity.takeUnless { it == PushSeverity.CRITICAL },
+                    timing = timing.takeUnless { it == PushAlertTiming() },
+                ),
+            ),
+            quietHours = quietHours,
+            eventPreferences = eventPreferences,
+            setupCurrent = ready?.notificationId != null && ready.configurationCurrent,
+            providerAssigned = policyMonitor.id in ready?.selectedMonitorIds.orEmpty(),
+            notificationsAllowed = granted && NotificationManagerCompat.from(context).areNotificationsEnabled(),
+            snoozedUntilMillis = snoozes[policyMonitor.id],
+        )
+        PushEffectivePolicyDialog(
+            monitorName = policyMonitor.name,
+            policy = policy,
+            onDismiss = { policyMonitorId = null },
+        )
+    }
+}
+
+@Composable
+private fun PushEffectivePolicyDialog(
+    monitorName: String,
+    policy: PushEffectivePolicy,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.push_policy_title, monitorName)) },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    policy.downSummary(),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (policy.downDelivery == PushDownDelivery.IMMEDIATE) {
+                        MaterialTheme.colorScheme.primary
+                    } else MaterialTheme.colorScheme.onSurface,
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_mode),
+                    stringResource(
+                        R.string.push_policy_sourced_value,
+                        stringResource(policy.mode.value.labelRes),
+                        stringResource(policy.mode.source.labelRes),
+                    ),
+                )
+                val severityText = if (policy.effectiveSeverity == policy.severity.value) {
+                    stringResource(policy.severity.value.labelRes)
+                } else {
+                    stringResource(
+                        R.string.push_policy_effective_severity,
+                        stringResource(policy.severity.value.labelRes),
+                        stringResource(policy.effectiveSeverity.labelRes),
+                    )
+                }
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_severity),
+                    stringResource(
+                        R.string.push_policy_sourced_value,
+                        severityText,
+                        stringResource(policy.severity.source.labelRes),
+                    ),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_timing),
+                    stringResource(
+                        R.string.push_policy_sourced_value,
+                        policy.timing.value.summary(),
+                        stringResource(policy.timing.source.labelRes),
+                    ),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_quiet_hours),
+                    stringResource(
+                        if (policy.quietHoursActive) R.string.push_policy_quiet_active
+                        else R.string.push_policy_quiet_inactive,
+                    ),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_snooze),
+                    policy.snoozedUntilMillis?.let {
+                        stringResource(R.string.push_policy_snoozed_until, it.diagnosticTimeOrNever())
+                    } ?: stringResource(R.string.push_policy_not_active),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_acknowledgement),
+                    stringResource(R.string.push_policy_acknowledgement_value),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_event_recovery),
+                    stringResource(
+                        if (policy.recoveryWillNotify) R.string.push_policy_will_notify
+                        else R.string.push_policy_will_not_notify,
+                    ),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_event_maintenance),
+                    stringResource(
+                        if (policy.maintenanceWillNotify) R.string.push_policy_will_notify
+                        else R.string.push_policy_will_not_notify,
+                    ),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_dependencies),
+                    stringResource(R.string.push_policy_dependencies_default),
+                )
+                DiagnosticRow(
+                    stringResource(R.string.push_policy_grouping),
+                    stringResource(R.string.push_policy_grouping_default),
+                )
+                Text(
+                    stringResource(R.string.push_policy_precedence_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
+        },
+    )
 }
 
 @Composable
@@ -1069,6 +1227,32 @@ private val PushSeverity.descriptionRes: Int
         PushSeverity.STANDARD -> R.string.push_severity_standard_desc
         PushSeverity.SILENT -> R.string.push_severity_silent_desc
     }
+
+private val PushPolicyScope.labelRes: Int
+    get() = when (this) {
+        PushPolicyScope.DEFAULT -> R.string.push_policy_source_default
+        PushPolicyScope.SERVER -> R.string.push_policy_source_server
+        PushPolicyScope.GROUP -> R.string.push_policy_source_group
+        PushPolicyScope.TAG -> R.string.push_policy_source_tag
+        PushPolicyScope.MONITOR -> R.string.push_policy_source_monitor
+    }
+
+@Composable
+private fun PushEffectivePolicy.downSummary(): String = when (downDelivery) {
+    PushDownDelivery.SETUP_REQUIRED -> stringResource(R.string.push_policy_down_setup)
+    PushDownDelivery.NOT_ASSIGNED -> stringResource(R.string.push_policy_down_unassigned)
+    PushDownDelivery.DEVICE_BLOCKED -> stringResource(R.string.push_policy_down_device_blocked)
+    PushDownDelivery.MODE_BLOCKED -> stringResource(R.string.push_policy_down_mode_blocked)
+    PushDownDelivery.DELAYED -> stringResource(
+        R.string.push_policy_down_delayed,
+        scheduledAtMillis.diagnosticTimeOrNever(),
+    )
+    PushDownDelivery.SNOOZED -> stringResource(
+        R.string.push_policy_down_snoozed,
+        scheduledAtMillis.diagnosticTimeOrNever(),
+    )
+    PushDownDelivery.IMMEDIATE -> stringResource(R.string.push_policy_down_immediate)
+}
 
 private val KumaPushSetupError.messageRes: Int
     get() = when (this) {

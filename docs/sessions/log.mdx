@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-27 - Explainable effective alert policy
+
+**changed**: Managed monitors now expose a human-readable policy explanation built
+by one pure resolver over the existing delivery inputs. It reports the current Down
+outcome, effective mode/severity/timing and their source, quiet hours, snooze,
+acknowledgement semantics, recovery/maintenance opt-ins, assignment/setup/device
+blockers, and the currently default dependency/grouping behavior. Deterministic
+precedence is `monitor > tag > group > server > default`; only released monitor
+overrides and defaults are persisted today, which the UI states explicitly.
+
+**compatibility and QA**: Existing records remain immediate, critical, and all-
+transitions by default. On the visible API 37 Pixel 8, a real ntfy UnifiedPush
+registration and temporary managed Kuma 2.5.5 Webhook exercised immediate default
+delivery and a Down-only/Standard/one-minute monitor override. Returning to the app
+now refreshes notification permission state. The dialog remained complete and
+scrollable at 200% text. Monitor defaults were restored and the temporary managed
+provider was removed afterward; the distributor registration remains available for
+the next alert phases.
+
+**verification**: Focused tests cover defaults, every precedence tier, deterministic
+same-scope selection, quiet-hours severity, snooze scheduling, delivery blockers,
+and recovery/maintenance opt-ins. The complete 243-task two-flavor phone/Wear
+unit-test, lint, debug-assembly, F-Droid release, and vital-lint gate passed.
+
 ### 2026-09-27 - Managed push and push-monitor UX
 
 **changed**: Managed setup now identifies the exact saved connection, fixed Kuma

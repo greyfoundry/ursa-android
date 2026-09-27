@@ -353,6 +353,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val pushSeverities: StateFlow<Map<Int, PushSeverity>> = _pushSeverities.asStateFlow()
     private val _pushAlertTimings = MutableStateFlow<Map<Int, PushAlertTiming>>(emptyMap())
     val pushAlertTimings: StateFlow<Map<Int, PushAlertTiming>> = _pushAlertTimings.asStateFlow()
+    private val _pushSnoozes = MutableStateFlow<Map<Int, Long>>(emptyMap())
+    val pushSnoozes: StateFlow<Map<Int, Long>> = _pushSnoozes.asStateFlow()
     private val pushQuietHoursStore = PushQuietHoursStore(app)
     private val _pushQuietHours = MutableStateFlow(pushQuietHoursStore.load())
     val pushQuietHours: StateFlow<PushQuietHours> = _pushQuietHours.asStateFlow()
@@ -1129,6 +1131,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _kumaPushSetup.value = KumaPushSetupUiState.Idle
         _pushAlertModes.value = emptyMap()
         _pushSeverities.value = emptyMap()
+        _pushAlertTimings.value = emptyMap()
+        _pushSnoozes.value = emptyMap()
     }
 
     fun testLocalPushNotification() {
@@ -1165,6 +1169,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushAlertModes.value = emptyMap()
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
+            _pushSnoozes.value = emptyMap()
             return
         }
         val deliveryUrl = KumaWebhook.deliveryUrl(endpoint, pushDistributor.value) ?: run {
@@ -1172,6 +1177,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushAlertModes.value = emptyMap()
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
+            _pushSnoozes.value = emptyMap()
             return
         }
         viewModelScope.launch {
@@ -1183,6 +1189,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _pushAlertModes.value = emptyMap()
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
+                _pushSnoozes.value = emptyMap()
                 return@launch
             }
             val notification = snapshot.notification
@@ -1202,6 +1209,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushAlertModes.value = pushAlertModeStore.modes(serverId, ids)
             _pushSeverities.value = pushAlertModeStore.severities(serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(serverId, ids)
+            _pushSnoozes.value = pushAlertModeStore.snoozes(serverId, ids)
         }
     }
 
@@ -1239,6 +1247,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushAlertModes.value = pushAlertModeStore.modes(result.serverId, ids)
             _pushSeverities.value = pushAlertModeStore.severities(result.serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(result.serverId, ids)
+            _pushSnoozes.value = pushAlertModeStore.snoozes(result.serverId, ids)
         }
     }
 
@@ -1309,6 +1318,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _pushAlertModes.value = emptyMap()
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
+                _pushSnoozes.value = emptyMap()
                 refreshKumaPushSetup()
             }
             else _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.DELETE_FAILED)

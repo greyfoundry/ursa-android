@@ -227,7 +227,10 @@ Per-monitor transition modes, delivery severities, alert timing, and snooze expi
 are non-sensitive preferences scoped by the managed provider's random server ID
 and monitor ID. The device-wide quiet-hours schedule is a separate non-sensitive
 preference. These settings contain no server address, endpoint, credential, or
-notification content. Delayed/repeating rendered alerts can contain infrastructure
+notification content. The effective-policy explanation derives only from these
+preferences, managed assignment/setup state, and Android notification availability;
+it does not render endpoints, server URLs, credentials, headers, or payload bodies.
+Delayed/repeating rendered alerts can contain infrastructure
 detail, so
 they are encrypted with the same Keystore-backed Tink AEAD as other private local
 state. WorkManager receives only an opaque random alert ID; work tags and system

@@ -28,6 +28,8 @@ connection: push works while the app is closed.
   random marker used to distinguish a requested Kuma test from unrelated pushes.
 - `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
   for transition modes, severity, bounded timing, and snooze expiry.
+- `.../core/push/PushEffectivePolicy.kt` - pure resolver for effective values,
+  source precedence, current delivery blockers, quiet hours, and snooze timing.
 - `.../core/push/ManagedPushScopeStore.kt` - encrypted, versioned binding from a
   managed provider's random server scope to the exact saved connection and a
   bounded lightweight monitor directory.
@@ -51,7 +53,8 @@ connection: push works while the app is closed.
 - `.../ui/push/PushScreen.kt` - pick a distributor, request `POST_NOTIFICATIONS`,
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, configure per-monitor alert modes and
-  delivery severity and timing, show setup status, and remove it safely. The setup
+  delivery severity and timing, explain the resulting policy, show setup status,
+  and remove it safely. The setup
   summary names the exact saved connection, managed Webhook provider, UnifiedPush
   distributor, and last end-to-end test outcome in one place.
 
@@ -102,6 +105,12 @@ connection: push works while the app is closed.
   accepts 0 and 1; all-transitions also accepts pending, maintenance, and unknown
   legacy payloads. Manual or legacy Webhooks without a valid scope default to all
   transitions so an upgrade cannot silently suppress alerts.
+- Each managed monitor can explain its effective Down, recovery, and maintenance
+  behavior from the same mode, severity, timing, quiet-hours, snooze, assignment,
+  setup, and Android-notification state used by delivery. The resolver has stable
+  `monitor > tag > group > server > default` precedence for later policy scopes;
+  today only default and monitor values are persisted, so the UI says the other
+  scopes are unconfigured instead of implying rules that do not exist.
 - Per-monitor severity uses the same server scope. Critical, standard, and silent
   map to stable Android channels. Critical defaults to high importance with sound
   and vibration; standard defaults to normal importance with sound and no forced

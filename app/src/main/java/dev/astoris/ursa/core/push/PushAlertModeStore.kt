@@ -174,6 +174,9 @@ class PushAlertModeStore(context: Context) {
         return true
     }
 
+    fun snoozes(serverId: String?, monitorIds: Iterable<Int>): Map<Int, Long> =
+        monitorIds.mapNotNull { monitorId -> snoozedUntil(serverId, monitorId)?.let { monitorId to it } }.toMap()
+
     fun clearServer(serverId: String?): Boolean {
         val validServerId = serverId?.takeIf(ManagedPushNotification::isValidServerId) ?: return false
         val keys = prefs.all.keys.filter { PushAlertPreferenceKey.belongsToServer(it, validServerId) }
