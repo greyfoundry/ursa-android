@@ -147,7 +147,11 @@ route stack while screens migrate incrementally.
   managed alerts group by server in Android after a second alert arrives, while
   the first urgent alert remains immediate and standalone. Managed setup also
   exposes an off-by-default shared-failure hint with the exact parent/tag/server
-  thresholds and an explicit promise that child alerts are never suppressed.
+  thresholds and an explicit promise that child alerts are never suppressed. Its
+  diagnostics card distinguishes distributor loss, registration failure, stale or
+  missing managed setup, known Kuma connection failures, delivery waiting/timeout,
+  and verified end-to-end delivery. A removed registration exposes the existing
+  distributor as a reconnect action instead of leaving a false Selected state.
 - The monitor editor gives push monitors a masked heartbeat URL generated from the
   exact token saved to Kuma, explicit copy/share/reveal actions, request-shape help,
   and a security warning. Existing push monitors recover the same URL on demand;

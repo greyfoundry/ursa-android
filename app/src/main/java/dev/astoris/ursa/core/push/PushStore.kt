@@ -20,6 +20,7 @@ data class PushDiagnostics(
     val lastMessageAtMs: Long? = null,
     val lastErrorAtMs: Long? = null,
     val lastError: PushRegistrationError? = null,
+    val lastUnexpectedUnregisterAtMs: Long? = null,
     val lastLocalTestAtMs: Long? = null,
     val lastLocalTestResult: PushLocalTestResult? = null,
     val deliveryTestRequestedAtMs: Long? = null,
@@ -45,6 +46,8 @@ object PushStore {
     private const val KEY_LAST_MESSAGE_AT = "last_message_at"
     private const val KEY_LAST_ERROR_AT = "last_error_at"
     private const val KEY_LAST_ERROR = "last_error"
+    private const val KEY_EXPECTED_UNREGISTER_AT = "expected_unregister_at"
+    private const val KEY_LAST_UNEXPECTED_UNREGISTER_AT = "last_unexpected_unregister_at"
     private const val KEY_LAST_LOCAL_TEST_AT = "last_local_test_at"
     private const val KEY_LAST_LOCAL_TEST_RESULT = "last_local_test_result"
     private const val KEY_DELIVERY_TEST_TOKEN = "delivery_test_token"
@@ -77,6 +80,7 @@ object PushStore {
         p.edit {
             putString(KEY_ENDPOINT, url)
             putLong(KEY_LAST_REGISTRATION_AT, System.currentTimeMillis())
+            remove(KEY_EXPECTED_UNREGISTER_AT)
         }
         _endpoint.value = url
         _diagnostics.value = readDiagnostics(p)
@@ -143,14 +147,24 @@ object PushStore {
         _diagnostics.value = readDiagnostics(p)
     }
 
-    fun recordUnregistered(context: Context) {
+    fun expectUnregister(context: Context) {
+        prefs(context).edit { putLong(KEY_EXPECTED_UNREGISTER_AT, System.currentTimeMillis()) }
+    }
+
+    /** Returns true when this callback follows the user's explicit disconnect action. */
+    fun recordUnregistered(context: Context): Boolean {
         val p = prefs(context)
+        val now = System.currentTimeMillis()
+        val expected = PushUnregisterPolicy.isExpected(p.timestamp(KEY_EXPECTED_UNREGISTER_AT), now)
         p.edit {
             remove(KEY_ENDPOINT)
+            remove(KEY_EXPECTED_UNREGISTER_AT)
+            if (!expected) putLong(KEY_LAST_UNEXPECTED_UNREGISTER_AT, now)
             clearDeliveryTest()
         }
         _endpoint.value = null
         _diagnostics.value = readDiagnostics(p)
+        return expected
     }
 
     /** Clear registration state on unregister while retaining privacy-safe history. */
@@ -185,6 +199,7 @@ object PushStore {
             lastError = prefs.getString(KEY_LAST_ERROR, null)?.let { value ->
                 runCatching { PushRegistrationError.valueOf(value) }.getOrNull()
             },
+            lastUnexpectedUnregisterAtMs = prefs.timestamp(KEY_LAST_UNEXPECTED_UNREGISTER_AT),
             lastLocalTestAtMs = prefs.timestamp(KEY_LAST_LOCAL_TEST_AT),
             lastLocalTestResult = prefs.getString(KEY_LAST_LOCAL_TEST_RESULT, null)?.let { value ->
                 runCatching { PushLocalTestResult.valueOf(value) }.getOrNull()

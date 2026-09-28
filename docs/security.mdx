@@ -217,9 +217,14 @@ duplicate creates after a late acknowledgement. The UI additionally requires an
 authenticated, write-verified connection before showing controls; this is presentation
 defence only, and repository enforcement remains authoritative.
 
-Push diagnostics retain timestamps, normalized registration error categories, and
-local/end-to-end test outcomes in the existing non-backed-up push preferences. They
-never persist message bodies, monitor names, server URLs, or a second endpoint copy.
+Push diagnostics retain timestamps, normalized registration error categories, the
+last unexpected-unregister time, and local/end-to-end test outcomes in the existing
+non-backed-up push preferences. They never persist message bodies, monitor names,
+server URLs, or a second endpoint copy. Connector-confirmed failures use fixed local
+notification copy selected only from the normalized category; no distributor,
+endpoint, server, header, credential, or raw error value is rendered. Explicit user
+disconnects are marked for a two-minute callback window so they do not produce a
+false warning, and a successful registration clears that marker and any warning.
 End-to-end testing uses a random short correlation marker; it is removed after a
 match, failed Kuma acknowledgement, unregister, or explicit disconnect. The matching
 push is rendered as fixed local copy and is excluded from operational event history.

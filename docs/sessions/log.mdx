@@ -9,6 +9,46 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-09-28 - Push-path disconnect diagnostics
+
+**changed**: Notifications now resolves one current delivery-path state from the
+existing distributor registration, managed Kuma setup, connection failure, and
+end-to-end test evidence. It distinguishes not connected, unexpected distributor
+loss, categorized registration failure, missing/stale provider setup, known Kuma
+connection failures, delivery waiting, a 30-second delivery timeout, and verified
+delivery without inferring an outage from quiet monitors or adding background work.
+Connector-confirmed failure or unexpected unregister raises one normal-priority
+Android warning; explicit user disconnects remain quiet, and a new endpoint or
+delivered message clears the warning.
+
+**reconnect correction**: Live QA found that a removed endpoint still left its
+saved distributor labelled Selected, with no way to retry. The row now shows
+Selected only while an endpoint exists and otherwise reuses the existing Use
+action. The brief expected-unregister marker is cleared by the callback or the next
+successful registration, while the privacy-safe unexpected-disconnect timestamp
+remains available for diagnosis.
+
+**security and compatibility**: Diagnostics and notification copy retain only
+timestamps and normalized failure categories. They never render or duplicate an
+endpoint, server URL, custom header, credential, raw connector error, or payload.
+Existing push delivery and managed-provider storage are unchanged; the feature
+extends the current service, preferences, setup state, and Compose timer only.
+
+**live QA**: On the visible API 37 Pixel 8, deleting URSA's real ntfy subscription
+produced the unexpected-disconnect timestamp, safe Android warning, and reconnect
+hint. Re-registering cleared the warning and exposed the repaired Use action. A
+Kuma 2.5.5 managed Webhook was rebound to each fresh endpoint with ntfy raw-body
+delivery intact, and uniquely matched tests completed end to end. Explicit
+Disconnect produced no warning or false unexpected timestamp. The final endpoint
+and provider were rotated and verified again; Android crash logs and Kuma fatal
+logs remained empty.
+
+**verification**: Focused path-health tests cover unregister policy, signal
+precedence, setup states, waiting, timeout, rejection, and recovery. The complete
+243-task two-flavor phone/Wear unit-test, lint, debug-assembly, F-Droid release, and
+vital-lint gate passed. The generated F-Droid release APK installed and cold-launched
+without a fatal runtime entry while Kuma remained healthy.
+
 ### 2026-09-28 - Opt-in storm correlation
 
 **changed**: Managed setup now offers an off-by-default, per-server shared-failure

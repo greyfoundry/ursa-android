@@ -40,9 +40,11 @@ class UrsaPushService : PushService() {
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
         Log.d(TAG, "New endpoint for instance=$instance")
         PushStore.recordRegistered(this, endpoint.url)
+        cancelPathIssue(this)
     }
 
     override fun onMessage(message: PushMessage, instance: String) {
+        cancelPathIssue(this)
         val raw = String(message.content, Charsets.UTF_8)
         val notice = PushParse.parse(raw) ?: PushNotice(
             monitorId = null,
@@ -175,11 +177,12 @@ class UrsaPushService : PushService() {
         val safeReason = runCatching { PushRegistrationError.valueOf(reason.name) }
             .getOrDefault(PushRegistrationError.INTERNAL_ERROR)
         PushStore.recordRegistrationError(this, safeReason)
+        postPathIssue(this, safeReason)
     }
 
     override fun onUnregistered(instance: String) {
         Log.d(TAG, "Unregistered instance=$instance")
-        PushStore.recordUnregistered(this)
+        if (PushStore.recordUnregistered(this)) cancelPathIssue(this) else postPathIssue(this)
     }
 
     override fun onDestroy() {
@@ -191,6 +194,13 @@ class UrsaPushService : PushService() {
         private const val TAG = "UrsaPush"
         const val CHANNEL_ID = "ursa_monitors_critical"
         private const val LOCAL_TEST_NOTIFICATION_ID = 0x55525341
+        private const val PATH_ISSUE_NOTIFICATION_ID = 0x55525350
+        private val PATH_ISSUE_ROUTE = PushChannelRoute(
+            channelId = "ursa_push_health",
+            highPriority = false,
+            sound = true,
+            vibration = false,
+        )
 
         fun postLocalTest(context: Context): PushLocalTestResult = postNotification(
             context,
@@ -203,6 +213,57 @@ class UrsaPushService : PushService() {
             ),
             LOCAL_TEST_NOTIFICATION_ID,
         )
+
+        internal fun cancelPathIssue(context: Context) {
+            NotificationManagerCompat.from(context).cancel(PATH_ISSUE_NOTIFICATION_ID)
+        }
+
+        private fun postPathIssue(context: Context, error: PushRegistrationError? = null) {
+            ensureChannel(context)
+            if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+            val notifications = NotificationManagerCompat.from(context)
+            if (!notifications.areNotificationsEnabled()) return
+            val channel = context.getSystemService(NotificationManager::class.java)
+                .getNotificationChannel(PATH_ISSUE_ROUTE.channelId)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) return
+            val (titleRes, bodyRes) = when (error) {
+                PushRegistrationError.INTERNAL_ERROR ->
+                    dev.astoris.ursa.R.string.push_health_internal_title to
+                        dev.astoris.ursa.R.string.push_health_internal_body
+                PushRegistrationError.NETWORK ->
+                    dev.astoris.ursa.R.string.push_health_network_title to
+                        dev.astoris.ursa.R.string.push_health_network_body
+                PushRegistrationError.ACTION_REQUIRED ->
+                    dev.astoris.ursa.R.string.push_health_action_title to
+                        dev.astoris.ursa.R.string.push_health_action_body
+                PushRegistrationError.VAPID_REQUIRED ->
+                    dev.astoris.ursa.R.string.push_health_vapid_title to
+                        dev.astoris.ursa.R.string.push_health_vapid_body
+                null ->
+                    dev.astoris.ursa.R.string.push_health_disconnected_title to
+                        dev.astoris.ursa.R.string.push_health_disconnected_body
+            }
+            notifications.notify(
+                PATH_ISSUE_NOTIFICATION_ID,
+                NotificationCompat.Builder(context, PATH_ISSUE_ROUTE.channelId)
+                    .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
+                    .setContentTitle(context.getString(titleRes))
+                    .setContentText(context.getString(bodyRes))
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(bodyRes)))
+                    .setCategory(NotificationCompat.CATEGORY_ERROR)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setOnlyAlertOnce(true)
+                    .setAutoCancel(true)
+                    .setContentIntent(PushNotificationGroups.contentIntent(context))
+                    .build(),
+            )
+        }
 
         /** Returns the exact reason a local notification was or was not posted. */
         internal fun postNotification(
@@ -363,6 +424,7 @@ class UrsaPushService : PushService() {
                 PushEventPolicy.RECOVERY_ROUTE to dev.astoris.ursa.R.string.push_channel_recovery,
                 PushEventPolicy.MAINTENANCE_ROUTE to dev.astoris.ursa.R.string.push_channel_maintenance,
                 PushEventPolicy.UPDATE_ROUTE to dev.astoris.ursa.R.string.push_channel_updates,
+                PATH_ISSUE_ROUTE to dev.astoris.ursa.R.string.push_channel_health,
             )
             channels.forEach { (route, nameRes) ->
                 if (mgr.getNotificationChannel(route.channelId) == null) {

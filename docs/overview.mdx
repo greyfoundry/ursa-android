@@ -48,7 +48,11 @@ and the module docs under `docs/modules/`.
   same bound server gain a native Android inbox summary from the second alert
   onward without delaying the first. An off-by-default local correlation option
   can add a cautious shared-failure hint when recent Down alerts share a parent,
-  tag, or server burst; it never suppresses child alerts. See
+  tag, or server burst; it never suppresses child alerts. Push diagnostics also
+  separate distributor loss, registration failure, stale managed setup, Kuma
+  connection failures, and a 30-second end-to-end delivery timeout from actual
+  monitor-down transitions. Unexpected distributor loss raises a privacy-safe
+  Android alert; an explicit Disconnect remains quiet. See
   `docs/modules/push.mdx`.
 - M4 done: native depth - offline last-known cache, biometric app lock,
   notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,

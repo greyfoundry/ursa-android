@@ -44,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,6 +67,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.push.PushAlertMode
 import dev.astoris.ursa.core.push.PushAlertTiming
 import dev.astoris.ursa.core.push.PushDownDelivery
@@ -87,7 +89,12 @@ import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.core.push.PushLocalTestResult
 import dev.astoris.ursa.core.push.PushDiagnostics
+import dev.astoris.ursa.core.push.PushPathHealth
+import dev.astoris.ursa.core.push.PushPathHealthResolver
+import dev.astoris.ursa.core.push.PushPathState
 import dev.astoris.ursa.core.push.PushRegistrationError
+import dev.astoris.ursa.core.push.PushSetupSignal
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.time.DayOfWeek
@@ -120,6 +127,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val eventPreferences by vm.pushEventPreferences.collectAsStateWithLifecycle()
     val overallStatusEnabled by vm.overallStatusEnabled.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val connectionFailure by vm.connectionFailure.collectAsStateWithLifecycle()
     val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
     val canSetupKuma = activeConnection.allows(AccessCapability.PUSH_SETUP)
     var selectedMonitorIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -130,6 +138,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var timingMonitorId by remember { mutableStateOf<Int?>(null) }
     var dependencyMonitorId by remember { mutableStateOf<Int?>(null) }
     var policyMonitorId by remember { mutableStateOf<Int?>(null) }
+    var diagnosticNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(endpoint) {
         if (endpoint != null) vm.refreshKumaPushSetup()
@@ -140,6 +149,30 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             defaultForNew = ready.isDefault
         }
     }
+    LaunchedEffect(
+        diagnostics.deliveryTestRequestedAtMs,
+        diagnostics.deliveryTestReceivedAtMs,
+        diagnostics.deliveryTestRejectedAtMs,
+    ) {
+        diagnosticNow = System.currentTimeMillis()
+        val requestedAt = diagnostics.deliveryTestRequestedAtMs
+        val terminal = diagnostics.deliveryTestReceivedAtMs.isAtOrAfter(requestedAt) ||
+            diagnostics.deliveryTestRejectedAtMs.isAtOrAfter(requestedAt)
+        if (requestedAt != null && !terminal) {
+            val remaining = PushPathHealthResolver.DELIVERY_TIMEOUT_MILLIS - (diagnosticNow - requestedAt)
+            if (remaining > 0L) delay(remaining)
+            diagnosticNow = System.currentTimeMillis()
+        }
+    }
+
+    val pathHealth = PushPathHealthResolver.resolve(
+        hasDistributor = distributor != null,
+        hasEndpoint = endpoint != null,
+        diagnostics = diagnostics,
+        setup = kumaSetup.pushSetupSignal(),
+        connectionFailure = connectionFailure,
+        nowMillis = diagnosticNow,
+    )
 
     // Notification permission (API 33+). Below 33 it is granted at install time.
     fun notifGranted(): Boolean {
@@ -226,6 +259,10 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         DiagnosticRow(
+                            stringResource(R.string.push_diagnostics_current),
+                            pathHealth.summary(),
+                        )
+                        DiagnosticRow(
                             stringResource(R.string.push_diagnostics_last_registration),
                             diagnostics.lastRegistrationAtMs.diagnosticTimeOrNever(),
                         )
@@ -247,6 +284,10 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         DiagnosticRow(
                             stringResource(R.string.push_diagnostics_last_error),
                             errorText,
+                        )
+                        DiagnosticRow(
+                            stringResource(R.string.push_diagnostics_last_disconnect),
+                            diagnostics.lastUnexpectedUnregisterAtMs.diagnosticTimeOrNever(),
                         )
                     }
                 }
@@ -431,7 +472,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(d, style = MaterialTheme.typography.bodyMedium)
-                            if (d == distributor) {
+                            if (d == distributor && endpoint != null) {
                                 Text(stringResource(R.string.push_selected), color = MaterialTheme.colorScheme.primary)
                             } else {
                                 TextButton(onClick = { vm.registerPush(d) }) { Text(stringResource(R.string.push_use)) }
@@ -1461,6 +1502,51 @@ private val PushRegistrationError.messageRes: Int
         PushRegistrationError.NETWORK -> R.string.push_diagnostics_error_network
         PushRegistrationError.ACTION_REQUIRED -> R.string.push_diagnostics_error_action
         PushRegistrationError.VAPID_REQUIRED -> R.string.push_diagnostics_error_vapid
+    }
+
+private fun KumaPushSetupUiState.pushSetupSignal(): PushSetupSignal = when (this) {
+    KumaPushSetupUiState.Idle, KumaPushSetupUiState.Loading -> PushSetupSignal.UNCHECKED
+    is KumaPushSetupUiState.Ready -> when {
+        notificationId == null -> PushSetupSignal.MISSING
+        !configurationCurrent -> PushSetupSignal.STALE
+        else -> PushSetupSignal.CURRENT
+    }
+    is KumaPushSetupUiState.Error -> when (reason) {
+        KumaPushSetupError.SERVER_UNAVAILABLE -> PushSetupSignal.UNAVAILABLE
+        KumaPushSetupError.SCOPE_SAVE_FAILED -> PushSetupSignal.STALE
+        else -> PushSetupSignal.SETUP_ERROR
+    }
+}
+
+@Composable
+private fun PushPathHealth.summary(): String = when (state) {
+    PushPathState.NOT_CONNECTED -> stringResource(R.string.push_path_not_connected)
+    PushPathState.DISTRIBUTOR_DISCONNECTED -> stringResource(R.string.push_path_disconnected)
+    PushPathState.REGISTRATION_FAILED -> stringResource(
+        R.string.push_path_registration_failed,
+        registrationError?.let { stringResource(it.messageRes) }
+            ?: stringResource(R.string.push_diagnostics_error_internal),
+    )
+    PushPathState.REGISTERED -> stringResource(R.string.push_path_registered)
+    PushPathState.KUMA_UNAVAILABLE -> stringResource(connectionFailure.pathHintRes)
+    PushPathState.PROVIDER_MISSING -> stringResource(R.string.push_path_provider_missing)
+    PushPathState.BINDING_STALE -> stringResource(R.string.push_path_binding_stale)
+    PushPathState.SETUP_ERROR -> stringResource(R.string.push_path_setup_error)
+    PushPathState.DELIVERY_REJECTED -> stringResource(R.string.push_path_delivery_rejected)
+    PushPathState.DELIVERY_WAITING -> stringResource(R.string.push_path_delivery_waiting)
+    PushPathState.DELIVERY_TIMEOUT -> stringResource(R.string.push_path_delivery_timeout)
+    PushPathState.VERIFIED -> stringResource(R.string.push_path_verified)
+}
+
+private val ConnectionFailureReason?.pathHintRes: Int
+    get() = when (this) {
+        ConnectionFailureReason.DEVICE_OFFLINE -> R.string.push_path_device_offline
+        ConnectionFailureReason.SERVER_UNREACHABLE -> R.string.push_path_server_unreachable
+        ConnectionFailureReason.AUTHENTICATION -> R.string.push_path_authentication
+        ConnectionFailureReason.CERTIFICATE -> R.string.push_path_certificate
+        ConnectionFailureReason.CLEARTEXT_BLOCKED -> R.string.push_path_cleartext
+        ConnectionFailureReason.INCOMPATIBLE_RESPONSE -> R.string.push_path_incompatible
+        ConnectionFailureReason.UNKNOWN, null -> R.string.push_path_unavailable
     }
 
 @Composable

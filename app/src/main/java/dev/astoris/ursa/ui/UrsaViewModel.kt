@@ -1137,6 +1137,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun unregisterPush() {
         val app = getApplication<Application>()
+        PushStore.expectUnregister(app)
+        UrsaPushService.cancelPathIssue(app)
         UnifiedPush.unregister(app)
         UnifiedPush.removeDistributor(app)
         PushStore.clear(app)

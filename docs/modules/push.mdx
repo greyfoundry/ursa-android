@@ -26,6 +26,9 @@ connection: push works while the app is closed.
   adds ntfy's required `up=1` query flag without discarding an existing query.
 - `.../core/push/PushDeliveryTest.kt` - creates and exactly matches the short,
   random marker used to distinguish a requested Kuma test from unrelated pushes.
+- `.../core/push/PushPathHealth.kt` - pure resolver for distributor registration,
+  managed Kuma setup, connection failure, and bounded delivery-test health. It
+  also distinguishes explicit disconnects from unexpected unregister callbacks.
 - `.../core/push/PushAlertModeStore.kt` - synchronous, server-scoped local policy
   for transition modes, severity, bounded timing, and snooze expiry.
 - `.../core/push/PushEffectivePolicy.kt` - pure resolver for effective values,
@@ -61,7 +64,7 @@ connection: push works while the app is closed.
   show/copy the endpoint, create or update the marked Kuma Webhook provider,
   select existing monitors/default use, configure per-monitor alert modes and
   delivery severity, timing, and dependencies, explain the resulting policy, show
-  setup status, and remove it safely. Per-monitor actions wrap into compact rows
+  setup status and safe failure hints, and remove it safely. Per-monitor actions wrap into compact rows
   instead of creating a tall trailing button column. The setup
   summary names the exact saved connection, managed Webhook provider, UnifiedPush
   distributor, and last end-to-end test outcome in one place.
@@ -201,9 +204,15 @@ connection: push works while the app is closed.
   `testNotification`. A random 12-character marker correlates the returning message;
   it is cleared on match, failure, unregister, or disconnect and is never shown.
 - Diagnostics persist only last registration/message/error timestamps, normalized
-  registration failure categories, and test results. Payloads, monitor names,
-  endpoints, and server URLs are not retained. A delivery test does not add a fake
-  incident to the event log.
+  registration failure categories, the last unexpected-unregister timestamp, and
+  test results. Payloads, monitor names, endpoints, and server URLs are not retained.
+  Connector-confirmed registration failures and unexpected unregister callbacks use
+  one normal-priority Android channel with fixed, category-only copy; explicit user
+  disconnects are marked briefly and stay quiet. A successful endpoint or delivered
+  message clears the warning. The setup screen reports provider/setup and known Kuma
+  connection failures separately, and turns an accepted unmatched delivery test into
+  a timeout after 30 seconds without adding polling or a background service. A
+  delivery test does not add a fake incident to the event log.
 - Kuma 2.5.1's Pinglet and SMS Gateway additions are separate outbound providers;
   the existing Webhook provider still sends the same `{ heartbeat, monitor, msg }`
   body, verified live through Kuma 2.5.5. URSA should keep the provider-neutral
