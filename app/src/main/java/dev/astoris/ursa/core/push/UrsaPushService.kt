@@ -254,7 +254,15 @@ class UrsaPushService : PushService() {
             val id = idOverride ?: notice.monitorId ?: notice.title.hashCode()
             val groupIdentity = PushNotificationGroups.boundIdentity(context, alertServerId)
             if (groupIdentity != null && alertServerId != null) {
-                PushNotificationGroups.applyToChild(context, builder, alertServerId, id, groupIdentity)
+                PushNotificationGroups.applyToChild(
+                    context,
+                    builder,
+                    alertServerId,
+                    id,
+                    groupIdentity,
+                    alertMonitorId,
+                    notice.status,
+                )
             }
             if (
                 notice.status == 0 &&

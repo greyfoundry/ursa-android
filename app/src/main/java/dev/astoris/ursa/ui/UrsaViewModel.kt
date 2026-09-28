@@ -46,6 +46,7 @@ import dev.astoris.ursa.core.push.OverallStatusService
 import dev.astoris.ursa.core.push.OverallStatusStore
 import dev.astoris.ursa.core.push.KumaWebhook
 import dev.astoris.ursa.core.push.ManagedPushScopeStore
+import dev.astoris.ursa.core.push.PushNotificationGroups
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
@@ -360,6 +361,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val pushAlertTimings: StateFlow<Map<Int, PushAlertTiming>> = _pushAlertTimings.asStateFlow()
     private val _pushSnoozes = MutableStateFlow<Map<Int, Long>>(emptyMap())
     val pushSnoozes: StateFlow<Map<Int, Long>> = _pushSnoozes.asStateFlow()
+    private val _pushStormCorrelationEnabled = MutableStateFlow(false)
+    val pushStormCorrelationEnabled: StateFlow<Boolean> = _pushStormCorrelationEnabled.asStateFlow()
     private val _pushDependencyGraph = MutableStateFlow(PushDependencyGraph())
     val pushDependencyGraph: StateFlow<PushDependencyGraph> = _pushDependencyGraph.asStateFlow()
     private val _pushDependencyStatuses = MutableStateFlow<Map<Int, Int?>>(emptyMap())
@@ -1181,6 +1184,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
             _pushSnoozes.value = emptyMap()
+            _pushStormCorrelationEnabled.value = false
             _pushDependencyGraph.value = PushDependencyGraph()
             _pushDependencyStatuses.value = emptyMap()
             return
@@ -1191,6 +1195,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
             _pushSnoozes.value = emptyMap()
+            _pushStormCorrelationEnabled.value = false
             _pushDependencyGraph.value = PushDependencyGraph()
             _pushDependencyStatuses.value = emptyMap()
             return
@@ -1205,6 +1210,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
                 _pushSnoozes.value = emptyMap()
+                _pushStormCorrelationEnabled.value = false
                 _pushDependencyGraph.value = PushDependencyGraph()
                 _pushDependencyStatuses.value = emptyMap()
                 return@launch
@@ -1228,6 +1234,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSeverities.value = pushAlertModeStore.severities(serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(serverId, ids)
             _pushSnoozes.value = pushAlertModeStore.snoozes(serverId, ids)
+            _pushStormCorrelationEnabled.value = pushAlertModeStore.stormCorrelationEnabled(serverId)
             loadPushDependencies(serverId, selectedIds)
         }
     }
@@ -1268,6 +1275,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSeverities.value = pushAlertModeStore.severities(result.serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(result.serverId, ids)
             _pushSnoozes.value = pushAlertModeStore.snoozes(result.serverId, ids)
+            _pushStormCorrelationEnabled.value = pushAlertModeStore.stormCorrelationEnabled(result.serverId)
             loadPushDependencies(result.serverId, effectiveSelectedIds)
         }
     }
@@ -1336,6 +1344,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _pushAlertTimings.value = _pushAlertTimings.value + (monitorId to safeTiming)
     }
 
+    fun setPushStormCorrelationEnabled(enabled: Boolean) {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return
+        if (!setup.configurationCurrent) return
+        val serverId = setup.serverId ?: return
+        if (!pushAlertModeStore.setStormCorrelationEnabled(serverId, enabled)) return
+        _pushStormCorrelationEnabled.value = enabled
+        PushNotificationGroups.refresh(getApplication(), serverId)
+    }
+
     fun setPushQuietHours(schedule: PushQuietHours) {
         val safeSchedule = schedule.normalized()
         pushQuietHoursStore.save(safeSchedule)
@@ -1370,6 +1387,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
                 _pushSnoozes.value = emptyMap()
+                _pushStormCorrelationEnabled.value = false
                 _pushDependencyGraph.value = PushDependencyGraph()
                 _pushDependencyStatuses.value = emptyMap()
                 refreshKumaPushSetup()

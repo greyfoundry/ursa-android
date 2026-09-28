@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-27
+last-updated: 2026-09-28
 owner: astoris
 status: stable
 ---
@@ -46,7 +46,8 @@ connection: push works while the app is closed.
 - `.../core/push/PushAlertActionReceiver.kt` - non-exported acknowledge and
   one-hour snooze notification actions.
 - `.../core/push/PushNotificationGrouping.kt` - same-server Android grouping,
-  bounded inbox summaries, and non-exported dismissal reconciliation.
+  bounded inbox summaries, detached-child reconciliation, and optional
+  evidence-bounded storm hints; dismissal reconciliation remains non-exported.
 - `.../core/push/PushQuietHours.kt` / `PushQuietHoursStore.kt` - local weekly
   schedule that routes delivery-time alerts to the existing silent channel.
 - `.../core/push/PushEventPolicy.kt` / `PushEventPreferencesStore.kt` - recovery,
@@ -78,7 +79,8 @@ connection: push works while the app is closed.
 - ViewModel: `pushEndpoint`, `pushDistributor`, `distributors`, `pushMode`;
   `enterPush`/`exitPush`/`refreshDistributors`/`registerPush`/`unregisterPush`,
   plus local notification testing, managed Kuma setup state, and
-  create/update/test/remove actions and per-monitor alert-mode state.
+  create/update/test/remove actions, per-monitor alert-mode state, and the
+  server-scoped storm-correlation opt-in.
 
 **depends on**
 - `org.unifiedpush.android:connector:3.3.5` (excludes JVM `tink`; we ship
@@ -135,9 +137,18 @@ connection: push works while the app is closed.
   96-character title lines; manual, legacy, delivery-test, and unbound payloads
   stay ungrouped. Acknowledge, recovery, snooze, and dismissal refresh the summary.
   When only one alert remains, it is detached before the summary is cancelled so
-  Android cannot remove the surviving child with its former group. This is native
-  presentation grouping only; storm-correlation claims and suppression remain
-  separate policy.
+  Android cannot remove the surviving child with its former group. A private
+  non-sensitive group marker lets a later second alert reattach that child before
+  recreating the summary; serialized reconciliation prevents concurrent deliveries
+  from losing group membership.
+- Storm correlation is a separate, off-by-default, per-server presentation option.
+  It considers only active managed Down notifications received within two minutes.
+  The summary says alerts *may* share a failure domain when at least three share a
+  Kuma parent, at least three share a tag, or at least five belong to the same
+  server. It uses the existing encrypted managed monitor directory plus notification
+  IDs, numeric statuses, and timestamps; it adds no payload persistence and never
+  suppresses a child. Manual, legacy, delivery-test, unbound, Up, and stale alerts
+  cannot contribute.
 - Per-monitor severity uses the same server scope. Critical, standard, and silent
   map to stable Android channels. Critical defaults to high importance with sound
   and vibration; standard defaults to normal importance with sound and no forced

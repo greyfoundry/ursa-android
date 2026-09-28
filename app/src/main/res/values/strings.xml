@@ -861,6 +861,10 @@
     </plurals>
     <string name="push_policy_grouping">Grouping</string>
     <string name="push_policy_grouping_default">Grouped by server when 2+ alerts are active · URSA default</string>
+    <string name="push_policy_grouping_correlation">Grouped by server at 2+ active alerts · likely shared failures highlighted · no suppression</string>
+    <string name="push_correlation_enable">Highlight likely shared failures</string>
+    <string name="push_correlation_desc">When 3 recent Down alerts share a group or tag, or 5 reach this server within 2 minutes, the Android summary says they may share a failure domain. Alerts are never suppressed.</string>
+    <string name="push_group_correlation_hint">%1$d recent Down alerts may share a failure domain</string>
     <plurals name="push_group_summary_title">
         <item quantity="one">%1$d monitor alert</item>
         <item quantity="other">%1$d monitor alerts</item>

@@ -113,6 +113,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val severities by vm.pushSeverities.collectAsStateWithLifecycle()
     val alertTimings by vm.pushAlertTimings.collectAsStateWithLifecycle()
     val snoozes by vm.pushSnoozes.collectAsStateWithLifecycle()
+    val stormCorrelationEnabled by vm.pushStormCorrelationEnabled.collectAsStateWithLifecycle()
     val dependencyGraph by vm.pushDependencyGraph.collectAsStateWithLifecycle()
     val dependencyStatuses by vm.pushDependencyStatuses.collectAsStateWithLifecycle()
     val quietHours by vm.pushQuietHours.collectAsStateWithLifecycle()
@@ -667,6 +668,31 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     }
                                 }
                             }
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = stormCorrelationEnabled,
+                                        enabled = canSetupKuma && setup.configurationCurrent,
+                                        role = Role.Checkbox,
+                                        onValueChange = vm::setPushStormCorrelationEnabled,
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(
+                                    checked = stormCorrelationEnabled,
+                                    enabled = canSetupKuma && setup.configurationCurrent,
+                                    onCheckedChange = null,
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(stringResource(R.string.push_correlation_enable))
+                                    Text(
+                                        stringResource(R.string.push_correlation_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                             HorizontalDivider()
                             Text(
                                 stringResource(R.string.push_alert_modes_title),
@@ -1008,6 +1034,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             monitorName = policyMonitor.name,
             policy = policy,
             monitorNames = monitors.associate { it.id to it.name },
+            stormCorrelationEnabled = stormCorrelationEnabled,
             onDismiss = { policyMonitorId = null },
         )
     }
@@ -1018,6 +1045,7 @@ private fun PushEffectivePolicyDialog(
     monitorName: String,
     policy: PushEffectivePolicy,
     monitorNames: Map<Int, String>,
+    stormCorrelationEnabled: Boolean,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -1105,7 +1133,10 @@ private fun PushEffectivePolicyDialog(
                 )
                 DiagnosticRow(
                     stringResource(R.string.push_policy_grouping),
-                    stringResource(R.string.push_policy_grouping_default),
+                    stringResource(
+                        if (stormCorrelationEnabled) R.string.push_policy_grouping_correlation
+                        else R.string.push_policy_grouping_default,
+                    ),
                 )
                 Text(
                     stringResource(R.string.push_policy_precedence_note),

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-27
+last-updated: 2026-09-28
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,40 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-28 - Opt-in storm correlation
+
+**changed**: Managed setup now offers an off-by-default, per-server shared-failure
+hint. It considers only active managed Down alerts inside a two-minute window and
+uses cautious wording when three share a Kuma parent, three share a tag, or five
+belong to the same server. Every child remains visible; correlation never enables
+suppression. The effective-policy dialog reports whether the hint is enabled.
+
+**grouping correction**: Live Android QA exposed that detaching the first child to
+avoid a one-item summary also made it invisible to the next reconciliation. A
+non-sensitive hashed group marker now survives that standalone state, the second
+alert reattaches both children before posting the summary, and reconciliation is
+serialized across concurrent deliveries. This preserves the first-alert contract
+without relying on Android's unrelated automatic app grouping.
+
+**security and compatibility**: Existing users remain opted out. The preference
+stores only a boolean under the random managed server scope. Evaluation reuses the
+encrypted bounded monitor directory and active notification monitor ID, numeric
+status, and post time; it persists no inferred cause or payload content. Manual,
+legacy, test, unbound, Up, and stale alerts cannot contribute.
+
+**live QA**: A real ntfy registration and Kuma 2.5.5 managed Webhook on the visible
+API 37 Pixel 8 produced one standalone child after the first Down and two children
+plus one summary after the second. Five Down alerts produced five marked children
+plus one summary. With correlation off, no hint appeared; enabling it updated the
+same summary without removing a child, and disabling it removed the hint and its
+stored preference. The final F-Droid release cold-launched without a fatal runtime
+entry, while the Kuma container remained healthy with no fatal log line.
+
+**verification**: Focused tests cover detached-child membership, parent/tag/server
+thresholds, stale and non-Down exclusion, and scoped preference cleanup. The
+complete 243-task two-flavor phone/Wear unit-test, lint, debug-assembly, F-Droid
+release, and vital-lint gate passed.
 
 ### 2026-09-27 - Managed Android alert summaries
 

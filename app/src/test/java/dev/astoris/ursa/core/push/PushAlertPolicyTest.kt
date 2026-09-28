@@ -42,15 +42,18 @@ class PushAlertPolicyTest {
         assertEquals("severity:$serverId:42", PushAlertPreferenceKey.severity(serverId, 42))
         assertEquals("timing:$serverId:42", PushAlertPreferenceKey.timing(serverId, 42))
         assertEquals("snooze:$serverId:42", PushAlertPreferenceKey.snooze(serverId, 42))
+        assertEquals("correlation:$serverId", PushAlertPreferenceKey.correlation(serverId))
         assertTrue(PushAlertPreferenceKey.belongsToServer("$serverId:42", serverId))
         assertTrue(PushAlertPreferenceKey.belongsToServer("severity:$serverId:42", serverId))
         assertTrue(PushAlertPreferenceKey.belongsToServer("timing:$serverId:42", serverId))
         assertTrue(PushAlertPreferenceKey.belongsToServer("snooze:$serverId:42", serverId))
+        assertTrue(PushAlertPreferenceKey.belongsToServer("correlation:$serverId", serverId))
         assertFalse(PushAlertPreferenceKey.belongsToServer("other:$serverId:42", serverId))
         assertNull(PushAlertPreferenceKey.mode("not-valid", 42))
         assertNull(PushAlertPreferenceKey.severity(serverId, 0))
         assertNull(PushAlertPreferenceKey.timing(serverId, 0))
         assertNull(PushAlertPreferenceKey.snooze("not-valid", 42))
+        assertNull(PushAlertPreferenceKey.correlation("not-valid"))
     }
 
     @Test

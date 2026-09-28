@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-27
+last-updated: 2026-09-28
 owner: astoris
 status: in-flux
 ---
@@ -225,9 +225,10 @@ match, failed Kuma acknowledgement, unregister, or explicit disconnect. The matc
 push is rendered as fixed local copy and is excluded from operational event history.
 Per-monitor transition modes, delivery severities, alert timing, and snooze expiry
 are non-sensitive preferences scoped by the managed provider's random server ID
-and monitor ID. The device-wide quiet-hours schedule is a separate non-sensitive
-preference. These settings contain no server address, endpoint, credential, or
-notification content. The effective-policy explanation derives only from these
+and monitor ID. The storm-correlation opt-in is one non-sensitive boolean under
+the same random server scope, and defaults off. The device-wide quiet-hours
+schedule is a separate non-sensitive preference. These settings contain no server
+address, endpoint, credential, or notification content. The effective-policy explanation derives only from these
 preferences, managed assignment/setup state, and Android notification availability;
 it does not render endpoints, server URLs, credentials, headers, or payload bodies.
 Local dependency rules are versioned, bounded, encrypted with the Keystore-backed
@@ -249,7 +250,10 @@ Managed notification group keys and summary IDs likewise derive from a truncated
 hash of that random scope. The summary reuses only bounded, newline-sanitized titles
 already visible in its child notifications; it never renders a server URL, endpoint,
 credential, access header, or raw payload body. Legacy and unbound notifications are
-not assigned to a managed group.
+not assigned to a managed group. Optional storm hints evaluate only monitor ID,
+numeric Down status, Android post time, and the already encrypted bounded parent/tag
+directory. Wording remains probabilistic, thresholds are fixed and documented, and
+the feature never suppresses child notifications or persists a correlation claim.
 Custom channel sounds remain wholly owned by Android settings; URSA persists no
 sound URI or media permission.
 
