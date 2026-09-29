@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-28
+last-updated: 2026-09-29
 owner: astoris
 status: in-flux
 ---
@@ -217,11 +217,12 @@ duplicate creates after a late acknowledgement. The UI additionally requires an
 authenticated, write-verified connection before showing controls; this is presentation
 defence only, and repository enforcement remains authoritative.
 
-Push diagnostics retain timestamps, normalized registration error categories, the
-last unexpected-unregister time, and local/end-to-end test outcomes in the existing
-non-backed-up push preferences. They never persist message bodies, monitor names,
-server URLs, or a second endpoint copy. Connector-confirmed failures use fixed local
-notification copy selected only from the normalized category; no distributor,
+Push diagnostics retain timestamps, normalized registration/scope-repair categories,
+the last unexpected-unregister time, local/end-to-end test outcomes, and the random
+non-credential server scope required to clear only the repair that a verified refresh
+resolved. The scope is never rendered. The preferences never persist message bodies,
+monitor names or IDs, server URLs, or a second endpoint copy. Connector-confirmed
+failures use fixed local notification copy selected only from the normalized category; no distributor,
 endpoint, server, header, credential, or raw error value is rendered. Explicit user
 disconnects are marked for a two-minute callback window so they do not produce a
 false warning, and a successful registration clears that marker and any warning.
@@ -281,10 +282,13 @@ UnifiedPush connector ships its own internal receiver that forwards to it - so t
 is no exported push surface. The acknowledge/snooze and group-dismissal receivers
 are also non-exported and are reachable only through immutable, explicit app-created
 PendingIntents. The dismissal receiver validates the bounded managed server scope
-before reconciling a summary. The
-push body is treated as untrusted input and parsed tolerantly by `PushParse`. Manual
-and legacy bodies are render-only. Verified managed status may affect local alert
-state, but never authorizes a remote mutation.
+before reconciling a summary. The push body is treated as untrusted input and parsed
+tolerantly by `PushParse`. Manual and legacy bodies are render-only. A managed payload
+must match both an encrypted provider binding and its bounded monitor directory before
+server-scoped policy, timing, grouping, history association, or actions apply. Unknown
+identities still render immediately with their server identity removed and raise only
+fixed repair copy. Verified managed status may affect local alert state, but never
+authorizes a remote mutation.
 The optional persistent-status service is non-exported and user-started. Android 14+
 sees its declared `specialUse` type and free-form subtype; the required foreground
 permissions are normal/app-op permissions with no runtime data grant. Its ongoing

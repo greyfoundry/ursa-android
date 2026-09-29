@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-28
+last-updated: 2026-09-29
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,38 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-09-29 - Managed-push binding repair
+
+**changed**: The receive boundary now requires both the random managed provider
+scope and monitor ID to exist in the encrypted local directory before applying
+server-scoped policy, delay/repeat, de-duplication, grouping, history association,
+or notification actions. Unknown-provider/monitor payloads still post immediately
+as render-only alerts, alongside one fixed repair warning. Notifications records a
+category and time without displaying provider or monitor identifiers; its existing
+Refresh action re-verifies the active Kuma provider/directory and clears the matching
+diagnosis. Duplicate marked Webhooks expose a Remove-then-Create repair instead of
+silently choosing one. Deleting a saved connection removes its scopes and scoped
+local alert state/work.
+
+**security and compatibility**: Manual and legacy Webhooks keep their released
+immediate render-only behavior. Delivery-test notifications now explicitly discard
+managed identity before rendering. Repair diagnostics retain no payload, monitor
+name/ID, endpoint, server URL, header, or credential; only the fixed category,
+timestamp, and random non-credential server scope needed for exact clearing persist.
+
+**live QA**: A controlled unknown-monitor payload traversed the existing Kuma 2.5.5
+managed Webhook and ntfy registration on the visible API 37 Pixel 8. Android showed
+the underlying alert and fixed repair warning, with no acknowledge or snooze actions.
+The in-app diagnosis appeared, Refresh rebound the verified directory, removed the
+repair warning, and retained the underlying alert until it was dismissed. A cold
+`ursa://push` launch opened Notifications, the Kuma container stayed healthy, and
+Android crash logs remained empty.
+
+**verification**: Focused scope-policy tests cover legacy input, unknown providers,
+unknown monitors, and bound monitors. F-Droid debug assembly, unit tests, and lint
+passed before live QA. The complete 243-task two-flavor phone/Wear unit-test, lint,
+debug-assembly, F-Droid release, and vital-lint gate then passed.
 
 ### 2026-09-28 - Push-path disconnect diagnostics
 

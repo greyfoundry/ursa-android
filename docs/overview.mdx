@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-28
+last-updated: 2026-09-29
 owner: astoris
 status: stable
 ---
@@ -52,7 +52,9 @@ and the module docs under `docs/modules/`.
   separate distributor loss, registration failure, stale managed setup, Kuma
   connection failures, and a 30-second end-to-end delivery timeout from actual
   monitor-down transitions. Unexpected distributor loss raises a privacy-safe
-  Android alert; an explicit Disconnect remains quiet. See
+  Android alert; an explicit Disconnect remains quiet. Unknown providers, unknown
+  monitors, and duplicate marked Webhooks expose one repair path; unbound alerts
+  stay immediate but cannot inherit scoped policy, grouping, delay, or actions. See
   `docs/modules/push.mdx`.
 - M4 done: native depth - offline last-known cache, biometric app lock,
   notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,

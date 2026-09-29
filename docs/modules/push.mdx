@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-28
+last-updated: 2026-09-29
 owner: astoris
 status: stable
 ---
@@ -38,7 +38,8 @@ connection: push works while the app is closed.
   dependency graph with bounded multi-parent rules and cycle-safe evaluation.
 - `.../core/push/ManagedPushScopeStore.kt` - encrypted, versioned binding from a
   managed provider's random server scope to the exact saved connection and a
-  bounded lightweight monitor directory.
+  bounded lightweight monitor directory, plus the pure unknown-provider/monitor
+  classifier used at the delivery boundary.
 - `.../core/push/PushAlertLifecycle.kt` - pure delay/repeat/acknowledgement policy
   plus privacy-safe WorkManager and notification identities.
 - `.../core/push/PushPendingAlertStore.kt` - encrypted rendered payloads for
@@ -67,7 +68,9 @@ connection: push works while the app is closed.
   setup status and safe failure hints, and remove it safely. Per-monitor actions wrap into compact rows
   instead of creating a tall trailing button column. The setup
   summary names the exact saved connection, managed Webhook provider, UnifiedPush
-  distributor, and last end-to-end test outcome in one place.
+  distributor, and last end-to-end test outcome in one place. Duplicate marked
+  Webhooks expose one Remove-then-Create repair path instead of guessing which
+  provider owns assignments.
 
 **exports**
 - `UrsaPushService` (manifest-declared, `exported="false"`, action `PUSH_EVENT`).
@@ -113,8 +116,11 @@ connection: push works while the app is closed.
   it prevents identical monitor IDs on different saved servers from sharing an
   alert policy. A current provider is also bound locally to its exact saved
   connection in encrypted storage. Legacy managed providers are bound when the
-  authenticated setup screen verifies them; unbound payloads retain notification
-  delivery but cannot expose remote monitor actions.
+  authenticated setup screen verifies them. A managed identity is trusted only when
+  both provider and monitor exist in that binding. Unknown-provider/monitor payloads
+  retain immediate notification delivery but are stripped of server identity before
+  policy, timing, grouping, history association, and action construction. One fixed,
+  privacy-safe warning opens Notifications; a verified refresh clears it.
 - Per-monitor modes are non-sensitive device preferences keyed by server scope and
   monitor ID. Muted posts nothing; down-only accepts status 0; down-and-recovery
   accepts 0 and 1; all-transitions also accepts pending, maintenance, and unknown
@@ -197,15 +203,19 @@ connection: push works while the app is closed.
   run sequentially because Kuma restarts a monitor after `editMonitor`; this avoids
   a fleet-wide restart burst. No-op relations are skipped.
 - Removing managed setup deletes only marked providers. The UnifiedPush registration
-  and endpoint remain on the device, ready for another server or manual setup.
+  and endpoint remain on the device, ready for another server or manual setup. Removing
+  a saved connection also deletes its encrypted scope and scoped local policy/work so a
+  later delivery cannot retain actions for a server the user removed.
 - "Test phone notification" exercises Android permission, app notification state,
   channel state, and posting only. It never contacts Kuma or the distributor.
 - "Test through Kuma" sends a temporary marked Webhook config through Kuma's
   `testNotification`. A random 12-character marker correlates the returning message;
   it is cleared on match, failure, unregister, or disconnect and is never shown.
 - Diagnostics persist only last registration/message/error timestamps, normalized
-  registration failure categories, the last unexpected-unregister timestamp, and
-  test results. Payloads, monitor names, endpoints, and server URLs are not retained.
+  registration and scope-repair categories, the last unexpected-unregister timestamp,
+  test results, and the random non-credential server scope needed to clear only the
+  verified repair. The scope is never rendered. Payloads, monitor names, endpoints,
+  monitor IDs, and server URLs are not retained.
   Connector-confirmed registration failures and unexpected unregister callbacks use
   one normal-priority Android channel with fixed, category-only copy; explicit user
   disconnects are marked briefly and stay quiet. A successful endpoint or delivered

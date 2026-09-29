@@ -55,6 +55,19 @@ class ManagedPushScopeCodecTest {
         assertNull(MonitorActionReceiver.targetConnection(listOf(first, second), "https://missing.example.test"))
     }
 
+    @Test fun managedPolicyRequiresBoundProviderAndMonitor() {
+        val scope = ManagedPushScopeCodec.create(
+            SERVER_ID,
+            "https://kuma.example.test",
+            listOf(monitor(1, "API", "http")),
+        )!!
+
+        assertNull(ManagedPushScopePolicy.issue(null, null, 1))
+        assertEquals(ManagedPushScopeIssue.UNKNOWN_PROVIDER, ManagedPushScopePolicy.issue(null, SERVER_ID, 1))
+        assertEquals(ManagedPushScopeIssue.UNKNOWN_MONITOR, ManagedPushScopePolicy.issue(scope, SERVER_ID, 2))
+        assertNull(ManagedPushScopePolicy.issue(scope, SERVER_ID, 1))
+    }
+
     private fun monitor(
         id: Int,
         name: String,

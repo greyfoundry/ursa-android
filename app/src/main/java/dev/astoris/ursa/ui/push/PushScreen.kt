@@ -89,6 +89,7 @@ import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.core.push.PushLocalTestResult
 import dev.astoris.ursa.core.push.PushDiagnostics
+import dev.astoris.ursa.core.push.ManagedPushScopeIssue
 import dev.astoris.ursa.core.push.PushPathHealth
 import dev.astoris.ursa.core.push.PushPathHealthResolver
 import dev.astoris.ursa.core.push.PushPathState
@@ -202,7 +203,14 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_notifications)) },
-                actions = { TextButton(onClick = { vm.refreshDistributors() }) { Text(stringResource(R.string.push_refresh)) } },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            vm.refreshDistributors()
+                            if (endpoint != null) vm.refreshKumaPushSetup()
+                        },
+                    ) { Text(stringResource(R.string.push_refresh)) }
+                },
             )
         },
     ) { padding ->
@@ -288,6 +296,23 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         DiagnosticRow(
                             stringResource(R.string.push_diagnostics_last_disconnect),
                             diagnostics.lastUnexpectedUnregisterAtMs.diagnosticTimeOrNever(),
+                        )
+                        DiagnosticRow(
+                            stringResource(R.string.push_diagnostics_setup_repair),
+                            diagnostics.scopeIssue?.let { issue ->
+                                stringResource(
+                                    when (issue) {
+                                        ManagedPushScopeIssue.UNKNOWN_PROVIDER ->
+                                            R.string.push_diagnostics_unknown_provider
+                                        ManagedPushScopeIssue.UNKNOWN_MONITOR ->
+                                            R.string.push_diagnostics_unknown_monitor
+                                    },
+                                )
+                            } ?: stringResource(R.string.push_diagnostics_no_repair),
+                        )
+                        DiagnosticRow(
+                            stringResource(R.string.push_diagnostics_last_setup_issue),
+                            diagnostics.scopeIssueAtMs.diagnosticTimeOrNever(),
                         )
                     }
                 }
@@ -596,6 +621,13 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
+                            if (setup.duplicateCount > 0) {
+                                Text(
+                                    stringResource(R.string.push_kuma_duplicate),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                             Row(
                                 Modifier
                                     .fillMaxWidth()
@@ -691,7 +723,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = { vm.saveKumaPushSetup(selectedMonitorIds, defaultForNew) },
-                                    enabled = canSetupKuma,
+                                    enabled = canSetupKuma && setup.duplicateCount == 0,
                                 ) {
                                     Text(
                                         stringResource(

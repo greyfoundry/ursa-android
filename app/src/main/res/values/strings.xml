@@ -791,6 +791,7 @@
     <string name="push_kuma_retry">Retry</string>
     <string name="push_kuma_not_configured">Not configured on this server</string>
     <string name="push_kuma_update_needed">Configured Webhook needs updating</string>
+    <string name="push_kuma_duplicate">Multiple URSA Webhooks were found. Remove setup, then create it again so only one provider remains.</string>
     <string name="push_kuma_configured">Configured on this server</string>
     <string name="push_kuma_connection_label">Saved connection</string>
     <string name="push_kuma_connection_unavailable">No active saved connection</string>
@@ -920,6 +921,11 @@
     <string name="push_diagnostics_last_message">Last message received</string>
     <string name="push_diagnostics_last_error">Last registration error</string>
     <string name="push_diagnostics_last_disconnect">Last unexpected disconnect</string>
+    <string name="push_diagnostics_setup_repair">Setup repair</string>
+    <string name="push_diagnostics_last_setup_issue">Last setup issue</string>
+    <string name="push_diagnostics_no_repair">No repair needed</string>
+    <string name="push_diagnostics_unknown_provider">An alert arrived from an unbound Kuma server. Switch to that server, open Notifications, and refresh to verify it.</string>
+    <string name="push_diagnostics_unknown_monitor">An alert referenced a monitor missing from the saved directory. Open Notifications on that server and refresh it.</string>
     <string name="push_diagnostics_never">Never</string>
     <string name="push_diagnostics_error_value">%1$s - %2$s</string>
     <string name="push_diagnostics_error_internal">Internal distributor error</string>
@@ -954,6 +960,10 @@
     <string name="push_health_action_body">Open the distributor, complete its requested action, then retry in URSA.</string>
     <string name="push_health_vapid_title">Push setup incompatible</string>
     <string name="push_health_vapid_body">The distributor requested an unsupported web-push key. Choose another distributor.</string>
+    <string name="push_scope_unknown_provider_title">Push setup needs verification</string>
+    <string name="push_scope_unknown_provider_body">An alert arrived from an unbound Kuma server. Open Notifications and refresh to verify the setup.</string>
+    <string name="push_scope_unknown_monitor_title">Push monitor needs refreshing</string>
+    <string name="push_scope_unknown_monitor_body">An alert referenced an unknown monitor. Open Notifications on its server and refresh the setup.</string>
     <string name="push_test_local_button">Test phone notification</string>
     <string name="push_test_local_posted">Android accepted the test notification.</string>
     <string name="push_test_local_permission">Notification permission is required.</string>

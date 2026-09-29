@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.push
 
 import android.content.Context
 import androidx.core.content.edit
+import dev.astoris.ursa.data.model.ManagedPushNotification
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +27,9 @@ data class PushDiagnostics(
     val deliveryTestRequestedAtMs: Long? = null,
     val deliveryTestReceivedAtMs: Long? = null,
     val deliveryTestRejectedAtMs: Long? = null,
+    val scopeIssue: ManagedPushScopeIssue? = null,
+    val scopeIssueAtMs: Long? = null,
+    val scopeIssueServerId: String? = null,
 )
 
 /**
@@ -54,6 +58,9 @@ object PushStore {
     private const val KEY_DELIVERY_TEST_REQUESTED_AT = "delivery_test_requested_at"
     private const val KEY_DELIVERY_TEST_RECEIVED_AT = "delivery_test_received_at"
     private const val KEY_DELIVERY_TEST_REJECTED_AT = "delivery_test_rejected_at"
+    private const val KEY_SCOPE_ISSUE = "scope_issue"
+    private const val KEY_SCOPE_ISSUE_AT = "scope_issue_at"
+    private const val KEY_SCOPE_ISSUE_SERVER_ID = "scope_issue_server_id"
 
     private val _endpoint = MutableStateFlow<String?>(null)
     val endpoint: StateFlow<String?> = _endpoint.asStateFlow()
@@ -147,6 +154,34 @@ object PushStore {
         _diagnostics.value = readDiagnostics(p)
     }
 
+    fun recordScopeIssue(
+        context: Context,
+        issue: ManagedPushScopeIssue,
+        serverId: String,
+    ) {
+        if (!ManagedPushNotification.isValidServerId(serverId)) return
+        val p = prefs(context)
+        p.edit {
+            putString(KEY_SCOPE_ISSUE, issue.name)
+            putLong(KEY_SCOPE_ISSUE_AT, System.currentTimeMillis())
+            putString(KEY_SCOPE_ISSUE_SERVER_ID, serverId)
+        }
+        _diagnostics.value = readDiagnostics(p)
+    }
+
+    /** Clears only the issue repaired by the verified provider currently being viewed. */
+    fun clearScopeIssue(context: Context, serverId: String): Boolean {
+        val p = prefs(context)
+        if (p.getString(KEY_SCOPE_ISSUE_SERVER_ID, null) != serverId) return false
+        p.edit {
+            remove(KEY_SCOPE_ISSUE)
+            remove(KEY_SCOPE_ISSUE_AT)
+            remove(KEY_SCOPE_ISSUE_SERVER_ID)
+        }
+        _diagnostics.value = readDiagnostics(p)
+        return true
+    }
+
     fun expectUnregister(context: Context) {
         prefs(context).edit { putLong(KEY_EXPECTED_UNREGISTER_AT, System.currentTimeMillis()) }
     }
@@ -207,6 +242,11 @@ object PushStore {
             deliveryTestRequestedAtMs = prefs.timestamp(KEY_DELIVERY_TEST_REQUESTED_AT),
             deliveryTestReceivedAtMs = prefs.timestamp(KEY_DELIVERY_TEST_RECEIVED_AT),
             deliveryTestRejectedAtMs = prefs.timestamp(KEY_DELIVERY_TEST_REJECTED_AT),
+            scopeIssue = prefs.getString(KEY_SCOPE_ISSUE, null)?.let { value ->
+                runCatching { ManagedPushScopeIssue.valueOf(value) }.getOrNull()
+            },
+            scopeIssueAtMs = prefs.timestamp(KEY_SCOPE_ISSUE_AT),
+            scopeIssueServerId = prefs.getString(KEY_SCOPE_ISSUE_SERVER_ID, null),
         )
 
     private fun android.content.SharedPreferences.timestamp(key: String): Long? =

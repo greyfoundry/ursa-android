@@ -66,6 +66,7 @@ data class ManagedPushAssignments(
     val notification: ManagedPushNotification?,
     val selectedMonitorIds: Set<Int>,
     val unavailableMonitorIds: Set<Int>,
+    val duplicateCount: Int = 0,
 )
 
 data class ManagedPushSaveResult(
@@ -219,7 +220,8 @@ class MonitorRepository(
         ) {
             return null
         }
-        val notification = client.managedPushNotifications.value.firstOrNull()
+        val managed = client.managedPushNotifications.value
+        val notification = managed.firstOrNull()
             ?: return ManagedPushAssignments(null, emptySet(), emptySet())
         val permits = Semaphore(NOTIFICATION_READ_CONCURRENCY)
         val assignments = supervisorScope {
@@ -241,6 +243,7 @@ class MonitorRepository(
             notification = notification,
             selectedMonitorIds = assignments.filterValues { it == true }.keys,
             unavailableMonitorIds = assignments.filterValues { it == null }.keys,
+            duplicateCount = managed.size - 1,
         )
     }
 

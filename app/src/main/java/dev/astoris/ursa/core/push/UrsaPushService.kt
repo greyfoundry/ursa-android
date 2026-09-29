@@ -57,18 +57,30 @@ class UrsaPushService : PushService() {
         val policyStore = PushAlertModeStore(this)
         val transitionStore = PushTransitionStore(this)
         val scope = if (deliveryTest) null else ManagedPushScopeStore(this).load(notice.serverId)
+        val scopeIssue = if (deliveryTest) null else {
+            ManagedPushScopePolicy.issue(scope, notice.serverId, notice.monitorId)
+        }
+        if (scopeIssue != null) {
+            notice.serverId?.let { PushStore.recordScopeIssue(this, scopeIssue, it) }
+            postScopeIssue(this, scopeIssue)
+        }
         val enriched = if (deliveryTest) {
             notice.copy(
+                monitorId = null,
                 monitorName = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_title),
                 title = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_title),
                 body = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_body),
                 important = false,
+                status = null,
+                serverId = null,
             )
         } else {
-            enrichWithDowntime(notice)
+            enrichWithDowntime(if (scopeIssue == null) notice else notice.copy(serverId = null))
         }
+        val boundScope = scope.takeIf { scopeIssue == null }
         val managedIdentity = PushAlertWork.identity(enriched.serverId, enriched.monitorId)
-        if (!deliveryTest && scope != null) {
+            .takeIf { boundScope != null }
+        if (!deliveryTest && boundScope != null) {
             transitionStore.recordStatus(enriched.serverId, enriched.monitorId, enriched.status)
         }
         if (!deliveryTest && enriched.status == 1 && managedIdentity != null) {
@@ -98,13 +110,19 @@ class UrsaPushService : PushService() {
         ) {
             return
         }
-        if (!deliveryTest && enriched.status == 0 && scope != null && managedIdentity != null) {
+        if (!deliveryTest && enriched.status == 0 && boundScope != null && managedIdentity != null) {
             val serverId = enriched.serverId ?: return
             val monitorId = enriched.monitorId ?: return
             val suppression = PushDependencyStore(this).suppression(serverId, monitorId, transitionStore)
             if (suppression != null) {
                 eventScope.launch {
-                    recordPushDependencySuppression(this@UrsaPushService, scope, monitorId, enriched.monitorName, suppression)
+                    recordPushDependencySuppression(
+                        this@UrsaPushService,
+                        boundScope,
+                        monitorId,
+                        enriched.monitorName,
+                        suppression,
+                    )
                 }
                 return
             }
@@ -133,20 +151,20 @@ class UrsaPushService : PushService() {
                 idOverride = managedIdentity.notificationId,
                 severity = configuredSeverity,
                 routeOverride = eventRoute,
-                serverUrl = scope?.serverUrl,
+                serverUrl = boundScope?.serverUrl,
             )
             else -> postNotification(
                 this,
                 enriched,
                 severity = configuredSeverity,
                 routeOverride = eventRoute,
-                serverUrl = scope?.serverUrl,
+                serverUrl = boundScope?.serverUrl,
             )
         }
         if (result == PushLocalTestResult.POSTED && !deliveryTest) {
             eventScope.launch {
                 EventLogStore(this@UrsaPushService).append(
-                    serverUrl = scope?.serverUrl,
+                    serverUrl = boundScope?.serverUrl,
                     monitorId = enriched.monitorId,
                     monitorName = enriched.monitorName,
                     kind = LocalEventKind.PUSH_ALERT,
@@ -195,6 +213,7 @@ class UrsaPushService : PushService() {
         const val CHANNEL_ID = "ursa_monitors_critical"
         private const val LOCAL_TEST_NOTIFICATION_ID = 0x55525341
         private const val PATH_ISSUE_NOTIFICATION_ID = 0x55525350
+        private const val SCOPE_ISSUE_NOTIFICATION_ID = 0x55525351
         private val PATH_ISSUE_ROUTE = PushChannelRoute(
             channelId = "ursa_push_health",
             highPriority = false,
@@ -218,20 +237,11 @@ class UrsaPushService : PushService() {
             NotificationManagerCompat.from(context).cancel(PATH_ISSUE_NOTIFICATION_ID)
         }
 
+        internal fun cancelScopeIssue(context: Context) {
+            NotificationManagerCompat.from(context).cancel(SCOPE_ISSUE_NOTIFICATION_ID)
+        }
+
         private fun postPathIssue(context: Context, error: PushRegistrationError? = null) {
-            ensureChannel(context)
-            if (
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                return
-            }
-            val notifications = NotificationManagerCompat.from(context)
-            if (!notifications.areNotificationsEnabled()) return
-            val channel = context.getSystemService(NotificationManager::class.java)
-                .getNotificationChannel(PATH_ISSUE_ROUTE.channelId)
-            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) return
             val (titleRes, bodyRes) = when (error) {
                 PushRegistrationError.INTERNAL_ERROR ->
                     dev.astoris.ursa.R.string.push_health_internal_title to
@@ -249,8 +259,37 @@ class UrsaPushService : PushService() {
                     dev.astoris.ursa.R.string.push_health_disconnected_title to
                         dev.astoris.ursa.R.string.push_health_disconnected_body
             }
+            postHealthIssue(context, PATH_ISSUE_NOTIFICATION_ID, titleRes, bodyRes)
+        }
+
+        private fun postScopeIssue(context: Context, issue: ManagedPushScopeIssue) {
+            val (titleRes, bodyRes) = when (issue) {
+                ManagedPushScopeIssue.UNKNOWN_PROVIDER ->
+                    dev.astoris.ursa.R.string.push_scope_unknown_provider_title to
+                        dev.astoris.ursa.R.string.push_scope_unknown_provider_body
+                ManagedPushScopeIssue.UNKNOWN_MONITOR ->
+                    dev.astoris.ursa.R.string.push_scope_unknown_monitor_title to
+                        dev.astoris.ursa.R.string.push_scope_unknown_monitor_body
+            }
+            postHealthIssue(context, SCOPE_ISSUE_NOTIFICATION_ID, titleRes, bodyRes)
+        }
+
+        private fun postHealthIssue(context: Context, id: Int, titleRes: Int, bodyRes: Int) {
+            ensureChannel(context)
+            if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+            val notifications = NotificationManagerCompat.from(context)
+            if (!notifications.areNotificationsEnabled()) return
+            val channel = context.getSystemService(NotificationManager::class.java)
+                .getNotificationChannel(PATH_ISSUE_ROUTE.channelId)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) return
             notifications.notify(
-                PATH_ISSUE_NOTIFICATION_ID,
+                id,
                 NotificationCompat.Builder(context, PATH_ISSUE_ROUTE.channelId)
                     .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
                     .setContentTitle(context.getString(titleRes))

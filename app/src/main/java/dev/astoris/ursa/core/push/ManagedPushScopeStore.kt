@@ -27,6 +27,23 @@ data class ManagedPushScope(
     fun monitor(id: Int?): ManagedPushMonitor? = id?.let { target -> monitors.firstOrNull { it.id == target } }
 }
 
+enum class ManagedPushScopeIssue {
+    UNKNOWN_PROVIDER,
+    UNKNOWN_MONITOR,
+}
+
+object ManagedPushScopePolicy {
+    fun issue(
+        scope: ManagedPushScope?,
+        serverId: String?,
+        monitorId: Int?,
+    ): ManagedPushScopeIssue? {
+        if (!ManagedPushNotification.isValidServerId(serverId)) return null
+        if (scope == null) return ManagedPushScopeIssue.UNKNOWN_PROVIDER
+        return ManagedPushScopeIssue.UNKNOWN_MONITOR.takeIf { scope.monitor(monitorId) == null }
+    }
+}
+
 /** Versioned, bounded wire-free representation of the encrypted push scope registry. */
 object ManagedPushScopeCodec {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -178,8 +195,20 @@ class ManagedPushScopeStore(context: Context) {
         return true
     }
 
+    /** Removes encrypted scopes mapped to a connection the user explicitly deleted. */
+    fun removeServer(serverUrl: String): List<ManagedPushScope> {
+        val normalized = serverUrl.trim().removeSuffix("/")
+        val matches = prefs.all.mapNotNull { (key, value) ->
+            if (!key.startsWith(KEY_PREFIX)) return@mapNotNull null
+            (value as? String)?.let(crypto::decrypt)?.let(ManagedPushScopeCodec::decode)
+        }.filter { it.serverUrl == normalized }
+        if (matches.isNotEmpty()) prefs.edit { matches.forEach { remove(key(it.serverId)) } }
+        return matches
+    }
+
     private companion object {
         const val PREFS = "ursa_managed_push_scopes"
-        fun key(serverId: String) = "scope:$serverId"
+        const val KEY_PREFIX = "scope:"
+        fun key(serverId: String) = "$KEY_PREFIX$serverId"
     }
 }

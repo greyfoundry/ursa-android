@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-28
+last-updated: 2026-09-29
 owner: astoris
 status: stable
 ---
@@ -152,6 +152,9 @@ route stack while screens migrate incrementally.
   missing managed setup, known Kuma connection failures, delivery waiting/timeout,
   and verified end-to-end delivery. A removed registration exposes the existing
   distributor as a reconnect action instead of leaving a false Selected state.
+  Unknown-provider/monitor deliveries add fixed repair guidance without showing a
+  scope or monitor ID; Refresh re-verifies the active provider and encrypted monitor
+  directory. Duplicate marked providers expose a single Remove-then-Create recovery.
 - The monitor editor gives push monitors a masked heartbeat URL generated from the
   exact token saved to Kuma, explicit copy/share/reveal actions, request-shape help,
   and a security warning. Existing push monitors recover the same URL on demand;

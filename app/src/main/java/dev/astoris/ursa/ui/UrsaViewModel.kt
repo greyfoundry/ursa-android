@@ -207,6 +207,7 @@ sealed interface KumaPushSetupUiState {
         val isDefault: Boolean,
         val selectedMonitorIds: Set<Int>,
         val unavailableMonitorIds: Set<Int> = emptySet(),
+        val duplicateCount: Int = 0,
         val recentlySaved: Boolean = false,
     ) : KumaPushSetupUiState
     data class Error(val reason: KumaPushSetupError) : KumaPushSetupUiState
@@ -672,6 +673,14 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             if (store.activeUrl.first() == url) clearWearPairingBestEffort()
             val fallback = repo.removeServer(url)
+            withContext(Dispatchers.IO) {
+                managedPushScopeStore.removeServer(url).forEach { scope ->
+                    scope.monitors.forEach { PushAlertWorker.cancel(getApplication(), scope.serverId, it.id) }
+                    pushAlertModeStore.clearServer(scope.serverId)
+                    pushDependencyStore.clearServer(scope.serverId)
+                    pushTransitionStore.clearServer(scope.serverId)
+                }
+            }
             OverallStatusService.refreshIfEnabled(getApplication())
             _hasSession.value = fallback?.jwt != null
             if (fallback == null) {
@@ -1221,7 +1230,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             val serverId = notification?.serverId
             val providerCurrent = notification?.webhookUrl == deliveryUrl &&
                 notification.schemaVersion == ManagedPushNotification.CURRENT_SCHEMA &&
-                ManagedPushNotification.isValidServerId(serverId)
+                ManagedPushNotification.isValidServerId(serverId) &&
+                snapshot.duplicateCount == 0
             val scopeCurrent = providerCurrent && serverId != null && bindManagedPushScope(serverId, monitorRows)
             val selectedIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
@@ -1231,6 +1241,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 isDefault = notification?.isDefault ?: true,
                 selectedMonitorIds = selectedIds,
                 unavailableMonitorIds = snapshot.unavailableMonitorIds,
+                duplicateCount = snapshot.duplicateCount,
             )
             _pushAlertModes.value = pushAlertModeStore.modes(serverId, ids)
             _pushSeverities.value = pushAlertModeStore.severities(serverId, ids)
@@ -1264,13 +1275,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             val snapshot = repo.managedPushAssignments(ids)
             val unavailable = result.failedMonitorIds + snapshot?.unavailableMonitorIds.orEmpty()
             val effectiveSelectedIds = snapshot?.selectedMonitorIds ?: (selectedMonitorIds - result.failedMonitorIds)
+            val duplicateCount = snapshot?.duplicateCount ?: 0
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = result.notificationId,
                 serverId = result.serverId,
-                configurationCurrent = true,
+                configurationCurrent = duplicateCount == 0,
                 isDefault = isDefault,
                 selectedMonitorIds = effectiveSelectedIds,
                 unavailableMonitorIds = unavailable,
+                duplicateCount = duplicateCount,
                 recentlySaved = true,
             )
             _pushAlertModes.value = pushAlertModeStore.modes(result.serverId, ids)
@@ -1325,7 +1338,11 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun bindManagedPushScope(serverId: String, monitorRows: List<Monitor>): Boolean {
         val connection = store.activeConnection() ?: return false
         return withContext(Dispatchers.IO) {
-            managedPushScopeStore.bind(serverId, connection.url, monitorRows) != null
+            if (managedPushScopeStore.bind(serverId, connection.url, monitorRows) == null) return@withContext false
+            if (PushStore.clearScopeIssue(getApplication(), serverId)) {
+                UrsaPushService.cancelScopeIssue(getApplication())
+            }
+            true
         }
     }
 
