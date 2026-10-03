@@ -103,6 +103,15 @@ class ConnectionStore(context: Context) {
 
     suspend fun snapshot(): List<ServerConnection> = connections.first()
 
+    /** Reads saved connections and active selection atomically for fleet presentation. */
+    suspend fun selectionSnapshot(): ConnectionSelectionSnapshot {
+        val prefs = context.dataStore.data.first()
+        val saved = decode(prefs)
+        val selected = prefs[activeUrlKey]?.takeIf { url -> saved.any { it.url == url } }
+            ?: saved.firstOrNull()?.url
+        return ConnectionSelectionSnapshot(saved, selected)
+    }
+
     /** Reads the active connection and its encrypted record from one DataStore snapshot. */
     suspend fun activeConnection(): ServerConnection? {
         val prefs = context.dataStore.data.first()
@@ -139,3 +148,8 @@ class ConnectionStore(context: Context) {
         return runCatching { json.decodeFromString<List<ServerConnection>>(plain) }.getOrDefault(emptyList())
     }
 }
+
+data class ConnectionSelectionSnapshot(
+    val connections: List<ServerConnection>,
+    val activeUrl: String?,
+)

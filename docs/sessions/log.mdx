@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-03 - Cached multi-server fleet model
+
+**changed**: Added a cache-only fleet repository and pure fleet domain model. One
+atomic connection-selection read and one batched encrypted-cache read now produce
+per-server availability, cache source, conservative five-minute freshness, active
+and paused monitor counts, affected-server totals, and partial-data state. Aggregate
+counts include only successfully decoded snapshots; an available empty snapshot is
+kept distinct from missing or unreadable data.
+
+**security and compatibility**: The released nullable `MonitorCacheStore.load` API
+is preserved. New typed reads distinguish missing, DataStore-unavailable,
+undecryptable, and invalid snapshots without exposing ciphertext or exceptions.
+When the app is locked the repository does not read monitor caches and returns no
+server identity or monitor data. Fleet loading creates no Kuma client or socket.
+
+**verification**: Focused JVM tests cover typed cache decoding, mixed per-server
+failures, freshness boundaries, lock redaction, meaningful empty snapshots, and
+deterministic aggregation across 1,000 monitors. Both distribution variants and
+the full phase gate are recorded with the implementing commit.
+
 ### 2026-10-03 - Unified alert explanation timeline and device alert groups
 
 **changed**: Non-test push transitions now receive an opaque lifecycle ID and join

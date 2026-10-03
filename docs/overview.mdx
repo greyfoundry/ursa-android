@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-29
+last-updated: 2026-10-03
 owner: astoris
 status: stable
 ---
@@ -62,6 +62,11 @@ and the module docs under `docs/modules/`.
   notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,
   Quick Settings tile, app shortcuts, and full i18n. See
   `docs/planning/m4-native-depth.mdx`.
+- The encrypted per-server monitor cache now supports one batched, typed read for
+  fleet use. A cached fleet snapshot distinguishes available, missing, corrupt,
+  undecryptable, and store-unavailable data; normalizes active/paused/status counts
+  and five-minute freshness; and withholds all server identity and monitor data while
+  the app is locked. This foundation opens no inactive-server sockets.
 - Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.

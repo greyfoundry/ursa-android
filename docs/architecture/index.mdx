@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-26
+last-updated: 2026-10-03
 owner: astoris
 status: stable
 ---
@@ -23,6 +23,7 @@ Kuma server ──Socket.IO──▶ core.network (adapter: parse/normalize wire
                           ui.* (Compose, collectAsStateWithLifecycle)
 
 core.storage (DataStore+Tink)  ── credentials/JWT ──▶ core.network (login/loginByToken)
+             └─ encrypted monitor snapshots ──▶ data.repository.FleetRepository
 distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──▶ system notification
 core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhook provider
 ```
@@ -38,8 +39,11 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
   encrypted provider/server scope binding, delivery URL validation, privacy-safe
   diagnostics/testing, and notification rendering.
   See `docs/modules/push.mdx`.
-- `data.model` → `.../data/model/` - Models.kt + StatusPageModels.kt.
-- `data.repository` → `.../data/repository/MonitorRepository.kt`.
+- `data.model` → `.../data/model/` - server/monitor/status-page models plus
+  `FleetModels.kt` for cache availability, freshness, and normalized counts.
+- `data.repository` → `.../data/repository/MonitorRepository.kt` owns the active
+  socket; `FleetRepository.kt` reads saved connections and encrypted snapshots
+  without connecting to inactive servers.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, typed Navigation 3 shell,
   attention-first Home, Material 3 Adaptive navigation/list-detail, shared operational components,
   connections/monitors/statuspage) -
@@ -58,6 +62,6 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
 - The adapter in `core.network` is the ONLY place that knows Kuma's wire quirks
   (positional events, snake/camel split, double-encoded JSON). Keep it there.
 - One `Socket` per active server; multi-server = switch the active repository, not
-  multiple live sockets in v1.
+  multiple permanent live sockets. Cached Fleet loading performs no network work.
 - Push is independent of the socket - it works while the app is closed, via the
   distributor. Don't couple them.
