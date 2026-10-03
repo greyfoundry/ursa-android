@@ -31,7 +31,8 @@ object WidgetRefresher {
             client.connect()
             if (!client.loginByToken(token)) return false
             val monitors = withTimeoutOrNull(20_000L) {
-                client.monitors.first { it.isNotEmpty() }.values.toList()
+                client.monitorListReady.first { it }
+                client.monitors.value.values.toList()
             } ?: return false
             MonitorCacheStore(context).save(
                 connection.url,

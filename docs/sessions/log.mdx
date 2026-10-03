@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-03 - Bounded explicit fleet refresh
+
+**changed**: Added a cancellable explicit fleet refresh over saved connections.
+At most two temporary sessions run concurrently and each reuses its connection's
+cleartext decision, self-signed TLS choice, custom headers, and saved Kuma session.
+Successful servers become fresh point-in-time snapshots and update encrypted cache
+state; failed servers retain their last-known cache beside a typed refresh failure,
+so one offline or expired connection cannot discard peers that refreshed successfully.
+
+**lifecycle and edge cases**: Every created temporary client disconnects after
+success, failure, exception, timeout, or caller cancellation. The active repository
+and socket are never replaced. `KumaClient` now exposes monitor-list readiness
+separately from list contents, allowing a valid server with zero monitors to refresh
+successfully; private widget refresh uses the same distinction.
+
+**verification**: Deterministic tests cover the concurrency ceiling, stable result
+ordering, policy/session rejection before socket creation, per-server exception
+isolation, cancellation propagation with teardown, cached fallback, empty live
+fleets, and cache-write failure disclosure.
+
 ### 2026-10-03 - Cached multi-server fleet model
 
 **changed**: Added a cache-only fleet repository and pure fleet domain model. One

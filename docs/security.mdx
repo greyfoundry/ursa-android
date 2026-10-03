@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-29
+last-updated: 2026-10-03
 owner: astoris
 status: in-flux
 ---
@@ -158,6 +158,13 @@ and private-widget paths; records created before the policy keep their existing
 behaviour until reviewed. Certificate trust and HTTP policy remain separate.
 Static certificate pinning is not applicable - URSA connects to arbitrary servers
 the user names, not a fixed backend.
+
+Fleet opens no network connection while loading encrypted last-known snapshots. Its
+explicit refresh re-resolves each saved connection and applies the same cleartext,
+self-signed TLS, custom-header, and saved-session choices to at most two temporary
+clients at once. Each client is disconnected after its typed result, including on
+failure or cancellation; exception text and session/header values never enter the
+fleet model. App-lock state prevents cache reads and fleet refresh entirely.
 
 Server web links are reconstructed from a validated HTTP(S) origin and optional
 reverse-proxy base path. They reject embedded user info, queries, fragments,

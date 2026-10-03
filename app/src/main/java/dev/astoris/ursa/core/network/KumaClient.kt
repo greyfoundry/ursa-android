@@ -65,6 +65,8 @@ class KumaClient(
 
     private val _monitors = MutableStateFlow<Map<Int, Monitor>>(emptyMap())
     val monitors: StateFlow<Map<Int, Monitor>> = _monitors.asStateFlow()
+    private val _monitorListReady = MutableStateFlow(false)
+    val monitorListReady: StateFlow<Boolean> = _monitorListReady.asStateFlow()
 
     private val _heartbeats = MutableSharedFlow<Heartbeat>(extraBufferCapacity = 64)
     val heartbeats: SharedFlow<Heartbeat> = _heartbeats.asSharedFlow()
@@ -154,7 +156,10 @@ class KumaClient(
                 _failure.value = ConnectionFailureReason.INCOMPATIBLE_RESPONSE
                 _state.value = ConnectionState.Error
             } else {
-                payload?.let { _monitors.value = KumaParse.monitorList(it) }
+                payload?.let {
+                    _monitors.value = KumaParse.monitorList(it)
+                    _monitorListReady.value = true
+                }
             }
         }
         s.on("notificationList") { args ->
@@ -629,6 +634,8 @@ class KumaClient(
         socket?.off()
         socket = null
         jwt = null
+        _monitors.value = emptyMap()
+        _monitorListReady.value = false
         _managedPushNotifications.value = emptyList()
         _notifications.value = emptyList()
         _maintenances.value = emptyMap()

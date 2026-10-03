@@ -43,7 +43,8 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
   `FleetModels.kt` for cache availability, freshness, and normalized counts.
 - `data.repository` → `.../data/repository/MonitorRepository.kt` owns the active
   socket; `FleetRepository.kt` reads saved connections and encrypted snapshots
-  without connecting to inactive servers.
+  without connecting to inactive servers on load. Its explicit refresh uses at
+  most two short-lived clients and closes them after per-server results are captured.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, typed Navigation 3 shell,
   attention-first Home, Material 3 Adaptive navigation/list-detail, shared operational components,
   connections/monitors/statuspage) -
@@ -62,6 +63,7 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
 - The adapter in `core.network` is the ONLY place that knows Kuma's wire quirks
   (positional events, snake/camel split, double-encoded JSON). Keep it there.
 - One `Socket` per active server; multi-server = switch the active repository, not
-  multiple permanent live sockets. Cached Fleet loading performs no network work.
+  multiple permanent live sockets. Cached Fleet loading performs no network work;
+  explicit Fleet refresh uses only bounded, short-lived sessions.
 - Push is independent of the socket - it works while the app is closed, via the
   distributor. Don't couple them.

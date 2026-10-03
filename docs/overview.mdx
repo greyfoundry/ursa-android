@@ -66,7 +66,9 @@ and the module docs under `docs/modules/`.
   fleet use. A cached fleet snapshot distinguishes available, missing, corrupt,
   undecryptable, and store-unavailable data; normalizes active/paused/status counts
   and five-minute freshness; and withholds all server identity and monitor data while
-  the app is locked. This foundation opens no inactive-server sockets.
+  the app is locked. Its explicit refresh path permits at most two temporary
+  connections, applies each server's existing transport/TLS/header/session policy,
+  retains successful results when peers fail, and closes every temporary session.
 - Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.

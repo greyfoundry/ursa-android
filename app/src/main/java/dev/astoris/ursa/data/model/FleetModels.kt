@@ -8,6 +8,7 @@ enum class FleetServerAvailability {
 
 enum class FleetSnapshotSource {
     CACHE,
+    REFRESHED,
     LIVE,
 }
 
@@ -21,6 +22,19 @@ enum class FleetServerError {
     CACHE_STORE_UNAVAILABLE,
     CACHE_DECRYPTION_FAILED,
     INVALID_CACHE,
+}
+
+enum class FleetRefreshError {
+    MISSING_SESSION,
+    CLEARTEXT_BLOCKED,
+    DEVICE_OFFLINE,
+    SERVER_UNREACHABLE,
+    AUTHENTICATION_FAILED,
+    CERTIFICATE,
+    INCOMPATIBLE_RESPONSE,
+    TIMED_OUT,
+    CACHE_WRITE_FAILED,
+    UNKNOWN,
 }
 
 data class FleetMonitorCounts(
@@ -94,6 +108,8 @@ data class FleetServerSnapshot(
     val ageMillis: Long? = null,
     val counts: FleetMonitorCounts? = null,
     val error: FleetServerError? = null,
+    val refreshAttemptedAtMillis: Long? = null,
+    val refreshError: FleetRefreshError? = null,
 ) {
     init {
         val available = availability == FleetServerAvailability.AVAILABLE
@@ -103,6 +119,7 @@ data class FleetServerSnapshot(
         require(available == (ageMillis != null))
         require(available == (counts != null))
         require((availability == FleetServerAvailability.UNAVAILABLE) == (error != null))
+        require(refreshError == null || refreshAttemptedAtMillis != null)
     }
 }
 

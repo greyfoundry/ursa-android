@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-27
+last-updated: 2026-10-03
 owner: astoris
 status: stable
 ---
@@ -62,7 +62,7 @@ here so the rest of the app sees clean domain models.
   create/edit/unpin/resolve/delete,
   and `disconnect()`.
   Flows: `state`, `compatibility`,
-  `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
+  `monitors`, `monitorListReady`, `heartbeats`, `certs`, assignment-safe notification summaries,
   and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
   `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`, `serverVersion`.
@@ -98,6 +98,11 @@ here so the rest of the app sees clean domain models.
   retained so removals use the server's exact assignment key.
 - `MutationExecutor.execute(required, block)` - returns a typed completed,
   denied, or no-active-connection result. A denied block is never invoked.
+- `data/repository/FleetRepository` reads all encrypted last-known snapshots without
+  network work. Its explicit refresh uses each saved connection's existing
+  cleartext policy, TLS choice, headers, and session token; runs at most two
+  temporary clients concurrently; records per-server results; and disconnects each
+  client even on failure or cancellation.
 - `PublicIncidentTarget` binds every public-incident action to its active server,
   locally saved status-page ID, and Kuma slug. `IncidentMutationResult` distinguishes
   applied, rejected, and acknowledgement-indeterminate outcomes.
@@ -150,6 +155,11 @@ here so the rest of the app sees clean domain models.
 - `emitAck` waits for a connected transport inside the same 15-second acknowledgement
   budget. An inaccessible server therefore cannot leave a UI action loading forever,
   and actions are not silently stranded in Socket.IO's pre-connect queue.
+- `monitorListReady` is separate from the monitor map so an authenticated server
+  with zero monitors is a valid completed snapshot rather than a refresh timeout.
+  Fleet refresh retains cached data beside a typed failure, labels successful
+  results as freshly refreshed rather than live, updates the encrypted cache, and
+  never replaces the active client.
 - Connection state distinguishes transport failure from rejected credentials.
   `MonitorRepository.testServer` uses a short-lived client and never replaces or
   persists the active session; a newly added client is promoted only after login
