@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-29
+last-updated: 2026-10-03
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,41 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-03 - Unified alert explanation timeline and device alert groups
+
+**changed**: Non-test push transitions now receive an opaque lifecycle ID and join
+one encrypted, bounded decision timeline. Received, delayed, delivered, repeated,
+acknowledged, snoozed, dependency/policy/platform-suppressed, cautiously correlated,
+and recovered events retain the effective mode, configured/effective severity,
+bounded timing/count inputs, and safe outcome needed to explain the decision later.
+Incidents adds an explicit Device alerts source that groups those decisions without
+conflating them with Kuma monitor-history incidents; the full chronological stream
+also remains available in Event log.
+
+**durability correction**: Live burst testing found that the connector can destroy
+its short-lived push service while queued event writes are still running. Timeline
+writes now use one process-scoped supervised IO queue instead of a service-owned job,
+so rapid Down/recovery events are not cancelled during normal connector teardown.
+
+**security and compatibility**: Existing encrypted event storage, 500-entry cap,
+90-day retention, and backup exclusion are reused. Old records decode with absent
+timeline fields. New snapshots accept only bounded enum-like values and counts;
+notification bodies, endpoints, server URLs in display copy, credentials, JWTs, and
+custom headers are excluded. Unknown/legacy alerts remain provider-neutral and never
+gain scoped policy or actions.
+
+**live QA**: The visible API 37 Pixel 8 received a managed Down through Kuma 2.5.5
+and ntfy, displayed the Android acknowledge/snooze actions, and rendered Received →
+Delivered → Acknowledged as one group. A rapid Down/recovery cycle then persisted all
+five decisions and rendered Recovered after the service-teardown correction. The QA
+registration was rotated, rebound to Kuma, and verified with a fresh end-to-end test;
+the Android crash buffer stayed empty and the Kuma container remained healthy.
+
+**verification**: Focused codec, decision-snapshot, grouping, and event-log tests
+pass. The complete 243-task two-flavor phone/Wear unit-test, lint, debug-assembly,
+F-Droid release, and vital-lint gate passed. Standard and 200% font-scale UI checks
+also passed on the visible emulator.
 
 ### 2026-09-29 - Managed-push binding repair
 

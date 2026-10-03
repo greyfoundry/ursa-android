@@ -97,13 +97,16 @@ lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small i
 responses from each monitor's own HTTP(S) origin, and falls back safely when an
 entry cannot be decrypted or decoded.
 
-The device event log stores only successful local actions and notifications that
-Android accepted for posting. Monitor names, bounded message summaries, timestamps,
-and server association where known are encrypted with the same Keystore-backed AEAD.
+The device event log stores successful local actions plus bounded managed-alert
+decision history. Monitor names, fixed safe explanations, opaque lifecycle IDs,
+enum-like policy values, bounded timing/count fields, timestamps, and server
+association where verified are encrypted with the same Keystore-backed AEAD.
 History is capped at 500 entries and 90 days. Kuma heartbeat transitions remain
 live-derived instead of being duplicated on disk. A managed push is assigned only
 through its encrypted provider-to-connection binding; unknown or legacy payloads
-remain provider-neutral rather than being guessed.
+remain provider-neutral rather than being guessed. Raw notification bodies,
+endpoints, credentials, URLs, JWTs, and custom-header values are excluded from the
+decision record.
 
 User-authored incident notes are encrypted under the same Keystore-backed AEAD,
 scoped by server/monitor/durable transition time, capped at 500 entries and 2,000
@@ -259,7 +262,9 @@ credential, access header, or raw payload body. Legacy and unbound notifications
 not assigned to a managed group. Optional storm hints evaluate only monitor ID,
 numeric Down status, Android post time, and the already encrypted bounded parent/tag
 directory. Wording remains probabilistic, thresholds are fixed and documented, and
-the feature never suppresses child notifications or persists a correlation claim.
+the feature never suppresses child notifications. When triggered, only the bounded
+basis/count and probabilistic local explanation join that alert's encrypted timeline;
+no inferred root cause or notification payload is persisted.
 Custom channel sounds remain wholly owned by Android settings; URSA persists no
 sound URI or media permission.
 

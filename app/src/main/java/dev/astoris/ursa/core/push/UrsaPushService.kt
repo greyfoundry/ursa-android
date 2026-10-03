@@ -17,12 +17,12 @@ import dev.astoris.ursa.core.storage.LocalEventKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.PushService
 import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
+import java.util.UUID
 
 /**
  * Receives UnifiedPush events from the distributor. Declared NON-exported in the
@@ -34,8 +34,6 @@ import org.unifiedpush.android.connector.data.PushMessage
  * authorizes a remote server mutation.
  */
 class UrsaPushService : PushService() {
-
-    private val eventScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
         Log.d(TAG, "New endpoint for instance=$instance")
@@ -80,6 +78,33 @@ class UrsaPushService : PushService() {
         val boundScope = scope.takeIf { scopeIssue == null }
         val managedIdentity = PushAlertWork.identity(enriched.serverId, enriched.monitorId)
             .takeIf { boundScope != null }
+        val mode = policyStore.mode(enriched.serverId, enriched.monitorId)
+        val configuredSeverity = policyStore.severity(enriched.serverId, enriched.monitorId)
+        val timing = policyStore.timing(enriched.serverId, enriched.monitorId)
+        val activeAlert = managedIdentity?.let {
+            PushPendingAlertStore(this).loadActive(enriched.serverId ?: return@let null, enriched.monitorId ?: return@let null)
+        }
+        val alertId = if (deliveryTest) null else activeAlert?.id ?: UUID.randomUUID().toString()
+        if (!deliveryTest && alertId != null) {
+            recordTimeline(
+                serverUrl = boundScope?.serverUrl,
+                monitorId = enriched.monitorId,
+                monitorName = enriched.monitorName,
+                kind = LocalEventKind.PUSH_RECEIVED,
+                detailRes = when (enriched.status) {
+                    0 -> dev.astoris.ursa.R.string.push_timeline_received_down
+                    1 -> dev.astoris.ursa.R.string.push_timeline_received_recovery
+                    else -> dev.astoris.ursa.R.string.push_timeline_received_transition
+                },
+                alertId = alertId,
+                decision = PushAlertTimeline.decision(
+                    outcome = PushAlertTimeline.RECEIVED,
+                    mode = mode,
+                    configuredSeverity = configuredSeverity,
+                    timing = timing,
+                ),
+            )
+        }
         if (!deliveryTest && boundScope != null) {
             transitionStore.recordStatus(enriched.serverId, enriched.monitorId, enriched.status)
         }
@@ -88,18 +113,71 @@ class UrsaPushService : PushService() {
             val monitorId = enriched.monitorId ?: return
             policyStore.setSnoozedUntil(serverId, monitorId, null)
             PushAlertWorker.cancel(this, serverId, monitorId)
+            activeAlert?.let { alert ->
+                recordTimeline(
+                    serverUrl = boundScope?.serverUrl,
+                    monitorId = monitorId,
+                    monitorName = enriched.monitorName,
+                    kind = LocalEventKind.PUSH_RECOVERED,
+                    detailRes = dev.astoris.ursa.R.string.push_timeline_recovered,
+                    alertId = alert.id,
+                    decision = PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.RECOVERED,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                        deliveredCount = alert.deliveredCount,
+                    ),
+                )
+            }
         }
         if (
             !deliveryTest &&
             !PushAlertPolicy.shouldNotify(
-                policyStore.mode(enriched.serverId, enriched.monitorId),
+                mode,
                 enriched.status,
             )
         ) {
+            alertId?.let {
+                recordTimeline(
+                    boundScope?.serverUrl,
+                    enriched.monitorId,
+                    enriched.monitorName,
+                    LocalEventKind.PUSH_SUPPRESSED,
+                    dev.astoris.ursa.R.string.push_timeline_policy_suppressed,
+                    it,
+                    PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.SUPPRESSED,
+                        reason = PushAlertTimeline.REASON_POLICY,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                    ),
+                )
+            }
             return
         }
         val eventPreferences = PushEventPreferencesStore(this).load()
-        if (!deliveryTest && !PushEventPolicy.shouldNotify(enriched.status, eventPreferences)) return
+        if (!deliveryTest && !PushEventPolicy.shouldNotify(enriched.status, eventPreferences)) {
+            alertId?.let {
+                recordTimeline(
+                    boundScope?.serverUrl,
+                    enriched.monitorId,
+                    enriched.monitorName,
+                    LocalEventKind.PUSH_SUPPRESSED,
+                    dev.astoris.ursa.R.string.push_timeline_event_suppressed,
+                    it,
+                    PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.SUPPRESSED,
+                        reason = PushAlertTimeline.REASON_EVENT_PREFERENCE,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                    ),
+                )
+            }
+            return
+        }
         if (
             !deliveryTest &&
             !transitionStore.shouldDeliver(
@@ -108,6 +186,23 @@ class UrsaPushService : PushService() {
                 enriched.status,
             )
         ) {
+            alertId?.let {
+                recordTimeline(
+                    boundScope?.serverUrl,
+                    enriched.monitorId,
+                    enriched.monitorName,
+                    LocalEventKind.PUSH_SUPPRESSED,
+                    dev.astoris.ursa.R.string.push_timeline_duplicate_suppressed,
+                    it,
+                    PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.SUPPRESSED,
+                        reason = PushAlertTimeline.REASON_DUPLICATE,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                    ),
+                )
+            }
             return
         }
         if (!deliveryTest && enriched.status == 0 && boundScope != null && managedIdentity != null) {
@@ -115,19 +210,19 @@ class UrsaPushService : PushService() {
             val monitorId = enriched.monitorId ?: return
             val suppression = PushDependencyStore(this).suppression(serverId, monitorId, transitionStore)
             if (suppression != null) {
-                eventScope.launch {
+                timelineScope.launch {
                     recordPushDependencySuppression(
                         this@UrsaPushService,
                         boundScope,
                         monitorId,
                         enriched.monitorName,
                         suppression,
+                        alertId,
                     )
                 }
                 return
             }
         }
-        val configuredSeverity = policyStore.severity(enriched.serverId, enriched.monitorId)
         val quietSeverity = if (deliveryTest) configuredSeverity else PushQuietHoursPolicy.effectiveSeverity(
             configuredSeverity,
             PushQuietHoursStore(this).load(),
@@ -137,14 +232,20 @@ class UrsaPushService : PushService() {
         } else {
             PushEventPolicy.route(enriched.status, configuredSeverity)
         }
-        val result = when {
-            !deliveryTest && enriched.status == 0 && managedIdentity != null -> PushAlertWorker.beginDown(
+        var correlation: PushCorrelationResult? = null
+        val start = if (!deliveryTest && enriched.status == 0 && managedIdentity != null && alertId != null) {
+            PushAlertWorker.beginDown(
                 context = this,
                 notice = enriched,
                 severity = configuredSeverity,
-                timing = policyStore.timing(enriched.serverId, enriched.monitorId),
+                timing = timing,
                 snoozedUntilMillis = policyStore.snoozedUntil(enriched.serverId, enriched.monitorId),
+                alertId = alertId,
+                correlationSink = { correlation = it },
             )
+        } else null
+        val result = when {
+            start != null -> start.result
             managedIdentity != null -> postNotification(
                 this,
                 enriched,
@@ -152,6 +253,7 @@ class UrsaPushService : PushService() {
                 severity = configuredSeverity,
                 routeOverride = eventRoute,
                 serverUrl = boundScope?.serverUrl,
+                correlationSink = { correlation = it },
             )
             else -> postNotification(
                 this,
@@ -161,14 +263,68 @@ class UrsaPushService : PushService() {
                 serverUrl = boundScope?.serverUrl,
             )
         }
-        if (result == PushLocalTestResult.POSTED && !deliveryTest) {
-            eventScope.launch {
-                EventLogStore(this@UrsaPushService).append(
+        if (!deliveryTest && alertId != null && start?.decision is PushAlertDecision.WaitUntil) {
+            val scheduledAt = start.decision.atMillis
+            recordTimeline(
+                serverUrl = boundScope?.serverUrl,
+                monitorId = enriched.monitorId,
+                monitorName = enriched.monitorName,
+                kind = LocalEventKind.PUSH_DELAYED,
+                detailRes = dev.astoris.ursa.R.string.push_timeline_delayed,
+                alertId = alertId,
+                decision = PushAlertTimeline.decision(
+                    outcome = PushAlertTimeline.DELAYED,
+                    mode = mode,
+                    configuredSeverity = configuredSeverity,
+                    effectiveSeverity = quietSeverity,
+                    timing = timing,
+                    scheduledAtMillis = scheduledAt,
+                ),
+                formatArgs = arrayOf(timing.firstDelayMinutes),
+            )
+        }
+        if (!deliveryTest && alertId != null && result != null) {
+            val posted = result == PushLocalTestResult.POSTED
+            recordTimeline(
+                serverUrl = boundScope?.serverUrl,
+                monitorId = enriched.monitorId,
+                monitorName = enriched.monitorName,
+                kind = if (posted) LocalEventKind.PUSH_ALERT else LocalEventKind.PUSH_SUPPRESSED,
+                detailRes = if (posted) {
+                    dev.astoris.ursa.R.string.push_timeline_delivered
+                } else {
+                    result.timelineDetailRes
+                },
+                alertId = alertId,
+                decision = PushAlertTimeline.decision(
+                    outcome = if (posted) PushAlertTimeline.DELIVERED else PushAlertTimeline.SUPPRESSED,
+                    reason = PushAlertTimeline.suppressionReason(result),
+                    mode = mode,
+                    configuredSeverity = configuredSeverity,
+                    effectiveSeverity = quietSeverity,
+                    timing = timing,
+                    deliveredCount = if (posted) 1 else 0,
+                ),
+                formatArgs = if (posted) arrayOf(1) else emptyArray(),
+            )
+            correlation?.let { correlationResult ->
+                recordTimeline(
                     serverUrl = boundScope?.serverUrl,
                     monitorId = enriched.monitorId,
                     monitorName = enriched.monitorName,
-                    kind = LocalEventKind.PUSH_ALERT,
-                    detail = enriched.body,
+                    kind = LocalEventKind.PUSH_CORRELATED,
+                    detailRes = dev.astoris.ursa.R.string.push_timeline_correlated,
+                    alertId = alertId,
+                    decision = PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.CORRELATED,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        effectiveSeverity = quietSeverity,
+                        timing = timing,
+                        deliveredCount = 1,
+                        correlation = correlationResult,
+                    ),
+                    formatArgs = arrayOf(correlationResult.count),
                 )
             }
         }
@@ -203,13 +359,34 @@ class UrsaPushService : PushService() {
         if (PushStore.recordUnregistered(this)) cancelPathIssue(this) else postPathIssue(this)
     }
 
-    override fun onDestroy() {
-        eventScope.cancel()
-        super.onDestroy()
+    private fun recordTimeline(
+        serverUrl: String?,
+        monitorId: Int?,
+        monitorName: String,
+        kind: LocalEventKind,
+        detailRes: Int,
+        alertId: String,
+        decision: dev.astoris.ursa.core.storage.LocalAlertDecision,
+        formatArgs: Array<out Any> = emptyArray(),
+    ) {
+        val detail = getString(detailRes, *formatArgs)
+        timelineScope.launch {
+            EventLogStore(this@UrsaPushService).append(
+                serverUrl = serverUrl,
+                monitorId = monitorId,
+                monitorName = monitorName,
+                kind = kind,
+                detail = detail,
+                alertId = alertId,
+                alertDecision = decision,
+            )
+        }
     }
 
     companion object {
         private const val TAG = "UrsaPush"
+        /** Process-scoped so a short-lived connector service cannot cancel durable timeline writes. */
+        private val timelineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         const val CHANNEL_ID = "ursa_monitors_critical"
         private const val LOCAL_TEST_NOTIFICATION_ID = 0x55525341
         private const val PATH_ISSUE_NOTIFICATION_ID = 0x55525350
@@ -312,6 +489,7 @@ class UrsaPushService : PushService() {
             severity: PushSeverity = PushSeverity.CRITICAL,
             routeOverride: PushChannelRoute? = null,
             serverUrl: String? = null,
+            correlationSink: ((PushCorrelationResult) -> Unit)? = null,
         ): PushLocalTestResult {
             ensureChannel(context)
             val route = routeOverride ?: PushSeverityPolicy.route(severity)
@@ -404,10 +582,21 @@ class UrsaPushService : PushService() {
             }
             notifications.notify(id, builder.build())
             if (groupIdentity != null && alertServerId != null) {
-                PushNotificationGroups.refresh(context, alertServerId)
+                PushNotificationGroups.refresh(context, alertServerId)?.let { correlationSink?.invoke(it) }
             }
             return PushLocalTestResult.POSTED
         }
+
+        private val PushLocalTestResult.timelineDetailRes: Int
+            get() = when (this) {
+                PushLocalTestResult.POSTED -> dev.astoris.ursa.R.string.push_timeline_delivered
+                PushLocalTestResult.PERMISSION_REQUIRED ->
+                    dev.astoris.ursa.R.string.push_timeline_notification_permission
+                PushLocalTestResult.APP_NOTIFICATIONS_DISABLED ->
+                    dev.astoris.ursa.R.string.push_timeline_app_notifications_disabled
+                PushLocalTestResult.CHANNEL_DISABLED ->
+                    dev.astoris.ursa.R.string.push_timeline_channel_disabled
+            }
 
         private fun alertActionIntent(
             context: Context,

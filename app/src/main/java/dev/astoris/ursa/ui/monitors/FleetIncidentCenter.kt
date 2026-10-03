@@ -295,6 +295,7 @@ internal fun FleetIncidentCenter(
     onIncidentClick: (Int) -> Unit,
     onSaveNote: (Int, String?, String) -> Unit,
     modifier: Modifier = Modifier,
+    showHeader: Boolean = true,
 ) {
     onClose?.let { BackHandler(onBack = it) }
     val context = LocalContext.current
@@ -334,25 +335,27 @@ internal fun FleetIncidentCenter(
     }
 
     Column(modifier) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(R.string.incident_center_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f).semantics { heading() },
-            )
-            onClose?.let { close ->
-                TextButton(onClick = close) { Text(stringResource(R.string.incident_center_close)) }
+        if (showHeader) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.incident_center_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+                onClose?.let { close ->
+                    TextButton(onClick = close) { Text(stringResource(R.string.incident_center_close)) }
+                }
             }
+            Text(
+                stringResource(R.string.incident_center_source),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
         }
-        Text(
-            stringResource(R.string.incident_center_source),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

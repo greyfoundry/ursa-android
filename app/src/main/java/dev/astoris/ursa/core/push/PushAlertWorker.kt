@@ -10,8 +10,13 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
-import java.util.UUID
 import java.util.concurrent.TimeUnit
+
+data class PushAlertStart(
+    val alert: PushPendingAlert,
+    val decision: PushAlertDecision,
+    val result: PushLocalTestResult?,
+)
 
 class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -30,6 +35,7 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
                 alert.monitorId,
                 alert.monitorName,
                 suppression,
+                alert.id,
             )
             return Result.success()
         }
@@ -37,23 +43,85 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
             alert.severity,
             PushQuietHoursStore(applicationContext).load(),
         )
+        var correlation: PushCorrelationResult? = null
         val result = UrsaPushService.postNotification(
             context = applicationContext,
             notice = alert.asNotice(),
             idOverride = PushAlertWork.identity(alert.serverId, alert.monitorId)?.notificationId,
             severity = deliverySeverity,
+            correlationSink = { correlation = it },
         )
-        if (result != PushLocalTestResult.POSTED) return Result.success()
+        val eventStore = EventLogStore(applicationContext)
+        val mode = PushAlertModeStore(applicationContext).mode(alert.serverId, alert.monitorId)
+        if (result != PushLocalTestResult.POSTED) {
+            eventStore.append(
+                serverUrl = scope?.serverUrl,
+                monitorId = alert.monitorId,
+                monitorName = alert.monitorName,
+                kind = LocalEventKind.PUSH_SUPPRESSED,
+                detail = applicationContext.getString(result.timelineDetailRes),
+                alertId = alert.id,
+                alertDecision = PushAlertTimeline.decision(
+                    outcome = PushAlertTimeline.SUPPRESSED,
+                    reason = PushAlertTimeline.suppressionReason(result),
+                    mode = mode,
+                    configuredSeverity = alert.severity,
+                    effectiveSeverity = deliverySeverity,
+                    timing = alert.timing,
+                    deliveredCount = alert.deliveredCount,
+                ),
+            )
+            return Result.success()
+        }
 
         val updated = alert.copy(deliveredCount = alert.deliveredCount + 1)
         store.save(updated)
-        EventLogStore(applicationContext).append(
-            serverUrl = null,
+        eventStore.append(
+            serverUrl = scope?.serverUrl,
             monitorId = alert.monitorId,
             monitorName = alert.monitorName,
-            kind = LocalEventKind.PUSH_ALERT,
-            detail = alert.body,
+            kind = if (alert.deliveredCount == 0) LocalEventKind.PUSH_ALERT else LocalEventKind.PUSH_REPEATED,
+            detail = applicationContext.getString(
+                if (alert.deliveredCount == 0) dev.astoris.ursa.R.string.push_timeline_delivered
+                else dev.astoris.ursa.R.string.push_timeline_repeated,
+                updated.deliveredCount,
+            ),
+            alertId = alert.id,
+            alertDecision = PushAlertTimeline.decision(
+                outcome = if (alert.deliveredCount == 0) {
+                    PushAlertTimeline.DELIVERED
+                } else {
+                    PushAlertTimeline.REPEATED
+                },
+                mode = mode,
+                configuredSeverity = alert.severity,
+                effectiveSeverity = deliverySeverity,
+                timing = alert.timing,
+                deliveredCount = updated.deliveredCount,
+            ),
         )
+        correlation?.let { result ->
+            eventStore.append(
+                serverUrl = scope?.serverUrl,
+                monitorId = alert.monitorId,
+                monitorName = alert.monitorName,
+                kind = LocalEventKind.PUSH_CORRELATED,
+                detail = applicationContext.getString(
+                    dev.astoris.ursa.R.string.push_timeline_correlated,
+                    result.count,
+                ),
+                alertId = alert.id,
+                alertDecision = PushAlertTimeline.decision(
+                    outcome = PushAlertTimeline.CORRELATED,
+                    mode = mode,
+                    configuredSeverity = alert.severity,
+                    effectiveSeverity = deliverySeverity,
+                    timing = alert.timing,
+                    deliveredCount = updated.deliveredCount,
+                    correlation = result,
+                ),
+            )
+        }
         when (
             val next = PushAlertLifecycle.afterDelivery(
                 timing = updated.timing,
@@ -99,14 +167,16 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
             severity: PushSeverity,
             timing: PushAlertTiming,
             snoozedUntilMillis: Long?,
-        ): PushLocalTestResult? {
+            alertId: String,
+            correlationSink: ((PushCorrelationResult) -> Unit)? = null,
+        ): PushAlertStart? {
             val serverId = notice.serverId ?: return null
             val monitorId = notice.monitorId ?: return null
             val identity = PushAlertWork.identity(serverId, monitorId) ?: return null
             cancel(context, serverId, monitorId)
             val now = System.currentTimeMillis()
             val alert = PushPendingAlert(
-                id = UUID.randomUUID().toString(),
+                id = alertId,
                 serverId = serverId,
                 monitorId = monitorId,
                 monitorName = notice.monitorName,
@@ -118,7 +188,8 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
             )
             val store = PushPendingAlertStore(context)
             store.save(alert)
-            return when (val decision = PushAlertLifecycle.onDown(timing, now, snoozedUntilMillis)) {
+            val decision = PushAlertLifecycle.onDown(timing, now, snoozedUntilMillis)
+            val result = when (decision) {
                 PushAlertDecision.Deliver -> {
                     val deliverySeverity = PushQuietHoursPolicy.effectiveSeverity(
                         severity,
@@ -129,6 +200,7 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         notice,
                         idOverride = identity.notificationId,
                         severity = deliverySeverity,
+                        correlationSink = correlationSink,
                     )
                     if (result == PushLocalTestResult.POSTED) {
                         val delivered = alert.copy(deliveredCount = 1)
@@ -144,6 +216,18 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
                 }
                 else -> null
             }
+            return PushAlertStart(alert, decision, result)
         }
+
+        private val PushLocalTestResult.timelineDetailRes: Int
+            get() = when (this) {
+                PushLocalTestResult.POSTED -> dev.astoris.ursa.R.string.push_timeline_delivered
+                PushLocalTestResult.PERMISSION_REQUIRED ->
+                    dev.astoris.ursa.R.string.push_timeline_notification_permission
+                PushLocalTestResult.APP_NOTIFICATIONS_DISABLED ->
+                    dev.astoris.ursa.R.string.push_timeline_app_notifications_disabled
+                PushLocalTestResult.CHANNEL_DISABLED ->
+                    dev.astoris.ursa.R.string.push_timeline_channel_disabled
+            }
     }
 }

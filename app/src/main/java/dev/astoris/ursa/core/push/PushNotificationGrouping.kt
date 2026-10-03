@@ -147,8 +147,8 @@ object PushNotificationGroups {
     }
 
     @Synchronized
-    fun refresh(context: Context, serverId: String) {
-        val identity = PushNotificationGrouping.identity(serverId) ?: return
+    fun refresh(context: Context, serverId: String): PushCorrelationResult? {
+        val identity = PushNotificationGrouping.identity(serverId) ?: return null
         val manager = context.getSystemService(NotificationManager::class.java)
         val children = manager.activeNotifications
             .filter {
@@ -195,16 +195,16 @@ object PushNotificationGroups {
                 }
             }
             notifications.cancel(identity.summaryNotificationId)
-            return
+            return null
         }
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            return
+            return null
         }
-        if (!notifications.areNotificationsEnabled()) return
+        if (!notifications.areNotificationsEnabled()) return null
         val title = context.resources.getQuantityString(
             R.plurals.push_group_summary_title,
             summary.count,
@@ -246,6 +246,7 @@ object PushNotificationGroups {
                 .setContentIntent(contentIntent(context))
                 .build(),
         )
+        return correlation
     }
 
     fun contentIntent(context: Context): PendingIntent {

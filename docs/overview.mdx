@@ -44,7 +44,9 @@ and the module docs under `docs/modules/`.
   state, and push-monitor creation exposes its masked heartbeat URL with explicit
   copy/share guidance. Each managed monitor can also explain its effective local
   alert policy and current delivery blockers, and can opt into cycle-safe local
-  dependency suppression with an encrypted audit trail. Active alerts from the
+  dependency suppression with an encrypted audit trail. One encrypted device
+  timeline groups each received transition with its delay/repeat, delivery,
+  acknowledgement, snooze, suppression, cautious correlation, and recovery decisions. Active alerts from the
   same bound server gain a native Android inbox summary from the second alert
   onward without delaying the first. An off-by-default local correlation option
   can add a cautious shared-failure hint when recent Down alerts share a parent,
@@ -98,7 +100,7 @@ and the module docs under `docs/modules/`.
   list-detail or mutation boundaries. Derived inventory work is memoized away
   from unrelated heartbeat-history updates, parent-name queries are linear, and
   deterministic 1,000-monitor tests protect stable server ordering. Incidents is now a first-class adaptive
-  destination backed by Kuma monitor history, with explicit source labelling,
+  destination with explicit Kuma-history and encrypted device-alert-group sources,
   reliability windows, encrypted local notes, redacted sharing, and direct
   monitor navigation. Browse is now the fourth primary destination and gives
   named Operations, Insights/reports, and Manage sections to maintenance,

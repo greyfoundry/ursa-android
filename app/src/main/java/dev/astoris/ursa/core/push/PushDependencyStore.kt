@@ -176,6 +176,7 @@ suspend fun recordPushDependencySuppression(
     monitorId: Int,
     monitorName: String,
     suppression: PushDependencySuppression,
+    alertId: String? = null,
 ) {
     val parentName = scope.monitor(suppression.parentId)?.name
         ?: context.getString(dev.astoris.ursa.R.string.monitor_fallback_name, suppression.parentId)
@@ -185,5 +186,10 @@ suspend fun recordPushDependencySuppression(
         monitorName = monitorName,
         kind = LocalEventKind.PUSH_SUPPRESSED,
         detail = context.getString(dev.astoris.ursa.R.string.push_dependency_suppressed_detail, parentName),
+        alertId = alertId,
+        alertDecision = PushAlertTimeline.decision(
+            outcome = PushAlertTimeline.SUPPRESSED,
+            reason = PushAlertTimeline.REASON_DEPENDENCY,
+        ),
     )
 }

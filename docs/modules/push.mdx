@@ -47,6 +47,8 @@ connection: push works while the app is closed.
   monitor ID, and opaque alert ID.
 - `.../core/push/PushAlertWorker.kt` - one-shot scheduled delivery and bounded
   repeat chaining. WorkManager input contains only an opaque alert ID.
+- `.../core/push/PushAlertTimeline.kt` - safe, bounded decision snapshots shared
+  by receive, scheduled-delivery, correlation, and notification-action paths.
 - `.../core/push/PushAlertActionReceiver.kt` - non-exported acknowledge and
   one-hour snooze notification actions.
 - `.../core/push/PushNotificationGrouping.kt` - same-server Android grouping,
@@ -175,6 +177,14 @@ connection: push works while the app is closed.
   one hour later. Both actions use immutable PendingIntents targeting a non-exported
   receiver. Manual and legacy Webhooks stay immediate because they lack the server
   scope required for collision-safe per-monitor policy.
+- Every non-test push gets an opaque alert-lifecycle ID. The encrypted bounded
+  device history records received transitions and the effective local outcome:
+  delay, delivery, repeat, acknowledgement, snooze, suppression, cautious storm
+  correlation, or recovery. Decision snapshots contain only enum-like policy
+  values, bounded timing/count fields, and the opaque ID; notification bodies,
+  endpoints, credentials, URLs, JWTs, and custom headers are not copied into this
+  explanation history. Old event records remain readable because the fields are
+  additive and optional.
 - Quiet hours are a device-wide weekly push schedule with configurable start/end
   times and selected days. Same-day and overnight windows are supported. Alerts
   are never discarded: the effective severity becomes silent at actual delivery
@@ -232,11 +242,11 @@ connection: push works while the app is closed.
   Manual legacy payloads retain the previous monitor-ID fallback.
 - Down-to-recovery duration state is scoped by the same server ID when available;
   manual/legacy payloads retain the released monitor-only fallback.
-- A notification that is actually posted is also appended to the encrypted,
-  bounded device event log. A verified local scope binding supplies the exact saved
-  server URL; unknown or legacy payloads remain provider-neutral rather than being
-  guessed. Missing notification permission produces neither a notification nor a
-  false history entry.
+- Alert decisions are appended to the encrypted, bounded device event log whether
+  they deliver, wait, repeat, or stop. A verified local scope binding supplies the
+  exact saved server association; unknown or legacy payloads remain provider-neutral
+  rather than being guessed. Missing notification permission records a fixed local
+  explanation instead of a false delivery entry.
 - Pause/Resume actions are created only for a locally bound managed provider and
   carry its exact saved server identity to the non-exported receiver. The receiver
   re-resolves that connection, enforces its current Access Profile and cleartext

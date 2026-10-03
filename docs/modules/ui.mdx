@@ -34,10 +34,12 @@ route stack while screens migrate incrementally.
   adding network polling. Server-backed public incidents and scoped alert groups
   remain later roadmap inputs.
 - `.../ui/incidents/IncidentsScreen.kt` - top-level active-server incident
-  destination that reuses the durable monitor-history incident center. It labels
-  the Kuma-history source explicitly and routes incident selection into the
-  adaptive monitor workspace; authenticated public incidents remain separately
-  sourced from saved status pages rather than inferred from monitor history.
+  destination with an explicit source switch between durable Kuma monitor history
+  and encrypted device alert groups. Alert groups assemble received, delayed,
+  delivered/repeated, acknowledged, snoozed, suppressed, correlated, and recovered
+  decisions by opaque lifecycle ID and route known monitors into the adaptive
+  workspace. Authenticated public incidents remain separately sourced from saved
+  status pages rather than inferred from monitor history.
 - `.../ui/browse/BrowseScreen.kt` - sectioned catalogue for existing secondary
   operations, insights/reports, and management surfaces. It reuses maintenance,
   status-page, notification, certificate, domain, event, aggregate, live-panel,
@@ -270,10 +272,12 @@ route stack while screens migrate incrementally.
   monitors and remains explicit when Kuma has not emitted every certificate.
 - The event log does not invent a timestamp for a current status or pause that
   predates URSA's observation. State, recovery, and maintenance entries derive
-  from adjacent Kuma heartbeats. Successful pause/resume actions and notifications
-  actually posted by URSA are encrypted locally, capped at 500 entries, retained
-  for 90 days, and excluded from portable backups. UnifiedPush payloads do not
-  identify their originating server, so those entries are provider-neutral.
+  from adjacent Kuma heartbeats. Successful pause/resume actions and bounded
+  push-decision snapshots are encrypted locally, capped at 500 entries, retained
+  for 90 days, and excluded from portable backups. Verified managed bindings
+  provide exact server association; unknown and legacy push input stays
+  provider-neutral. Alert explanations use fixed safe copy rather than persisted
+  payload bodies.
 - The 30-day fleet summary asks Kuma for its own 720-hour aggregate buckets only
   when opened or refreshed. Paused monitors are excluded before requests; active
   monitors with empty or failed responses remain visible in coverage counts but

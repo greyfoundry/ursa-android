@@ -58,8 +58,15 @@ internal enum class EventLogKind {
     RESUMED,
     SLOW_RESPONSE,
     CERTIFICATE_EXPIRY,
+    PUSH_RECEIVED,
+    PUSH_DELAYED,
     PUSH_ALERT,
+    PUSH_REPEATED,
+    PUSH_ACKNOWLEDGED,
+    PUSH_SNOOZED,
     PUSH_SUPPRESSED,
+    PUSH_CORRELATED,
+    PUSH_RECOVERED,
 }
 
 internal enum class EventLogFilter { ALL, STATE, MAINTENANCE, ACTIONS, ALERTS }
@@ -74,6 +81,7 @@ internal data class EventLogEntry(
     val atMillis: Long,
     val detail: String?,
     val source: EventLogSource,
+    val alertId: String? = null,
 )
 
 /** Builds only observed transitions; the first available heartbeat is not presented as an event. */
@@ -138,12 +146,20 @@ internal fun combinedEventLog(
                 LocalEventKind.RESUMED -> EventLogKind.RESUMED
                 LocalEventKind.SLOW_RESPONSE -> EventLogKind.SLOW_RESPONSE
                 LocalEventKind.CERTIFICATE_EXPIRY -> EventLogKind.CERTIFICATE_EXPIRY
+                LocalEventKind.PUSH_RECEIVED -> EventLogKind.PUSH_RECEIVED
+                LocalEventKind.PUSH_DELAYED -> EventLogKind.PUSH_DELAYED
                 LocalEventKind.PUSH_ALERT -> EventLogKind.PUSH_ALERT
+                LocalEventKind.PUSH_REPEATED -> EventLogKind.PUSH_REPEATED
+                LocalEventKind.PUSH_ACKNOWLEDGED -> EventLogKind.PUSH_ACKNOWLEDGED
+                LocalEventKind.PUSH_SNOOZED -> EventLogKind.PUSH_SNOOZED
                 LocalEventKind.PUSH_SUPPRESSED -> EventLogKind.PUSH_SUPPRESSED
+                LocalEventKind.PUSH_CORRELATED -> EventLogKind.PUSH_CORRELATED
+                LocalEventKind.PUSH_RECOVERED -> EventLogKind.PUSH_RECOVERED
             },
             atMillis = event.atMillis,
             detail = event.detail,
             source = EventLogSource.DEVICE,
+            alertId = event.alertId,
         )
     }
 ).distinctBy { it.id }
@@ -162,8 +178,15 @@ internal fun EventLogEntry.matches(filter: EventLogFilter): Boolean = when (filt
     EventLogFilter.ALERTS -> kind in setOf(
         EventLogKind.SLOW_RESPONSE,
         EventLogKind.CERTIFICATE_EXPIRY,
+        EventLogKind.PUSH_RECEIVED,
+        EventLogKind.PUSH_DELAYED,
         EventLogKind.PUSH_ALERT,
+        EventLogKind.PUSH_REPEATED,
+        EventLogKind.PUSH_ACKNOWLEDGED,
+        EventLogKind.PUSH_SNOOZED,
         EventLogKind.PUSH_SUPPRESSED,
+        EventLogKind.PUSH_CORRELATED,
+        EventLogKind.PUSH_RECOVERED,
     )
 }
 
@@ -336,8 +359,15 @@ private val EventLogKind.labelRes: Int
         EventLogKind.RESUMED -> R.string.event_resumed
         EventLogKind.SLOW_RESPONSE -> R.string.event_slow_response
         EventLogKind.CERTIFICATE_EXPIRY -> R.string.event_certificate_expiry
+        EventLogKind.PUSH_RECEIVED -> R.string.event_push_received
+        EventLogKind.PUSH_DELAYED -> R.string.event_push_delayed
         EventLogKind.PUSH_ALERT -> R.string.event_push_alert
+        EventLogKind.PUSH_REPEATED -> R.string.event_push_repeated
+        EventLogKind.PUSH_ACKNOWLEDGED -> R.string.event_push_acknowledged
+        EventLogKind.PUSH_SNOOZED -> R.string.event_push_snoozed
         EventLogKind.PUSH_SUPPRESSED -> R.string.event_push_suppressed
+        EventLogKind.PUSH_CORRELATED -> R.string.event_push_correlated
+        EventLogKind.PUSH_RECOVERED -> R.string.event_push_recovered
     }
 
 @Composable
@@ -345,8 +375,11 @@ private fun eventColor(kind: EventLogKind): Color = when (kind) {
     EventLogKind.DOWN -> KumaRed
     EventLogKind.UP, EventLogKind.RECOVERED, EventLogKind.RESUMED -> KumaGreen
     EventLogKind.PENDING, EventLogKind.SLOW_RESPONSE, EventLogKind.CERTIFICATE_EXPIRY,
-    EventLogKind.PUSH_SUPPRESSED -> KumaOrange
+    EventLogKind.PUSH_DELAYED, EventLogKind.PUSH_SNOOZED, EventLogKind.PUSH_SUPPRESSED,
+    EventLogKind.PUSH_CORRELATED -> KumaOrange
     EventLogKind.MAINTENANCE_STARTED, EventLogKind.MAINTENANCE_ENDED -> KumaBlue
     EventLogKind.PAUSED -> MaterialTheme.colorScheme.onSurfaceVariant
-    EventLogKind.PUSH_ALERT -> MaterialTheme.colorScheme.primary
+    EventLogKind.PUSH_RECEIVED -> MaterialTheme.colorScheme.onSurfaceVariant
+    EventLogKind.PUSH_ALERT, EventLogKind.PUSH_REPEATED -> MaterialTheme.colorScheme.primary
+    EventLogKind.PUSH_ACKNOWLEDGED, EventLogKind.PUSH_RECOVERED -> KumaGreen
 }

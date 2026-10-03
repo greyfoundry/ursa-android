@@ -15,7 +15,38 @@ private val Context.eventLogDataStore by preferencesDataStore(name = "ursa_event
 
 /** Events that URSA itself can timestamp reliably. Kuma heartbeat transitions stay live-derived. */
 @Serializable
-enum class LocalEventKind { PAUSED, RESUMED, SLOW_RESPONSE, CERTIFICATE_EXPIRY, PUSH_ALERT, PUSH_SUPPRESSED }
+enum class LocalEventKind {
+    PAUSED,
+    RESUMED,
+    SLOW_RESPONSE,
+    CERTIFICATE_EXPIRY,
+    PUSH_RECEIVED,
+    PUSH_DELAYED,
+    PUSH_ALERT,
+    PUSH_REPEATED,
+    PUSH_ACKNOWLEDGED,
+    PUSH_SNOOZED,
+    PUSH_SUPPRESSED,
+    PUSH_CORRELATED,
+    PUSH_RECOVERED,
+}
+
+/** Bounded inputs and outcome needed to explain a managed alert decision later. */
+@Serializable
+data class LocalAlertDecision(
+    val outcome: String,
+    val reason: String? = null,
+    val mode: String? = null,
+    val configuredSeverity: String? = null,
+    val effectiveSeverity: String? = null,
+    val firstDelayMinutes: Int? = null,
+    val repeatMinutes: Int? = null,
+    val maxRepeats: Int? = null,
+    val scheduledAtMillis: Long? = null,
+    val deliveredCount: Int? = null,
+    val correlationBasis: String? = null,
+    val correlationCount: Int? = null,
+)
 
 @Serializable
 data class LocalEvent(
@@ -27,6 +58,9 @@ data class LocalEvent(
     val kind: LocalEventKind,
     val atMillis: Long,
     val detail: String? = null,
+    /** Opaque UUID shared by events in one managed alert lifecycle. */
+    val alertId: String? = null,
+    val alertDecision: LocalAlertDecision? = null,
 )
 
 /** Pure codec and retention policy, kept separate so corrupt local data is harmless and testable. */
@@ -36,6 +70,29 @@ object LocalEventCodec {
     private const val MAX_NAME_LENGTH = 120
     private const val MAX_DETAIL_LENGTH = 240
     private const val MAX_URL_LENGTH = 2_048
+    private val alertOutcomes = setOf(
+        "RECEIVED",
+        "DELAYED",
+        "DELIVERED",
+        "REPEATED",
+        "ACKNOWLEDGED",
+        "SNOOZED",
+        "SUPPRESSED",
+        "CORRELATED",
+        "RECOVERED",
+    )
+    private val alertModes = setOf("MUTED", "DOWN_ONLY", "DOWN_AND_RECOVERY", "ALL_TRANSITIONS")
+    private val alertSeverities = setOf("CRITICAL", "STANDARD", "SILENT")
+    private val alertReasons = setOf(
+        "POLICY",
+        "EVENT_PREFERENCE",
+        "DUPLICATE",
+        "DEPENDENCY",
+        "NOTIFICATION_PERMISSION",
+        "APP_NOTIFICATIONS_DISABLED",
+        "CHANNEL_DISABLED",
+    )
+    private val correlationBases = setOf("SHARED_PARENT", "SHARED_TAG", "SERVER_BURST")
     private val json = Json { ignoreUnknownKeys = true }
 
     fun encode(events: List<LocalEvent>, nowMillis: Long = System.currentTimeMillis()): String =
@@ -60,6 +117,8 @@ object LocalEventCodec {
                 event.copy(
                     monitorName = event.monitorName.trim().take(MAX_NAME_LENGTH),
                     detail = event.detail?.trim()?.take(MAX_DETAIL_LENGTH)?.ifBlank { null },
+                    alertId = event.alertId?.let(::validUuidOrNull),
+                    alertDecision = event.alertDecision?.normalized(),
                 )
             }
             .distinctBy { it.id }
@@ -67,9 +126,29 @@ object LocalEventCodec {
             .take(MAX_EVENTS)
             .toList()
     }
+
+    private fun validUuidOrNull(value: String): String? =
+        runCatching { UUID.fromString(value).toString() }.getOrNull()
+
+    private fun LocalAlertDecision.normalized(): LocalAlertDecision? {
+        if (outcome !in alertOutcomes) return null
+        if (reason != null && reason !in alertReasons) return null
+        if (mode != null && mode !in alertModes) return null
+        if (configuredSeverity != null && configuredSeverity !in alertSeverities) return null
+        if (effectiveSeverity != null && effectiveSeverity !in alertSeverities) return null
+        if (correlationBasis != null && correlationBasis !in correlationBases) return null
+        return copy(
+            firstDelayMinutes = firstDelayMinutes?.coerceIn(0, 24 * 60),
+            repeatMinutes = repeatMinutes?.coerceIn(0, 24 * 60),
+            maxRepeats = maxRepeats?.coerceIn(0, 100),
+            scheduledAtMillis = scheduledAtMillis?.takeIf { it >= 0L },
+            deliveredCount = deliveredCount?.coerceIn(0, 101),
+            correlationCount = correlationCount?.coerceIn(0, 10_000),
+        )
+    }
 }
 
-/** Encrypted, bounded device history for successful actions and posted local alerts. */
+/** Encrypted, bounded device history for successful actions and local alert decisions. */
 class EventLogStore(context: Context) {
 
     private val appContext = context.applicationContext
@@ -85,6 +164,8 @@ class EventLogStore(context: Context) {
         monitorName: String,
         kind: LocalEventKind,
         detail: String? = null,
+        alertId: String? = null,
+        alertDecision: LocalAlertDecision? = null,
         atMillis: Long = System.currentTimeMillis(),
     ) {
         val event = LocalEvent(
@@ -95,6 +176,8 @@ class EventLogStore(context: Context) {
             kind = kind,
             atMillis = atMillis,
             detail = detail,
+            alertId = alertId,
+            alertDecision = alertDecision,
         )
         appContext.eventLogDataStore.edit { preferences ->
             preferences[eventsKey] = crypto.encrypt(

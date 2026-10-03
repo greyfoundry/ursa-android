@@ -24,6 +24,49 @@ class EventLogStoreTest {
     }
 
     @Test
+    fun codecReadsLegacyEventsWithoutAlertFields() {
+        val now = 2_000_000_000_000L
+        val raw = """[{"id":"legacy","monitorName":"API","kind":"PUSH_ALERT","atMillis":$now}]"""
+
+        val event = LocalEventCodec.decode(raw, now).single()
+
+        assertEquals("legacy", event.id)
+        assertEquals(null, event.alertId)
+        assertEquals(null, event.alertDecision)
+    }
+
+    @Test
+    fun normalizationBoundsAlertDecisionAndRejectsInvalidOpaqueId() {
+        val now = 2_000_000_000_000L
+        val event = LocalEvent(
+            id = "event",
+            monitorName = "API",
+            kind = LocalEventKind.PUSH_DELAYED,
+            atMillis = now,
+            alertId = "not-a-uuid",
+            alertDecision = LocalAlertDecision(
+                outcome = "DELAYED",
+                mode = "DOWN_ONLY",
+                configuredSeverity = "CRITICAL",
+                firstDelayMinutes = 100_000,
+                repeatMinutes = -1,
+                maxRepeats = 999,
+                scheduledAtMillis = -1,
+                deliveredCount = 999,
+            ),
+        )
+
+        val normalized = LocalEventCodec.normalized(listOf(event), now).single()
+
+        assertEquals(null, normalized.alertId)
+        assertEquals(1_440, normalized.alertDecision?.firstDelayMinutes)
+        assertEquals(0, normalized.alertDecision?.repeatMinutes)
+        assertEquals(100, normalized.alertDecision?.maxRepeats)
+        assertEquals(null, normalized.alertDecision?.scheduledAtMillis)
+        assertEquals(101, normalized.alertDecision?.deliveredCount)
+    }
+
+    @Test
     fun normalizationBoundsRetentionSizeAndUntrustedText() {
         val now = 2_000_000_000_000L
         val events = (0..LocalEventCodec.MAX_EVENTS + 10).map { index ->
