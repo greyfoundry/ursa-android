@@ -178,6 +178,46 @@ class FleetRepositoryTest {
         assertTrue(fleet.servers.all { it.freshness == FleetFreshness.RECENT })
     }
 
+    @Test fun active_live_snapshot_replaces_only_current_server_and_recomputes_totals() {
+        val connections = listOf(
+            connection("https://one.example"),
+            connection("https://two.example"),
+        )
+        val cached = buildCachedFleetSnapshot(
+            connections = connections,
+            activeUrl = connections.first().url,
+            cacheReads = connections.associate { connection ->
+                connection.url to MonitorCacheRead.Available(
+                    MonitorSnapshot(listOf(monitor(1, MonitorStatus.UP)), updatedAt = 100L),
+                )
+            },
+            contentUnlocked = true,
+            nowMillis = 200L,
+        )
+
+        val live = mergeActiveFleetSnapshot(
+            snapshot = cached,
+            activeUrl = connections[1].url,
+            monitors = listOf(
+                monitor(2, MonitorStatus.DOWN),
+                monitor(3, MonitorStatus.PENDING),
+            ),
+            capturedAtMillis = 250L,
+            loadedAtMillis = 300L,
+        )
+
+        assertFalse(live.servers[0].isActiveServer)
+        assertEquals(FleetSnapshotSource.CACHE, live.servers[0].source)
+        assertTrue(live.servers[1].isActiveServer)
+        assertEquals(FleetSnapshotSource.LIVE, live.servers[1].source)
+        assertEquals(FleetFreshness.LIVE, live.servers[1].freshness)
+        assertEquals(50L, live.servers[1].ageMillis)
+        assertEquals(3, live.counts?.total)
+        assertEquals(1, live.counts?.up)
+        assertEquals(1, live.counts?.down)
+        assertEquals(1, live.counts?.pending)
+    }
+
     private fun connection(url: String, alias: String? = null) = ServerConnection(
         url = url,
         username = "operator",

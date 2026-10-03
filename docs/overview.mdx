@@ -69,6 +69,11 @@ and the module docs under `docs/modules/`.
   the app is locked. Its explicit refresh path permits at most two temporary
   connections, applies each server's existing transport/TLS/header/session policy,
   retains successful results when peers fail, and closes every temporary session.
+  Home presents that model as an all-server operational summary with urgent,
+  affected, stale, and unavailable totals. Every server is labelled live,
+  refreshed, cached, stale, or unavailable; an explicit bounded refresh preserves
+  cached peers on partial failure, and server drill-down selects the correct
+  connection before opening filtered monitors or incident history.
 - Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.

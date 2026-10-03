@@ -245,6 +245,40 @@ internal fun mergeFleetRefresh(
     )
 }
 
+internal fun mergeActiveFleetSnapshot(
+    snapshot: FleetSnapshot,
+    activeUrl: String,
+    monitors: List<Monitor>,
+    capturedAtMillis: Long,
+    loadedAtMillis: Long,
+): FleetSnapshot {
+    require(!snapshot.isLocked)
+    val servers = snapshot.servers.map { server ->
+        if (server.serverUrl == activeUrl) {
+            server.copy(
+                isActiveServer = true,
+                availability = FleetServerAvailability.AVAILABLE,
+                source = FleetSnapshotSource.LIVE,
+                freshness = FleetFreshness.LIVE,
+                capturedAtMillis = capturedAtMillis,
+                ageMillis = (loadedAtMillis - capturedAtMillis).coerceAtLeast(0L),
+                counts = FleetMonitorCounts.from(monitors),
+                error = null,
+                refreshError = null,
+            )
+        } else {
+            server.copy(isActiveServer = false)
+        }
+    }
+    val availableCounts = servers.mapNotNull(FleetServerSnapshot::counts)
+    return snapshot.copy(
+        servers = servers,
+        counts = availableCounts.takeIf { it.isNotEmpty() }
+            ?.fold(FleetMonitorCounts.EMPTY, FleetMonitorCounts::plus),
+        loadedAtMillis = loadedAtMillis,
+    )
+}
+
 internal fun buildCachedFleetSnapshot(
     connections: List<ServerConnection>,
     activeUrl: String?,

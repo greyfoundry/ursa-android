@@ -26,9 +26,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -51,6 +53,7 @@ import dev.astoris.ursa.ui.components.resolveFreshness
 import dev.astoris.ursa.ui.monitors.ActivityFilter
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -61,6 +64,8 @@ fun HomeScreen(
     val history by vm.beatHistory.collectAsStateWithLifecycle()
     val localEvents by vm.localEvents.collectAsStateWithLifecycle()
     val savedViews by vm.savedViews.collectAsStateWithLifecycle()
+    val connections by vm.connections.collectAsStateWithLifecycle()
+    val fleetHome by vm.fleetHome.collectAsStateWithLifecycle()
     val connection by vm.activeConnection.collectAsStateWithLifecycle()
     val connectionState by vm.state.collectAsStateWithLifecycle()
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
@@ -84,6 +89,14 @@ fun HomeScreen(
         lastUpdated = lastUpdated,
         nowMillis = nowMillis,
     )
+    val fleetScope = rememberCoroutineScope()
+    val connectionUrls = remember(connections) { connections.map { it.url } }
+    LaunchedEffect(connectionUrls, connection?.url) {
+        vm.loadCachedFleet()
+    }
+    LaunchedEffect(connectionState, showingCache, lastUpdated, monitors) {
+        vm.syncFleetHomeActiveServer()
+    }
 
     Box(
         modifier = modifier
@@ -115,6 +128,15 @@ fun HomeScreen(
                 )
             }
         }
+
+        fleetHomeItems(
+            state = fleetHome,
+            nowMillis = nowMillis,
+            onRefresh = { fleetScope.launch { vm.refreshFleet() } },
+            onOpenMonitors = { vm.openFleetServerMonitors(it) },
+            onOpenIssues = { vm.openFleetServerMonitors(it, attentionOnly = true) },
+            onOpenIncidents = vm::openFleetServerIncidents,
+        )
 
         item(key = "attention-heading") {
             SectionHeading(stringResource(R.string.home_attention_title))

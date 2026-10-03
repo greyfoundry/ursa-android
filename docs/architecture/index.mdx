@@ -46,7 +46,8 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
   without connecting to inactive servers on load. Its explicit refresh uses at
   most two short-lived clients and closes them after per-server results are captured.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, typed Navigation 3 shell,
-  attention-first Home, Material 3 Adaptive navigation/list-detail, shared operational components,
+  cache-first fleet Home with explicit bounded refresh and server-scoped drill-down,
+  Material 3 Adaptive navigation/list-detail, shared operational components,
   connections/monitors/statuspage) -
   see `docs/modules/ui.mdx`.
 - app shell → `.../MainActivity.kt` - see `docs/modules/app-shell.mdx`.

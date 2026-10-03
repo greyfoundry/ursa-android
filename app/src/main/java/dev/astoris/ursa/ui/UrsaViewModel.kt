@@ -79,6 +79,7 @@ import dev.astoris.ursa.core.update.AvailableRelease
 import dev.astoris.ursa.core.update.ReleaseClient
 import dev.astoris.ursa.core.update.UpdateNotifier
 import dev.astoris.ursa.ui.monitors.SavedMonitorView
+import dev.astoris.ursa.ui.monitors.ActivityFilter
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
 import dev.astoris.ursa.data.model.AccessProfile
@@ -92,6 +93,9 @@ import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
+import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.model.FleetSnapshot
+import dev.astoris.ursa.data.model.FleetSnapshotSource
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.ServerConnection
@@ -99,6 +103,8 @@ import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.model.StatusIncidentView
 import dev.astoris.ursa.data.repository.MonitorRepository
 import dev.astoris.ursa.data.repository.BulkMonitorUpdateResult
+import dev.astoris.ursa.data.repository.FleetRepository
+import dev.astoris.ursa.data.repository.mergeActiveFleetSnapshot
 import org.unifiedpush.android.connector.UnifiedPush
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -131,6 +137,13 @@ sealed interface ConnectionTestUiState {
     data object NeedsTwoFactor : ConnectionTestUiState
     data class Error(val message: String) : ConnectionTestUiState
 }
+
+data class FleetHomeUiState(
+    val snapshot: FleetSnapshot? = null,
+    val loading: Boolean = false,
+    val refreshing: Boolean = false,
+    val failed: Boolean = false,
+)
 
 enum class WearPairingError {
     NO_ACTIVE_SESSION,
@@ -249,6 +262,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val eventLogStore = EventLogStore(app)
     private val incidentNoteStore = IncidentNoteStore(app)
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
+    private val fleetRepository = FleetRepository(store, cacheStore)
     private val localServiceDiscovery = LocalServiceDiscovery(app)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
@@ -279,6 +293,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         combine(repo.connections, repo.activeUrl) { connections, url ->
             connections.firstOrNull { it.url == url } ?: connections.firstOrNull()
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val _fleetHome = MutableStateFlow(FleetHomeUiState())
+    val fleetHome: StateFlow<FleetHomeUiState> = _fleetHome.asStateFlow()
     private val _accessDenial = MutableStateFlow<AccessDecision.Denied?>(null)
     val accessDenial: StateFlow<AccessDecision.Denied?> = _accessDenial.asStateFlow()
     val localEvents: StateFlow<List<LocalEvent>> =
@@ -581,6 +597,122 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshActiveServer() {
         val connection = activeConnection.value ?: return
         switchTo(connection)
+    }
+
+    suspend fun loadCachedFleet() {
+        if (_fleetHome.value.refreshing) return
+        _fleetHome.value = _fleetHome.value.copy(
+            loading = _fleetHome.value.snapshot == null,
+            failed = false,
+        )
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                fleetRepository.loadCached(contentUnlocked = !_locked.value)
+            }
+            _fleetHome.value = FleetHomeUiState(snapshot = withActiveFleet(snapshot))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _fleetHome.value = _fleetHome.value.copy(failed = true)
+        } finally {
+            _fleetHome.value = _fleetHome.value.copy(loading = false)
+        }
+    }
+
+    suspend fun refreshFleet() {
+        if (_fleetHome.value.refreshing) return
+        _fleetHome.value = _fleetHome.value.copy(
+            loading = _fleetHome.value.snapshot == null,
+            refreshing = true,
+            failed = false,
+        )
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                fleetRepository.refresh(contentUnlocked = !_locked.value)
+            }
+            _fleetHome.value = FleetHomeUiState(snapshot = withActiveFleet(snapshot))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _fleetHome.value = _fleetHome.value.copy(failed = true)
+        } finally {
+            _fleetHome.value = _fleetHome.value.copy(
+                loading = false,
+                refreshing = false,
+            )
+        }
+    }
+
+    suspend fun syncFleetHomeActiveServer() {
+        val snapshot = _fleetHome.value.snapshot ?: return
+        val live = state.value == ConnectionState.Authenticated && !showingCache.value
+        if (!live) {
+            if (snapshot.servers.any { it.source == FleetSnapshotSource.LIVE }) {
+                loadCachedFleet()
+            }
+            return
+        }
+        _fleetHome.value = _fleetHome.value.copy(snapshot = withActiveFleet(snapshot))
+    }
+
+    private fun withActiveFleet(snapshot: FleetSnapshot): FleetSnapshot {
+        if (snapshot.isLocked || state.value != ConnectionState.Authenticated || showingCache.value) {
+            return snapshot
+        }
+        val url = activeUrl.value ?: return snapshot
+        val now = System.currentTimeMillis()
+        return mergeActiveFleetSnapshot(
+            snapshot = snapshot,
+            activeUrl = url,
+            monitors = monitors.value,
+            capturedAtMillis = lastUpdated.value ?: now,
+            loadedAtMillis = now,
+        )
+    }
+
+    fun openFleetServerMonitors(serverUrl: String, attentionOnly: Boolean = false) {
+        viewModelScope.launch {
+            if (!activateFleetServer(serverUrl)) return@launch
+            _selectedId.value = null
+            _beats.value = emptyList()
+            _monitorFilterRequest.value = if (attentionOnly) {
+                MonitorViewFilter(
+                    statuses = setOf(
+                        MonitorStatus.DOWN,
+                        MonitorStatus.PENDING,
+                        MonitorStatus.MAINTENANCE,
+                    ),
+                    activity = ActivityFilter.ACTIVE,
+                )
+            } else {
+                null
+            }
+            _tab.value = MainTab.MONITORS
+        }
+    }
+
+    fun openFleetServerIncidents(serverUrl: String) {
+        viewModelScope.launch {
+            if (!activateFleetServer(serverUrl)) return@launch
+            _selectedId.value = null
+            _beats.value = emptyList()
+            _tab.value = MainTab.INCIDENTS
+        }
+    }
+
+    private suspend fun activateFleetServer(serverUrl: String): Boolean {
+        val connection = connections.value.firstOrNull { it.url == serverUrl } ?: return false
+        return try {
+            if (activeUrl.value != serverUrl) {
+                repo.switchTo(connection)
+                OverallStatusService.refreshIfEnabled(getApplication())
+            }
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
     }
 
     fun testConnection(

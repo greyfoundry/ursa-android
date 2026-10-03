@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-03 - Fleet Home and server-scoped drill-down
+
+**changed**: Home now begins with an all-server operational view built from the
+encrypted fleet model. It reports urgent monitors, affected servers, coverage,
+stale/unavailable sources, and last refresh or newest-snapshot time without
+manufacturing healthy zeroes for missing data. Each server retains a visible
+live/refreshed/cached/stale/error label and can open its full monitor inventory,
+attention filter, or incident history.
+
+**lifecycle and security**: Opening Home performs cache-only loading. `Refresh all`
+is explicit, composition-owned, cancellable, and reuses the two-session ceiling;
+there are no permanent inactive sockets. Drill-down activates the exact saved
+connection before changing destination, while all mutations remain behind the
+existing per-connection access policy. Raw server URLs are not used as saveable
+lazy-list keys, and locked fleet snapshots remain identity-free.
+
+**accessibility and verification**: Headings expose heading semantics, status is
+always written in text rather than color alone, Material controls retain native
+focus/touch behavior, and wrapping action rows remain usable at 200% text.
+Focused tests cover mixed coverage, unavailable data, urgent/maintenance totals,
+last-refresh time, active live-source replacement, and aggregate recomputation.
+Android 17 QA verified cached and refreshed rendering, live-source labelling,
+filtered monitor drill-down, incident drill-down, and 200% text against Kuma 2.5.5.
+
 ### 2026-10-03 - Bounded explicit fleet refresh
 
 **changed**: Added a cancellable explicit fleet refresh over saved connections.

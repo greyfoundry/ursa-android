@@ -28,11 +28,13 @@ route stack while screens migrate incrementally.
   and predictive-back bridge. Released Settings and Notifications enum names
   remain valid for restored state, shortcuts, and deep links without occupying
   primary navigation.
-- `.../ui/home/` - attention-first active-server Home. It composes existing live
-  and cached monitor state into issue rows, fleet counts, explicit connection
-  freshness, recent scoped transitions/actions, and saved-view shortcuts without
-  adding network polling. Server-backed public incidents and scoped alert groups
-  remain later roadmap inputs.
+- `.../ui/home/` - attention-first Home for the saved fleet and current server.
+  It reads encrypted last-known snapshots without opening inactive sockets, keeps
+  live/refreshed/cached/stale/unavailable sources explicit, and offers a cancellable
+  bounded refresh. Per-server cards establish the selected connection before
+  opening its full monitor inventory, issue filter, or incident history. The
+  current-server issue rows, freshness, recent scoped actions, and saved-view
+  shortcuts remain below that fleet context.
 - `.../ui/incidents/IncidentsScreen.kt` - top-level active-server incident
   destination with an explicit source switch between durable Kuma monitor history
   and encrypted device alert groups. Alert groups assemble received, delayed,
@@ -173,12 +175,13 @@ route stack while screens migrate incrementally.
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
   `localEvents`, `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`,
-  `savedStatusPages`, `selectedStatusPageId`;
+  `savedStatusPages`, `selectedStatusPageId`, `fleetHome`;
   actions `login`, `loginWithSessionToken`, `testConnection`, `testSessionToken`,
   `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
   `pause`/`resume`, monitor create/edit/delete, `toggleFavorite`, and saved
   status-page CRUD/order/open/refresh plus public-incident operations,
+  cached/explicit fleet loading and server-scoped fleet drill-down,
   glance-display entry/exit, plus validated widget deep-link entry points.
 
 **depends on**
@@ -199,6 +202,11 @@ route stack while screens migrate incrementally.
   biometric/device-credential proof before monitor deletion, maintenance deletion,
   managed-push removal, or saved-server removal. It is an additional confirmation;
   repository access policy remains the authorization boundary.
+- Fleet Home never keeps inactive servers connected. Its initial state is cache-only;
+  `Refresh all` owns at most two temporary sessions and composition cancellation
+  tears them down. Drilling into another server activates that exact saved
+  connection before navigation, after which the existing repository access policy
+  remains authoritative for every remote action.
 - The Material 3 Adaptive window/posture policy controls the navigation bar/rail
   and one-/two-pane transitions; do not reintroduce hard-coded device or orientation
   checks. Monitor selection survives resize and process recreation, replaces the
