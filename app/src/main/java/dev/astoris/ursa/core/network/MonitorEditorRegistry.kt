@@ -36,6 +36,14 @@ enum class MonitorEditorField {
     WEBSOCKET_MTLS_CERTIFICATE,
     WEBSOCKET_MTLS_PRIVATE_KEY,
     WEBSOCKET_MTLS_CA_CERTIFICATE,
+    MQTT_USERNAME,
+    MQTT_PASSWORD,
+    MQTT_TOPIC,
+    MQTT_WEBSOCKET_PATH,
+    MQTT_CHECK_TYPE,
+    MQTT_SUCCESS_MESSAGE,
+    MQTT_JSON_QUERY_EXPRESSION,
+    MQTT_JSON_QUERY_EXPECTED_VALUE,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -50,6 +58,7 @@ enum class MonitorEditorCodec {
     KEYWORD,
     JSON_QUERY,
     WEBSOCKET,
+    MQTT,
     SFTP,
 }
 
@@ -60,6 +69,7 @@ enum class MonitorEditorValidation {
     KEYWORD,
     JSON_QUERY,
     WEBSOCKET,
+    MQTT,
     SFTP,
 }
 
@@ -209,7 +219,43 @@ object MonitorEditorRegistry {
             ),
         ),
         definition("kafka-producer", "Kafka producer"),
-        definition("mqtt", "MQTT"),
+        definition(
+            "mqtt",
+            "MQTT",
+            MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            codec = MonitorEditorCodec.MQTT,
+            validation = MonitorEditorValidation.MQTT,
+            extraFields = setOf(
+                MonitorEditorField.MQTT_USERNAME,
+                MonitorEditorField.MQTT_PASSWORD,
+                MonitorEditorField.MQTT_TOPIC,
+                MonitorEditorField.MQTT_WEBSOCKET_PATH,
+                MonitorEditorField.MQTT_CHECK_TYPE,
+                MonitorEditorField.MQTT_SUCCESS_MESSAGE,
+                MonitorEditorField.MQTT_JSON_QUERY_EXPRESSION,
+                MonitorEditorField.MQTT_JSON_QUERY_EXPECTED_VALUE,
+            ),
+            sensitiveFields = setOf(MonitorEditorField.MQTT_PASSWORD),
+            conditions = listOf(
+                MonitorEditorFieldCondition(
+                    MonitorEditorField.MQTT_SUCCESS_MESSAGE,
+                    MonitorEditorField.MQTT_CHECK_TYPE,
+                    setOf(MqttCheckType.KEYWORD.wireValue),
+                ),
+                MonitorEditorFieldCondition(
+                    MonitorEditorField.MQTT_JSON_QUERY_EXPRESSION,
+                    MonitorEditorField.MQTT_CHECK_TYPE,
+                    setOf(MqttCheckType.JSON_QUERY.wireValue),
+                ),
+                MonitorEditorFieldCondition(
+                    MonitorEditorField.MQTT_JSON_QUERY_EXPECTED_VALUE,
+                    MonitorEditorField.MQTT_CHECK_TYPE,
+                    setOf(MqttCheckType.JSON_QUERY.wireValue),
+                ),
+            ),
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+        ),
         definition("ntp", "NTP", verifiedMin = KumaVersion(2, 5, 0)),
         definition("rabbitmq", "RabbitMQ"),
         definition("sip-options", "SIP options ping"),
@@ -485,6 +531,16 @@ object MonitorRoundTripGuard {
                 add("tlsCert")
                 add("tlsKey")
                 add("tlsCa")
+            }
+            if (definition.codec == MonitorEditorCodec.MQTT) {
+                add("mqttUsername")
+                add("mqttPassword")
+                add("mqttTopic")
+                add("mqttWebsocketPath")
+                add("mqttCheckType")
+                add("mqttSuccessMessage")
+                add("jsonPath")
+                add("expectedValue")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

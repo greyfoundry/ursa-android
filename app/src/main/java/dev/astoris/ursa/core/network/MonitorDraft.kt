@@ -79,6 +79,16 @@ enum class WebSocketOAuthAuthMethod(val wireValue: String) {
     }
 }
 
+enum class MqttCheckType(val wireValue: String) {
+    KEYWORD("keyword"),
+    JSON_QUERY("json-query");
+
+    companion object {
+        fun fromWire(value: String?): MqttCheckType? =
+            if (value == null) KEYWORD else entries.firstOrNull { it.wireValue == value }
+    }
+}
+
 data class MonitorHeaderDraft(
     val name: String = "",
     val value: String = "",
@@ -134,6 +144,17 @@ data class MonitorDraft(
     val websocketHasSavedTlsPrivateKey: Boolean = false,
     val websocketHasSavedTlsCaCertificate: Boolean = false,
     val websocketClearSavedTlsCaCertificate: Boolean = false,
+    val mqttUsername: String = "",
+    val mqttPassword: String = "",
+    val mqttHasSavedPassword: Boolean = false,
+    val mqttClearSavedPassword: Boolean = false,
+    val mqttTopic: String = "",
+    val mqttWebsocketPath: String = "",
+    val mqttCheckType: MqttCheckType = MqttCheckType.KEYWORD,
+    val mqttFieldsEditable: Boolean = true,
+    val mqttSuccessMessage: String = "",
+    val mqttJsonQueryExpression: String = "$",
+    val mqttJsonQueryExpectedValue: String = "",
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -201,6 +222,11 @@ enum class MonitorDraftError {
     WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED,
     WEBSOCKET_MTLS_CERTIFICATE_REQUIRED,
     WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED,
+    MQTT_ENDPOINT_INVALID,
+    MQTT_TOPIC_REQUIRED,
+    MQTT_WEBSOCKET_PATH_INVALID,
+    MQTT_JSON_QUERY_EXPRESSION_REQUIRED,
+    MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -215,6 +241,8 @@ object MonitorDraftCodec {
         val rawWebsocketAuthMethod = raw.string("authMethod")
         val websocketAuthMethod = WebSocketAuthMethod.fromWire(rawWebsocketAuthMethod)
         val websocketOAuthAuthMethod = WebSocketOAuthAuthMethod.fromWire(raw.string("oauth_auth_method"))
+        val rawMqttCheckType = raw.string("mqttCheckType")
+        val mqttCheckType = MqttCheckType.fromWire(rawMqttCheckType)
         return MonitorDraft(
             id = id,
             type = type,
@@ -285,6 +313,15 @@ object MonitorDraftCodec {
                 raw.string("tlsKey")?.isNotEmpty() == true,
             websocketHasSavedTlsCaCertificate = type == "websocket-upgrade" &&
                 raw.string("tlsCa")?.isNotEmpty() == true,
+            mqttUsername = raw.string("mqttUsername").orEmpty(),
+            mqttHasSavedPassword = type == "mqtt" && raw.string("mqttPassword")?.isNotEmpty() == true,
+            mqttTopic = raw.string("mqttTopic").orEmpty(),
+            mqttWebsocketPath = raw.string("mqttWebsocketPath").orEmpty(),
+            mqttCheckType = mqttCheckType ?: MqttCheckType.KEYWORD,
+            mqttFieldsEditable = type != "mqtt" || mqttCheckType != null,
+            mqttSuccessMessage = raw.string("mqttSuccessMessage").orEmpty(),
+            mqttJsonQueryExpression = raw.string("jsonPath") ?: "$",
+            mqttJsonQueryExpectedValue = raw.string("expectedValue").orEmpty(),
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -319,6 +356,24 @@ object MonitorDraftCodec {
         }
         if (definition.endpointKind == MonitorEndpointKind.HOST_PORT && draft.port !in 1..65535) {
             return MonitorDraftError.PORT_REQUIRED
+        }
+        if (definition.validation == MonitorEditorValidation.MQTT && draft.mqttFieldsEditable) {
+            if (!isValidMqttEndpoint(draft.endpoint)) return MonitorDraftError.MQTT_ENDPOINT_INVALID
+            if (draft.mqttTopic.isEmpty()) return MonitorDraftError.MQTT_TOPIC_REQUIRED
+            if (
+                draft.mqttWebsocketPath.isNotEmpty() &&
+                !MQTT_WEBSOCKET_PATH.matches(draft.mqttWebsocketPath)
+            ) {
+                return MonitorDraftError.MQTT_WEBSOCKET_PATH_INVALID
+            }
+            if (draft.mqttCheckType == MqttCheckType.JSON_QUERY) {
+                if (draft.mqttJsonQueryExpression.isEmpty()) {
+                    return MonitorDraftError.MQTT_JSON_QUERY_EXPRESSION_REQUIRED
+                }
+                if (draft.mqttJsonQueryExpectedValue.isEmpty()) {
+                    return MonitorDraftError.MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED
+                }
+            }
         }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
@@ -448,6 +503,7 @@ object MonitorDraftCodec {
         applyKeyword(values, draft)
         applyJsonQuery(values, draft)
         applyWebsocket(values, draft)
+        applyMqtt(values, draft, raw)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -498,6 +554,7 @@ object MonitorDraftCodec {
         applyKeyword(mutable, draft)
         applyJsonQuery(mutable, draft)
         applyWebsocket(mutable, draft)
+        applyMqtt(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -577,6 +634,34 @@ object MonitorDraftCodec {
                 values["sshPassphrase"] = JsonPrimitive(passphrase)
             }
         }
+    }
+
+    private fun applyMqtt(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (
+            MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.MQTT ||
+            !draft.mqttFieldsEditable
+        ) {
+            return
+        }
+        values["mqttUsername"] = JsonPrimitive(draft.mqttUsername)
+        values["mqttPassword"] = JsonPrimitive(
+            when {
+                draft.mqttClearSavedPassword -> ""
+                draft.mqttPassword.isNotEmpty() -> draft.mqttPassword
+                draft.mqttHasSavedPassword -> existing?.string("mqttPassword").orEmpty()
+                else -> ""
+            },
+        )
+        values["mqttTopic"] = JsonPrimitive(draft.mqttTopic)
+        values["mqttWebsocketPath"] = JsonPrimitive(draft.mqttWebsocketPath)
+        values["mqttCheckType"] = JsonPrimitive(draft.mqttCheckType.wireValue)
+        values["mqttSuccessMessage"] = JsonPrimitive(draft.mqttSuccessMessage)
+        values["jsonPath"] = JsonPrimitive(draft.mqttJsonQueryExpression)
+        values["expectedValue"] = JsonPrimitive(draft.mqttJsonQueryExpectedValue)
     }
 
     private fun applyKeyword(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
@@ -787,6 +872,17 @@ object MonitorDraftCodec {
     )
 
     const val WEBSOCKET_HEADER_LIMIT = 8
+
+    private fun isValidMqttEndpoint(value: String): Boolean {
+        val endpoint = value.trim()
+        if (endpoint.isEmpty() || endpoint.any(Char::isWhitespace)) return false
+        if ("://" !in endpoint) return true
+        val uri = runCatching { URI(endpoint) }.getOrNull() ?: return false
+        return uri.scheme?.lowercase() in MQTT_SCHEMES && !uri.host.isNullOrBlank()
+    }
+
+    private val MQTT_SCHEMES = setOf("mqtt", "mqtts", "ws", "wss")
+    private val MQTT_WEBSOCKET_PATH = Regex("^/[A-Za-z0-9-_&()*+]*$")
 }
 
 data class MonitorMutationResult(

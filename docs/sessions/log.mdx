@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-04 - Native MQTT monitor editing
+
+**changed**: Added native MQTT monitor creation and type-specific editing for
+Kuma's hostname/required port, optional username and password, required topic,
+optional WebSocket path, and keyword or JSON-query message checks. Plain hosts and
+`mqtt`, `mqtts`, `ws`, and `wss` addresses follow Kuma's 2.5.5 contract; no port
+default is invented.
+
+**security and compatibility**: Saved MQTT passwords reduce to presence flags
+before UI state and are never prefilled. Blank input retains the fresh server value,
+replacement stays masked, and an explicit control removes the saved password.
+Unknown future check modes, advanced condition arrays, and unrelated future fields
+remain opaque and unchanged behind the existing browser escape and round-trip guard.
+
+**verification**: Focused registry and codec tests cover exact keyword and JSON-query
+payloads, endpoint/path/required-field validation, masked password retention,
+replacement and removal, conditions/future-field preservation, and unknown future
+check modes. Android 17/live Kuma 2.5.5 QA covered keyword creation, direct database
+shape verification, masked reload, conversion to JSON query, a second masked reload,
+explicit password removal, and confirmed deletion. The server returned to its
+original five monitors; app crash logs were empty and container logs contained only
+the expected synthetic monitor failures and acknowledged lifecycle operations. The
+complete 198-task two-flavor phone/Wear build, test, and lint gate passes.
+
 ### 2026-10-04 - WebSocket OAuth2 and mTLS authentication
 
 **changed**: Completed the native WebSocket authentication surface with OAuth2

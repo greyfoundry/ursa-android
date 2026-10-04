@@ -36,6 +36,7 @@ class MonitorEditorRegistryTest {
                 "group",
                 "push",
                 "manual",
+                "mqtt",
                 "sftp",
                 "websocket-upgrade",
             ),
@@ -116,6 +117,31 @@ class MonitorEditorRegistryTest {
             websocket.sensitiveFields,
         )
         assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, websocket.transferEligibility)
+    }
+
+    @Test
+    fun mqttDeclaresItsConditionalFieldsAndSecretContract() {
+        val mqtt = requireNotNull(MonitorEditorRegistry.find("mqtt"))
+
+        assertTrue(mqtt.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, mqtt.endpointKind)
+        assertEquals(MonitorEditorCodec.MQTT, mqtt.codec)
+        assertEquals(MonitorEditorValidation.MQTT, mqtt.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, mqtt.fidelity)
+        assertEquals(setOf(MonitorEditorField.MQTT_PASSWORD), mqtt.sensitiveFields)
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, mqtt.transferEligibility)
+        assertTrue(
+            mqtt.conditions.any {
+                it.field == MonitorEditorField.MQTT_SUCCESS_MESSAGE &&
+                    MqttCheckType.KEYWORD.wireValue in it.acceptedValues
+            },
+        )
+        assertTrue(
+            mqtt.conditions.any {
+                it.field == MonitorEditorField.MQTT_JSON_QUERY_EXPRESSION &&
+                    MqttCheckType.JSON_QUERY.wireValue in it.acceptedValues
+            },
+        )
     }
 
     @Test

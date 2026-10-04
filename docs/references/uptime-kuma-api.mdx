@@ -159,6 +159,16 @@ JSON-query monitors use required string fields `jsonPath`, `jsonPathOperator`, a
 and `contains`; the UI defaults new expressions to `$` and comparisons to `==`.
 Numeric comparison values are still transported as strings by Kuma's editor.
 
+MQTT monitors use required `hostname`, `port`, and `mqttTopic` fields, optional
+`mqttUsername`, `mqttPassword`, and `mqttWebsocketPath`, and `mqttCheckType` of
+`keyword` or `json-query`. Kuma prepends `mqtt://` when the host has no recognized
+`mqtt`, `mqtts`, `ws`, or `wss` scheme. It supplies no default port. Keyword mode
+tests `mqttSuccessMessage` as a substring and an empty string accepts any received
+message. JSON-query mode evaluates `jsonPath` and compares its string result exactly
+with `expectedValue`. The WebSocket path is empty or matches
+`^/[A-Za-z0-9-_&amp;()*+]*$`. A non-empty `conditions` array takes precedence server-side,
+so clients that do not edit conditions must preserve it unchanged.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from

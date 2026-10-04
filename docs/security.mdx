@@ -152,6 +152,9 @@ OAuth client secrets and mTLS certificate/private-key/CA material use the same
 presence-only UI model. The optional saved CA has an explicit removal action;
 ordinary edits retain dormant legacy fields for compatibility, while a deliberate
 authentication-method change clears credentials belonging to the old method.
+MQTT passwords also reduce to a saved-value flag. A blank field retains the fresh
+server value, a replacement remains masked, and a separate explicit control removes
+the saved password. The password never enters URSA's persistent storage or logs.
 
 The separate destructive-action preference is off by default for compatibility. When
 enabled, monitor deletion, maintenance deletion, public-incident deletion, managed-push

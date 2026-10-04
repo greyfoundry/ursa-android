@@ -21,6 +21,167 @@ class MonitorDraftCodecTest {
         assertEquals(keys.size, keys.distinct().size)
         assertTrue(keys.containsAll(listOf("http", "globalping", "rabbitmq", "sftp", "oracledb", "gamedig")))
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "sftp" })
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "mqtt" })
+    }
+
+    @Test
+    fun newMqttPayloadMatchesKumaKeywordContract() {
+        val draft = MonitorDraft.create("mqtt").copy(
+            name = "Broker",
+            endpoint = "wss://broker.example.net",
+            port = 443,
+            mqttUsername = "observer",
+            mqttPassword = "secret",
+            mqttTopic = "service/health",
+            mqttWebsocketPath = "/mqtt",
+            mqttCheckType = MqttCheckType.KEYWORD,
+            mqttSuccessMessage = "ready",
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals("mqtt", payload["type"]!!.jsonPrimitive.content)
+        assertEquals("wss://broker.example.net", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals(443, payload["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals("observer", payload["mqttUsername"]!!.jsonPrimitive.content)
+        assertEquals("secret", payload["mqttPassword"]!!.jsonPrimitive.content)
+        assertEquals("service/health", payload["mqttTopic"]!!.jsonPrimitive.content)
+        assertEquals("/mqtt", payload["mqttWebsocketPath"]!!.jsonPrimitive.content)
+        assertEquals("keyword", payload["mqttCheckType"]!!.jsonPrimitive.content)
+        assertEquals("ready", payload["mqttSuccessMessage"]!!.jsonPrimitive.content)
+        assertEquals("$", payload["jsonPath"]!!.jsonPrimitive.content)
+        assertEquals("", payload["expectedValue"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun mqttEditRetainsMaskedPasswordConditionsAndFutureFields() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":44,"type":"mqtt","name":"Broker","hostname":"mqtts://broker.internal","port":8883,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"mqttUsername":"observer","mqttPassword":"saved-secret",
+                "mqttTopic":"service/health","mqttWebsocketPath":"","mqttCheckType":"keyword",
+                "mqttSuccessMessage":"ready","jsonPath":"payload.state","expectedValue":"ok",
+                "conditions":[{"variable":"msg","operator":"contains","value":"ready"}],
+                "futureMqtt":{"mode":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.mqttHasSavedPassword)
+        assertEquals("", loaded.mqttPassword)
+        val updated = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(name = "Primary broker", mqttTopic = "service/ready"),
+        )!!
+
+        assertEquals("saved-secret", updated["mqttPassword"]!!.jsonPrimitive.content)
+        assertEquals("service/ready", updated["mqttTopic"]!!.jsonPrimitive.content)
+        assertEquals(raw["conditions"], updated["conditions"])
+        assertEquals(raw["futureMqtt"], updated["futureMqtt"])
+    }
+
+    @Test
+    fun mqttPasswordCanBeReplacedOrExplicitlyRemoved() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":44,"type":"mqtt","name":"Broker","hostname":"broker.internal","port":1883,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"mqttUsername":"observer","mqttPassword":"saved-secret",
+                "mqttTopic":"service/health","mqttCheckType":"keyword"
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        val replaced = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(mqttPassword = "replacement"),
+        )!!
+        val cleared = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(mqttClearSavedPassword = true),
+        )!!
+
+        assertEquals("replacement", replaced["mqttPassword"]!!.jsonPrimitive.content)
+        assertEquals("", cleared["mqttPassword"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun mqttNativeTextFieldsRoundTripWithoutNormalization() {
+        val draft = MonitorDraft.create("mqtt").copy(
+            name = "Exact broker fields",
+            endpoint = "broker.example.net",
+            port = 1883,
+            mqttUsername = " observer ",
+            mqttTopic = " service/health ",
+            mqttSuccessMessage = " ready ",
+        )
+
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals(" observer ", payload["mqttUsername"]!!.jsonPrimitive.content)
+        assertEquals(" service/health ", payload["mqttTopic"]!!.jsonPrimitive.content)
+        assertEquals(" ready ", payload["mqttSuccessMessage"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun mqttJsonQueryAndValidationFollowKumaContract() {
+        val valid = MonitorDraft.create("mqtt").copy(
+            name = "JSON broker",
+            endpoint = "mqtt://broker.example.net",
+            port = 1883,
+            mqttTopic = "service/health",
+            mqttCheckType = MqttCheckType.JSON_QUERY,
+            mqttJsonQueryExpression = "payload.state",
+            mqttJsonQueryExpectedValue = "ready",
+        )
+
+        assertNull(MonitorDraftCodec.validate(valid))
+        val payload = MonitorDraftCodec.newPayload(valid)
+        assertEquals("json-query", payload["mqttCheckType"]!!.jsonPrimitive.content)
+        assertEquals("payload.state", payload["jsonPath"]!!.jsonPrimitive.content)
+        assertEquals("ready", payload["expectedValue"]!!.jsonPrimitive.content)
+        assertEquals(
+            MonitorDraftError.MQTT_TOPIC_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(mqttTopic = "")),
+        )
+        assertEquals(
+            MonitorDraftError.MQTT_WEBSOCKET_PATH_INVALID,
+            MonitorDraftCodec.validate(valid.copy(mqttWebsocketPath = "mqtt/path")),
+        )
+        assertEquals(
+            MonitorDraftError.MQTT_ENDPOINT_INVALID,
+            MonitorDraftCodec.validate(valid.copy(endpoint = "https://broker.example.net")),
+        )
+        assertEquals(
+            MonitorDraftError.MQTT_JSON_QUERY_EXPRESSION_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(mqttJsonQueryExpression = "")),
+        )
+        assertEquals(
+            MonitorDraftError.MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(mqttJsonQueryExpectedValue = "")),
+        )
+    }
+
+    @Test
+    fun unknownFutureMqttCheckModeRemainsOpaque() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":44,"type":"mqtt","name":"Broker","hostname":"broker.internal","port":1883,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"mqttPassword":"saved-secret","mqttTopic":"service/health",
+                "mqttCheckType":"future-script","mqttSuccessMessage":"ready","jsonPath":"x","expectedValue":"y"
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertFalse(loaded.mqttFieldsEditable)
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(name = "Renamed"))!!
+        assertEquals("Renamed", updated["name"]!!.jsonPrimitive.content)
+        assertEquals("future-script", updated["mqttCheckType"]!!.jsonPrimitive.content)
+        assertEquals("saved-secret", updated["mqttPassword"]!!.jsonPrimitive.content)
+        assertEquals("ready", updated["mqttSuccessMessage"]!!.jsonPrimitive.content)
     }
 
     @Test

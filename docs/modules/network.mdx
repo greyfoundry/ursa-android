@@ -88,7 +88,8 @@ here so the rest of the app sees clean domain models.
   queries, and fragments.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
-  typed defaults for common, keyword, JSON-query, WebSocket-transport, and SFTP create flows. Keyword monitors map
+  typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, and
+  SFTP create flows. Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
@@ -107,6 +108,10 @@ here so the rest of the app sees clean domain models.
   OAuth client secrets and mTLS certificate material use the same presence-only
   draft model. OAuth token/client metadata remains editable, while saved PEM
   values stay masked and an optional saved CA can be explicitly removed.
+  MQTT maps Kuma's host/required port, optional username/password, topic,
+  WebSocket path, and keyword or JSON-query check modes. Saved passwords reduce
+  to a presence flag and can be retained, replaced, or explicitly removed.
+  Unknown future check modes and advanced `conditions` remain opaque and unchanged.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
@@ -168,7 +173,9 @@ here so the rest of the app sees clean domain models.
   while changing only `notificationIDList`. That potentially sensitive raw object
   stays inside the client method and is never persisted or logged.
 - Existing monitor edits also fetch the full object immediately before saving and
-  change only fields present in the typed editor. SFTP supports username, path,
+  change only fields present in the typed editor. MQTT supports its native
+  connection, topic, and message-check fields while retaining future modes and
+  conditions. SFTP supports username, path,
   password, private key, and optional passphrase replacement without exposing saved
   secret values. Other credentials, advanced settings, and fields introduced by
   future Kuma versions never leave the network adapter and are preserved in the

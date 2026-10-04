@@ -63,6 +63,7 @@ import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorHeaderDraft
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.KumaCompatibility
+import dev.astoris.ursa.core.network.MqttCheckType
 import dev.astoris.ursa.core.network.SftpAuthMethod
 import dev.astoris.ursa.core.network.WebSocketAuthMethod
 import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
@@ -427,13 +428,16 @@ private fun MonitorForm(
                 maxDigits = 5,
             )
         }
+        if (definition?.codec == MonitorEditorCodec.MQTT) {
+            MqttFields(draft = draft, onDraftChange = onDraftChange)
+        }
         if (draft.type == "sftp") {
             SftpFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (
             draft.isNew &&
             option?.endpointKind != MonitorEndpointKind.NONE &&
-            draft.type !in setOf("sftp", "websocket-upgrade")
+            draft.type !in setOf("mqtt", "sftp", "websocket-upgrade")
         ) {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
@@ -1099,6 +1103,156 @@ private fun SftpFields(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MqttFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    if (!draft.mqttFieldsEditable) {
+        Text(
+            stringResource(R.string.monitor_mqtt_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        return
+    }
+    var checkTypeMenuOpen by remember { mutableStateOf(false) }
+    Text(stringResource(R.string.monitor_mqtt_connection_title), style = MaterialTheme.typography.titleSmall)
+    Text(
+        stringResource(R.string.monitor_mqtt_host_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    OutlinedTextField(
+        value = draft.mqttUsername,
+        onValueChange = { onDraftChange(draft.copy(mqttUsername = it.take(1_024))) },
+        label = { Text(stringResource(R.string.monitor_mqtt_username)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SensitiveField(
+        value = draft.mqttPassword,
+        onValueChange = {
+            onDraftChange(
+                draft.copy(
+                    mqttPassword = it.take(8_192),
+                    mqttClearSavedPassword = false,
+                ),
+            )
+        },
+        label = stringResource(R.string.monitor_mqtt_password),
+        saved = draft.mqttHasSavedPassword,
+        enabled = !draft.mqttClearSavedPassword,
+    )
+    if (draft.mqttHasSavedPassword && draft.mqttPassword.isEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = draft.mqttClearSavedPassword,
+                onCheckedChange = {
+                    onDraftChange(
+                        draft.copy(
+                            mqttPassword = "",
+                            mqttClearSavedPassword = it,
+                        ),
+                    )
+                },
+            )
+            Text(stringResource(R.string.monitor_mqtt_clear_password))
+        }
+    }
+    OutlinedTextField(
+        value = draft.mqttTopic,
+        onValueChange = { onDraftChange(draft.copy(mqttTopic = it.take(2_048))) },
+        label = { Text(stringResource(R.string.monitor_mqtt_topic)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val usesWebsocket = draft.endpoint.trim().lowercase().let { it.startsWith("ws://") || it.startsWith("wss://") }
+    if (usesWebsocket) {
+        OutlinedTextField(
+            value = draft.mqttWebsocketPath,
+            onValueChange = { onDraftChange(draft.copy(mqttWebsocketPath = it.take(2_048))) },
+            label = { Text(stringResource(R.string.monitor_mqtt_websocket_path)) },
+            supportingText = { Text(stringResource(R.string.monitor_mqtt_websocket_path_help)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    Text(stringResource(R.string.monitor_mqtt_check_title), style = MaterialTheme.typography.titleSmall)
+    ExposedDropdownMenuBox(
+        expanded = checkTypeMenuOpen,
+        onExpandedChange = { checkTypeMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = stringResource(
+                if (draft.mqttCheckType == MqttCheckType.KEYWORD) {
+                    R.string.monitor_mqtt_check_keyword
+                } else {
+                    R.string.monitor_mqtt_check_json_query
+                },
+            ),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_mqtt_check_type)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(checkTypeMenuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = checkTypeMenuOpen,
+            onDismissRequest = { checkTypeMenuOpen = false },
+        ) {
+            MqttCheckType.entries.forEach { type ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (type == MqttCheckType.KEYWORD) {
+                                    R.string.monitor_mqtt_check_keyword
+                                } else {
+                                    R.string.monitor_mqtt_check_json_query
+                                },
+                            ),
+                        )
+                    },
+                    onClick = {
+                        onDraftChange(draft.copy(mqttCheckType = type))
+                        checkTypeMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    when (draft.mqttCheckType) {
+        MqttCheckType.KEYWORD -> OutlinedTextField(
+            value = draft.mqttSuccessMessage,
+            onValueChange = { onDraftChange(draft.copy(mqttSuccessMessage = it.take(2_048))) },
+            label = { Text(stringResource(R.string.monitor_mqtt_success_message)) },
+            supportingText = { Text(stringResource(R.string.monitor_mqtt_success_message_help)) },
+            minLines = 2,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        MqttCheckType.JSON_QUERY -> {
+            OutlinedTextField(
+                value = draft.mqttJsonQueryExpression,
+                onValueChange = { onDraftChange(draft.copy(mqttJsonQueryExpression = it.take(2_000))) },
+                label = { Text(stringResource(R.string.monitor_json_query_expression)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = draft.mqttJsonQueryExpectedValue,
+                onValueChange = { onDraftChange(draft.copy(mqttJsonQueryExpectedValue = it.take(2_000))) },
+                label = { Text(stringResource(R.string.monitor_json_query_expected_value)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
 @Composable
 private fun PushMonitorSetup(pushUrl: String?, pushToken: String, isNew: Boolean) {
     val context = LocalContext.current
@@ -1246,6 +1400,13 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED -> R.string.monitor_error_websocket_oauth_client_secret
         MonitorDraftError.WEBSOCKET_MTLS_CERTIFICATE_REQUIRED -> R.string.monitor_error_websocket_mtls_certificate
         MonitorDraftError.WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_websocket_mtls_private_key
+        MonitorDraftError.MQTT_ENDPOINT_INVALID -> R.string.monitor_error_mqtt_endpoint
+        MonitorDraftError.MQTT_TOPIC_REQUIRED -> R.string.monitor_error_mqtt_topic
+        MonitorDraftError.MQTT_WEBSOCKET_PATH_INVALID -> R.string.monitor_error_mqtt_websocket_path
+        MonitorDraftError.MQTT_JSON_QUERY_EXPRESSION_REQUIRED ->
+            R.string.monitor_error_mqtt_json_query_expression
+        MonitorDraftError.MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED ->
+            R.string.monitor_error_mqtt_json_query_expected_value
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key
