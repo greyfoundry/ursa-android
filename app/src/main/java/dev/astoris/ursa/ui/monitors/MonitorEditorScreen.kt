@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -54,6 +56,7 @@ import dev.astoris.ursa.core.network.LocalServiceDiscoveryState
 import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
+import dev.astoris.ursa.core.network.MonitorEditorCodec
 import dev.astoris.ursa.core.network.MonitorEditorHelp
 import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.network.MonitorEndpointKind
@@ -289,6 +292,36 @@ private fun MonitorForm(
                 },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (definition?.codec == MonitorEditorCodec.KEYWORD) {
+            OutlinedTextField(
+                value = draft.keyword,
+                onValueChange = { onDraftChange(draft.copy(keyword = it.take(2_000))) },
+                label = { Text(stringResource(R.string.monitor_keyword_label)) },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = draft.invertKeyword,
+                        role = Role.Checkbox,
+                        onValueChange = { onDraftChange(draft.copy(invertKeyword = it)) },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = draft.invertKeyword,
+                    onCheckedChange = null,
+                )
+                Text(stringResource(R.string.monitor_keyword_invert))
+            }
+            Text(
+                stringResource(R.string.monitor_keyword_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (option?.endpointKind == MonitorEndpointKind.HOST_PORT) {
@@ -765,6 +798,7 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.INVALID_INTERVAL -> R.string.monitor_error_interval
         MonitorDraftError.INVALID_RETRIES -> R.string.monitor_error_retries
         MonitorDraftError.INVALID_PUSH_TOKEN -> R.string.monitor_error_push_token
+        MonitorDraftError.KEYWORD_REQUIRED -> R.string.monitor_error_keyword
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

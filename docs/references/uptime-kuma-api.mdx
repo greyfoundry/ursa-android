@@ -148,6 +148,12 @@ All monitor writes also require the reported version to remain inside the global
 write-verified range; a type without a special schema threshold cannot bypass that
 outer gate.
 
+Keyword monitors use the ordinary `url` endpoint plus required string `keyword`
+and boolean `invertKeyword` fields. In 2.5.5, `invertKeyword = false` means the
+check succeeds when the response contains the keyword; `true` reverses that test
+and alerts when the response contains it. URSA exposes only these type-specific
+fields for now and preserves other HTTP settings from the freshly loaded object.
+
 Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
 is therefore an unknown outcome: refresh incident history before allowing another
 create instead of automatically replaying it.

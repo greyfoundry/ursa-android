@@ -1124,6 +1124,10 @@
     <string name="monitor_type_not_write_verified">This monitor type is not write-verified for the connected Uptime Kuma version.</string>
     <string name="monitor_advanced_preserved">Advanced settings stay on the server unchanged.</string>
     <string name="monitor_full_native">This monitor type has a verified native create and edit codec. Saved secrets stay masked unless you replace them.</string>
+    <string name="monitor_keyword_label">Required keyword</string>
+    <string name="monitor_keyword_invert">Alert when the keyword is present</string>
+    <string name="monitor_keyword_help">Normally the check passes when the response contains this text. Invert the match to require the text to be absent.</string>
+    <string name="monitor_error_keyword">Enter the response text this monitor should match.</string>
     <string name="monitor_url_label">URL</string>
     <string name="monitor_host_label">Host</string>
     <string name="monitor_port_label">Port</string>

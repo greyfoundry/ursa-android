@@ -14,6 +14,8 @@ enum class MonitorEditorField {
     PARENT,
     TAGS,
     PUSH_TOKEN,
+    KEYWORD,
+    INVERT_KEYWORD,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -25,6 +27,7 @@ enum class MonitorEditorField {
 enum class MonitorEditorCodec {
     COMMON,
     PUSH,
+    KEYWORD,
     SFTP,
 }
 
@@ -32,6 +35,7 @@ enum class MonitorEditorValidation {
     COMMON,
     ENDPOINT,
     PUSH,
+    KEYWORD,
     SFTP,
 }
 
@@ -121,7 +125,15 @@ object MonitorEditorRegistry {
 
     val all: List<MonitorEditorDefinition> = listOf(
         definition("http", "HTTP(s)", MonitorEndpointKind.URL, createSupported = true),
-        definition("keyword", "HTTP(s) - keyword", MonitorEndpointKind.URL),
+        definition(
+            "keyword",
+            "HTTP(s) - keyword",
+            MonitorEndpointKind.URL,
+            createSupported = true,
+            codec = MonitorEditorCodec.KEYWORD,
+            validation = MonitorEditorValidation.KEYWORD,
+            extraFields = setOf(MonitorEditorField.KEYWORD, MonitorEditorField.INVERT_KEYWORD),
+        ),
         definition("port", "TCP port", MonitorEndpointKind.HOST_PORT, createSupported = true),
         definition("ping", "Ping", MonitorEndpointKind.HOST, createSupported = true),
         definition(
@@ -334,6 +346,10 @@ object MonitorRoundTripGuard {
                         "sftpPath",
                     ),
                 )
+            }
+            if (definition.codec == MonitorEditorCodec.KEYWORD) {
+                add("keyword")
+                add("invertKeyword")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

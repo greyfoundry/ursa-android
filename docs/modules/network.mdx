@@ -88,7 +88,9 @@ here so the rest of the app sees clean domain models.
   queries, and fragments.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
-  typed defaults for common and SFTP create flows. Existing SFTP secret values are
+  typed defaults for common, keyword, and SFTP create flows. Keyword monitors map
+  Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
+  preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
   fields retain the server value only when the authentication method is unchanged.
   Push creation generates one 32-character alphanumeric token in the draft and sends

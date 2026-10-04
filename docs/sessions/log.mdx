@@ -9,6 +9,29 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-04 - Native keyword monitor fields
+
+**changed**: Began the common-protocol editor wave with native Keyword monitor
+creation and editing. The registry now declares the dedicated codec, required
+keyword text, and inversion control; the draft codec maps Kuma's exact `keyword`
+and `invertKeyword` wire fields. The form explains the normal and inverted
+behavior without exposing raw JSON; its full-width inversion row is one labelled
+checkbox target for touch and accessibility services.
+
+**safety and compatibility**: Keyword support is available throughout the existing
+2.4.0-2.5.5 write-verified range. Existing edits still load the complete fresh
+monitor object and permit only the two declared type-specific fields plus the
+already-safe common fields to change. Headers and every unexposed or future HTTP
+field remain byte-for-byte equivalent, so the registry deliberately retains
+`SAFE_COMMON_EDIT` rather than overstating full fidelity.
+
+**verification**: Focused registry and codec tests cover create payloads, required
+field validation, inversion, and preservation of an opaque authorization header
+plus a nested unknown field. Android 17/live Kuma 2.5.5 QA covered create, reload,
+keyword/inversion edit, second reload, and confirmed deletion; the temporary
+monitor was removed and the server returned to its original inventory. The complete
+198-task two-flavor phone/Wear build, test, and lint gate passes.
+
 ### 2026-10-04 - Monitor editor registry and round-trip guard
 
 **changed**: Added one monitor-editor registry for all 34 Kuma 2.5.5 types. Each

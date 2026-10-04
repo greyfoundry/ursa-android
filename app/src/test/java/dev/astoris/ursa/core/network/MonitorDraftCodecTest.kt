@@ -221,6 +221,38 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun keywordCreateAndGuardedEditUseExactKumaFields() {
+        val created = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("keyword").copy(
+                name = "Maintenance marker",
+                endpoint = "https://example.com/health",
+                keyword = "maintenance",
+                invertKeyword = true,
+            ),
+        )
+        assertEquals("keyword", created["type"]!!.jsonPrimitive.content)
+        assertEquals("maintenance", created["keyword"]!!.jsonPrimitive.content)
+        assertTrue(created["invertKeyword"]!!.jsonPrimitive.content.toBoolean())
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":19,"type":"keyword","name":"Marker","url":"https://example.com",
+                "keyword":"before","invertKeyword":false,"interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "headers":"{\"Authorization\":\"secret\"}","future":{"mode":"kept"}
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!.copy(keyword = "after", invertKeyword = true)
+
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
+
+        assertEquals("after", updated["keyword"]!!.jsonPrimitive.content)
+        assertTrue(updated["invertKeyword"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals(raw["headers"], updated["headers"])
+        assertEquals(raw["future"], updated["future"])
+    }
+
+    @Test
     fun validationRequiresOnlyFieldsRelevantToTheSelectedType() {
         assertEquals(MonitorDraftError.NAME_REQUIRED, MonitorDraftCodec.validate(MonitorDraft.create()))
         assertEquals(
@@ -234,6 +266,12 @@ class MonitorDraftCodecTest {
         assertEquals(
             MonitorDraftError.PORT_REQUIRED,
             MonitorDraftCodec.validate(MonitorDraft.create("port").copy(name = "SSH", endpoint = "host")),
+        )
+        assertEquals(
+            MonitorDraftError.KEYWORD_REQUIRED,
+            MonitorDraftCodec.validate(
+                MonitorDraft.create("keyword").copy(name = "Marker", endpoint = "https://example.com"),
+            ),
         )
         val sftp = MonitorDraft.create("sftp").copy(name = "SFTP", endpoint = "host")
         assertEquals(MonitorDraftError.SFTP_USERNAME_REQUIRED, MonitorDraftCodec.validate(sftp))

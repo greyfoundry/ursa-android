@@ -26,7 +26,7 @@ class MonitorEditorRegistryTest {
             assertTrue(definition.browserFallback)
         }
         assertEquals(
-            setOf("http", "port", "ping", "dns", "group", "push", "manual", "sftp"),
+            setOf("http", "keyword", "port", "ping", "dns", "group", "push", "manual", "sftp"),
             definitions.filter(MonitorEditorDefinition::createSupported)
                 .map(MonitorEditorDefinition::type)
                 .toSet(),
@@ -42,6 +42,7 @@ class MonitorEditorRegistryTest {
         val prerelease = KumaCapabilities.evaluate("2.5.5-beta.1")
 
         assertTrue(MonitorEditorRegistry.writeVerified("http", v240))
+        assertTrue(MonitorEditorRegistry.writeVerified("keyword", v240))
         assertFalse(MonitorEditorRegistry.writeVerified("ntp", v240))
         assertFalse(MonitorEditorRegistry.writeVerified("sftp", v253))
         assertTrue(MonitorEditorRegistry.writeVerified("ntp", v253))
@@ -50,6 +51,19 @@ class MonitorEditorRegistryTest {
         assertFalse(MonitorEditorRegistry.writeVerified("http", prerelease))
         assertFalse(MonitorEditorRegistry.writeVerified("future-type", v255))
         assertTrue(MonitorEditorRegistry.creatableFor(newer).isEmpty())
+    }
+
+    @Test
+    fun keywordDeclaresNativeFieldsWithoutOverstatingFidelity() {
+        val keyword = requireNotNull(MonitorEditorRegistry.find("keyword"))
+
+        assertTrue(keyword.createSupported)
+        assertEquals(MonitorEditorCodec.KEYWORD, keyword.codec)
+        assertEquals(MonitorEditorValidation.KEYWORD, keyword.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, keyword.fidelity)
+        assertTrue(MonitorEditorField.KEYWORD in keyword.editableFields)
+        assertTrue(MonitorEditorField.INVERT_KEYWORD in keyword.editableFields)
+        assertTrue(keyword.sensitiveFields.isEmpty())
     }
 
     @Test

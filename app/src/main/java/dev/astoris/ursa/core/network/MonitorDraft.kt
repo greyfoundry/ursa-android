@@ -71,6 +71,8 @@ data class MonitorDraft(
     val parentId: Int? = null,
     val tagAssignments: List<MonitorTagAssignment> = emptyList(),
     val pushToken: String = "",
+    val keyword: String = "",
+    val invertKeyword: Boolean = false,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -120,6 +122,7 @@ enum class MonitorDraftError {
     INVALID_INTERVAL,
     INVALID_RETRIES,
     INVALID_PUSH_TOKEN,
+    KEYWORD_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -151,6 +154,10 @@ object MonitorDraftCodec {
             parentId = raw.int("parent"),
             tagAssignments = KumaParse.tagAssignments(raw),
             pushToken = raw.string("pushToken").orEmpty(),
+            keyword = raw.string("keyword").orEmpty(),
+            invertKeyword = raw["invertKeyword"]?.jsonPrimitive?.booleanOrNull
+                ?: raw.int("invertKeyword")?.let { it != 0 }
+                ?: false,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -203,6 +210,9 @@ object MonitorDraftCodec {
         if (definition.validation == MonitorEditorValidation.PUSH && !isValidPushToken(draft.pushToken)) {
             return MonitorDraftError.INVALID_PUSH_TOKEN
         }
+        if (definition.validation == MonitorEditorValidation.KEYWORD && draft.keyword.isEmpty()) {
+            return MonitorDraftError.KEYWORD_REQUIRED
+        }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
             return MonitorDraftError.INVALID_INTERVAL
         }
@@ -222,6 +232,7 @@ object MonitorDraftCodec {
         values["notificationIDList"] = notificationIdObject(draft.notificationIds)
         values["parent"] = draft.parentId?.let(::JsonPrimitive) ?: JsonNull
         applyEndpoint(values, draft)
+        applyKeyword(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -269,6 +280,7 @@ object MonitorDraftCodec {
             }
         }.toMutableMap()
         applyEndpoint(mutable, draft)
+        applyKeyword(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -348,6 +360,12 @@ object MonitorDraftCodec {
                 values["sshPassphrase"] = JsonPrimitive(passphrase)
             }
         }
+    }
+
+    private fun applyKeyword(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.KEYWORD) return
+        values["keyword"] = JsonPrimitive(draft.keyword)
+        values["invertKeyword"] = JsonPrimitive(draft.invertKeyword)
     }
 
     private fun notificationIdObject(ids: Set<Int>): JsonObject = JsonObject(
