@@ -293,6 +293,87 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun websocketTransportCreateAndGuardedEditUseExactKumaFields() {
+        val created = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("websocket-upgrade").copy(
+                name = "Realtime API",
+                endpoint = "wss://example.com/socket",
+                websocketSubprotocols = "graphql-ws, graphql-transport-ws, graphql-ws",
+                websocketAcceptedCodes = "1000, 1001, 3000, 1000",
+                websocketIgnoreAcceptHeader = true,
+            ),
+        )
+        assertEquals("wss://example.com/socket", created["url"]!!.jsonPrimitive.content)
+        assertEquals("graphql-ws, graphql-transport-ws", created["wsSubprotocol"]!!.jsonPrimitive.content)
+        assertEquals(
+            listOf("1000", "1001", "3000"),
+            created["accepted_statuscodes"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
+        assertTrue(created["wsIgnoreSecWebsocketAcceptHeader"]!!.jsonPrimitive.content.toBoolean())
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":21,"type":"websocket-upgrade","name":"Socket","url":"ws://example.com/socket",
+                "wsSubprotocol":"chat","accepted_statuscodes":["1000"],
+                "wsIgnoreSecWebsocketAcceptHeader":false,"interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "headers":"{\"X-API-Key\":\"opaque-value\"}","authMethod":"bearer",
+                "bearer_token":"secret","tlsKey":"private-key","future":{"mode":"kept"}
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!.copy(
+            endpoint = "wss://example.com/socket",
+            websocketSubprotocols = "chat, telemetry",
+            websocketAcceptedCodes = "1000, 4001",
+            websocketIgnoreAcceptHeader = true,
+        )
+
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
+
+        assertEquals("wss://example.com/socket", updated["url"]!!.jsonPrimitive.content)
+        assertEquals("chat, telemetry", updated["wsSubprotocol"]!!.jsonPrimitive.content)
+        assertEquals(
+            listOf("1000", "4001"),
+            updated["accepted_statuscodes"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
+        assertTrue(updated["wsIgnoreSecWebsocketAcceptHeader"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals(raw["headers"], updated["headers"])
+        assertEquals(raw["authMethod"], updated["authMethod"])
+        assertEquals(raw["bearer_token"], updated["bearer_token"])
+        assertEquals(raw["tlsKey"], updated["tlsKey"])
+        assertEquals(raw["future"], updated["future"])
+    }
+
+    @Test
+    fun websocketValidationRequiresItsProtocolAndSupportedCloseCodes() {
+        val base = MonitorDraft.create("websocket-upgrade").copy(
+            name = "Socket",
+            endpoint = "wss://example.com/socket",
+        )
+
+        assertNull(MonitorDraftCodec.validate(base))
+        assertEquals(
+            MonitorDraftError.INVALID_URL,
+            MonitorDraftCodec.validate(base.copy(endpoint = "https://example.com/socket")),
+        )
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_ACCEPTED_CODES_REQUIRED,
+            MonitorDraftCodec.validate(base.copy(websocketAcceptedCodes = "")),
+        )
+        listOf("999", "5000", "1000, nope", "1000,").forEach { invalid ->
+            assertEquals(
+                MonitorDraftError.WEBSOCKET_ACCEPTED_CODE_INVALID,
+                MonitorDraftCodec.validate(base.copy(websocketAcceptedCodes = invalid)),
+            )
+        }
+        assertNull(
+            MonitorDraftCodec.validate(
+                MonitorDraft.create().copy(name = "Site", endpoint = "https://example.com"),
+            ),
+        )
+    }
+
+    @Test
     fun validationRequiresOnlyFieldsRelevantToTheSelectedType() {
         assertEquals(MonitorDraftError.NAME_REQUIRED, MonitorDraftCodec.validate(MonitorDraft.create()))
         assertEquals(

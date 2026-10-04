@@ -9,6 +9,31 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-04 - Native WebSocket transport fields
+
+**changed**: Added native WebSocket-upgrade monitor creation and transport editing.
+The form accepts `ws`/`wss` URLs, optional comma-separated subprotocols, one or
+more accepted close codes in Kuma's supported `1000..4999` range, and the
+compatibility switch for invalid `Sec-WebSocket-Accept` responses. Values are
+normalized to Kuma's exact `wsSubprotocol`, `accepted_statuscodes`, and
+`wsIgnoreSecWebsocketAcceptHeader` fields; the default accepted code is `1000`.
+
+**safety and compatibility**: WebSocket URL validation is isolated from the
+existing HTTP/HTTPS types, and the HTTP local-service picker is not offered for
+WebSocket endpoints. The guarded mutable set owns only these three transport
+fields plus the URL and common fields. Existing headers, authentication secrets,
+mTLS material, and future fields remain unchanged, so the type retains safe
+common-edit fidelity until its security inputs receive masked replacement
+semantics in a separate increment.
+
+**verification**: Focused registry and codec tests cover the exact create/edit
+payload, `ws`/`wss` protocol restriction, close-code bounds, normalization, and
+opaque bearer/header/TLS/future-field preservation. Android 17/live Kuma 2.5.5
+QA covered create, reload, transport edit, second reload, and confirmed deletion;
+the temporary monitor was removed and the server returned to its original
+inventory. The complete 198-task two-flavor phone/Wear build, test, and lint gate
+passes.
+
 ### 2026-10-04 - Native JSON-query monitor fields
 
 **changed**: Added native JSON-query monitor creation and editing with Kuma's

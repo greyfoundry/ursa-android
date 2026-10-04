@@ -76,6 +76,9 @@ data class MonitorDraft(
     val jsonQueryExpression: String = "$",
     val jsonQueryOperator: String = "==",
     val jsonQueryExpectedValue: String = "",
+    val websocketSubprotocols: String = "",
+    val websocketAcceptedCodes: String = "1000",
+    val websocketIgnoreAcceptHeader: Boolean = false,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -129,6 +132,8 @@ enum class MonitorDraftError {
     JSON_QUERY_EXPRESSION_REQUIRED,
     JSON_QUERY_OPERATOR_INVALID,
     JSON_QUERY_EXPECTED_VALUE_REQUIRED,
+    WEBSOCKET_ACCEPTED_CODES_REQUIRED,
+    WEBSOCKET_ACCEPTED_CODE_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -167,6 +172,16 @@ object MonitorDraftCodec {
             jsonQueryExpression = raw.string("jsonPath") ?: "$",
             jsonQueryOperator = raw.string("jsonPathOperator") ?: "==",
             jsonQueryExpectedValue = raw.string("expectedValue").orEmpty(),
+            websocketSubprotocols = raw.string("wsSubprotocol").orEmpty(),
+            websocketAcceptedCodes = (raw["accepted_statuscodes"] as? JsonArray)
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                ?.joinToString(", ")
+                ?.takeIf(String::isNotBlank)
+                ?: "1000",
+            websocketIgnoreAcceptHeader = raw["wsIgnoreSecWebsocketAcceptHeader"]
+                ?.jsonPrimitive?.booleanOrNull
+                ?: raw.int("wsIgnoreSecWebsocketAcceptHeader")?.let { it != 0 }
+                ?: false,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -190,7 +205,12 @@ object MonitorDraftCodec {
         }
         if (definition.endpointKind == MonitorEndpointKind.URL) {
             val uri = runCatching { URI(draft.endpoint.trim()) }.getOrNull()
-            if (uri?.scheme?.lowercase() !in setOf("http", "https") || uri?.host.isNullOrBlank()) {
+            val allowedSchemes = if (definition.validation == MonitorEditorValidation.WEBSOCKET) {
+                setOf("ws", "wss")
+            } else {
+                setOf("http", "https")
+            }
+            if (uri?.scheme?.lowercase() !in allowedSchemes || uri?.host.isNullOrBlank()) {
                 return MonitorDraftError.INVALID_URL
             }
         }
@@ -227,6 +247,11 @@ object MonitorDraftCodec {
             if (draft.jsonQueryOperator !in JSON_QUERY_OPERATORS) return MonitorDraftError.JSON_QUERY_OPERATOR_INVALID
             if (draft.jsonQueryExpectedValue.isEmpty()) return MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED
         }
+        if (definition.validation == MonitorEditorValidation.WEBSOCKET) {
+            val acceptedCodes = websocketAcceptedCodes(draft.websocketAcceptedCodes)
+            if (draft.websocketAcceptedCodes.isBlank()) return MonitorDraftError.WEBSOCKET_ACCEPTED_CODES_REQUIRED
+            if (acceptedCodes == null) return MonitorDraftError.WEBSOCKET_ACCEPTED_CODE_INVALID
+        }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
             return MonitorDraftError.INVALID_INTERVAL
         }
@@ -248,6 +273,7 @@ object MonitorDraftCodec {
         applyEndpoint(values, draft)
         applyKeyword(values, draft)
         applyJsonQuery(values, draft)
+        applyWebsocket(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -297,6 +323,7 @@ object MonitorDraftCodec {
         applyEndpoint(mutable, draft)
         applyKeyword(mutable, draft)
         applyJsonQuery(mutable, draft)
+        applyWebsocket(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -391,6 +418,21 @@ object MonitorDraftCodec {
         values["expectedValue"] = JsonPrimitive(draft.jsonQueryExpectedValue)
     }
 
+    private fun applyWebsocket(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.WEBSOCKET) return
+        values["wsSubprotocol"] = JsonPrimitive(
+            draft.websocketSubprotocols.split(',')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .distinct()
+                .joinToString(", "),
+        )
+        values["accepted_statuscodes"] = JsonArray(
+            requireNotNull(websocketAcceptedCodes(draft.websocketAcceptedCodes)).map(::JsonPrimitive),
+        )
+        values["wsIgnoreSecWebsocketAcceptHeader"] = JsonPrimitive(draft.websocketIgnoreAcceptHeader)
+    }
+
     private fun notificationIdObject(ids: Set<Int>): JsonObject = JsonObject(
         ids.filter { it > 0 }.sorted().associate { it.toString() to JsonPrimitive(true) },
     )
@@ -411,6 +453,13 @@ object MonitorDraftCodec {
         token.length == 32 && token.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' }
 
     val JSON_QUERY_OPERATORS: Set<String> = setOf(">", ">=", "<", "<=", "!=", "==", "contains")
+
+    private fun websocketAcceptedCodes(value: String): List<String>? {
+        val parts = value.split(',').map(String::trim)
+        if (parts.any(String::isEmpty)) return null
+        val codes = parts.map { code -> code.toIntOrNull()?.takeIf { it in 1000..4999 } ?: return null }
+        return codes.distinct().map(Int::toString)
+    }
 }
 
 data class MonitorMutationResult(

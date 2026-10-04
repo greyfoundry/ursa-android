@@ -26,7 +26,19 @@ class MonitorEditorRegistryTest {
             assertTrue(definition.browserFallback)
         }
         assertEquals(
-            setOf("http", "keyword", "json-query", "port", "ping", "dns", "group", "push", "manual", "sftp"),
+            setOf(
+                "http",
+                "keyword",
+                "json-query",
+                "port",
+                "ping",
+                "dns",
+                "group",
+                "push",
+                "manual",
+                "sftp",
+                "websocket-upgrade",
+            ),
             definitions.filter(MonitorEditorDefinition::createSupported)
                 .map(MonitorEditorDefinition::type)
                 .toSet(),
@@ -78,6 +90,20 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.JSON_QUERY_EXPRESSION in jsonQuery.editableFields)
         assertTrue(MonitorEditorField.JSON_QUERY_OPERATOR in jsonQuery.editableFields)
         assertTrue(MonitorEditorField.JSON_QUERY_EXPECTED_VALUE in jsonQuery.editableFields)
+    }
+
+    @Test
+    fun websocketDeclaresItsNativeTransportFieldsWithoutOverstatingFidelity() {
+        val websocket = requireNotNull(MonitorEditorRegistry.find("websocket-upgrade"))
+
+        assertTrue(websocket.createSupported)
+        assertEquals(MonitorEditorCodec.WEBSOCKET, websocket.codec)
+        assertEquals(MonitorEditorValidation.WEBSOCKET, websocket.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, websocket.fidelity)
+        assertTrue(MonitorEditorField.WEBSOCKET_SUBPROTOCOLS in websocket.editableFields)
+        assertTrue(MonitorEditorField.WEBSOCKET_ACCEPTED_CODES in websocket.editableFields)
+        assertTrue(MonitorEditorField.WEBSOCKET_IGNORE_ACCEPT_HEADER in websocket.editableFields)
+        assertTrue(websocket.sensitiveFields.isEmpty())
     }
 
     @Test

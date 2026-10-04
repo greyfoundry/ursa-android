@@ -19,6 +19,9 @@ enum class MonitorEditorField {
     JSON_QUERY_EXPRESSION,
     JSON_QUERY_OPERATOR,
     JSON_QUERY_EXPECTED_VALUE,
+    WEBSOCKET_SUBPROTOCOLS,
+    WEBSOCKET_ACCEPTED_CODES,
+    WEBSOCKET_IGNORE_ACCEPT_HEADER,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -32,6 +35,7 @@ enum class MonitorEditorCodec {
     PUSH,
     KEYWORD,
     JSON_QUERY,
+    WEBSOCKET,
     SFTP,
 }
 
@@ -41,6 +45,7 @@ enum class MonitorEditorValidation {
     PUSH,
     KEYWORD,
     JSON_QUERY,
+    WEBSOCKET,
     SFTP,
 }
 
@@ -247,7 +252,19 @@ object MonitorEditorRegistry {
             help = MonitorEditorHelp.FULL_NATIVE,
         ),
         definition("tailscale-ping", "Tailscale ping"),
-        definition("websocket-upgrade", "WebSocket upgrade", MonitorEndpointKind.URL),
+        definition(
+            "websocket-upgrade",
+            "WebSocket upgrade",
+            MonitorEndpointKind.URL,
+            createSupported = true,
+            codec = MonitorEditorCodec.WEBSOCKET,
+            validation = MonitorEditorValidation.WEBSOCKET,
+            extraFields = setOf(
+                MonitorEditorField.WEBSOCKET_SUBPROTOCOLS,
+                MonitorEditorField.WEBSOCKET_ACCEPTED_CODES,
+                MonitorEditorField.WEBSOCKET_IGNORE_ACCEPT_HEADER,
+            ),
+        ),
         definition("sqlserver", "Microsoft SQL Server"),
         definition("mongodb", "MongoDB"),
         definition("mysql", "MySQL/MariaDB"),
@@ -372,6 +389,11 @@ object MonitorRoundTripGuard {
                 add("jsonPath")
                 add("jsonPathOperator")
                 add("expectedValue")
+            }
+            if (definition.codec == MonitorEditorCodec.WEBSOCKET) {
+                add("wsSubprotocol")
+                add("accepted_statuscodes")
+                add("wsIgnoreSecWebsocketAcceptHeader")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

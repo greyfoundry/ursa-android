@@ -88,13 +88,17 @@ here so the rest of the app sees clean domain models.
   queries, and fragments.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
-  typed defaults for common, keyword, JSON-query, and SFTP create flows. Keyword monitors map
+  typed defaults for common, keyword, JSON-query, WebSocket-transport, and SFTP create flows. Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
   fields retain the server value only when the authentication method is unchanged.
   JSON-query monitors map the exact expression, comparison operator, and expected
   value while preserving retry and advanced HTTP fields.
+  WebSocket-upgrade monitors use `ws`/`wss` validation and map subprotocols,
+  accepted close codes, and the invalid-accept-header compatibility switch.
+  Authentication, custom headers, and mTLS fields remain opaque and guarded until
+  their dedicated secret-preserving editor increment.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

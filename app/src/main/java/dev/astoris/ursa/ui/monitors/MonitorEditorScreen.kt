@@ -375,6 +375,45 @@ private fun MonitorForm(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (definition?.codec == MonitorEditorCodec.WEBSOCKET) {
+            OutlinedTextField(
+                value = draft.websocketSubprotocols,
+                onValueChange = { onDraftChange(draft.copy(websocketSubprotocols = it.take(500))) },
+                label = { Text(stringResource(R.string.monitor_websocket_subprotocols)) },
+                supportingText = { Text(stringResource(R.string.monitor_websocket_subprotocols_help)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = draft.websocketAcceptedCodes,
+                onValueChange = { onDraftChange(draft.copy(websocketAcceptedCodes = it.take(250))) },
+                label = { Text(stringResource(R.string.monitor_websocket_accepted_codes)) },
+                supportingText = { Text(stringResource(R.string.monitor_websocket_accepted_codes_help)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = draft.websocketIgnoreAcceptHeader,
+                        role = Role.Checkbox,
+                        onValueChange = { onDraftChange(draft.copy(websocketIgnoreAcceptHeader = it)) },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = draft.websocketIgnoreAcceptHeader,
+                    onCheckedChange = null,
+                )
+                Text(stringResource(R.string.monitor_websocket_ignore_accept_header))
+            }
+            Text(
+                stringResource(R.string.monitor_websocket_ignore_accept_header_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (option?.endpointKind == MonitorEndpointKind.HOST_PORT) {
             NumberField(
                 value = draft.port,
@@ -386,7 +425,11 @@ private fun MonitorForm(
         if (draft.type == "sftp") {
             SftpFields(draft = draft, onDraftChange = onDraftChange)
         }
-        if (draft.isNew && option?.endpointKind != MonitorEndpointKind.NONE && draft.type != "sftp") {
+        if (
+            draft.isNew &&
+            option?.endpointKind != MonitorEndpointKind.NONE &&
+            draft.type !in setOf("sftp", "websocket-upgrade")
+        ) {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
                 stringResource(R.string.monitor_discovery_desc),
@@ -853,6 +896,8 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.JSON_QUERY_EXPRESSION_REQUIRED -> R.string.monitor_error_json_query_expression
         MonitorDraftError.JSON_QUERY_OPERATOR_INVALID -> R.string.monitor_error_json_query_operator
         MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED -> R.string.monitor_error_json_query_expected_value
+        MonitorDraftError.WEBSOCKET_ACCEPTED_CODES_REQUIRED -> R.string.monitor_error_websocket_accepted_codes_required
+        MonitorDraftError.WEBSOCKET_ACCEPTED_CODE_INVALID -> R.string.monitor_error_websocket_accepted_code_invalid
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

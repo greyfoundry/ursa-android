@@ -159,6 +159,14 @@ JSON-query monitors use required string fields `jsonPath`, `jsonPathOperator`, a
 and `contains`; the UI defaults new expressions to `$` and comparisons to `==`.
 Numeric comparison values are still transported as strings by Kuma's editor.
 
+WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
+`wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
+`accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from
+`1000` through `4999` and defaults new monitors to `["1000"]`; its server splits
+subprotocols on commas and removes whitespace. The full object may also contain
+headers, authentication credentials, and mTLS material, which must be preserved
+unchanged unless a secret-aware editor explicitly replaces them.
+
 Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
 is therefore an unknown outcome: refresh incident history before allowing another
 create instead of automatically replaying it.
