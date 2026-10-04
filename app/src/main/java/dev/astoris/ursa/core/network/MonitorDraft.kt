@@ -57,6 +57,16 @@ enum class SftpAuthMethod(val wireValue: String) {
     }
 }
 
+enum class WebSocketAuthMethod(val wireValue: String?) {
+    NONE(null),
+    BASIC("basic"),
+    BEARER("bearer");
+
+    companion object {
+        fun fromWire(value: String?): WebSocketAuthMethod? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
 data class MonitorHeaderDraft(
     val name: String = "",
     val value: String = "",
@@ -90,6 +100,14 @@ data class MonitorDraft(
     val websocketIgnoreAcceptHeader: Boolean = false,
     val websocketHeaders: List<MonitorHeaderDraft> = emptyList(),
     val websocketHeadersEditable: Boolean = true,
+    val websocketAuthMethod: WebSocketAuthMethod = WebSocketAuthMethod.NONE,
+    val websocketOriginalAuthMethod: WebSocketAuthMethod? = null,
+    val websocketAuthEditable: Boolean = true,
+    val websocketBasicUsername: String = "",
+    val websocketBasicPassword: String = "",
+    val websocketHasSavedBasicPassword: Boolean = false,
+    val websocketBearerToken: String = "",
+    val websocketHasSavedBearerToken: Boolean = false,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -149,6 +167,8 @@ enum class MonitorDraftError {
     WEBSOCKET_HEADER_INVALID,
     WEBSOCKET_HEADER_VALUE_REQUIRED,
     WEBSOCKET_HEADER_DUPLICATE,
+    WEBSOCKET_BASIC_PASSWORD_REQUIRED,
+    WEBSOCKET_BEARER_TOKEN_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -160,6 +180,8 @@ object MonitorDraftCodec {
         val type = raw.string("type") ?: return null
         val option = MonitorTypeCatalog.find(type)
         val websocketHeaders = parseWebsocketHeaders(raw.string("headers"), type)
+        val rawWebsocketAuthMethod = raw.string("authMethod")
+        val websocketAuthMethod = WebSocketAuthMethod.fromWire(rawWebsocketAuthMethod)
         return MonitorDraft(
             id = id,
             type = type,
@@ -200,6 +222,18 @@ object MonitorDraftCodec {
                 ?: false,
             websocketHeaders = websocketHeaders.drafts,
             websocketHeadersEditable = websocketHeaders.editable,
+            websocketAuthMethod = websocketAuthMethod ?: WebSocketAuthMethod.NONE,
+            websocketOriginalAuthMethod = if (type == "websocket-upgrade") websocketAuthMethod else null,
+            websocketAuthEditable = type != "websocket-upgrade" || websocketAuthMethod != null,
+            websocketBasicUsername = if (type == "websocket-upgrade") {
+                raw.string("basic_auth_user").orEmpty()
+            } else {
+                ""
+            },
+            websocketHasSavedBasicPassword = type == "websocket-upgrade" &&
+                raw.string("basic_auth_pass")?.isNotEmpty() == true,
+            websocketHasSavedBearerToken = type == "websocket-upgrade" &&
+                raw.string("bearer_token")?.isNotEmpty() == true,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -285,6 +319,25 @@ object MonitorDraftCodec {
                         ?: return MonitorDraftError.WEBSOCKET_HEADER_INVALID
                     if (!names.add(normalized.name.lowercase())) {
                         return MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE
+                    }
+                }
+            }
+            if (draft.websocketAuthEditable) {
+                when (draft.websocketAuthMethod) {
+                    WebSocketAuthMethod.NONE -> Unit
+                    WebSocketAuthMethod.BASIC -> {
+                        val canKeepSaved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BASIC &&
+                            draft.websocketHasSavedBasicPassword
+                        if (draft.websocketBasicPassword.isEmpty() && !canKeepSaved) {
+                            return MonitorDraftError.WEBSOCKET_BASIC_PASSWORD_REQUIRED
+                        }
+                    }
+                    WebSocketAuthMethod.BEARER -> {
+                        val canKeepSaved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BEARER &&
+                            draft.websocketHasSavedBearerToken
+                        if (draft.websocketBearerToken.isEmpty() && !canKeepSaved) {
+                            return MonitorDraftError.WEBSOCKET_BEARER_TOKEN_REQUIRED
+                        }
                     }
                 }
             }
@@ -469,6 +522,59 @@ object MonitorDraftCodec {
         )
         values["wsIgnoreSecWebsocketAcceptHeader"] = JsonPrimitive(draft.websocketIgnoreAcceptHeader)
         applyWebsocketHeaders(values, draft)
+        applyWebsocketAuth(values, draft)
+    }
+
+    private fun applyWebsocketAuth(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (!draft.websocketAuthEditable) return
+        val credentialFields = setOf("basic_auth_user", "basic_auth_pass", "bearer_token")
+        if (
+            draft.websocketAuthMethod == WebSocketAuthMethod.NONE &&
+            "authMethod" !in values &&
+            credentialFields.none(values::containsKey)
+        ) {
+            return
+        }
+        values["authMethod"] = draft.websocketAuthMethod.wireValue?.let(::JsonPrimitive) ?: JsonNull
+        when (draft.websocketAuthMethod) {
+            WebSocketAuthMethod.NONE -> {
+                credentialFields.filter(values::containsKey).forEach { values[it] = JsonPrimitive("") }
+            }
+            WebSocketAuthMethod.BASIC -> {
+                val password = if (draft.websocketBasicPassword.isNotEmpty()) {
+                    draft.websocketBasicPassword
+                } else if (
+                    draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BASIC &&
+                    draft.websocketHasSavedBasicPassword
+                ) {
+                    values["basic_auth_pass"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                } else {
+                    ""
+                }
+                values["basic_auth_user"] = JsonPrimitive(draft.websocketBasicUsername.trim())
+                values["basic_auth_pass"] = JsonPrimitive(password)
+                if (draft.websocketOriginalAuthMethod != WebSocketAuthMethod.BASIC) {
+                    values["bearer_token"] = JsonPrimitive("")
+                }
+            }
+            WebSocketAuthMethod.BEARER -> {
+                val token = if (draft.websocketBearerToken.isNotEmpty()) {
+                    draft.websocketBearerToken
+                } else if (
+                    draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BEARER &&
+                    draft.websocketHasSavedBearerToken
+                ) {
+                    values["bearer_token"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                } else {
+                    ""
+                }
+                values["bearer_token"] = JsonPrimitive(token)
+                if (draft.websocketOriginalAuthMethod != WebSocketAuthMethod.BEARER) {
+                    values["basic_auth_user"] = JsonPrimitive("")
+                    values["basic_auth_pass"] = JsonPrimitive("")
+                }
+            }
+        }
     }
 
     private fun applyWebsocketHeaders(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {

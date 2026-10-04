@@ -1,6 +1,7 @@
 package dev.astoris.ursa.core.network
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -415,6 +416,14 @@ class MonitorDraftCodecTest {
                 ),
             ),
         )
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_BASIC_PASSWORD_REQUIRED,
+            MonitorDraftCodec.validate(base.copy(websocketAuthMethod = WebSocketAuthMethod.BASIC)),
+        )
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_BEARER_TOKEN_REQUIRED,
+            MonitorDraftCodec.validate(base.copy(websocketAuthMethod = WebSocketAuthMethod.BEARER)),
+        )
     }
 
     @Test
@@ -443,6 +452,106 @@ class MonitorDraftCodecTest {
         ).jsonObject
         val withoutHeadersDraft = MonitorDraftCodec.from(withoutHeaders)!!.copy(name = "Still no headers")
         assertFalse("headers" in MonitorDraftCodec.safeExistingPayload(withoutHeaders, withoutHeadersDraft)!!)
+    }
+
+    @Test
+    fun websocketBasicAndBearerSecretsUseMaskedReplacementSemantics() {
+        val basicCreated = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("websocket-upgrade").copy(
+                name = "Basic socket",
+                endpoint = "wss://example.com/socket",
+                websocketAuthMethod = WebSocketAuthMethod.BASIC,
+                websocketBasicUsername = "monitor-user",
+                websocketBasicPassword = "new-password",
+            ),
+        )
+        assertEquals("basic", basicCreated["authMethod"]!!.jsonPrimitive.content)
+        assertEquals("monitor-user", basicCreated["basic_auth_user"]!!.jsonPrimitive.content)
+        assertEquals("new-password", basicCreated["basic_auth_pass"]!!.jsonPrimitive.content)
+
+        val rawBasic = Json.parseToJsonElement(
+            """{
+                "id":24,"type":"websocket-upgrade","name":"Basic","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"authMethod":"basic",
+                "basic_auth_user":"saved-user","basic_auth_pass":"saved-password",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{},"future":{"kept":true}
+            }""",
+        ).jsonObject
+        val basicDraft = MonitorDraftCodec.from(rawBasic)!!
+        assertEquals(WebSocketAuthMethod.BASIC, basicDraft.websocketAuthMethod)
+        assertEquals("saved-user", basicDraft.websocketBasicUsername)
+        assertTrue(basicDraft.websocketBasicPassword.isEmpty())
+        assertTrue(basicDraft.websocketHasSavedBasicPassword)
+        val retainedBasic = MonitorDraftCodec.safeExistingPayload(rawBasic, basicDraft.copy(name = "Renamed"))!!
+        assertEquals("saved-password", retainedBasic["basic_auth_pass"]!!.jsonPrimitive.content)
+        assertEquals(rawBasic["future"], retainedBasic["future"])
+        val switchedToBearer = MonitorDraftCodec.safeExistingPayload(
+            rawBasic,
+            basicDraft.copy(
+                websocketAuthMethod = WebSocketAuthMethod.BEARER,
+                websocketBearerToken = "replacement-token",
+            ),
+        )!!
+        assertEquals("bearer", switchedToBearer["authMethod"]!!.jsonPrimitive.content)
+        assertEquals("", switchedToBearer["basic_auth_user"]!!.jsonPrimitive.content)
+        assertEquals("", switchedToBearer["basic_auth_pass"]!!.jsonPrimitive.content)
+        assertEquals("replacement-token", switchedToBearer["bearer_token"]!!.jsonPrimitive.content)
+
+        val bearerCreated = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("websocket-upgrade").copy(
+                name = "Bearer socket",
+                endpoint = "wss://example.com/socket",
+                websocketAuthMethod = WebSocketAuthMethod.BEARER,
+                websocketBearerToken = "new-token",
+            ),
+        )
+        assertEquals("bearer", bearerCreated["authMethod"]!!.jsonPrimitive.content)
+        assertEquals("new-token", bearerCreated["bearer_token"]!!.jsonPrimitive.content)
+
+        val rawBearer = Json.parseToJsonElement(
+            """{
+                "id":25,"type":"websocket-upgrade","name":"Bearer","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"authMethod":"bearer","bearer_token":"saved-token",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val bearerDraft = MonitorDraftCodec.from(rawBearer)!!
+        assertEquals(WebSocketAuthMethod.BEARER, bearerDraft.websocketAuthMethod)
+        assertTrue(bearerDraft.websocketBearerToken.isEmpty())
+        assertTrue(bearerDraft.websocketHasSavedBearerToken)
+        val replacedBearer = MonitorDraftCodec.safeExistingPayload(
+            rawBearer,
+            bearerDraft.copy(websocketBearerToken = "replacement-token"),
+        )!!
+        assertEquals("replacement-token", replacedBearer["bearer_token"]!!.jsonPrimitive.content)
+        val clearedBearer = MonitorDraftCodec.safeExistingPayload(
+            rawBearer,
+            bearerDraft.copy(websocketAuthMethod = WebSocketAuthMethod.NONE),
+        )!!
+        assertTrue(clearedBearer["authMethod"] is JsonNull)
+        assertEquals("", clearedBearer["bearer_token"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun websocketAdvancedAuthenticationRemainsOpaqueUntilItsEditorIsAvailable() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":26,"type":"websocket-upgrade","name":"OAuth","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"authMethod":"oauth2-cc",
+                "oauth_client_id":"client","oauth_client_secret":"saved-secret",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!
+
+        assertFalse(draft.websocketAuthEditable)
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft.copy(name = "Renamed"))!!
+        assertEquals(raw["authMethod"], updated["authMethod"])
+        assertEquals(raw["oauth_client_id"], updated["oauth_client_id"])
+        assertEquals(raw["oauth_client_secret"], updated["oauth_client_secret"])
     }
 
     @Test

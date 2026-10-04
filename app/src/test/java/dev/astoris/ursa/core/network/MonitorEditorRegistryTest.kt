@@ -104,7 +104,13 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.WEBSOCKET_ACCEPTED_CODES in websocket.editableFields)
         assertTrue(MonitorEditorField.WEBSOCKET_IGNORE_ACCEPT_HEADER in websocket.editableFields)
         assertTrue(MonitorEditorField.WEBSOCKET_HEADERS in websocket.editableFields)
-        assertTrue(websocket.sensitiveFields.isEmpty())
+        assertEquals(
+            setOf(
+                MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
+                MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+            ),
+            websocket.sensitiveFields,
+        )
     }
 
     @Test

@@ -168,8 +168,13 @@ subprotocols on commas and removes whitespace. The full object may also contain
 unique HTTP-token names with string values; it masks saved values and reconstructs
 unchanged entries from the fresh full object. Malformed JSON, non-string values,
 case-insensitive duplicates, and larger objects remain opaque. Authentication
-credentials and mTLS material must likewise remain unchanged unless a secret-aware
-editor explicitly replaces them.
+uses nullable `authMethod`: `basic` pairs `basic_auth_user` with
+`basic_auth_pass`, while `bearer` uses `bearer_token`. URSA reduces returned
+passwords/tokens to presence flags before UI state, retains a blank saved value
+only while the method is unchanged, and clears the superseded fields when the
+method changes. OAuth client credentials (`oauth2-cc`) and mTLS (`mtls`) remain
+opaque until their secret-aware editor increment; those fields must remain
+unchanged during common edits.
 
 Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
 is therefore an unknown outcome: refresh incident history before allowing another

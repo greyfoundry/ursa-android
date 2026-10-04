@@ -144,7 +144,12 @@ protocol credentials. The monitor editor keeps the fresh full response only for 
 active edit, reduces supported WebSocket header values to presence flags before UI
 state, and reconstructs unchanged values only while building the guarded save
 payload. These monitor secrets are not written to URSA storage, logs, caches, or
-documentation; unsupported header shapes remain opaque and unchanged.
+documentation; unsupported header shapes remain opaque and unchanged. WebSocket
+Basic passwords and Bearer tokens follow the same masked-replacement contract:
+the draft carries only a saved-value flag, a blank input can retain a secret only
+under the unchanged method, and switching methods clears the superseded fields.
+OAuth client credentials and mTLS material remain opaque until their dedicated
+editor is available.
 
 The separate destructive-action preference is off by default for compatibility. When
 enabled, monitor deletion, maintenance deletion, public-incident deletion, managed-push

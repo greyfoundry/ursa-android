@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-03
+last-updated: 2026-10-04
 owner: astoris
 status: stable
 ---
@@ -96,12 +96,16 @@ here so the rest of the app sees clean domain models.
   JSON-query monitors map the exact expression, comparison operator, and expected
   value while preserving retry and advanced HTTP fields.
   WebSocket-upgrade monitors use `ws`/`wss` validation and map subprotocols,
-  accepted close codes, and the invalid-accept-header compatibility switch.
+  accepted close codes, the invalid-accept-header compatibility switch, and
+  Basic or Bearer handshake authentication.
   Their request headers use at most eight validated named entries; saved values
   become presence flags in the draft and are retained from the fresh full object
   unless explicitly replaced or removed. Unsupported legacy header JSON remains
-  opaque and unchanged. Authentication and mTLS fields remain guarded until
-  their dedicated secret-preserving editor increment.
+  opaque and unchanged. Saved Basic passwords and Bearer tokens likewise become
+  presence flags; blank fields retain the fresh server value only while the same
+  method remains selected, and switching methods clears the superseded secret.
+  OAuth client credentials and mTLS fields remain guarded until their dedicated
+  secret-preserving editor increment.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

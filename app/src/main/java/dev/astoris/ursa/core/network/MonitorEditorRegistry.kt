@@ -23,6 +23,10 @@ enum class MonitorEditorField {
     WEBSOCKET_ACCEPTED_CODES,
     WEBSOCKET_IGNORE_ACCEPT_HEADER,
     WEBSOCKET_HEADERS,
+    WEBSOCKET_AUTH_METHOD,
+    WEBSOCKET_BASIC_USERNAME,
+    WEBSOCKET_BASIC_PASSWORD,
+    WEBSOCKET_BEARER_TOKEN,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -265,6 +269,14 @@ object MonitorEditorRegistry {
                 MonitorEditorField.WEBSOCKET_ACCEPTED_CODES,
                 MonitorEditorField.WEBSOCKET_IGNORE_ACCEPT_HEADER,
                 MonitorEditorField.WEBSOCKET_HEADERS,
+                MonitorEditorField.WEBSOCKET_AUTH_METHOD,
+                MonitorEditorField.WEBSOCKET_BASIC_USERNAME,
+                MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
+                MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+            ),
+            sensitiveFields = setOf(
+                MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
+                MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
             ),
         ),
         definition("sqlserver", "Microsoft SQL Server"),
@@ -397,6 +409,10 @@ object MonitorRoundTripGuard {
                 add("accepted_statuscodes")
                 add("wsIgnoreSecWebsocketAcceptHeader")
                 add("headers")
+                add("authMethod")
+                add("basic_auth_user")
+                add("basic_auth_pass")
+                add("bearer_token")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

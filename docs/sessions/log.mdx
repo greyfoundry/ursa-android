@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-04 - WebSocket Basic and Bearer authentication
+
+**changed**: Added native WebSocket handshake authentication for no credentials,
+HTTP Basic, and Bearer token modes. Basic owns Kuma's exact `authMethod`,
+`basic_auth_user`, and `basic_auth_pass` fields; Bearer owns `authMethod` and
+`bearer_token`.
+
+**security and compatibility**: Existing passwords and tokens never enter editable
+draft state. The UI receives only a saved-value flag and a blank masked field;
+leaving it blank retains the fresh server value only when the method is unchanged.
+Switching methods requires the new secret and clears the superseded credential
+fields. OAuth client credentials and mTLS remain opaque, read-only in the native
+form, and covered by the round-trip guard and browser fallback.
+
+**verification**: Focused codec and registry tests cover required-new-secret
+validation, exact create payloads, masked retention/replacement, method switching,
+and opaque OAuth preservation. Android 17/live Kuma 2.5.5 QA covered Basic create,
+masked reload, switch to Bearer, direct database verification that Basic fields
+were cleared, a second masked reload, and confirmed deletion. The server returned
+to its original five monitors and app/container crash checks were clean. The
+complete 198-task two-flavor phone/Wear build, test, and lint gate passes.
+
 ### 2026-10-04 - Structured WebSocket request headers
 
 **changed**: Added up to eight named request headers to the native WebSocket

@@ -64,6 +64,7 @@ import dev.astoris.ursa.core.network.MonitorHeaderDraft
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.SftpAuthMethod
+import dev.astoris.ursa.core.network.WebSocketAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaTag
@@ -415,6 +416,7 @@ private fun MonitorForm(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             WebsocketHeaderFields(draft = draft, onDraftChange = onDraftChange)
+            WebsocketAuthFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (option?.endpointKind == MonitorEndpointKind.HOST_PORT) {
             NumberField(
@@ -738,6 +740,93 @@ private fun <T> List<T>.replaced(index: Int, value: T): List<T> =
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun WebsocketAuthFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    Text(stringResource(R.string.monitor_websocket_auth_title), style = MaterialTheme.typography.titleSmall)
+    if (!draft.websocketAuthEditable) {
+        Text(
+            stringResource(R.string.monitor_websocket_auth_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        return
+    }
+    var menuOpen by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = it }) {
+        OutlinedTextField(
+            value = stringResource(
+                when (draft.websocketAuthMethod) {
+                    WebSocketAuthMethod.NONE -> R.string.monitor_websocket_auth_none
+                    WebSocketAuthMethod.BASIC -> R.string.monitor_websocket_auth_basic
+                    WebSocketAuthMethod.BEARER -> R.string.monitor_websocket_auth_bearer
+                },
+            ),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_websocket_auth_method)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(menuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            WebSocketAuthMethod.entries.forEach { method ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                when (method) {
+                                    WebSocketAuthMethod.NONE -> R.string.monitor_websocket_auth_none
+                                    WebSocketAuthMethod.BASIC -> R.string.monitor_websocket_auth_basic
+                                    WebSocketAuthMethod.BEARER -> R.string.monitor_websocket_auth_bearer
+                                },
+                            ),
+                        )
+                    },
+                    onClick = {
+                        onDraftChange(draft.copy(websocketAuthMethod = method))
+                        menuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    when (draft.websocketAuthMethod) {
+        WebSocketAuthMethod.NONE -> Text(
+            stringResource(R.string.monitor_websocket_auth_none_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        WebSocketAuthMethod.BASIC -> {
+            OutlinedTextField(
+                value = draft.websocketBasicUsername,
+                onValueChange = { onDraftChange(draft.copy(websocketBasicUsername = it.take(256))) },
+                label = { Text(stringResource(R.string.monitor_websocket_basic_username)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SensitiveField(
+                value = draft.websocketBasicPassword,
+                onValueChange = { onDraftChange(draft.copy(websocketBasicPassword = it.take(4_096))) },
+                label = stringResource(R.string.monitor_websocket_basic_password),
+                saved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BASIC &&
+                    draft.websocketHasSavedBasicPassword,
+            )
+        }
+        WebSocketAuthMethod.BEARER -> SensitiveField(
+            value = draft.websocketBearerToken,
+            onValueChange = { onDraftChange(draft.copy(websocketBearerToken = it.take(8_192))) },
+            label = stringResource(R.string.monitor_websocket_bearer_token),
+            saved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BEARER &&
+                draft.websocketHasSavedBearerToken,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun SftpFields(
     draft: MonitorDraft,
     onDraftChange: (MonitorDraft) -> Unit,
@@ -1000,6 +1089,8 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.WEBSOCKET_HEADER_INVALID -> R.string.monitor_error_websocket_header_invalid
         MonitorDraftError.WEBSOCKET_HEADER_VALUE_REQUIRED -> R.string.monitor_error_websocket_header_value
         MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE -> R.string.monitor_error_websocket_header_duplicate
+        MonitorDraftError.WEBSOCKET_BASIC_PASSWORD_REQUIRED -> R.string.monitor_error_websocket_basic_password
+        MonitorDraftError.WEBSOCKET_BEARER_TOKEN_REQUIRED -> R.string.monitor_error_websocket_bearer_token
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key
