@@ -60,6 +60,7 @@ import dev.astoris.ursa.core.network.MonitorEditorCodec
 import dev.astoris.ursa.core.network.MonitorEditorHelp
 import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.network.MonitorEndpointKind
+import dev.astoris.ursa.core.network.MonitorHeaderDraft
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.SftpAuthMethod
@@ -413,6 +414,7 @@ private fun MonitorForm(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            WebsocketHeaderFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (option?.endpointKind == MonitorEndpointKind.HOST_PORT) {
             NumberField(
@@ -637,6 +639,102 @@ private fun MonitorForm(
         }
     }
 }
+
+@Composable
+private fun WebsocketHeaderFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    Text(
+        stringResource(
+            R.string.monitor_websocket_headers_title,
+            draft.websocketHeaders.size,
+            MonitorDraftCodec.WEBSOCKET_HEADER_LIMIT,
+        ),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    Text(
+        stringResource(R.string.monitor_websocket_headers_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (!draft.websocketHeadersEditable) {
+        Text(
+            stringResource(R.string.monitor_websocket_headers_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        return
+    }
+    draft.websocketHeaders.forEachIndexed { index, header ->
+        Card(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = header.name,
+                    onValueChange = { value ->
+                        onDraftChange(
+                            draft.copy(
+                                websocketHeaders = draft.websocketHeaders.replaced(
+                                    index,
+                                    header.copy(name = value.take(128)),
+                                ),
+                            ),
+                        )
+                    },
+                    label = { Text(stringResource(R.string.monitor_websocket_header_name, index + 1)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SensitiveField(
+                    value = header.value,
+                    onValueChange = { value ->
+                        onDraftChange(
+                            draft.copy(
+                                websocketHeaders = draft.websocketHeaders.replaced(
+                                    index,
+                                    header.copy(value = value.take(4_096)),
+                                ),
+                            ),
+                        )
+                    },
+                    label = stringResource(R.string.monitor_websocket_header_value, index + 1),
+                    saved = header.hasSavedValue &&
+                        header.originalName?.equals(header.name.trim(), ignoreCase = true) == true,
+                    savedMessage = stringResource(R.string.monitor_websocket_header_saved),
+                )
+                TextButton(
+                    onClick = {
+                        onDraftChange(
+                            draft.copy(websocketHeaders = draft.websocketHeaders.filterIndexed { i, _ -> i != index }),
+                        )
+                    },
+                ) {
+                    Text(
+                        stringResource(R.string.monitor_websocket_header_remove),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+    }
+    if (draft.websocketHeaders.size < MonitorDraftCodec.WEBSOCKET_HEADER_LIMIT) {
+        TextButton(
+            onClick = {
+                onDraftChange(
+                    draft.copy(websocketHeaders = draft.websocketHeaders + MonitorHeaderDraft()),
+                )
+            },
+        ) {
+            Text(stringResource(R.string.monitor_websocket_header_add))
+        }
+    }
+}
+
+private fun <T> List<T>.replaced(index: Int, value: T): List<T> =
+    mapIndexed { current, item -> if (current == index) value else item }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -898,6 +996,10 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED -> R.string.monitor_error_json_query_expected_value
         MonitorDraftError.WEBSOCKET_ACCEPTED_CODES_REQUIRED -> R.string.monitor_error_websocket_accepted_codes_required
         MonitorDraftError.WEBSOCKET_ACCEPTED_CODE_INVALID -> R.string.monitor_error_websocket_accepted_code_invalid
+        MonitorDraftError.WEBSOCKET_TOO_MANY_HEADERS -> R.string.monitor_error_websocket_too_many_headers
+        MonitorDraftError.WEBSOCKET_HEADER_INVALID -> R.string.monitor_error_websocket_header_invalid
+        MonitorDraftError.WEBSOCKET_HEADER_VALUE_REQUIRED -> R.string.monitor_error_websocket_header_value
+        MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE -> R.string.monitor_error_websocket_header_duplicate
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

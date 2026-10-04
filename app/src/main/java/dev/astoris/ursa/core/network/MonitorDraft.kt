@@ -1,6 +1,7 @@
 package dev.astoris.ursa.core.network
 
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -14,6 +15,7 @@ import kotlinx.serialization.json.put
 import java.net.URI
 import java.security.SecureRandom
 import dev.astoris.ursa.data.model.MonitorTagAssignment
+import dev.astoris.ursa.data.model.RequestHeader
 
 enum class MonitorEndpointKind { NONE, URL, HOST, HOST_PORT }
 
@@ -55,6 +57,13 @@ enum class SftpAuthMethod(val wireValue: String) {
     }
 }
 
+data class MonitorHeaderDraft(
+    val name: String = "",
+    val value: String = "",
+    val originalName: String? = null,
+    val hasSavedValue: Boolean = false,
+)
+
 data class MonitorDraft(
     val id: Int? = null,
     val type: String = "http",
@@ -79,6 +88,8 @@ data class MonitorDraft(
     val websocketSubprotocols: String = "",
     val websocketAcceptedCodes: String = "1000",
     val websocketIgnoreAcceptHeader: Boolean = false,
+    val websocketHeaders: List<MonitorHeaderDraft> = emptyList(),
+    val websocketHeadersEditable: Boolean = true,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -134,6 +145,10 @@ enum class MonitorDraftError {
     JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     WEBSOCKET_ACCEPTED_CODES_REQUIRED,
     WEBSOCKET_ACCEPTED_CODE_INVALID,
+    WEBSOCKET_TOO_MANY_HEADERS,
+    WEBSOCKET_HEADER_INVALID,
+    WEBSOCKET_HEADER_VALUE_REQUIRED,
+    WEBSOCKET_HEADER_DUPLICATE,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -144,6 +159,7 @@ object MonitorDraftCodec {
         val id = raw.int("id")?.takeIf { it > 0 } ?: return null
         val type = raw.string("type") ?: return null
         val option = MonitorTypeCatalog.find(type)
+        val websocketHeaders = parseWebsocketHeaders(raw.string("headers"), type)
         return MonitorDraft(
             id = id,
             type = type,
@@ -182,6 +198,8 @@ object MonitorDraftCodec {
                 ?.jsonPrimitive?.booleanOrNull
                 ?: raw.int("wsIgnoreSecWebsocketAcceptHeader")?.let { it != 0 }
                 ?: false,
+            websocketHeaders = websocketHeaders.drafts,
+            websocketHeadersEditable = websocketHeaders.editable,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -251,6 +269,25 @@ object MonitorDraftCodec {
             val acceptedCodes = websocketAcceptedCodes(draft.websocketAcceptedCodes)
             if (draft.websocketAcceptedCodes.isBlank()) return MonitorDraftError.WEBSOCKET_ACCEPTED_CODES_REQUIRED
             if (acceptedCodes == null) return MonitorDraftError.WEBSOCKET_ACCEPTED_CODE_INVALID
+            if (draft.websocketHeadersEditable) {
+                if (draft.websocketHeaders.size > WEBSOCKET_HEADER_LIMIT) {
+                    return MonitorDraftError.WEBSOCKET_TOO_MANY_HEADERS
+                }
+                val names = mutableSetOf<String>()
+                draft.websocketHeaders.forEach { header ->
+                    val canKeepSaved = header.hasSavedValue &&
+                        header.originalName?.equals(header.name.trim(), ignoreCase = true) == true
+                    if (header.value.isBlank() && !canKeepSaved) {
+                        return MonitorDraftError.WEBSOCKET_HEADER_VALUE_REQUIRED
+                    }
+                    val value = header.value.ifBlank { "saved" }
+                    val normalized = RequestHeader(header.name, value).normalizedOrNull()
+                        ?: return MonitorDraftError.WEBSOCKET_HEADER_INVALID
+                    if (!names.add(normalized.name.lowercase())) {
+                        return MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE
+                    }
+                }
+            }
         }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
             return MonitorDraftError.INVALID_INTERVAL
@@ -431,6 +468,28 @@ object MonitorDraftCodec {
             requireNotNull(websocketAcceptedCodes(draft.websocketAcceptedCodes)).map(::JsonPrimitive),
         )
         values["wsIgnoreSecWebsocketAcceptHeader"] = JsonPrimitive(draft.websocketIgnoreAcceptHeader)
+        applyWebsocketHeaders(values, draft)
+    }
+
+    private fun applyWebsocketHeaders(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (!draft.websocketHeadersEditable) return
+        val rawHeaders = values["headers"]?.jsonPrimitive?.contentOrNull
+        val existing = parseHeaderObject(rawHeaders)
+        if (draft.websocketHeaders.isEmpty() && (rawHeaders.isNullOrBlank() || existing?.isEmpty() == true)) return
+        val headers = linkedMapOf<String, JsonElement>()
+        draft.websocketHeaders.forEach { header ->
+            val name = header.name.trim()
+            val value = if (header.value.isNotBlank()) {
+                header.value.trim()
+            } else {
+                existing?.entries
+                    ?.firstOrNull { (key, _) -> key.equals(header.originalName, ignoreCase = true) }
+                    ?.value?.jsonPrimitive?.contentOrNull
+                    .orEmpty()
+            }
+            headers[name] = JsonPrimitive(value)
+        }
+        values["headers"] = JsonPrimitive(JsonObject(headers).toString())
     }
 
     private fun notificationIdObject(ids: Set<Int>): JsonObject = JsonObject(
@@ -460,6 +519,33 @@ object MonitorDraftCodec {
         val codes = parts.map { code -> code.toIntOrNull()?.takeIf { it in 1000..4999 } ?: return null }
         return codes.distinct().map(Int::toString)
     }
+
+    private fun parseWebsocketHeaders(raw: String?, type: String): ParsedWebsocketHeaders {
+        if (type != "websocket-upgrade" || raw.isNullOrBlank()) return ParsedWebsocketHeaders()
+        val parsed = parseHeaderObject(raw) ?: return ParsedWebsocketHeaders(editable = false)
+        if (parsed.size > WEBSOCKET_HEADER_LIMIT) return ParsedWebsocketHeaders(editable = false)
+        if (parsed.values.any { it !is JsonPrimitive || !it.isString }) {
+            return ParsedWebsocketHeaders(editable = false)
+        }
+        val names = parsed.keys.map(String::lowercase)
+        if (names.distinct().size != names.size) return ParsedWebsocketHeaders(editable = false)
+        return ParsedWebsocketHeaders(
+            drafts = parsed.keys.map { name ->
+                MonitorHeaderDraft(name = name, originalName = name, hasSavedValue = true)
+            },
+        )
+    }
+
+    private fun parseHeaderObject(raw: String?): JsonObject? = raw
+        ?.takeIf(String::isNotBlank)
+        ?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
+
+    private data class ParsedWebsocketHeaders(
+        val drafts: List<MonitorHeaderDraft> = emptyList(),
+        val editable: Boolean = true,
+    )
+
+    const val WEBSOCKET_HEADER_LIMIT = 8
 }
 
 data class MonitorMutationResult(

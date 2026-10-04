@@ -22,6 +22,7 @@ enum class MonitorEditorField {
     WEBSOCKET_SUBPROTOCOLS,
     WEBSOCKET_ACCEPTED_CODES,
     WEBSOCKET_IGNORE_ACCEPT_HEADER,
+    WEBSOCKET_HEADERS,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -263,6 +264,7 @@ object MonitorEditorRegistry {
                 MonitorEditorField.WEBSOCKET_SUBPROTOCOLS,
                 MonitorEditorField.WEBSOCKET_ACCEPTED_CODES,
                 MonitorEditorField.WEBSOCKET_IGNORE_ACCEPT_HEADER,
+                MonitorEditorField.WEBSOCKET_HEADERS,
             ),
         ),
         definition("sqlserver", "Microsoft SQL Server"),
@@ -394,6 +396,7 @@ object MonitorRoundTripGuard {
                 add("wsSubprotocol")
                 add("accepted_statuscodes")
                 add("wsIgnoreSecWebsocketAcceptHeader")
+                add("headers")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

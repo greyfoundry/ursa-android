@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-04 - Structured WebSocket request headers
+
+**changed**: Added up to eight named request headers to the native WebSocket
+monitor form. Header names use URSA's existing HTTP-token validation, values reject
+line breaks, duplicate names are case-insensitive, and the codec serializes the
+structured entries into Kuma's `headers` JSON string without exposing raw JSON.
+
+**security and compatibility**: Existing values never enter editable draft state;
+the UI receives only each name and a saved-value flag. A blank unchanged entry
+recovers its value from the freshly fetched monitor at save time, while a new or
+renamed header requires an explicit replacement. Removing a row deliberately
+removes that header. More than eight entries, non-string values, malformed JSON,
+and case-insensitive duplicate legacy names remain opaque and byte-for-byte
+preserved with the existing browser escape.
+
+**verification**: Focused tests cover create, masked reload, retained and replaced
+values, removal, validation, and unsupported-shape preservation. Android 17/live
+Kuma 2.5.5 QA covered creation, masked reload, replacement, direct server database
+verification, and confirmed deletion; the server returned to its original five
+monitors with clean app/container logs. The complete 198-task two-flavor
+phone/Wear build, test, and lint gate passes.
+
 ### 2026-10-04 - Native WebSocket transport fields
 
 **changed**: Added native WebSocket-upgrade monitor creation and transport editing.

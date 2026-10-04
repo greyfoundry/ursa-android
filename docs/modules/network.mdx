@@ -97,7 +97,10 @@ here so the rest of the app sees clean domain models.
   value while preserving retry and advanced HTTP fields.
   WebSocket-upgrade monitors use `ws`/`wss` validation and map subprotocols,
   accepted close codes, and the invalid-accept-header compatibility switch.
-  Authentication, custom headers, and mTLS fields remain opaque and guarded until
+  Their request headers use at most eight validated named entries; saved values
+  become presence flags in the draft and are retained from the fresh full object
+  unless explicitly replaced or removed. Unsupported legacy header JSON remains
+  opaque and unchanged. Authentication and mTLS fields remain guarded until
   their dedicated secret-preserving editor increment.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.

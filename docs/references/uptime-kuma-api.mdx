@@ -164,8 +164,12 @@ WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from
 `1000` through `4999` and defaults new monitors to `["1000"]`; its server splits
 subprotocols on commas and removes whitespace. The full object may also contain
-headers, authentication credentials, and mTLS material, which must be preserved
-unchanged unless a secret-aware editor explicitly replaces them.
+`headers` as a JSON-encoded object. URSA's structured editor supports up to eight
+unique HTTP-token names with string values; it masks saved values and reconstructs
+unchanged entries from the fresh full object. Malformed JSON, non-string values,
+case-insensitive duplicates, and larger objects remain opaque. Authentication
+credentials and mTLS material must likewise remain unchanged unless a secret-aware
+editor explicitly replaces them.
 
 Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
 is therefore an unknown outcome: refresh incident history before allowing another

@@ -301,6 +301,10 @@ class MonitorDraftCodecTest {
                 websocketSubprotocols = "graphql-ws, graphql-transport-ws, graphql-ws",
                 websocketAcceptedCodes = "1000, 1001, 3000, 1000",
                 websocketIgnoreAcceptHeader = true,
+                websocketHeaders = listOf(
+                    MonitorHeaderDraft(name = "X-Tenant", value = "primary"),
+                    MonitorHeaderDraft(name = "X-Trace", value = "enabled"),
+                ),
             ),
         )
         assertEquals("wss://example.com/socket", created["url"]!!.jsonPrimitive.content)
@@ -310,6 +314,11 @@ class MonitorDraftCodecTest {
             created["accepted_statuscodes"]!!.jsonArray.map { it.jsonPrimitive.content },
         )
         assertTrue(created["wsIgnoreSecWebsocketAcceptHeader"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals(
+            mapOf("X-Tenant" to "primary", "X-Trace" to "enabled"),
+            Json.parseToJsonElement(created["headers"]!!.jsonPrimitive.content).jsonObject
+                .mapValues { it.value.jsonPrimitive.content },
+        )
 
         val raw = Json.parseToJsonElement(
             """{
@@ -317,7 +326,7 @@ class MonitorDraftCodecTest {
                 "wsSubprotocol":"chat","accepted_statuscodes":["1000"],
                 "wsIgnoreSecWebsocketAcceptHeader":false,"interval":60,"retryInterval":60,
                 "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
-                "headers":"{\"X-API-Key\":\"opaque-value\"}","authMethod":"bearer",
+                "headers":"{\"X-API-Key\":\"opaque-value\",\"X-Tenant\":\"primary\"}","authMethod":"bearer",
                 "bearer_token":"secret","tlsKey":"private-key","future":{"mode":"kept"}
             }""",
         ).jsonObject
@@ -326,7 +335,14 @@ class MonitorDraftCodecTest {
             websocketSubprotocols = "chat, telemetry",
             websocketAcceptedCodes = "1000, 4001",
             websocketIgnoreAcceptHeader = true,
+            websocketHeaders = listOf(
+                MonitorDraftCodec.from(raw)!!.websocketHeaders.first(),
+                MonitorHeaderDraft(name = "X-Trace", value = "replacement"),
+            ),
         )
+
+        assertEquals(listOf("X-API-Key", "X-Tenant"), MonitorDraftCodec.from(raw)!!.websocketHeaders.map { it.name })
+        assertTrue(MonitorDraftCodec.from(raw)!!.websocketHeaders.all { it.value.isEmpty() && it.hasSavedValue })
 
         val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
 
@@ -337,7 +353,11 @@ class MonitorDraftCodecTest {
             updated["accepted_statuscodes"]!!.jsonArray.map { it.jsonPrimitive.content },
         )
         assertTrue(updated["wsIgnoreSecWebsocketAcceptHeader"]!!.jsonPrimitive.content.toBoolean())
-        assertEquals(raw["headers"], updated["headers"])
+        assertEquals(
+            mapOf("X-API-Key" to "opaque-value", "X-Trace" to "replacement"),
+            Json.parseToJsonElement(updated["headers"]!!.jsonPrimitive.content).jsonObject
+                .mapValues { it.value.jsonPrimitive.content },
+        )
         assertEquals(raw["authMethod"], updated["authMethod"])
         assertEquals(raw["bearer_token"], updated["bearer_token"])
         assertEquals(raw["tlsKey"], updated["tlsKey"])
@@ -371,6 +391,58 @@ class MonitorDraftCodecTest {
                 MonitorDraft.create().copy(name = "Site", endpoint = "https://example.com"),
             ),
         )
+
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_HEADER_VALUE_REQUIRED,
+            MonitorDraftCodec.validate(
+                base.copy(websocketHeaders = listOf(MonitorHeaderDraft(name = "X-New"))),
+            ),
+        )
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_HEADER_INVALID,
+            MonitorDraftCodec.validate(
+                base.copy(websocketHeaders = listOf(MonitorHeaderDraft(name = "Bad Header", value = "value"))),
+            ),
+        )
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE,
+            MonitorDraftCodec.validate(
+                base.copy(
+                    websocketHeaders = listOf(
+                        MonitorHeaderDraft(name = "X-Test", value = "one"),
+                        MonitorHeaderDraft(name = "x-test", value = "two"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun websocketUnsupportedHeaderShapesStayOpaque() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":22,"type":"websocket-upgrade","name":"Socket","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"headers":"{\"X-List\":[\"one\",\"two\"]}",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!
+
+        assertFalse(draft.websocketHeadersEditable)
+        assertTrue(draft.websocketHeaders.isEmpty())
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft.copy(name = "Renamed"))!!
+        assertEquals(raw["headers"], updated["headers"])
+
+        val withoutHeaders = Json.parseToJsonElement(
+            """{
+                "id":23,"type":"websocket-upgrade","name":"No headers","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val withoutHeadersDraft = MonitorDraftCodec.from(withoutHeaders)!!.copy(name = "Still no headers")
+        assertFalse("headers" in MonitorDraftCodec.safeExistingPayload(withoutHeaders, withoutHeadersDraft)!!)
     }
 
     @Test

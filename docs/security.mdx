@@ -139,6 +139,13 @@ only. The optional local app lock requires a proof signed by an Android Keystore
 whose use is bound to a strong biometric or device credential; a prompt callback alone
 cannot unlock the UI.
 
+Authenticated monitor-detail responses may contain server-side request-header and
+protocol credentials. The monitor editor keeps the fresh full response only for the
+active edit, reduces supported WebSocket header values to presence flags before UI
+state, and reconstructs unchanged values only while building the guarded save
+payload. These monitor secrets are not written to URSA storage, logs, caches, or
+documentation; unsupported header shapes remain opaque and unchanged.
+
 The separate destructive-action preference is off by default for compatibility. When
 enabled, monitor deletion, maintenance deletion, public-incident deletion, managed-push
 removal, and saved-server removal require a fresh proof through the same
