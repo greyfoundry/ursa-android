@@ -16,6 +16,9 @@ enum class MonitorEditorField {
     PUSH_TOKEN,
     KEYWORD,
     INVERT_KEYWORD,
+    JSON_QUERY_EXPRESSION,
+    JSON_QUERY_OPERATOR,
+    JSON_QUERY_EXPECTED_VALUE,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -28,6 +31,7 @@ enum class MonitorEditorCodec {
     COMMON,
     PUSH,
     KEYWORD,
+    JSON_QUERY,
     SFTP,
 }
 
@@ -36,6 +40,7 @@ enum class MonitorEditorValidation {
     ENDPOINT,
     PUSH,
     KEYWORD,
+    JSON_QUERY,
     SFTP,
 }
 
@@ -171,7 +176,19 @@ object MonitorEditorRegistry {
         ),
         definition("globalping", "Globalping"),
         definition("grpc-keyword", "gRPC(s) - keyword"),
-        definition("json-query", "HTTP(s) - JSON query", MonitorEndpointKind.URL),
+        definition(
+            "json-query",
+            "HTTP(s) - JSON query",
+            MonitorEndpointKind.URL,
+            createSupported = true,
+            codec = MonitorEditorCodec.JSON_QUERY,
+            validation = MonitorEditorValidation.JSON_QUERY,
+            extraFields = setOf(
+                MonitorEditorField.JSON_QUERY_EXPRESSION,
+                MonitorEditorField.JSON_QUERY_OPERATOR,
+                MonitorEditorField.JSON_QUERY_EXPECTED_VALUE,
+            ),
+        ),
         definition("kafka-producer", "Kafka producer"),
         definition("mqtt", "MQTT"),
         definition("ntp", "NTP", verifiedMin = KumaVersion(2, 5, 0)),
@@ -350,6 +367,11 @@ object MonitorRoundTripGuard {
             if (definition.codec == MonitorEditorCodec.KEYWORD) {
                 add("keyword")
                 add("invertKeyword")
+            }
+            if (definition.codec == MonitorEditorCodec.JSON_QUERY) {
+                add("jsonPath")
+                add("jsonPathOperator")
+                add("expectedValue")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

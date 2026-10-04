@@ -9,6 +9,24 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-04 - Native JSON-query monitor fields
+
+**changed**: Added native JSON-query monitor creation and editing with Kuma's
+required JSONata expression, seven comparison operators, and expected value. New
+drafts retain Kuma's `$` expression and `==` comparison defaults.
+
+**safety and compatibility**: Only `jsonPath`, `jsonPathOperator`, and
+`expectedValue` join the guarded mutable set. Existing authorization headers,
+retry-only-on-status-code behavior, advanced HTTP options, and future nested fields
+must remain unchanged. The type therefore retains safe common-edit fidelity and
+the Kuma browser escape instead of overstating full HTTP coverage.
+
+**verification**: Focused registry and codec tests cover exact create/edit fields,
+operator validation, and unrelated secret/future-field preservation. Android 17/
+live Kuma 2.5.5 QA covered create, server reload, expected-value edit, save, and
+confirmed deletion; the temporary monitor was removed and the server returned to
+its original inventory. The complete 198-task two-flavor phone/Wear gate passes.
+
 ### 2026-10-04 - Native keyword monitor fields
 
 **changed**: Began the common-protocol editor wave with native Keyword monitor

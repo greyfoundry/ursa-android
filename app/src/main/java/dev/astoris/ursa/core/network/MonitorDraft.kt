@@ -73,6 +73,9 @@ data class MonitorDraft(
     val pushToken: String = "",
     val keyword: String = "",
     val invertKeyword: Boolean = false,
+    val jsonQueryExpression: String = "$",
+    val jsonQueryOperator: String = "==",
+    val jsonQueryExpectedValue: String = "",
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -123,6 +126,9 @@ enum class MonitorDraftError {
     INVALID_RETRIES,
     INVALID_PUSH_TOKEN,
     KEYWORD_REQUIRED,
+    JSON_QUERY_EXPRESSION_REQUIRED,
+    JSON_QUERY_OPERATOR_INVALID,
+    JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -158,6 +164,9 @@ object MonitorDraftCodec {
             invertKeyword = raw["invertKeyword"]?.jsonPrimitive?.booleanOrNull
                 ?: raw.int("invertKeyword")?.let { it != 0 }
                 ?: false,
+            jsonQueryExpression = raw.string("jsonPath") ?: "$",
+            jsonQueryOperator = raw.string("jsonPathOperator") ?: "==",
+            jsonQueryExpectedValue = raw.string("expectedValue").orEmpty(),
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -213,6 +222,11 @@ object MonitorDraftCodec {
         if (definition.validation == MonitorEditorValidation.KEYWORD && draft.keyword.isEmpty()) {
             return MonitorDraftError.KEYWORD_REQUIRED
         }
+        if (definition.validation == MonitorEditorValidation.JSON_QUERY) {
+            if (draft.jsonQueryExpression.isEmpty()) return MonitorDraftError.JSON_QUERY_EXPRESSION_REQUIRED
+            if (draft.jsonQueryOperator !in JSON_QUERY_OPERATORS) return MonitorDraftError.JSON_QUERY_OPERATOR_INVALID
+            if (draft.jsonQueryExpectedValue.isEmpty()) return MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED
+        }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
             return MonitorDraftError.INVALID_INTERVAL
         }
@@ -233,6 +247,7 @@ object MonitorDraftCodec {
         values["parent"] = draft.parentId?.let(::JsonPrimitive) ?: JsonNull
         applyEndpoint(values, draft)
         applyKeyword(values, draft)
+        applyJsonQuery(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -281,6 +296,7 @@ object MonitorDraftCodec {
         }.toMutableMap()
         applyEndpoint(mutable, draft)
         applyKeyword(mutable, draft)
+        applyJsonQuery(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -368,6 +384,13 @@ object MonitorDraftCodec {
         values["invertKeyword"] = JsonPrimitive(draft.invertKeyword)
     }
 
+    private fun applyJsonQuery(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.JSON_QUERY) return
+        values["jsonPath"] = JsonPrimitive(draft.jsonQueryExpression)
+        values["jsonPathOperator"] = JsonPrimitive(draft.jsonQueryOperator)
+        values["expectedValue"] = JsonPrimitive(draft.jsonQueryExpectedValue)
+    }
+
     private fun notificationIdObject(ids: Set<Int>): JsonObject = JsonObject(
         ids.filter { it > 0 }.sorted().associate { it.toString() to JsonPrimitive(true) },
     )
@@ -386,6 +409,8 @@ object MonitorDraftCodec {
 
     private fun isValidPushToken(token: String): Boolean =
         token.length == 32 && token.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' }
+
+    val JSON_QUERY_OPERATORS: Set<String> = setOf(">", ">=", "<", "<=", "!=", "==", "contains")
 }
 
 data class MonitorMutationResult(

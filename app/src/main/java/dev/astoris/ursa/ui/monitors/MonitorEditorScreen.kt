@@ -191,6 +191,7 @@ private fun MonitorForm(
     val validation = MonitorDraftCodec.validate(draft)
     var typeMenuOpen by remember { mutableStateOf(false) }
     var groupMenuOpen by remember { mutableStateOf(false) }
+    var jsonOperatorMenuOpen by remember { mutableStateOf(false) }
     val parentGroups = eligibleParentGroups(monitors, draft.id)
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
@@ -320,6 +321,56 @@ private fun MonitorForm(
             }
             Text(
                 stringResource(R.string.monitor_keyword_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (definition?.codec == MonitorEditorCodec.JSON_QUERY) {
+            OutlinedTextField(
+                value = draft.jsonQueryExpression,
+                onValueChange = { onDraftChange(draft.copy(jsonQueryExpression = it.take(2_000))) },
+                label = { Text(stringResource(R.string.monitor_json_query_expression)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ExposedDropdownMenuBox(
+                expanded = jsonOperatorMenuOpen,
+                onExpandedChange = { jsonOperatorMenuOpen = it },
+            ) {
+                OutlinedTextField(
+                    value = draft.jsonQueryOperator,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.monitor_json_query_operator)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(jsonOperatorMenuOpen) },
+                    modifier = Modifier
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = jsonOperatorMenuOpen,
+                    onDismissRequest = { jsonOperatorMenuOpen = false },
+                ) {
+                    MonitorDraftCodec.JSON_QUERY_OPERATORS.forEach { operator ->
+                        DropdownMenuItem(
+                            text = { Text(operator) },
+                            onClick = {
+                                onDraftChange(draft.copy(jsonQueryOperator = operator))
+                                jsonOperatorMenuOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = draft.jsonQueryExpectedValue,
+                onValueChange = { onDraftChange(draft.copy(jsonQueryExpectedValue = it.take(2_000))) },
+                label = { Text(stringResource(R.string.monitor_json_query_expected_value)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                stringResource(R.string.monitor_json_query_help),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -799,6 +850,9 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.INVALID_RETRIES -> R.string.monitor_error_retries
         MonitorDraftError.INVALID_PUSH_TOKEN -> R.string.monitor_error_push_token
         MonitorDraftError.KEYWORD_REQUIRED -> R.string.monitor_error_keyword
+        MonitorDraftError.JSON_QUERY_EXPRESSION_REQUIRED -> R.string.monitor_error_json_query_expression
+        MonitorDraftError.JSON_QUERY_OPERATOR_INVALID -> R.string.monitor_error_json_query_operator
+        MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED -> R.string.monitor_error_json_query_expected_value
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

@@ -253,6 +253,46 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun jsonQueryCreateAndGuardedEditUseExactKumaFields() {
+        val created = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("json-query").copy(
+                name = "API state",
+                endpoint = "https://example.com/health.json",
+                jsonQueryExpression = "status",
+                jsonQueryOperator = "==",
+                jsonQueryExpectedValue = "ready",
+            ),
+        )
+        assertEquals("status", created["jsonPath"]!!.jsonPrimitive.content)
+        assertEquals("==", created["jsonPathOperator"]!!.jsonPrimitive.content)
+        assertEquals("ready", created["expectedValue"]!!.jsonPrimitive.content)
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":20,"type":"json-query","name":"API","url":"https://example.com",
+                "jsonPath":"before","jsonPathOperator":"==","expectedValue":"old",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{},"headers":"{\"X-Key\":\"secret\"}",
+                "retryOnlyOnStatusCodeFailure":true,"future":{"mode":"kept"}
+            }""",
+        ).jsonObject
+        val draft = MonitorDraftCodec.from(raw)!!.copy(
+            jsonQueryExpression = "after",
+            jsonQueryOperator = "contains",
+            jsonQueryExpectedValue = "ready",
+        )
+
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
+
+        assertEquals("after", updated["jsonPath"]!!.jsonPrimitive.content)
+        assertEquals("contains", updated["jsonPathOperator"]!!.jsonPrimitive.content)
+        assertEquals("ready", updated["expectedValue"]!!.jsonPrimitive.content)
+        assertEquals(raw["headers"], updated["headers"])
+        assertEquals(raw["retryOnlyOnStatusCodeFailure"], updated["retryOnlyOnStatusCodeFailure"])
+        assertEquals(raw["future"], updated["future"])
+    }
+
+    @Test
     fun validationRequiresOnlyFieldsRelevantToTheSelectedType() {
         assertEquals(MonitorDraftError.NAME_REQUIRED, MonitorDraftCodec.validate(MonitorDraft.create()))
         assertEquals(
@@ -271,6 +311,23 @@ class MonitorDraftCodecTest {
             MonitorDraftError.KEYWORD_REQUIRED,
             MonitorDraftCodec.validate(
                 MonitorDraft.create("keyword").copy(name = "Marker", endpoint = "https://example.com"),
+            ),
+        )
+        assertEquals(
+            MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED,
+            MonitorDraftCodec.validate(
+                MonitorDraft.create("json-query").copy(name = "API", endpoint = "https://example.com"),
+            ),
+        )
+        assertEquals(
+            MonitorDraftError.JSON_QUERY_OPERATOR_INVALID,
+            MonitorDraftCodec.validate(
+                MonitorDraft.create("json-query").copy(
+                    name = "API",
+                    endpoint = "https://example.com",
+                    jsonQueryOperator = "matches",
+                    jsonQueryExpectedValue = "ready",
+                ),
             ),
         )
         val sftp = MonitorDraft.create("sftp").copy(name = "SFTP", endpoint = "host")

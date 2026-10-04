@@ -1128,6 +1128,13 @@
     <string name="monitor_keyword_invert">Alert when the keyword is present</string>
     <string name="monitor_keyword_help">Normally the check passes when the response contains this text. Invert the match to require the text to be absent.</string>
     <string name="monitor_error_keyword">Enter the response text this monitor should match.</string>
+    <string name="monitor_json_query_expression">JSONata expression</string>
+    <string name="monitor_json_query_operator">Condition</string>
+    <string name="monitor_json_query_expected_value">Expected value</string>
+    <string name="monitor_json_query_help">Evaluate a JSONata expression against the response, then compare its result with this value.</string>
+    <string name="monitor_error_json_query_expression">Enter a JSONata expression.</string>
+    <string name="monitor_error_json_query_operator">Choose a supported comparison.</string>
+    <string name="monitor_error_json_query_expected_value">Enter the value the query result should match.</string>
     <string name="monitor_url_label">URL</string>
     <string name="monitor_host_label">Host</string>
     <string name="monitor_port_label">Port</string>

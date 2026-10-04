@@ -154,6 +154,11 @@ check succeeds when the response contains the keyword; `true` reverses that test
 and alerts when the response contains it. URSA exposes only these type-specific
 fields for now and preserves other HTTP settings from the freshly loaded object.
 
+JSON-query monitors use required string fields `jsonPath`, `jsonPathOperator`, and
+`expectedValue`. Kuma 2.5.5 accepts operators `>`, `>=`, `<`, `<=`, `!=`, `==`,
+and `contains`; the UI defaults new expressions to `$` and comparisons to `==`.
+Numeric comparison values are still transported as strings by Kuma's editor.
+
 Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
 is therefore an unknown outcome: refresh incident history before allowing another
 create instead of automatically replaying it.

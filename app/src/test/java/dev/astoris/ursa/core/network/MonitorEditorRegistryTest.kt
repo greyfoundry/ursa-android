@@ -26,7 +26,7 @@ class MonitorEditorRegistryTest {
             assertTrue(definition.browserFallback)
         }
         assertEquals(
-            setOf("http", "keyword", "port", "ping", "dns", "group", "push", "manual", "sftp"),
+            setOf("http", "keyword", "json-query", "port", "ping", "dns", "group", "push", "manual", "sftp"),
             definitions.filter(MonitorEditorDefinition::createSupported)
                 .map(MonitorEditorDefinition::type)
                 .toSet(),
@@ -43,6 +43,7 @@ class MonitorEditorRegistryTest {
 
         assertTrue(MonitorEditorRegistry.writeVerified("http", v240))
         assertTrue(MonitorEditorRegistry.writeVerified("keyword", v240))
+        assertTrue(MonitorEditorRegistry.writeVerified("json-query", v240))
         assertFalse(MonitorEditorRegistry.writeVerified("ntp", v240))
         assertFalse(MonitorEditorRegistry.writeVerified("sftp", v253))
         assertTrue(MonitorEditorRegistry.writeVerified("ntp", v253))
@@ -64,6 +65,19 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.KEYWORD in keyword.editableFields)
         assertTrue(MonitorEditorField.INVERT_KEYWORD in keyword.editableFields)
         assertTrue(keyword.sensitiveFields.isEmpty())
+    }
+
+    @Test
+    fun jsonQueryDeclaresItsNativeComparisonFields() {
+        val jsonQuery = requireNotNull(MonitorEditorRegistry.find("json-query"))
+
+        assertTrue(jsonQuery.createSupported)
+        assertEquals(MonitorEditorCodec.JSON_QUERY, jsonQuery.codec)
+        assertEquals(MonitorEditorValidation.JSON_QUERY, jsonQuery.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, jsonQuery.fidelity)
+        assertTrue(MonitorEditorField.JSON_QUERY_EXPRESSION in jsonQuery.editableFields)
+        assertTrue(MonitorEditorField.JSON_QUERY_OPERATOR in jsonQuery.editableFields)
+        assertTrue(MonitorEditorField.JSON_QUERY_EXPECTED_VALUE in jsonQuery.editableFields)
     }
 
     @Test
