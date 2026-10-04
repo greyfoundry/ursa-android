@@ -291,9 +291,9 @@ class KumaClient(
         return KumaParse.tagDefinitions(json)
     }
 
-    /** Creates a supported monitor or safely patches typed fields on any known Kuma 2.5.5 type. */
+    /** Creates a supported monitor or safely patches typed fields on any registered type. */
     suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult {
-        if (!_compatibility.value.supportsMonitorSchema(draft.type)) {
+        if (!MonitorEditorRegistry.writeVerified(draft.type, _compatibility.value)) {
             return MonitorMutationResult(
                 false,
                 message = "This monitor type is not write-verified for the connected Uptime Kuma version.",
@@ -312,7 +312,8 @@ class KumaClient(
             val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
                 ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE")
             currentTags = KumaParse.tagAssignments(json)
-            MonitorDraftCodec.applyToExisting(json, draft)
+            MonitorDraftCodec.safeExistingPayload(json, draft)
+                ?: return MonitorMutationResult(false, message = "ROUND_TRIP_GUARD_FAILED")
         }
         val event = if (draft.isNew) "add" else "editMonitor"
         val response = emitAck(event, JSONObject(payload.toString()))

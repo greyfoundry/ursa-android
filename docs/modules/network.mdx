@@ -33,6 +33,11 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.5 type catalogue,
   typed common-field validation, safe patching, create defaults, and exact push
   heartbeat URL construction from a cryptographically generated token.
+- `.../core/network/MonitorEditorRegistry.kt` - single metadata source for every
+  known 2.5.5 monitor type: verified range, native fields, sensitive fields,
+  defaults, validation/codec profile, field conditions/dependencies, fidelity,
+  transfer eligibility, help mode, browser fallback, and the unrelated-field
+  round-trip guard.
 - `.../core/network/PublicIncident.kt` - app-owned authenticated public-incident
   identity, supported styles, validation, acknowledgement outcomes, and wire mapping.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
@@ -90,6 +95,10 @@ here so the rest of the app sees clean domain models.
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
   in URSA's local caches or logs.
+- `MonitorEditorRegistry` - gates create/edit on both the global write-verified
+  Kuma range and the type-specific schema floor. `MonitorRoundTripGuard` permits
+  only registry-declared wire fields to change; a mismatched type or changed
+  unrelated field blocks the save before `editMonitor` is emitted.
 - `KumaParse.notifications` returns only provider ID, name, type, and default
   status. The double-encoded provider configuration is parsed only far enough to
   identify its type and is then discarded.
@@ -148,6 +157,9 @@ here so the rest of the app sees clean domain models.
   secret values. Other credentials, advanced settings, and fields introduced by
   future Kuma versions never leave the network adapter and are preserved in the
   round trip.
+- The compatibility flow and editor registry are both required for a monitor
+  write. This prevents common types from bypassing the global verified-version
+  boundary while still preserving the released catalogue API for callers.
 - Kuma's first unauthenticated `info` event intentionally omits the version. The
   authenticated event updates the compatibility flow. Kuma 2.5.1 reports 2.5.0
   and 2.5.2 reports 2.5.1; schema gates use that honest wire value. SFTP is hidden

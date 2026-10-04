@@ -114,7 +114,9 @@ route stack while screens migrate incrementally.
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
   server errors, and no raw JSON surface. Saved SFTP secrets are never prefilled;
-  blank fields retain them and replacements are masked by default.
+  blank fields retain them and replacements are masked by default. Registry-backed
+  help distinguishes a full native codec from safe common-field editing, while
+  unsupported versions remain read-only and retain the browser fallback.
 - `.../ui/monitors/MaintenanceScreen.kt` - native maintenance list and typed editor
   for all six Kuma strategies, explicit resolved/configured timezone fields,
   affected monitors, pause/resume, and confirmed deletion.

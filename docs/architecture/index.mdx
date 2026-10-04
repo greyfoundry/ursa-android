@@ -29,7 +29,8 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
 ```
 
 **layers**
-- `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) -
+- `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient,
+  MonitorEditorRegistry and its round-trip guard) -
   see `docs/modules/network.mdx`.
 - `core.storage` → `.../core/storage/` (ConnectionStore, encrypted caches,
   preferences, event history, and incident notes) - DataStore with Tink

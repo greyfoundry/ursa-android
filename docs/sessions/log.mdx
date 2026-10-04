@@ -9,6 +9,33 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-04 - Monitor editor registry and round-trip guard
+
+**changed**: Added one monitor-editor registry for all 34 Kuma 2.5.5 types. Each
+definition declares its verified range, endpoint/defaults, editable and sensitive
+fields, validation and codec profile, conditional/dependent fields, fidelity,
+transfer eligibility, help mode, and browser fallback. The released
+`MonitorTypeCatalog` API now derives from that registry, so existing callers and
+saved drafts keep their contract.
+
+**safety and compatibility**: Common and type-specific saves now require both the
+global write-verified Kuma tier and the registry's type range. Existing edits still
+fetch the full object immediately before save, but now reject type drift and compare
+every unrelated JSON field before emitting `editMonitor`. Unknown fields and secrets
+must remain identical; unknown monitor types and unverified versions stay read-only.
+SFTP remains the first full native codec, with masked secret-presence handling and
+explicit password/private-key conditions; other registered types retain safe common-
+field editing and the existing browser escape until their wave is proven.
+
+**verification**: Registry tests cover completeness, unique identities, conservative
+transfer policy, global/type-specific version gates, SFTP field/secret/dependency
+metadata, arbitrary nested unknown-field preservation, type mismatch, and deliberate
+guard failure. Existing HTTP, Push, SFTP, validation, and compatibility codec tests
+run through the guarded path. The complete 198-task two-flavor phone/Wear build,
+test, and lint gate passes. Android 17 plus live Kuma 2.5.5 QA covered SFTP create,
+masked saved-secret reload, common-field edit/reload, and confirmed deletion; the
+temporary monitor was removed and the QA server returned to its original inventory.
+
 ### 2026-10-04 - Fleet server health and compatibility diagnostics
 
 **changed**: Every Fleet server card can now expand a connection-health panel. It

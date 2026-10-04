@@ -213,6 +213,12 @@ an explicit named-target confirmation, with group-child removal as a separate op
 Notification assignment exposes only provider ID, display name, type, and default
 flag; the double-encoded provider configuration (including passwords, tokens, and
 destinations) is discarded inside the parser and never reaches UI state.
+The monitor-editor registry names the only wire fields each codec may change. Before
+an existing monitor is emitted, a runtime guard requires the freshly fetched type to
+match the draft and byte-equivalent JSON values for every unrelated field, including
+unknown future and credential-bearing fields. A guard failure stops locally. Monitor
+writes also require the global compatibility tier and the type-specific verified
+range; reads and the confirmed browser fallback remain available outside that range.
 
 A push monitor's heartbeat URL is a bearer-style write capability: anyone who knows
 it can submit status to that monitor. New monitors use a cryptographically random

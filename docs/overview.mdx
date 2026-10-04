@@ -105,6 +105,11 @@ and the module docs under `docs/modules/`.
 - A live-tested Kuma capability matrix pins the stable 2.4.0-2.5.5 contract and
   version-gates SFTP and authenticated public-incident writes; see
   `docs/references/uptime-kuma-api.mdx`.
+- Native monitor editing now resolves through one registry that declares each
+  known 2.5.5 type's verified range, editable and sensitive fields, defaults,
+  validation/codec profile, conditional dependencies, fidelity, transfer policy,
+  help mode, and browser fallback. Existing edits fetch a fresh full object and
+  pass a runtime guard that rejects type drift or any unrelated-field change.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;

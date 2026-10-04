@@ -27,53 +27,20 @@ data class MonitorTypeOption(
 
 /** Uptime Kuma 2.5.5's monitor-type catalogue. */
 object MonitorTypeCatalog {
-    val all = listOf(
-        MonitorTypeOption("http", "HTTP(s)", MonitorEndpointKind.URL, createSupported = true),
-        MonitorTypeOption("keyword", "HTTP(s) - keyword", MonitorEndpointKind.URL),
-        MonitorTypeOption("port", "TCP port", MonitorEndpointKind.HOST_PORT, true),
-        MonitorTypeOption("ping", "Ping", MonitorEndpointKind.HOST, true),
-        MonitorTypeOption("dns", "DNS", MonitorEndpointKind.HOST_PORT, true, 53),
-        MonitorTypeOption("docker", "Docker container"),
-        MonitorTypeOption("system-service", "System service"),
-        MonitorTypeOption("pm2", "PM2 process"),
-        MonitorTypeOption("real-browser", "Browser engine", MonitorEndpointKind.URL),
-        MonitorTypeOption("group", "Group", createSupported = true),
-        MonitorTypeOption("push", "Push", createSupported = true),
-        MonitorTypeOption("manual", "Manual", createSupported = true),
-        MonitorTypeOption("globalping", "Globalping"),
-        MonitorTypeOption("grpc-keyword", "gRPC(s) - keyword"),
-        MonitorTypeOption("json-query", "HTTP(s) - JSON query", MonitorEndpointKind.URL),
-        MonitorTypeOption("kafka-producer", "Kafka producer"),
-        MonitorTypeOption("mqtt", "MQTT"),
-        MonitorTypeOption("ntp", "NTP"),
-        MonitorTypeOption("rabbitmq", "RabbitMQ"),
-        MonitorTypeOption("sip-options", "SIP options ping"),
-        MonitorTypeOption("smtp", "SMTP"),
-        MonitorTypeOption("snmp", "SNMP"),
+    val all: List<MonitorTypeOption> = MonitorEditorRegistry.all.map { definition ->
         MonitorTypeOption(
-            "sftp",
-            "SFTP",
-            MonitorEndpointKind.HOST_PORT,
-            createSupported = true,
-            defaultPort = 22,
-        ),
-        MonitorTypeOption("tailscale-ping", "Tailscale ping"),
-        MonitorTypeOption("websocket-upgrade", "WebSocket upgrade", MonitorEndpointKind.URL),
-        MonitorTypeOption("sqlserver", "Microsoft SQL Server"),
-        MonitorTypeOption("mongodb", "MongoDB"),
-        MonitorTypeOption("mysql", "MySQL/MariaDB"),
-        MonitorTypeOption("oracledb", "Oracle Database"),
-        MonitorTypeOption("postgres", "PostgreSQL"),
-        MonitorTypeOption("radius", "RADIUS"),
-        MonitorTypeOption("redis", "Redis"),
-        MonitorTypeOption("gamedig", "GameDig"),
-        MonitorTypeOption("steam", "Steam game server"),
-    )
+            key = definition.type,
+            label = definition.label,
+            endpointKind = definition.endpointKind,
+            createSupported = definition.createSupported,
+            defaultPort = definition.defaults.port,
+        )
+    }
 
     val creatable: List<MonitorTypeOption> = all.filter(MonitorTypeOption::createSupported)
 
     fun creatableFor(compatibility: KumaCompatibility): List<MonitorTypeOption> =
-        creatable.filter { compatibility.supportsMonitorSchema(it.key) }
+        MonitorEditorRegistry.creatableFor(compatibility).mapNotNull { find(it.type) }
 
     fun find(type: String): MonitorTypeOption? = all.firstOrNull { it.key == type }
 }
@@ -121,10 +88,15 @@ data class MonitorDraft(
     companion object {
         fun create(type: String = "http"): MonitorDraft {
             val option = MonitorTypeCatalog.find(type) ?: MonitorTypeCatalog.find("http")!!
+            val defaults = MonitorEditorRegistry.find(option.key)?.defaults ?: MonitorEditorDefaults()
             return MonitorDraft(
                 type = option.key,
                 endpoint = "",
-                port = option.defaultPort,
+                port = defaults.port,
+                intervalSeconds = defaults.intervalSeconds,
+                retryIntervalSeconds = defaults.retryIntervalSeconds,
+                resendIntervalSeconds = defaults.resendIntervalSeconds,
+                maxRetries = defaults.maxRetries,
                 pushToken = if (option.key == "push") newPushToken() else "",
             )
         }
@@ -195,21 +167,21 @@ object MonitorDraftCodec {
 
     fun validate(draft: MonitorDraft): MonitorDraftError? {
         if (draft.name.trim().isEmpty()) return MonitorDraftError.NAME_REQUIRED
-        val option = MonitorTypeCatalog.find(draft.type) ?: return MonitorDraftError.TYPE_UNAVAILABLE
-        if (draft.isNew && !option.createSupported) return MonitorDraftError.TYPE_UNAVAILABLE
-        if (option.endpointKind != MonitorEndpointKind.NONE && draft.endpoint.trim().isEmpty()) {
+        val definition = MonitorEditorRegistry.find(draft.type) ?: return MonitorDraftError.TYPE_UNAVAILABLE
+        if (draft.isNew && !definition.createSupported) return MonitorDraftError.TYPE_UNAVAILABLE
+        if (definition.endpointKind != MonitorEndpointKind.NONE && draft.endpoint.trim().isEmpty()) {
             return MonitorDraftError.ENDPOINT_REQUIRED
         }
-        if (option.endpointKind == MonitorEndpointKind.URL) {
+        if (definition.endpointKind == MonitorEndpointKind.URL) {
             val uri = runCatching { URI(draft.endpoint.trim()) }.getOrNull()
             if (uri?.scheme?.lowercase() !in setOf("http", "https") || uri?.host.isNullOrBlank()) {
                 return MonitorDraftError.INVALID_URL
             }
         }
-        if (option.endpointKind == MonitorEndpointKind.HOST_PORT && draft.port !in 1..65535) {
+        if (definition.endpointKind == MonitorEndpointKind.HOST_PORT && draft.port !in 1..65535) {
             return MonitorDraftError.PORT_REQUIRED
         }
-        if (draft.type == "sftp") {
+        if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
                 SftpAuthMethod.PASSWORD -> {
@@ -228,7 +200,7 @@ object MonitorDraftCodec {
                 }
             }
         }
-        if (draft.type == "push" && !isValidPushToken(draft.pushToken)) {
+        if (definition.validation == MonitorEditorValidation.PUSH && !isValidPushToken(draft.pushToken)) {
             return MonitorDraftError.INVALID_PUSH_TOKEN
         }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
@@ -252,6 +224,12 @@ object MonitorDraftCodec {
         applyEndpoint(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
+    }
+
+    fun safeExistingPayload(raw: JsonObject, draft: MonitorDraft): JsonObject? {
+        if (raw.string("type") != draft.type) return null
+        val updated = applyToExisting(raw, draft)
+        return updated.takeIf { MonitorRoundTripGuard.preservesUnrelatedFields(raw, it, draft.type) }
     }
 
     fun newPayload(draft: MonitorDraft): JsonObject {
@@ -284,9 +262,11 @@ object MonitorDraftCodec {
             put("rabbitmqNodes", JsonArray(emptyList()))
             put("conditions", JsonArray(emptyList()))
             put("active", draft.active)
-            put("timeout", if (draft.type in setOf("ping", "sftp")) 10 else 48)
+            put("timeout", MonitorEditorRegistry.find(draft.type)?.defaults?.timeoutSeconds ?: 48)
             put("manual_status", 1)
-            if (draft.type == "push") put("pushToken", draft.pushToken)
+            if (MonitorEditorRegistry.find(draft.type)?.codec == MonitorEditorCodec.PUSH) {
+                put("pushToken", draft.pushToken)
+            }
         }.toMutableMap()
         applyEndpoint(mutable, draft)
         applySftp(mutable, draft)
@@ -300,13 +280,13 @@ object MonitorDraftCodec {
     }.orEmpty()
 
     private fun applyEndpoint(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
-        when (MonitorTypeCatalog.find(draft.type)?.endpointKind) {
+        when (MonitorEditorRegistry.find(draft.type)?.endpointKind) {
             MonitorEndpointKind.URL -> values["url"] = JsonPrimitive(draft.endpoint.trim())
             MonitorEndpointKind.HOST, MonitorEndpointKind.HOST_PORT ->
                 values["hostname"] = JsonPrimitive(draft.endpoint.trim())
             else -> Unit
         }
-        if (MonitorTypeCatalog.find(draft.type)?.endpointKind == MonitorEndpointKind.HOST_PORT) {
+        if (MonitorEditorRegistry.find(draft.type)?.endpointKind == MonitorEndpointKind.HOST_PORT) {
             values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
         }
     }
@@ -316,7 +296,7 @@ object MonitorDraftCodec {
         draft: MonitorDraft,
         existing: JsonObject? = null,
     ) {
-        if (draft.type != "sftp") return
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.SFTP) return
         values["sshAuthMethod"] = JsonPrimitive(draft.sftpAuthMethod.wireValue)
         values["sshUsername"] = JsonPrimitive(draft.sftpUsername.trim())
         values["sftpPath"] = JsonPrimitive(draft.sftpPath.trim())

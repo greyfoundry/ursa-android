@@ -54,6 +54,8 @@ import dev.astoris.ursa.core.network.LocalServiceDiscoveryState
 import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
+import dev.astoris.ursa.core.network.MonitorEditorHelp
+import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.KumaCompatibility
@@ -104,7 +106,7 @@ fun MonitorEditorScreen(
         vm.consumeLocalServiceSelection()
     }
     val saving = state is MonitorEditorUiState.Saving
-    val canSave = compatibility.supportsMonitorSchema(draft.type) &&
+    val canSave = MonitorEditorRegistry.writeVerified(draft.type, compatibility) &&
         activeConnection.allows(
             if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
         )
@@ -182,6 +184,7 @@ private fun MonitorForm(
     modifier: Modifier = Modifier,
 ) {
     val option = MonitorTypeCatalog.find(draft.type)
+    val definition = MonitorEditorRegistry.find(draft.type)
     val validation = MonitorDraftCodec.validate(draft)
     var typeMenuOpen by remember { mutableStateOf(false) }
     var groupMenuOpen by remember { mutableStateOf(false) }
@@ -192,7 +195,7 @@ private fun MonitorForm(
     ) {
         AccessProfileNotice(accessConnection)
         serverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (!compatibility.supportsMonitorSchema(draft.type)) {
+        if (!MonitorEditorRegistry.writeVerified(draft.type, compatibility)) {
             Text(
                 stringResource(R.string.monitor_type_not_write_verified),
                 color = MaterialTheme.colorScheme.error,
@@ -251,7 +254,13 @@ private fun MonitorForm(
         } else {
             Text(stringResource(R.string.detail_type, option?.label ?: draft.type))
             Text(
-                stringResource(R.string.monitor_advanced_preserved),
+                stringResource(
+                    if (definition?.help == MonitorEditorHelp.FULL_NATIVE) {
+                        R.string.monitor_full_native
+                    } else {
+                        R.string.monitor_advanced_preserved
+                    },
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

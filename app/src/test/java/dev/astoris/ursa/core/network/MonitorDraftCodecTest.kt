@@ -44,7 +44,7 @@ class MonitorDraftCodecTest {
             parentId = 5,
         )
 
-        val updated = MonitorDraftCodec.applyToExisting(raw, draft)
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
 
         assertEquals("New", updated["name"]!!.jsonPrimitive.content)
         assertEquals("https://new.example/health", updated["url"]!!.jsonPrimitive.content)
@@ -86,7 +86,7 @@ class MonitorDraftCodecTest {
         assertTrue(draft.sftpHasSavedPassphrase)
         assertFalse(draft.active)
 
-        val updated = MonitorDraftCodec.applyToExisting(raw, draft)
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
 
         assertEquals("Primary SFTP", updated["name"]!!.jsonPrimitive.content)
         assertEquals("files.example.net", updated["hostname"]!!.jsonPrimitive.content)
@@ -160,7 +160,7 @@ class MonitorDraftCodecTest {
             sftpPassword = "new-password",
         )
 
-        val updated = MonitorDraftCodec.applyToExisting(raw, draft)
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
 
         assertEquals("password", updated["sshAuthMethod"]!!.jsonPrimitive.content)
         assertEquals("new-password", updated["sshPassword"]!!.jsonPrimitive.content)
@@ -180,7 +180,7 @@ class MonitorDraftCodecTest {
         ).jsonObject
         val draft = MonitorDraftCodec.from(raw)!!.copy(sftpPrivateKey = "new-key")
 
-        val updated = MonitorDraftCodec.applyToExisting(raw, draft)
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, draft)!!
 
         assertEquals("new-key", updated["sshPrivateKey"]!!.jsonPrimitive.content)
         assertEquals("", updated["sshPassphrase"]!!.jsonPrimitive.content)

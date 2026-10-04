@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-27
+last-updated: 2026-10-04
 owner: astoris
 status: stable
 source: verified from Uptime Kuma source and live 2.4.0 through 2.5.5 containers
@@ -75,7 +75,9 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   template. Kuma does not save the temporary config.
 - `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
   is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
-  restarts the edited monitor, so bulk callers should update sequentially.
+  restarts the edited monitor, so bulk callers should update sequentially. URSA
+  fetches that object immediately before save, requires its type to match the
+  typed draft, and compares every non-editable field before emitting the mutation.
 - `add(fullMonitorObject)` returns `{ ok, msg, monitorID }`. Push monitors require
   a 32-character alphanumeric `pushToken`; Kuma 2.4.0 through 2.5.5 generate it
   from the same 62-character alphabet. Their public heartbeat endpoint is
@@ -142,6 +144,9 @@ stable version, not an invented tag. Missing, malformed, prerelease, older, and
 newer versions retain safe reads but are not advertised as write-verified. Known
 type-specific schemas are separately gated, so SFTP create/edit is available only
 when the server reports 2.5.4 or 2.5.5.
+All monitor writes also require the reported version to remain inside the global
+write-verified range; a type without a special schema threshold cannot bypass that
+outer gate.
 
 Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
 is therefore an unknown outcome: refresh incident history before allowing another

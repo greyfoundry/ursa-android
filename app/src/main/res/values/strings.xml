@@ -1123,6 +1123,7 @@
     <string name="monitor_push_security_desc">Anyone with this URL can submit monitor status. Treat it like a password and share it only with the sending service.</string>
     <string name="monitor_type_not_write_verified">This monitor type is not write-verified for the connected Uptime Kuma version.</string>
     <string name="monitor_advanced_preserved">Advanced settings stay on the server unchanged.</string>
+    <string name="monitor_full_native">This monitor type has a verified native create and edit codec. Saved secrets stay masked unless you replace them.</string>
     <string name="monitor_url_label">URL</string>
     <string name="monitor_host_label">Host</string>
     <string name="monitor_port_label">Port</string>
