@@ -38,6 +38,16 @@ class SnapshotCodecTest {
         assertTrue(decoded.monitors.isEmpty())
     }
 
+    @Test fun server_version_is_additive_and_legacy_snapshots_remain_readable() {
+        val withVersion = sample.copy(serverVersion = "2.5.5")
+        assertEquals("2.5.5", SnapshotCodec.decode(SnapshotCodec.encode(withVersion))?.serverVersion)
+
+        val legacy = """{"monitors":[],"updatedAt":42}"""
+        val decoded = SnapshotCodec.decode(legacy)
+        assertEquals(42L, decoded?.updatedAt)
+        assertNull(decoded?.serverVersion)
+    }
+
     @Test fun garbage_decodes_to_null() {
         assertNull(SnapshotCodec.decode("not json"))
         assertNull(SnapshotCodec.decode("{}")) // missing required fields

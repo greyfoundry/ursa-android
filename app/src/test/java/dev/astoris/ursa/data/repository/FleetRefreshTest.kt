@@ -186,7 +186,7 @@ class FleetRefreshTest {
                 FleetRefreshOutcome(
                     emptyConnection.url,
                     31L,
-                    FleetRefreshResult.Success(emptyList()),
+                    FleetRefreshResult.Success(emptyList(), reportedVersion = "2.5.5"),
                 ),
             ),
             cacheWriteFailures = setOf(emptyConnection.url),
@@ -207,6 +207,7 @@ class FleetRefreshTest {
         assertEquals(FleetMonitorCounts.EMPTY, live.counts)
         assertNull(live.error)
         assertEquals(FleetRefreshError.CACHE_WRITE_FAILED, live.refreshError)
+        assertEquals("2.5.5", live.reportedVersion)
         assertEquals(31L, live.capturedAtMillis)
         assertEquals(1, refreshed.counts?.down)
         assertEquals(32L, refreshed.loadedAtMillis)

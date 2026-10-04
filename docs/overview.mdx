@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-03
+last-updated: 2026-10-04
 owner: astoris
 status: stable
 ---
@@ -74,6 +74,11 @@ and the module docs under `docs/modules/`.
   refreshed, cached, stale, or unavailable; an explicit bounded refresh preserves
   cached peers on partial failure, and server drill-down selects the correct
   connection before opening filtered monitors or incident history.
+- Each Fleet server card can expand a privacy-safe health panel for the bounded
+  Kuma version, compatibility tier, transport policy, session state, local access
+  profile, managed-push binding presence, last successful data time, encrypted-cache
+  freshness, and verified feature set. Unknown, unsupported, unconfigured, denied,
+  and offline states stay distinct instead of collapsing into one generic error.
 - Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.

@@ -68,6 +68,8 @@ object KumaCapabilities {
     val VERIFIED_MIN = KumaVersion(2, 4, 0)
     val VERIFIED_MAX = KumaVersion(2, 5, 5)
 
+    private const val MAX_REPORTED_VERSION_LENGTH = 64
+
     private val BASELINE_FEATURES = setOf(
         KumaFeature.CORE_READS,
         KumaFeature.MONITOR_STATE_WRITE,
@@ -79,7 +81,7 @@ object KumaCapabilities {
     )
 
     fun evaluate(rawVersion: String?): KumaCompatibility {
-        val reported = rawVersion?.trim()?.takeIf(String::isNotEmpty)
+        val reported = rawVersion?.trim()?.take(MAX_REPORTED_VERSION_LENGTH)?.takeIf(String::isNotEmpty)
             ?: return KumaCompatibility(
                 reportedVersion = null,
                 version = null,

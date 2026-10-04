@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-03
+last-updated: 2026-10-04
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,32 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-04 - Fleet server health and compatibility diagnostics
+
+**changed**: Every Fleet server card can now expand a connection-health panel. It
+separates Kuma version compatibility, HTTPS/allowed-or-blocked HTTP, authenticated/
+saved-session/sign-in-required state, the local access profile, managed-push binding
+presence, last successful server data, encrypted-cache freshness, and the exact
+version-gated feature set. Unknown, unsupported, not configured, denied, and typed
+refresh failures remain distinct and actionable.
+
+**security and compatibility**: The panel derives only privacy-safe status from
+existing encrypted connection, monitor-cache, and managed-push records. It never
+shows a token, custom header, provider identity, endpoint, ciphertext, or exception.
+Reported version text is trimmed and bounded. The snapshot addition is nullable, so
+released snapshots remain decodable; unreadable push records stay `Unknown` rather
+than being reported as unconfigured.
+
+**accessibility and verification**: Diagnostic labels and values are text, headings
+retain semantics, content wraps without fixed heights, and all drill-down actions
+remain reachable at 200% text. Top-level navigation labels are constrained to one
+line with ellipsis to prevent large-text overlap while preserving the complete
+semantic label. Focused compatibility, scope, repository, refresh, and legacy-
+snapshot tests and the complete 198-task two-flavor phone/Wear build, test, and lint
+gate pass. Android 17 QA verified cached/unknown and refreshed 2.5.5
+states, every diagnostic field, actions, and large-text scrolling against the live
+Kuma 2.5.5 container.
 
 ### 2026-10-03 - Fleet Home and server-scoped drill-down
 

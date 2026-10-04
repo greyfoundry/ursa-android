@@ -180,7 +180,14 @@ class MonitorRepository(
                 val url = activeUrlValue
                 if (live.isNotEmpty() && url != null) {
                     val now = System.currentTimeMillis()
-                    cache.save(url, MonitorSnapshot(live, now))
+                    cache.save(
+                        url,
+                        MonitorSnapshot(
+                            monitors = live,
+                            updatedAt = now,
+                            serverVersion = compatibility.value.reportedVersion,
+                        ),
+                    )
                     cachedMonitors.value = live
                     lastUpdatedMs.value = now
                 }

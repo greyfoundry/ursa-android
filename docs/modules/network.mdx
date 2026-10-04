@@ -67,7 +67,7 @@ here so the rest of the app sees clean domain models.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
   `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`, `serverVersion`.
 - `KumaCapabilities.evaluate(version)` - classifies the authenticated server's
-  reported stable version, exposes verified feature thresholds, and leaves
+  bounded reported stable version, exposes verified feature thresholds, and leaves
   unknown/older/newer versions readable without claiming their writes are verified.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
   resolves a custom-domain or configured default status page through Kuma's
@@ -102,7 +102,8 @@ here so the rest of the app sees clean domain models.
   network work. Its explicit refresh uses each saved connection's existing
   cleartext policy, TLS choice, headers, and session token; runs at most two
   temporary clients concurrently; records per-server results; and disconnects each
-  client even on failure or cancellation.
+  client even on failure or cancellation. Successful results retain the evaluated
+  reported version in the encrypted monitor snapshot for offline health diagnostics.
 - `PublicIncidentTarget` binds every public-incident action to its active server,
   locally saved status-page ID, and Kuma slug. `IncidentMutationResult` distinguishes
   applied, rejected, and acknowledgement-indeterminate outcomes.
@@ -152,6 +153,9 @@ here so the rest of the app sees clean domain models.
   and 2.5.2 reports 2.5.1; schema gates use that honest wire value. SFTP is hidden
   and rejected below its verified 2.5.4 threshold, while common legacy monitor
   types preserve their released behavior.
+- Reported version text is trimmed and capped before it reaches compatibility state,
+  encrypted snapshots, or UI diagnostics. Unknown or malformed values remain
+  readable diagnostics but never enable version-gated writes.
 - `emitAck` waits for a connected transport inside the same 15-second acknowledgement
   budget. An inaccessible server therefore cannot leave a UI action loading forever,
   and actions are not silently stranded in Socket.IO's pre-connect queue.

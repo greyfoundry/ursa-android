@@ -32,6 +32,12 @@ enum class ManagedPushScopeIssue {
     UNKNOWN_MONITOR,
 }
 
+sealed interface ManagedPushServerBinding {
+    data class Configured(val updatedAtMillis: Long) : ManagedPushServerBinding
+    data object NotConfigured : ManagedPushServerBinding
+    data object Unknown : ManagedPushServerBinding
+}
+
 object ManagedPushScopePolicy {
     fun issue(
         scope: ManagedPushScope?,
@@ -195,6 +201,23 @@ class ManagedPushScopeStore(context: Context) {
         return true
     }
 
+    /** Privacy-safe per-connection status; never exposes the provider ID or endpoint. */
+    fun bindingForServer(serverUrl: String): ManagedPushServerBinding {
+        val encrypted = runCatching {
+            prefs.all.mapNotNull { (key, value) ->
+                if (key.startsWith(KEY_PREFIX)) value as? String else null
+            }
+        }
+            .getOrElse { return ManagedPushServerBinding.Unknown }
+        var unreadable = false
+        val scopes = encrypted.mapNotNull { cipher ->
+            val scope = crypto.decrypt(cipher)?.let(ManagedPushScopeCodec::decode)
+            if (scope == null) unreadable = true
+            scope
+        }
+        return resolveManagedPushServerBinding(serverUrl, scopes, unreadable)
+    }
+
     /** Removes encrypted scopes mapped to a connection the user explicitly deleted. */
     fun removeServer(serverUrl: String): List<ManagedPushScope> {
         val normalized = serverUrl.trim().removeSuffix("/")
@@ -210,5 +233,21 @@ class ManagedPushScopeStore(context: Context) {
         const val PREFS = "ursa_managed_push_scopes"
         const val KEY_PREFIX = "scope:"
         fun key(serverId: String) = "$KEY_PREFIX$serverId"
+    }
+}
+
+internal fun resolveManagedPushServerBinding(
+    serverUrl: String,
+    scopes: List<ManagedPushScope>,
+    hadUnreadableEntry: Boolean,
+): ManagedPushServerBinding {
+    val normalized = serverUrl.trim().removeSuffix("/")
+    val matching = scopes.filter { it.serverUrl == normalized }
+    return when {
+        matching.isNotEmpty() -> ManagedPushServerBinding.Configured(
+            matching.maxOf(ManagedPushScope::updatedAtMillis),
+        )
+        hadUnreadableEntry -> ManagedPushServerBinding.Unknown
+        else -> ManagedPushServerBinding.NotConfigured
     }
 }

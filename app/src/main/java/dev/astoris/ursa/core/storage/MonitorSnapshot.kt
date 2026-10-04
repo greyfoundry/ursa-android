@@ -13,6 +13,8 @@ import kotlinx.serialization.json.Json
 data class MonitorSnapshot(
     val monitors: List<Monitor>,
     val updatedAt: Long,
+    /** Optional in legacy snapshots; populated after a version-bearing authenticated event. */
+    val serverVersion: String? = null,
 )
 
 /**

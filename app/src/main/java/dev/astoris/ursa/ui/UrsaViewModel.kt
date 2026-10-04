@@ -261,8 +261,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val certExpiryStore = CertExpiryStore(app)
     private val eventLogStore = EventLogStore(app)
     private val incidentNoteStore = IncidentNoteStore(app)
+    private val managedPushScopeStore = ManagedPushScopeStore(app)
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
-    private val fleetRepository = FleetRepository(store, cacheStore)
+    private val fleetRepository = FleetRepository(store, cacheStore, managedPushScopeStore)
     private val localServiceDiscovery = LocalServiceDiscovery(app)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
@@ -367,7 +368,6 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _kumaPushTestSending = MutableStateFlow(false)
     val kumaPushTestSending: StateFlow<Boolean> = _kumaPushTestSending.asStateFlow()
     private val pushAlertModeStore = PushAlertModeStore(app)
-    private val managedPushScopeStore = ManagedPushScopeStore(app)
     private val pushDependencyStore = PushDependencyStore(app)
     private val pushTransitionStore = PushTransitionStore(app)
     private val _pushAlertModes = MutableStateFlow<Map<Int, PushAlertMode>>(emptyMap())
@@ -667,6 +667,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             monitors = monitors.value,
             capturedAtMillis = lastUpdated.value ?: now,
             loadedAtMillis = now,
+            reportedVersion = kumaCompatibility.value.reportedVersion,
         )
     }
 

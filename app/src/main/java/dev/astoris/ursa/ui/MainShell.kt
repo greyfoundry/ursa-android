@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.Monitor
@@ -153,6 +154,12 @@ private fun NavigationSuiteScope.NavItem(
         selected = current == target,
         onClick = { vm.selectTab(target) },
         icon = { Icon(painterResource(iconRes), contentDescription = null) },
-        label = { Text(stringResource(labelRes)) },
+        label = {
+            Text(
+                text = stringResource(labelRes),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
     )
 }

@@ -18,6 +18,26 @@ enum class FleetFreshness {
     STALE,
 }
 
+enum class FleetTransportState {
+    HTTPS,
+    HTTP_ALLOWED,
+    HTTP_BLOCKED,
+    UNKNOWN,
+}
+
+enum class FleetAuthenticationState {
+    AUTHENTICATED,
+    SESSION_SAVED,
+    SIGN_IN_REQUIRED,
+    UNKNOWN,
+}
+
+enum class FleetPushBindingState {
+    CONFIGURED,
+    NOT_CONFIGURED,
+    UNKNOWN,
+}
+
 enum class FleetServerError {
     CACHE_STORE_UNAVAILABLE,
     CACHE_DECRYPTION_FAILED,
@@ -110,6 +130,11 @@ data class FleetServerSnapshot(
     val error: FleetServerError? = null,
     val refreshAttemptedAtMillis: Long? = null,
     val refreshError: FleetRefreshError? = null,
+    val transport: FleetTransportState = FleetTransportState.UNKNOWN,
+    val authentication: FleetAuthenticationState = FleetAuthenticationState.UNKNOWN,
+    val pushBinding: FleetPushBindingState = FleetPushBindingState.UNKNOWN,
+    val accessProfile: AccessProfile = AccessProfile.MANAGE,
+    val reportedVersion: String? = null,
 ) {
     init {
         val available = availability == FleetServerAvailability.AVAILABLE

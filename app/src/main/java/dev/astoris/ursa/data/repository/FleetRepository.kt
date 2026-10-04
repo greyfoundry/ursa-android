@@ -2,20 +2,26 @@ package dev.astoris.ursa.data.repository
 
 import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
+import dev.astoris.ursa.core.network.KumaCapabilities
 import dev.astoris.ursa.core.network.KumaClient
+import dev.astoris.ursa.core.push.ManagedPushScopeStore
+import dev.astoris.ursa.core.push.ManagedPushServerBinding
 import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.MonitorCacheFailure
 import dev.astoris.ursa.core.storage.MonitorCacheRead
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorSnapshot
 import dev.astoris.ursa.data.model.FleetFreshness
+import dev.astoris.ursa.data.model.FleetAuthenticationState
 import dev.astoris.ursa.data.model.FleetMonitorCounts
+import dev.astoris.ursa.data.model.FleetPushBindingState
 import dev.astoris.ursa.data.model.FleetRefreshError
 import dev.astoris.ursa.data.model.FleetServerAvailability
 import dev.astoris.ursa.data.model.FleetServerError
 import dev.astoris.ursa.data.model.FleetServerSnapshot
 import dev.astoris.ursa.data.model.FleetSnapshot
 import dev.astoris.ursa.data.model.FleetSnapshotSource
+import dev.astoris.ursa.data.model.FleetTransportState
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.CancellationException
@@ -35,6 +41,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 class FleetRepository(
     private val connectionStore: ConnectionStore,
     private val monitorCacheStore: MonitorCacheStore,
+    private val managedPushScopeStore: ManagedPushScopeStore,
 ) {
     suspend fun loadCached(
         contentUnlocked: Boolean,
@@ -51,10 +58,14 @@ class FleetRepository(
             )
         }
         val cacheReads = monitorCacheStore.readAll(selection.connections.map(ServerConnection::url))
+        val pushBindings = selection.connections.associate { connection ->
+            connection.url to managedPushScopeStore.bindingForServer(connection.url).toFleetPushBindingState()
+        }
         return buildCachedFleetSnapshot(
             connections = selection.connections,
             activeUrl = selection.activeUrl,
             cacheReads = cacheReads,
+            pushBindings = pushBindings,
             contentUnlocked = true,
             nowMillis = nowMillis,
         )
@@ -79,10 +90,14 @@ class FleetRepository(
             )
         }
         val cacheReads = monitorCacheStore.readAll(selection.connections.map(ServerConnection::url))
+        val pushBindings = selection.connections.associate { connection ->
+            connection.url to managedPushScopeStore.bindingForServer(connection.url).toFleetPushBindingState()
+        }
         val cached = buildCachedFleetSnapshot(
             connections = selection.connections,
             activeUrl = selection.activeUrl,
             cacheReads = cacheReads,
+            pushBindings = pushBindings,
             contentUnlocked = true,
             nowMillis = nowMillis(),
         )
@@ -99,6 +114,7 @@ class FleetRepository(
                     MonitorSnapshot(
                         monitors = success.monitors,
                         updatedAt = outcome.completedAtMillis,
+                        serverVersion = success.reportedVersion,
                     ),
                 )
             } catch (cancelled: CancellationException) {
@@ -123,7 +139,10 @@ class FleetRepository(
 }
 
 internal sealed interface FleetRefreshResult {
-    data class Success(val monitors: List<Monitor>) : FleetRefreshResult
+    data class Success(
+        val monitors: List<Monitor>,
+        val reportedVersion: String? = null,
+    ) : FleetRefreshResult
     data class Failure(val error: FleetRefreshError) : FleetRefreshResult
 }
 
@@ -196,7 +215,10 @@ private class KumaFleetRefreshSession(connection: ServerConnection) : FleetRefre
                 )
             }
             client.monitorListReady.first { it }
-            FleetRefreshResult.Success(client.monitors.value.values.toList())
+            FleetRefreshResult.Success(
+                monitors = client.monitors.value.values.toList(),
+                reportedVersion = client.compatibility.value.reportedVersion,
+            )
         }
         return result ?: FleetRefreshResult.Failure(FleetRefreshError.TIMED_OUT)
     }
@@ -223,6 +245,8 @@ internal fun mergeFleetRefresh(
                 ageMillis = 0L,
                 counts = FleetMonitorCounts.from(result.monitors),
                 error = null,
+                authentication = FleetAuthenticationState.AUTHENTICATED,
+                reportedVersion = result.reportedVersion ?: server.reportedVersion,
                 refreshAttemptedAtMillis = outcome.completedAtMillis,
                 refreshError = if (server.serverUrl in cacheWriteFailures) {
                     FleetRefreshError.CACHE_WRITE_FAILED
@@ -233,6 +257,12 @@ internal fun mergeFleetRefresh(
             is FleetRefreshResult.Failure -> server.copy(
                 refreshAttemptedAtMillis = outcome.completedAtMillis,
                 refreshError = result.error,
+                authentication = when (result.error) {
+                    FleetRefreshError.MISSING_SESSION,
+                    FleetRefreshError.AUTHENTICATION_FAILED,
+                    -> FleetAuthenticationState.SIGN_IN_REQUIRED
+                    else -> server.authentication
+                },
             )
         }
     }
@@ -251,6 +281,7 @@ internal fun mergeActiveFleetSnapshot(
     monitors: List<Monitor>,
     capturedAtMillis: Long,
     loadedAtMillis: Long,
+    reportedVersion: String? = null,
 ): FleetSnapshot {
     require(!snapshot.isLocked)
     val servers = snapshot.servers.map { server ->
@@ -265,6 +296,8 @@ internal fun mergeActiveFleetSnapshot(
                 counts = FleetMonitorCounts.from(monitors),
                 error = null,
                 refreshError = null,
+                authentication = FleetAuthenticationState.AUTHENTICATED,
+                reportedVersion = reportedVersion ?: server.reportedVersion,
             )
         } else {
             server.copy(isActiveServer = false)
@@ -285,6 +318,7 @@ internal fun buildCachedFleetSnapshot(
     cacheReads: Map<String, MonitorCacheRead>,
     contentUnlocked: Boolean,
     nowMillis: Long,
+    pushBindings: Map<String, FleetPushBindingState> = emptyMap(),
     staleAfterMillis: Long = FleetRepository.DEFAULT_STALE_AFTER_MILLIS,
 ): FleetSnapshot {
     require(staleAfterMillis > 0L)
@@ -316,6 +350,11 @@ internal fun buildCachedFleetSnapshot(
                     capturedAtMillis = read.snapshot.updatedAt,
                     ageMillis = ageMillis,
                     counts = FleetMonitorCounts.from(read.snapshot.monitors),
+                    transport = connection.toFleetTransportState(),
+                    authentication = connection.toFleetAuthenticationState(),
+                    pushBinding = pushBindings[connection.url] ?: FleetPushBindingState.UNKNOWN,
+                    accessProfile = connection.accessProfile,
+                    reportedVersion = KumaCapabilities.evaluate(read.snapshot.serverVersion).reportedVersion,
                 )
             }
             MonitorCacheRead.Missing -> FleetServerSnapshot(
@@ -323,6 +362,10 @@ internal fun buildCachedFleetSnapshot(
                 displayName = connection.displayName,
                 isActiveServer = connection.url == activeUrl,
                 availability = FleetServerAvailability.NO_CACHE,
+                transport = connection.toFleetTransportState(),
+                authentication = connection.toFleetAuthenticationState(),
+                pushBinding = pushBindings[connection.url] ?: FleetPushBindingState.UNKNOWN,
+                accessProfile = connection.accessProfile,
             )
             is MonitorCacheRead.Unavailable -> FleetServerSnapshot(
                 serverUrl = connection.url,
@@ -330,6 +373,10 @@ internal fun buildCachedFleetSnapshot(
                 isActiveServer = connection.url == activeUrl,
                 availability = FleetServerAvailability.UNAVAILABLE,
                 error = read.reason.toFleetError(),
+                transport = connection.toFleetTransportState(),
+                authentication = connection.toFleetAuthenticationState(),
+                pushBinding = pushBindings[connection.url] ?: FleetPushBindingState.UNKNOWN,
+                accessProfile = connection.accessProfile,
             )
         }
     }
@@ -346,6 +393,28 @@ private fun MonitorCacheFailure.toFleetError(): FleetServerError = when (this) {
     MonitorCacheFailure.STORE_UNAVAILABLE -> FleetServerError.CACHE_STORE_UNAVAILABLE
     MonitorCacheFailure.DECRYPTION_FAILED -> FleetServerError.CACHE_DECRYPTION_FAILED
     MonitorCacheFailure.INVALID_SNAPSHOT -> FleetServerError.INVALID_CACHE
+}
+
+private fun ServerConnection.toFleetTransportState(): FleetTransportState = when {
+    ConnectionTransportPolicy.isCleartext(url) && !ConnectionTransportPolicy.allows(this) -> {
+        FleetTransportState.HTTP_BLOCKED
+    }
+    ConnectionTransportPolicy.isCleartext(url) -> FleetTransportState.HTTP_ALLOWED
+    url.trim().startsWith("https://", ignoreCase = true) -> FleetTransportState.HTTPS
+    else -> FleetTransportState.UNKNOWN
+}
+
+private fun ServerConnection.toFleetAuthenticationState(): FleetAuthenticationState =
+    if (jwt.isNullOrBlank()) {
+        FleetAuthenticationState.SIGN_IN_REQUIRED
+    } else {
+        FleetAuthenticationState.SESSION_SAVED
+    }
+
+private fun ManagedPushServerBinding.toFleetPushBindingState(): FleetPushBindingState = when (this) {
+    is ManagedPushServerBinding.Configured -> FleetPushBindingState.CONFIGURED
+    ManagedPushServerBinding.NotConfigured -> FleetPushBindingState.NOT_CONFIGURED
+    ManagedPushServerBinding.Unknown -> FleetPushBindingState.UNKNOWN
 }
 
 internal fun ConnectionFailureReason?.toFleetRefreshError(): FleetRefreshError = when (this) {

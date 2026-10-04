@@ -4,10 +4,13 @@ import dev.astoris.ursa.core.storage.MonitorCacheFailure
 import dev.astoris.ursa.core.storage.MonitorCacheRead
 import dev.astoris.ursa.core.storage.MonitorSnapshot
 import dev.astoris.ursa.data.model.FleetFreshness
+import dev.astoris.ursa.data.model.FleetAuthenticationState
 import dev.astoris.ursa.data.model.FleetMonitorCounts
+import dev.astoris.ursa.data.model.FleetPushBindingState
 import dev.astoris.ursa.data.model.FleetServerAvailability
 import dev.astoris.ursa.data.model.FleetServerError
 import dev.astoris.ursa.data.model.FleetSnapshotSource
+import dev.astoris.ursa.data.model.FleetTransportState
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.data.model.ServerConnection
@@ -54,6 +57,10 @@ class FleetRepositoryTest {
                     MonitorCacheFailure.INVALID_SNAPSHOT,
                 ),
             ),
+            pushBindings = mapOf(
+                connections[0].url to FleetPushBindingState.CONFIGURED,
+                connections[1].url to FleetPushBindingState.NOT_CONFIGURED,
+            ),
             contentUnlocked = true,
             nowMillis = now,
         )
@@ -65,6 +72,9 @@ class FleetRepositoryTest {
         assertEquals(FleetServerAvailability.AVAILABLE, fleet.servers[0].availability)
         assertEquals(FleetSnapshotSource.CACHE, fleet.servers[0].source)
         assertEquals(FleetFreshness.RECENT, fleet.servers[0].freshness)
+        assertEquals(FleetTransportState.HTTPS, fleet.servers[0].transport)
+        assertEquals(FleetAuthenticationState.SIGN_IN_REQUIRED, fleet.servers[0].authentication)
+        assertEquals(FleetPushBindingState.CONFIGURED, fleet.servers[0].pushBinding)
         assertEquals(60_000L, fleet.servers[0].ageMillis)
         assertEquals(
             FleetMonitorCounts(total = 5, active = 4, up = 1, down = 1,
@@ -204,6 +214,7 @@ class FleetRepositoryTest {
             ),
             capturedAtMillis = 250L,
             loadedAtMillis = 300L,
+            reportedVersion = "2.5.5",
         )
 
         assertFalse(live.servers[0].isActiveServer)
@@ -211,11 +222,36 @@ class FleetRepositoryTest {
         assertTrue(live.servers[1].isActiveServer)
         assertEquals(FleetSnapshotSource.LIVE, live.servers[1].source)
         assertEquals(FleetFreshness.LIVE, live.servers[1].freshness)
+        assertEquals(FleetAuthenticationState.AUTHENTICATED, live.servers[1].authentication)
+        assertEquals("2.5.5", live.servers[1].reportedVersion)
         assertEquals(50L, live.servers[1].ageMillis)
         assertEquals(3, live.counts?.total)
         assertEquals(1, live.counts?.up)
         assertEquals(1, live.counts?.down)
         assertEquals(1, live.counts?.pending)
+    }
+
+    @Test fun transport_and_saved_session_health_are_explicit_without_cache_data() {
+        val blocked = ServerConnection(
+            url = "http://blocked.example",
+            username = "operator",
+            jwt = "session",
+            cleartextPolicy = dev.astoris.ursa.data.model.CleartextPolicy.DENY,
+        )
+        val fleet = buildCachedFleetSnapshot(
+            connections = listOf(blocked),
+            activeUrl = blocked.url,
+            cacheReads = emptyMap(),
+            pushBindings = mapOf(blocked.url to FleetPushBindingState.NOT_CONFIGURED),
+            contentUnlocked = true,
+            nowMillis = 1L,
+        )
+
+        val server = fleet.servers.single()
+        assertEquals(FleetTransportState.HTTP_BLOCKED, server.transport)
+        assertEquals(FleetAuthenticationState.SESSION_SAVED, server.authentication)
+        assertEquals(FleetPushBindingState.NOT_CONFIGURED, server.pushBinding)
+        assertNull(server.reportedVersion)
     }
 
     private fun connection(url: String, alias: String? = null) = ServerConnection(

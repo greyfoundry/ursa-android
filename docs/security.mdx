@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-03
+last-updated: 2026-10-04
 owner: astoris
 status: in-flux
 ---
@@ -165,6 +165,12 @@ self-signed TLS, custom-header, and saved-session choices to at most two tempora
 clients at once. Each client is disconnected after its typed result, including on
 failure or cancellation; exception text and session/header values never enter the
 fleet model. App-lock state prevents cache reads and fleet refresh entirely.
+Fleet health exposes only bounded state derived from those existing records: the
+evaluated Kuma version, transport-policy outcome, authentication state, local access
+profile, whether an encrypted managed-push scope matches, timestamps/freshness, and
+verified feature names. It never returns a session, header value, provider identity,
+delivery endpoint, ciphertext, or exception text. Scope inspection is restricted to
+managed-scope keys and unreadable records produce `Unknown`, not a false negative.
 
 Server web links are reconstructed from a validated HTTP(S) origin and optional
 reverse-proxy base path. They reject embedded user info, queries, fragments,

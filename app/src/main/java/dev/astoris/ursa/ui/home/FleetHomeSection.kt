@@ -11,22 +11,36 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.astoris.ursa.R
+import dev.astoris.ursa.core.network.KumaCapabilities
+import dev.astoris.ursa.core.network.KumaCompatibilityTier
+import dev.astoris.ursa.core.network.KumaFeature
+import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.FleetAuthenticationState
 import dev.astoris.ursa.data.model.FleetFreshness
 import dev.astoris.ursa.data.model.FleetRefreshError
+import dev.astoris.ursa.data.model.FleetPushBindingState
 import dev.astoris.ursa.data.model.FleetServerAvailability
 import dev.astoris.ursa.data.model.FleetServerError
 import dev.astoris.ursa.data.model.FleetServerSnapshot
 import dev.astoris.ursa.data.model.FleetSnapshotSource
+import dev.astoris.ursa.data.model.FleetTransportState
 import dev.astoris.ursa.ui.FleetHomeUiState
 import dev.astoris.ursa.ui.components.OperationalStateKind
 import dev.astoris.ursa.ui.components.OperationalStatePanel
@@ -222,6 +236,7 @@ private fun FleetServerCard(
     onOpenIncidents: () -> Unit,
 ) {
     val urgent = server.urgentMonitorCount()
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -267,6 +282,18 @@ private fun FleetServerCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            TextButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                Text(
+                    if (detailsExpanded) {
+                        stringResource(R.string.home_fleet_hide_health)
+                    } else {
+                        stringResource(R.string.home_fleet_show_health)
+                    },
+                )
+            }
+            if (detailsExpanded) {
+                FleetServerHealthDetails(server = server, nowMillis = nowMillis)
+            }
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -288,6 +315,172 @@ private fun FleetServerCard(
             }
         }
     }
+}
+
+@Composable
+private fun FleetServerHealthDetails(
+    server: FleetServerSnapshot,
+    nowMillis: Long,
+) {
+    val compatibility = KumaCapabilities.evaluate(server.reportedVersion)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        HorizontalDivider()
+        Text(
+            text = stringResource(R.string.home_fleet_health_title),
+            modifier = Modifier.semantics { heading() },
+            style = MaterialTheme.typography.titleSmall,
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_version),
+            value = server.reportedVersion ?: stringResource(R.string.home_fleet_health_unknown),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_compatibility),
+            value = compatibilityLabel(compatibility.tier),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_transport),
+            value = transportLabel(server.transport),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_authentication),
+            value = authenticationLabel(server.authentication),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_access),
+            value = accessProfileLabel(server.accessProfile),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_push),
+            value = pushBindingLabel(server.pushBinding),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_last_event),
+            value = server.capturedAtMillis?.let {
+                relativeTime(it, nowMillis)
+            } ?: stringResource(R.string.home_fleet_health_no_event),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_cache),
+            value = cacheHealthLabel(server),
+        )
+        FleetDiagnosticRow(
+            label = stringResource(R.string.home_fleet_health_features),
+            value = featureAvailabilityLabel(compatibility.features, compatibility.tier),
+        )
+        server.refreshError?.let {
+            FleetDiagnosticRow(
+                label = stringResource(R.string.home_fleet_health_latest_refresh),
+                value = fleetRefreshErrorLabel(it),
+            )
+        }
+        Text(
+            text = stringResource(
+                R.string.home_fleet_health_verified_range,
+                KumaCapabilities.VERIFIED_MIN.toString(),
+                KumaCapabilities.VERIFIED_MAX.toString(),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        HorizontalDivider()
+    }
+}
+
+@Composable
+private fun FleetDiagnosticRow(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(text = value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun compatibilityLabel(tier: KumaCompatibilityTier): String = stringResource(
+    when (tier) {
+        KumaCompatibilityTier.VERIFIED -> R.string.home_fleet_compat_verified
+        KumaCompatibilityTier.UNVERIFIED_OLDER -> R.string.home_fleet_compat_unsupported_older
+        KumaCompatibilityTier.UNVERIFIED_NEWER -> R.string.home_fleet_compat_unsupported_newer
+        KumaCompatibilityTier.UNRECOGNIZED -> R.string.home_fleet_compat_unrecognized
+        KumaCompatibilityTier.AWAITING_VERSION -> R.string.home_fleet_compat_unknown
+    },
+)
+
+@Composable
+private fun transportLabel(state: FleetTransportState): String = stringResource(
+    when (state) {
+        FleetTransportState.HTTPS -> R.string.home_fleet_transport_https
+        FleetTransportState.HTTP_ALLOWED -> R.string.home_fleet_transport_http_allowed
+        FleetTransportState.HTTP_BLOCKED -> R.string.home_fleet_transport_http_blocked
+        FleetTransportState.UNKNOWN -> R.string.home_fleet_health_unknown
+    },
+)
+
+@Composable
+private fun authenticationLabel(state: FleetAuthenticationState): String = stringResource(
+    when (state) {
+        FleetAuthenticationState.AUTHENTICATED -> R.string.home_fleet_auth_authenticated
+        FleetAuthenticationState.SESSION_SAVED -> R.string.home_fleet_auth_saved
+        FleetAuthenticationState.SIGN_IN_REQUIRED -> R.string.home_fleet_auth_required
+        FleetAuthenticationState.UNKNOWN -> R.string.home_fleet_health_unknown
+    },
+)
+
+@Composable
+private fun accessProfileLabel(profile: AccessProfile): String = stringResource(
+    when (profile) {
+        AccessProfile.MANAGE -> R.string.home_fleet_access_manage
+        AccessProfile.VIEW_ONLY -> R.string.home_fleet_access_view
+        AccessProfile.CUSTOM -> R.string.home_fleet_access_custom
+    },
+)
+
+@Composable
+private fun pushBindingLabel(state: FleetPushBindingState): String = stringResource(
+    when (state) {
+        FleetPushBindingState.CONFIGURED -> R.string.home_fleet_push_configured
+        FleetPushBindingState.NOT_CONFIGURED -> R.string.home_fleet_push_not_configured
+        FleetPushBindingState.UNKNOWN -> R.string.home_fleet_push_unknown
+    },
+)
+
+@Composable
+private fun cacheHealthLabel(server: FleetServerSnapshot): String = when {
+    server.availability == FleetServerAvailability.NO_CACHE -> stringResource(R.string.home_fleet_no_cache)
+    server.error != null -> fleetCacheErrorLabel(server.error)
+    server.freshness == FleetFreshness.LIVE -> stringResource(R.string.home_data_live)
+    server.freshness == FleetFreshness.STALE -> stringResource(R.string.home_fleet_cache_stale)
+    else -> stringResource(R.string.home_fleet_cache_recent)
+}
+
+@Composable
+private fun featureAvailabilityLabel(
+    features: Set<KumaFeature>,
+    tier: KumaCompatibilityTier,
+): String {
+    if (tier != KumaCompatibilityTier.VERIFIED) {
+        return stringResource(R.string.home_fleet_features_reads_only)
+    }
+    val items = buildList {
+        add(stringResource(R.string.home_fleet_feature_core_writes))
+        if (KumaFeature.PUBLIC_INCIDENT_WRITE in features) {
+            add(stringResource(R.string.home_fleet_feature_incidents))
+        }
+        if (KumaFeature.NTP_PM2_SCHEMA in features) {
+            add(stringResource(R.string.home_fleet_feature_ntp_pm2))
+        }
+        if (KumaFeature.SFTP_SCHEMA in features) {
+            add(stringResource(R.string.home_fleet_feature_sftp))
+        }
+    }
+    return items.joinToString(" • ")
 }
 
 @Composable

@@ -68,6 +68,28 @@ class ManagedPushScopeCodecTest {
         assertNull(ManagedPushScopePolicy.issue(scope, SERVER_ID, 1))
     }
 
+    @Test fun serverBindingStatusSeparatesConfiguredNotConfiguredAndUnknown() {
+        val scope = ManagedPushScopeCodec.create(
+            SERVER_ID,
+            "https://kuma.example.test/",
+            emptyList(),
+            updatedAtMillis = 123L,
+        )!!
+
+        assertEquals(
+            ManagedPushServerBinding.Configured(123L),
+            resolveManagedPushServerBinding("https://kuma.example.test", listOf(scope), true),
+        )
+        assertEquals(
+            ManagedPushServerBinding.NotConfigured,
+            resolveManagedPushServerBinding("https://other.example.test", listOf(scope), false),
+        )
+        assertEquals(
+            ManagedPushServerBinding.Unknown,
+            resolveManagedPushServerBinding("https://other.example.test", listOf(scope), true),
+        )
+    }
+
     private fun monitor(
         id: Int,
         name: String,

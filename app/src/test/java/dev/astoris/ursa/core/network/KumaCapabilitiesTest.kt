@@ -28,6 +28,14 @@ class KumaCapabilitiesTest {
         assertFalse(prerelease.writesVerified)
     }
 
+    @Test fun reportedVersionIsTrimmedAndBoundedForDiagnostics() {
+        val result = KumaCapabilities.evaluate("  ${"x".repeat(100)}  ")
+
+        assertEquals(KumaCompatibilityTier.UNRECOGNIZED, result.tier)
+        assertEquals(64, result.reportedVersion?.length)
+        assertTrue(result.reportedVersion.orEmpty().all { it == 'x' })
+    }
+
     @Test fun olderAndNewerStableVersionsAreReadOnlyUnverified() {
         val older = KumaCapabilities.evaluate("2.3.1")
         val newer = KumaCapabilities.evaluate("2.5.6")

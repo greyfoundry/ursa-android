@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-29
+last-updated: 2026-10-04
 owner: astoris
 status: stable
 ---
@@ -32,7 +32,11 @@ route stack while screens migrate incrementally.
   It reads encrypted last-known snapshots without opening inactive sockets, keeps
   live/refreshed/cached/stale/unavailable sources explicit, and offers a cancellable
   bounded refresh. Per-server cards establish the selected connection before
-  opening its full monitor inventory, issue filter, or incident history. The
+  opening its full monitor inventory, issue filter, or incident history. Each card
+  can also expand privacy-safe connection health: bounded Kuma version and
+  compatibility, transport, authentication, local access profile, managed-push
+  binding presence, last successful data, cache freshness, and verified features.
+  The
   current-server issue rows, freshness, recent scoped actions, and saved-view
   shortcuts remain below that fleet context.
 - `.../ui/incidents/IncidentsScreen.kt` - top-level active-server incident
@@ -207,6 +211,11 @@ route stack while screens migrate incrementally.
   tears them down. Drilling into another server activates that exact saved
   connection before navigation, after which the existing repository access policy
   remains authoritative for every remote action.
+- Fleet health diagnostics never expose a session, custom header, managed-push
+  provider ID, or delivery endpoint. `Unknown`, `not configured`, policy denial,
+  unsupported version, and connection failure remain separate states. A cached
+  server version is display-bounded and remains optional so released snapshots
+  decode without migration.
 - The Material 3 Adaptive window/posture policy controls the navigation bar/rail
   and one-/two-pane transitions; do not reintroduce hard-coded device or orientation
   checks. Monitor selection survives resize and process recreation, replaces the
@@ -217,6 +226,8 @@ route stack while screens migrate incrementally.
   Incidents and Browse were appended to those enums for the same compatibility
   reason. Hidden Settings and Notifications values are retained for released
   restoration and deep-link contracts.
+  Navigation labels remain one line at large text sizes so the adaptive bar does
+  not grow into app content; the complete destination name remains in semantics.
   The glance display deliberately stays escapable, warns before keeping the screen
   awake, and restores the prior `keepScreenOn` value on exit.
 - Startup routing remains behind the one-way `startupReady` gate until encrypted

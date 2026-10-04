@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-03
+last-updated: 2026-10-04
 owner: astoris
 status: stable
 ---
@@ -40,13 +40,15 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
   diagnostics/testing, and notification rendering.
   See `docs/modules/push.mdx`.
 - `data.model` → `.../data/model/` - server/monitor/status-page models plus
-  `FleetModels.kt` for cache availability, freshness, and normalized counts.
+  `FleetModels.kt` for cache availability, freshness, normalized counts, and typed
+  transport/authentication/managed-push health states.
 - `data.repository` → `.../data/repository/MonitorRepository.kt` owns the active
   socket; `FleetRepository.kt` reads saved connections and encrypted snapshots
   without connecting to inactive servers on load. Its explicit refresh uses at
   most two short-lived clients and closes them after per-server results are captured.
 - `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, typed Navigation 3 shell,
   cache-first fleet Home with explicit bounded refresh and server-scoped drill-down,
+  expandable privacy-safe server health,
   Material 3 Adaptive navigation/list-detail, shared operational components,
   connections/monitors/statuspage) -
   see `docs/modules/ui.mdx`.
