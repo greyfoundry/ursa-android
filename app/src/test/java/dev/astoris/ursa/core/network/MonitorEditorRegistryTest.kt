@@ -108,9 +108,14 @@ class MonitorEditorRegistryTest {
             setOf(
                 MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
                 MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_SECRET,
+                MonitorEditorField.WEBSOCKET_MTLS_CERTIFICATE,
+                MonitorEditorField.WEBSOCKET_MTLS_PRIVATE_KEY,
+                MonitorEditorField.WEBSOCKET_MTLS_CA_CERTIFICATE,
             ),
             websocket.sensitiveFields,
         )
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, websocket.transferEligibility)
     }
 
     @Test

@@ -97,15 +97,16 @@ here so the rest of the app sees clean domain models.
   value while preserving retry and advanced HTTP fields.
   WebSocket-upgrade monitors use `ws`/`wss` validation and map subprotocols,
   accepted close codes, the invalid-accept-header compatibility switch, and
-  Basic or Bearer handshake authentication.
+  Basic, Bearer, OAuth2 client-credentials, or mTLS handshake authentication.
   Their request headers use at most eight validated named entries; saved values
   become presence flags in the draft and are retained from the fresh full object
   unless explicitly replaced or removed. Unsupported legacy header JSON remains
   opaque and unchanged. Saved Basic passwords and Bearer tokens likewise become
   presence flags; blank fields retain the fresh server value only while the same
   method remains selected, and switching methods clears the superseded secret.
-  OAuth client credentials and mTLS fields remain guarded until their dedicated
-  secret-preserving editor increment.
+  OAuth client secrets and mTLS certificate material use the same presence-only
+  draft model. OAuth token/client metadata remains editable, while saved PEM
+  values stay masked and an optional saved CA can be explicitly removed.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

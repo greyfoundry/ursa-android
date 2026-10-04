@@ -65,6 +65,7 @@ import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.SftpAuthMethod
 import dev.astoris.ursa.core.network.WebSocketAuthMethod
+import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaTag
@@ -761,6 +762,8 @@ private fun WebsocketAuthFields(
                     WebSocketAuthMethod.NONE -> R.string.monitor_websocket_auth_none
                     WebSocketAuthMethod.BASIC -> R.string.monitor_websocket_auth_basic
                     WebSocketAuthMethod.BEARER -> R.string.monitor_websocket_auth_bearer
+                    WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS -> R.string.monitor_websocket_auth_oauth
+                    WebSocketAuthMethod.MTLS -> R.string.monitor_websocket_auth_mtls
                 },
             ),
             onValueChange = {},
@@ -781,12 +784,20 @@ private fun WebsocketAuthFields(
                                     WebSocketAuthMethod.NONE -> R.string.monitor_websocket_auth_none
                                     WebSocketAuthMethod.BASIC -> R.string.monitor_websocket_auth_basic
                                     WebSocketAuthMethod.BEARER -> R.string.monitor_websocket_auth_bearer
+                                    WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS ->
+                                        R.string.monitor_websocket_auth_oauth
+                                    WebSocketAuthMethod.MTLS -> R.string.monitor_websocket_auth_mtls
                                 },
                             ),
                         )
                     },
                     onClick = {
-                        onDraftChange(draft.copy(websocketAuthMethod = method))
+                        onDraftChange(
+                            draft.copy(
+                                websocketAuthMethod = method,
+                                websocketClearSavedTlsCaCertificate = false,
+                            ),
+                        )
                         menuOpen = false
                     },
                 )
@@ -822,6 +833,144 @@ private fun WebsocketAuthFields(
             saved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BEARER &&
                 draft.websocketHasSavedBearerToken,
         )
+        WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS -> WebsocketOAuthFields(draft, onDraftChange)
+        WebSocketAuthMethod.MTLS -> WebsocketMtlsFields(draft, onDraftChange)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WebsocketOAuthFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    var methodMenuOpen by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = methodMenuOpen, onExpandedChange = { methodMenuOpen = it }) {
+        OutlinedTextField(
+            value = stringResource(
+                if (draft.websocketOAuthAuthMethod == WebSocketOAuthAuthMethod.AUTHORIZATION_HEADER) {
+                    R.string.monitor_websocket_oauth_authorization_header
+                } else {
+                    R.string.monitor_websocket_oauth_form_body
+                },
+            ),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_websocket_oauth_auth_method)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(methodMenuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = methodMenuOpen, onDismissRequest = { methodMenuOpen = false }) {
+            WebSocketOAuthAuthMethod.entries.forEach { method ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (method == WebSocketOAuthAuthMethod.AUTHORIZATION_HEADER) {
+                                    R.string.monitor_websocket_oauth_authorization_header
+                                } else {
+                                    R.string.monitor_websocket_oauth_form_body
+                                },
+                            ),
+                        )
+                    },
+                    onClick = {
+                        onDraftChange(draft.copy(websocketOAuthAuthMethod = method))
+                        methodMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    OutlinedTextField(
+        value = draft.websocketOAuthTokenUrl,
+        onValueChange = { onDraftChange(draft.copy(websocketOAuthTokenUrl = it.take(2_048))) },
+        label = { Text(stringResource(R.string.monitor_websocket_oauth_token_url)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.websocketOAuthClientId,
+        onValueChange = { onDraftChange(draft.copy(websocketOAuthClientId = it.take(1_024))) },
+        label = { Text(stringResource(R.string.monitor_websocket_oauth_client_id)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SensitiveField(
+        value = draft.websocketOAuthClientSecret,
+        onValueChange = { onDraftChange(draft.copy(websocketOAuthClientSecret = it.take(8_192))) },
+        label = stringResource(R.string.monitor_websocket_oauth_client_secret),
+        saved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS &&
+            draft.websocketHasSavedOAuthClientSecret,
+    )
+    OutlinedTextField(
+        value = draft.websocketOAuthScopes,
+        onValueChange = { onDraftChange(draft.copy(websocketOAuthScopes = it.take(2_048))) },
+        label = { Text(stringResource(R.string.monitor_websocket_oauth_scopes)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.websocketOAuthAudience,
+        onValueChange = { onDraftChange(draft.copy(websocketOAuthAudience = it.take(2_048))) },
+        label = { Text(stringResource(R.string.monitor_websocket_oauth_audience)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun WebsocketMtlsFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    val sameMethod = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS
+    SensitiveField(
+        value = draft.websocketTlsCertificate,
+        onValueChange = { onDraftChange(draft.copy(websocketTlsCertificate = it.take(65_536))) },
+        label = stringResource(R.string.monitor_websocket_mtls_certificate),
+        saved = sameMethod && draft.websocketHasSavedTlsCertificate,
+        minLines = 4,
+    )
+    SensitiveField(
+        value = draft.websocketTlsPrivateKey,
+        onValueChange = { onDraftChange(draft.copy(websocketTlsPrivateKey = it.take(65_536))) },
+        label = stringResource(R.string.monitor_websocket_mtls_private_key),
+        saved = sameMethod && draft.websocketHasSavedTlsPrivateKey,
+        minLines = 4,
+    )
+    SensitiveField(
+        value = draft.websocketTlsCaCertificate,
+        onValueChange = {
+            onDraftChange(
+                draft.copy(
+                    websocketTlsCaCertificate = it.take(65_536),
+                    websocketClearSavedTlsCaCertificate = false,
+                ),
+            )
+        },
+        label = stringResource(R.string.monitor_websocket_mtls_ca_certificate),
+        saved = sameMethod && draft.websocketHasSavedTlsCaCertificate,
+        minLines = 4,
+        enabled = !draft.websocketClearSavedTlsCaCertificate,
+    )
+    if (sameMethod && draft.websocketHasSavedTlsCaCertificate && draft.websocketTlsCaCertificate.isBlank()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = draft.websocketClearSavedTlsCaCertificate,
+                onCheckedChange = {
+                    onDraftChange(
+                        draft.copy(
+                            websocketTlsCaCertificate = "",
+                            websocketClearSavedTlsCaCertificate = it,
+                        ),
+                    )
+                },
+            )
+            Text(stringResource(R.string.monitor_websocket_mtls_clear_ca_certificate))
+        }
     }
 }
 
@@ -1091,6 +1240,12 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE -> R.string.monitor_error_websocket_header_duplicate
         MonitorDraftError.WEBSOCKET_BASIC_PASSWORD_REQUIRED -> R.string.monitor_error_websocket_basic_password
         MonitorDraftError.WEBSOCKET_BEARER_TOKEN_REQUIRED -> R.string.monitor_error_websocket_bearer_token
+        MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_REQUIRED -> R.string.monitor_error_websocket_oauth_token_url
+        MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_INVALID -> R.string.monitor_error_websocket_oauth_token_url_invalid
+        MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_ID_REQUIRED -> R.string.monitor_error_websocket_oauth_client_id
+        MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED -> R.string.monitor_error_websocket_oauth_client_secret
+        MonitorDraftError.WEBSOCKET_MTLS_CERTIFICATE_REQUIRED -> R.string.monitor_error_websocket_mtls_certificate
+        MonitorDraftError.WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_websocket_mtls_private_key
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

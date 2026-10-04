@@ -172,9 +172,14 @@ uses nullable `authMethod`: `basic` pairs `basic_auth_user` with
 `basic_auth_pass`, while `bearer` uses `bearer_token`. URSA reduces returned
 passwords/tokens to presence flags before UI state, retains a blank saved value
 only while the method is unchanged, and clears the superseded fields when the
-method changes. OAuth client credentials (`oauth2-cc`) and mTLS (`mtls`) remain
-opaque until their secret-aware editor increment; those fields must remain
-unchanged during common edits.
+method changes. OAuth client credentials (`oauth2-cc`) use
+`oauth_auth_method` (`client_secret_basic` or `client_secret_post`),
+`oauth_token_url`, `oauth_client_id`, `oauth_client_secret`, `oauth_scopes`, and
+`oauth_audience`. mTLS (`mtls`) uses `tlsCert`, `tlsKey`, and optional `tlsCa`.
+URSA keeps OAuth client secrets and all returned PEM material out of editable
+state, retains blank saved values from the fresh full object, and offers an
+explicit removal control for the optional CA. Deliberately changing auth methods
+clears the superseded fields; ordinary edits preserve dormant legacy fields.
 
 Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
 is therefore an unknown outcome: refresh incident history before allowing another

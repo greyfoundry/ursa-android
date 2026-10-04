@@ -27,6 +27,15 @@ enum class MonitorEditorField {
     WEBSOCKET_BASIC_USERNAME,
     WEBSOCKET_BASIC_PASSWORD,
     WEBSOCKET_BEARER_TOKEN,
+    WEBSOCKET_OAUTH_AUTH_METHOD,
+    WEBSOCKET_OAUTH_TOKEN_URL,
+    WEBSOCKET_OAUTH_CLIENT_ID,
+    WEBSOCKET_OAUTH_CLIENT_SECRET,
+    WEBSOCKET_OAUTH_SCOPES,
+    WEBSOCKET_OAUTH_AUDIENCE,
+    WEBSOCKET_MTLS_CERTIFICATE,
+    WEBSOCKET_MTLS_PRIVATE_KEY,
+    WEBSOCKET_MTLS_CA_CERTIFICATE,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -273,11 +282,65 @@ object MonitorEditorRegistry {
                 MonitorEditorField.WEBSOCKET_BASIC_USERNAME,
                 MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
                 MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+                MonitorEditorField.WEBSOCKET_OAUTH_AUTH_METHOD,
+                MonitorEditorField.WEBSOCKET_OAUTH_TOKEN_URL,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_ID,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_SECRET,
+                MonitorEditorField.WEBSOCKET_OAUTH_SCOPES,
+                MonitorEditorField.WEBSOCKET_OAUTH_AUDIENCE,
+                MonitorEditorField.WEBSOCKET_MTLS_CERTIFICATE,
+                MonitorEditorField.WEBSOCKET_MTLS_PRIVATE_KEY,
+                MonitorEditorField.WEBSOCKET_MTLS_CA_CERTIFICATE,
             ),
             sensitiveFields = setOf(
                 MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
                 MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_SECRET,
+                MonitorEditorField.WEBSOCKET_MTLS_CERTIFICATE,
+                MonitorEditorField.WEBSOCKET_MTLS_PRIVATE_KEY,
+                MonitorEditorField.WEBSOCKET_MTLS_CA_CERTIFICATE,
             ),
+            conditions = listOf(
+                MonitorEditorFieldCondition(
+                    MonitorEditorField.WEBSOCKET_BASIC_USERNAME,
+                    MonitorEditorField.WEBSOCKET_AUTH_METHOD,
+                    setOf(WebSocketAuthMethod.BASIC.wireValue.orEmpty()),
+                ),
+                MonitorEditorFieldCondition(
+                    MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
+                    MonitorEditorField.WEBSOCKET_AUTH_METHOD,
+                    setOf(WebSocketAuthMethod.BASIC.wireValue.orEmpty()),
+                ),
+                MonitorEditorFieldCondition(
+                    MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+                    MonitorEditorField.WEBSOCKET_AUTH_METHOD,
+                    setOf(WebSocketAuthMethod.BEARER.wireValue.orEmpty()),
+                ),
+            ) + listOf(
+                MonitorEditorField.WEBSOCKET_OAUTH_AUTH_METHOD,
+                MonitorEditorField.WEBSOCKET_OAUTH_TOKEN_URL,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_ID,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_SECRET,
+                MonitorEditorField.WEBSOCKET_OAUTH_SCOPES,
+                MonitorEditorField.WEBSOCKET_OAUTH_AUDIENCE,
+            ).map { field ->
+                MonitorEditorFieldCondition(
+                    field,
+                    MonitorEditorField.WEBSOCKET_AUTH_METHOD,
+                    setOf(WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS.wireValue.orEmpty()),
+                )
+            } + listOf(
+                MonitorEditorField.WEBSOCKET_MTLS_CERTIFICATE,
+                MonitorEditorField.WEBSOCKET_MTLS_PRIVATE_KEY,
+                MonitorEditorField.WEBSOCKET_MTLS_CA_CERTIFICATE,
+            ).map { field ->
+                MonitorEditorFieldCondition(
+                    field,
+                    MonitorEditorField.WEBSOCKET_AUTH_METHOD,
+                    setOf(WebSocketAuthMethod.MTLS.wireValue.orEmpty()),
+                )
+            },
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
         ),
         definition("sqlserver", "Microsoft SQL Server"),
         definition("mongodb", "MongoDB"),
@@ -413,6 +476,15 @@ object MonitorRoundTripGuard {
                 add("basic_auth_user")
                 add("basic_auth_pass")
                 add("bearer_token")
+                add("oauth_auth_method")
+                add("oauth_token_url")
+                add("oauth_client_id")
+                add("oauth_client_secret")
+                add("oauth_scopes")
+                add("oauth_audience")
+                add("tlsCert")
+                add("tlsKey")
+                add("tlsCa")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

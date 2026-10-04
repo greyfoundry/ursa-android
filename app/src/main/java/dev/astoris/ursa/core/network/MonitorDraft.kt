@@ -60,10 +60,22 @@ enum class SftpAuthMethod(val wireValue: String) {
 enum class WebSocketAuthMethod(val wireValue: String?) {
     NONE(null),
     BASIC("basic"),
-    BEARER("bearer");
+    BEARER("bearer"),
+    OAUTH2_CLIENT_CREDENTIALS("oauth2-cc"),
+    MTLS("mtls");
 
     companion object {
         fun fromWire(value: String?): WebSocketAuthMethod? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+enum class WebSocketOAuthAuthMethod(val wireValue: String) {
+    AUTHORIZATION_HEADER("client_secret_basic"),
+    FORM_BODY("client_secret_post");
+
+    companion object {
+        fun fromWire(value: String?): WebSocketOAuthAuthMethod? =
+            if (value == null) AUTHORIZATION_HEADER else entries.firstOrNull { it.wireValue == value }
     }
 }
 
@@ -108,6 +120,20 @@ data class MonitorDraft(
     val websocketHasSavedBasicPassword: Boolean = false,
     val websocketBearerToken: String = "",
     val websocketHasSavedBearerToken: Boolean = false,
+    val websocketOAuthAuthMethod: WebSocketOAuthAuthMethod = WebSocketOAuthAuthMethod.AUTHORIZATION_HEADER,
+    val websocketOAuthTokenUrl: String = "",
+    val websocketOAuthClientId: String = "",
+    val websocketOAuthClientSecret: String = "",
+    val websocketHasSavedOAuthClientSecret: Boolean = false,
+    val websocketOAuthScopes: String = "",
+    val websocketOAuthAudience: String = "",
+    val websocketTlsCertificate: String = "",
+    val websocketTlsPrivateKey: String = "",
+    val websocketTlsCaCertificate: String = "",
+    val websocketHasSavedTlsCertificate: Boolean = false,
+    val websocketHasSavedTlsPrivateKey: Boolean = false,
+    val websocketHasSavedTlsCaCertificate: Boolean = false,
+    val websocketClearSavedTlsCaCertificate: Boolean = false,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -169,6 +195,12 @@ enum class MonitorDraftError {
     WEBSOCKET_HEADER_DUPLICATE,
     WEBSOCKET_BASIC_PASSWORD_REQUIRED,
     WEBSOCKET_BEARER_TOKEN_REQUIRED,
+    WEBSOCKET_OAUTH_TOKEN_URL_REQUIRED,
+    WEBSOCKET_OAUTH_TOKEN_URL_INVALID,
+    WEBSOCKET_OAUTH_CLIENT_ID_REQUIRED,
+    WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED,
+    WEBSOCKET_MTLS_CERTIFICATE_REQUIRED,
+    WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -182,6 +214,7 @@ object MonitorDraftCodec {
         val websocketHeaders = parseWebsocketHeaders(raw.string("headers"), type)
         val rawWebsocketAuthMethod = raw.string("authMethod")
         val websocketAuthMethod = WebSocketAuthMethod.fromWire(rawWebsocketAuthMethod)
+        val websocketOAuthAuthMethod = WebSocketOAuthAuthMethod.fromWire(raw.string("oauth_auth_method"))
         return MonitorDraft(
             id = id,
             type = type,
@@ -224,7 +257,12 @@ object MonitorDraftCodec {
             websocketHeadersEditable = websocketHeaders.editable,
             websocketAuthMethod = websocketAuthMethod ?: WebSocketAuthMethod.NONE,
             websocketOriginalAuthMethod = if (type == "websocket-upgrade") websocketAuthMethod else null,
-            websocketAuthEditable = type != "websocket-upgrade" || websocketAuthMethod != null,
+            websocketAuthEditable = type != "websocket-upgrade" ||
+                websocketAuthMethod != null &&
+                (
+                    websocketAuthMethod != WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS ||
+                        websocketOAuthAuthMethod != null
+                    ),
             websocketBasicUsername = if (type == "websocket-upgrade") {
                 raw.string("basic_auth_user").orEmpty()
             } else {
@@ -234,6 +272,19 @@ object MonitorDraftCodec {
                 raw.string("basic_auth_pass")?.isNotEmpty() == true,
             websocketHasSavedBearerToken = type == "websocket-upgrade" &&
                 raw.string("bearer_token")?.isNotEmpty() == true,
+            websocketOAuthAuthMethod = websocketOAuthAuthMethod ?: WebSocketOAuthAuthMethod.AUTHORIZATION_HEADER,
+            websocketOAuthTokenUrl = raw.string("oauth_token_url").orEmpty(),
+            websocketOAuthClientId = raw.string("oauth_client_id").orEmpty(),
+            websocketHasSavedOAuthClientSecret = type == "websocket-upgrade" &&
+                raw.string("oauth_client_secret")?.isNotEmpty() == true,
+            websocketOAuthScopes = raw.string("oauth_scopes").orEmpty(),
+            websocketOAuthAudience = raw.string("oauth_audience").orEmpty(),
+            websocketHasSavedTlsCertificate = type == "websocket-upgrade" &&
+                raw.string("tlsCert")?.isNotEmpty() == true,
+            websocketHasSavedTlsPrivateKey = type == "websocket-upgrade" &&
+                raw.string("tlsKey")?.isNotEmpty() == true,
+            websocketHasSavedTlsCaCertificate = type == "websocket-upgrade" &&
+                raw.string("tlsCa")?.isNotEmpty() == true,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -337,6 +388,39 @@ object MonitorDraftCodec {
                             draft.websocketHasSavedBearerToken
                         if (draft.websocketBearerToken.isEmpty() && !canKeepSaved) {
                             return MonitorDraftError.WEBSOCKET_BEARER_TOKEN_REQUIRED
+                        }
+                    }
+                    WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS -> {
+                        if (draft.websocketOAuthTokenUrl.trim().isEmpty()) {
+                            return MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_REQUIRED
+                        }
+                        val tokenUri = runCatching { URI(draft.websocketOAuthTokenUrl.trim()) }.getOrNull()
+                        if (
+                            tokenUri?.scheme?.lowercase() !in setOf("http", "https") ||
+                            tokenUri?.host.isNullOrBlank()
+                        ) {
+                            return MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_INVALID
+                        }
+                        if (draft.websocketOAuthClientId.trim().isEmpty()) {
+                            return MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_ID_REQUIRED
+                        }
+                        val canKeepSaved =
+                            draft.websocketOriginalAuthMethod == WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS &&
+                                draft.websocketHasSavedOAuthClientSecret
+                        if (draft.websocketOAuthClientSecret.isEmpty() && !canKeepSaved) {
+                            return MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED
+                        }
+                    }
+                    WebSocketAuthMethod.MTLS -> {
+                        val canKeepCertificate = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS &&
+                            draft.websocketHasSavedTlsCertificate
+                        if (draft.websocketTlsCertificate.isBlank() && !canKeepCertificate) {
+                            return MonitorDraftError.WEBSOCKET_MTLS_CERTIFICATE_REQUIRED
+                        }
+                        val canKeepPrivateKey = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS &&
+                            draft.websocketHasSavedTlsPrivateKey
+                        if (draft.websocketTlsPrivateKey.isBlank() && !canKeepPrivateKey) {
+                            return MonitorDraftError.WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED
                         }
                     }
                 }
@@ -527,7 +611,20 @@ object MonitorDraftCodec {
 
     private fun applyWebsocketAuth(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
         if (!draft.websocketAuthEditable) return
-        val credentialFields = setOf("basic_auth_user", "basic_auth_pass", "bearer_token")
+        val basicFields = setOf("basic_auth_user", "basic_auth_pass")
+        val bearerFields = setOf("bearer_token")
+        val oauthFields = setOf(
+            "oauth_auth_method",
+            "oauth_token_url",
+            "oauth_client_id",
+            "oauth_client_secret",
+            "oauth_scopes",
+            "oauth_audience",
+        )
+        val tlsFields = setOf("tlsCert", "tlsKey", "tlsCa")
+        val credentialFields = basicFields + bearerFields + oauthFields + tlsFields
+        fun clear(fields: Set<String>) = fields.forEach { values[it] = JsonPrimitive("") }
+        val methodChanged = draft.websocketOriginalAuthMethod != draft.websocketAuthMethod
         if (
             draft.websocketAuthMethod == WebSocketAuthMethod.NONE &&
             "authMethod" !in values &&
@@ -537,9 +634,7 @@ object MonitorDraftCodec {
         }
         values["authMethod"] = draft.websocketAuthMethod.wireValue?.let(::JsonPrimitive) ?: JsonNull
         when (draft.websocketAuthMethod) {
-            WebSocketAuthMethod.NONE -> {
-                credentialFields.filter(values::containsKey).forEach { values[it] = JsonPrimitive("") }
-            }
+            WebSocketAuthMethod.NONE -> if (methodChanged) clear(credentialFields)
             WebSocketAuthMethod.BASIC -> {
                 val password = if (draft.websocketBasicPassword.isNotEmpty()) {
                     draft.websocketBasicPassword
@@ -553,9 +648,7 @@ object MonitorDraftCodec {
                 }
                 values["basic_auth_user"] = JsonPrimitive(draft.websocketBasicUsername.trim())
                 values["basic_auth_pass"] = JsonPrimitive(password)
-                if (draft.websocketOriginalAuthMethod != WebSocketAuthMethod.BASIC) {
-                    values["bearer_token"] = JsonPrimitive("")
-                }
+                if (methodChanged) clear(bearerFields + oauthFields + tlsFields)
             }
             WebSocketAuthMethod.BEARER -> {
                 val token = if (draft.websocketBearerToken.isNotEmpty()) {
@@ -569,10 +662,52 @@ object MonitorDraftCodec {
                     ""
                 }
                 values["bearer_token"] = JsonPrimitive(token)
-                if (draft.websocketOriginalAuthMethod != WebSocketAuthMethod.BEARER) {
-                    values["basic_auth_user"] = JsonPrimitive("")
-                    values["basic_auth_pass"] = JsonPrimitive("")
+                if (methodChanged) clear(basicFields + oauthFields + tlsFields)
+            }
+            WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS -> {
+                val clientSecret = if (draft.websocketOAuthClientSecret.isNotEmpty()) {
+                    draft.websocketOAuthClientSecret
+                } else if (
+                    draft.websocketOriginalAuthMethod == WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS &&
+                    draft.websocketHasSavedOAuthClientSecret
+                ) {
+                    values["oauth_client_secret"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                } else {
+                    ""
                 }
+                values["oauth_auth_method"] = JsonPrimitive(draft.websocketOAuthAuthMethod.wireValue)
+                values["oauth_token_url"] = JsonPrimitive(draft.websocketOAuthTokenUrl.trim())
+                values["oauth_client_id"] = JsonPrimitive(draft.websocketOAuthClientId.trim())
+                values["oauth_client_secret"] = JsonPrimitive(clientSecret)
+                values["oauth_scopes"] = JsonPrimitive(draft.websocketOAuthScopes.trim())
+                values["oauth_audience"] = JsonPrimitive(draft.websocketOAuthAudience.trim())
+                if (methodChanged) clear(basicFields + bearerFields + tlsFields)
+            }
+            WebSocketAuthMethod.MTLS -> {
+                val sameMethod = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS
+                fun retained(value: String, saved: Boolean, key: String): String = when {
+                    value.isNotBlank() -> value
+                    sameMethod && saved -> values[key]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    else -> ""
+                }
+                values["tlsCert"] = JsonPrimitive(
+                    retained(draft.websocketTlsCertificate, draft.websocketHasSavedTlsCertificate, "tlsCert"),
+                )
+                values["tlsKey"] = JsonPrimitive(
+                    retained(draft.websocketTlsPrivateKey, draft.websocketHasSavedTlsPrivateKey, "tlsKey"),
+                )
+                values["tlsCa"] = JsonPrimitive(
+                    if (draft.websocketClearSavedTlsCaCertificate) {
+                        ""
+                    } else {
+                        retained(
+                            draft.websocketTlsCaCertificate,
+                            draft.websocketHasSavedTlsCaCertificate,
+                            "tlsCa",
+                        )
+                    },
+                )
+                if (methodChanged) clear(basicFields + bearerFields + oauthFields)
             }
         }
     }

@@ -535,12 +535,106 @@ class MonitorDraftCodecTest {
     }
 
     @Test
-    fun websocketAdvancedAuthenticationRemainsOpaqueUntilItsEditorIsAvailable() {
-        val raw = Json.parseToJsonElement(
+    fun websocketOAuthAndMtlsSecretsUseMaskedReplacementSemantics() {
+        val createdOAuth = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("websocket-upgrade").copy(
+                name = "OAuth socket",
+                endpoint = "wss://example.com/socket",
+                websocketAuthMethod = WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS,
+                websocketOAuthAuthMethod = WebSocketOAuthAuthMethod.FORM_BODY,
+                websocketOAuthTokenUrl = "https://id.example.com/token",
+                websocketOAuthClientId = "client",
+                websocketOAuthClientSecret = "new-secret",
+                websocketOAuthScopes = "status read",
+                websocketOAuthAudience = "monitoring",
+            ),
+        )
+        assertEquals("oauth2-cc", createdOAuth["authMethod"]!!.jsonPrimitive.content)
+        assertEquals("client_secret_post", createdOAuth["oauth_auth_method"]!!.jsonPrimitive.content)
+        assertEquals("https://id.example.com/token", createdOAuth["oauth_token_url"]!!.jsonPrimitive.content)
+        assertEquals("client", createdOAuth["oauth_client_id"]!!.jsonPrimitive.content)
+        assertEquals("new-secret", createdOAuth["oauth_client_secret"]!!.jsonPrimitive.content)
+        assertEquals("status read", createdOAuth["oauth_scopes"]!!.jsonPrimitive.content)
+        assertEquals("monitoring", createdOAuth["oauth_audience"]!!.jsonPrimitive.content)
+
+        val rawOAuth = Json.parseToJsonElement(
             """{
                 "id":26,"type":"websocket-upgrade","name":"OAuth","url":"wss://example.com",
                 "accepted_statuscodes":["1000"],"authMethod":"oauth2-cc",
+                "oauth_auth_method":"client_secret_post","oauth_token_url":"https://id.example.com/token",
                 "oauth_client_id":"client","oauth_client_secret":"saved-secret",
+                "oauth_scopes":"status read","oauth_audience":"monitoring",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{},"future":{"kept":true}
+            }""",
+        ).jsonObject
+        val oauthDraft = MonitorDraftCodec.from(rawOAuth)!!
+
+        assertTrue(oauthDraft.websocketAuthEditable)
+        assertEquals(WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS, oauthDraft.websocketAuthMethod)
+        assertEquals(WebSocketOAuthAuthMethod.FORM_BODY, oauthDraft.websocketOAuthAuthMethod)
+        assertTrue(oauthDraft.websocketOAuthClientSecret.isEmpty())
+        assertTrue(oauthDraft.websocketHasSavedOAuthClientSecret)
+        assertNull(MonitorDraftCodec.validate(oauthDraft))
+        val retainedOAuth = MonitorDraftCodec.safeExistingPayload(rawOAuth, oauthDraft.copy(name = "Renamed"))!!
+        assertEquals("saved-secret", retainedOAuth["oauth_client_secret"]!!.jsonPrimitive.content)
+        assertEquals(rawOAuth["future"], retainedOAuth["future"])
+        val replacedOAuth = MonitorDraftCodec.safeExistingPayload(
+            rawOAuth,
+            oauthDraft.copy(websocketOAuthClientSecret = "replacement-secret"),
+        )!!
+        assertEquals("replacement-secret", replacedOAuth["oauth_client_secret"]!!.jsonPrimitive.content)
+
+        val rawMtls = Json.parseToJsonElement(
+            """{
+                "id":27,"type":"websocket-upgrade","name":"mTLS","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"authMethod":"mtls",
+                "tlsCert":"saved-certificate","tlsKey":"saved-private-key","tlsCa":"saved-ca",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val mtlsDraft = MonitorDraftCodec.from(rawMtls)!!
+        assertEquals(WebSocketAuthMethod.MTLS, mtlsDraft.websocketAuthMethod)
+        assertTrue(mtlsDraft.websocketTlsCertificate.isEmpty())
+        assertTrue(mtlsDraft.websocketTlsPrivateKey.isEmpty())
+        assertTrue(mtlsDraft.websocketTlsCaCertificate.isEmpty())
+        assertTrue(mtlsDraft.websocketHasSavedTlsCertificate)
+        assertTrue(mtlsDraft.websocketHasSavedTlsPrivateKey)
+        assertTrue(mtlsDraft.websocketHasSavedTlsCaCertificate)
+        assertNull(MonitorDraftCodec.validate(mtlsDraft))
+        val retainedMtls = MonitorDraftCodec.safeExistingPayload(rawMtls, mtlsDraft)!!
+        assertEquals("saved-certificate", retainedMtls["tlsCert"]!!.jsonPrimitive.content)
+        assertEquals("saved-private-key", retainedMtls["tlsKey"]!!.jsonPrimitive.content)
+        assertEquals("saved-ca", retainedMtls["tlsCa"]!!.jsonPrimitive.content)
+        val clearedCa = MonitorDraftCodec.safeExistingPayload(
+            rawMtls,
+            mtlsDraft.copy(websocketClearSavedTlsCaCertificate = true),
+        )!!
+        assertEquals("", clearedCa["tlsCa"]!!.jsonPrimitive.content)
+
+        val createdMtls = MonitorDraftCodec.newPayload(
+            MonitorDraft.create("websocket-upgrade").copy(
+                name = "mTLS socket",
+                endpoint = "wss://example.com/socket",
+                websocketAuthMethod = WebSocketAuthMethod.MTLS,
+                websocketTlsCertificate = "certificate",
+                websocketTlsPrivateKey = "private-key",
+                websocketTlsCaCertificate = "ca-certificate",
+            ),
+        )
+        assertEquals("mtls", createdMtls["authMethod"]!!.jsonPrimitive.content)
+        assertEquals("certificate", createdMtls["tlsCert"]!!.jsonPrimitive.content)
+        assertEquals("private-key", createdMtls["tlsKey"]!!.jsonPrimitive.content)
+        assertEquals("ca-certificate", createdMtls["tlsCa"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun websocketUnknownAuthenticationRemainsOpaque() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":28,"type":"websocket-upgrade","name":"Future auth","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"authMethod":"future-auth","future_secret":"opaque",
                 "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
                 "active":true,"notificationIDList":{}
             }""",
@@ -550,8 +644,55 @@ class MonitorDraftCodecTest {
         assertFalse(draft.websocketAuthEditable)
         val updated = MonitorDraftCodec.safeExistingPayload(raw, draft.copy(name = "Renamed"))!!
         assertEquals(raw["authMethod"], updated["authMethod"])
-        assertEquals(raw["oauth_client_id"], updated["oauth_client_id"])
-        assertEquals(raw["oauth_client_secret"], updated["oauth_client_secret"])
+        assertEquals(raw["future_secret"], updated["future_secret"])
+
+        val futureOAuth = Json.parseToJsonElement(
+            """{
+                "id":29,"type":"websocket-upgrade","name":"Future OAuth","url":"wss://example.com",
+                "accepted_statuscodes":["1000"],"authMethod":"oauth2-cc",
+                "oauth_auth_method":"future-client-auth","oauth_client_secret":"opaque",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,
+                "active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val futureOAuthDraft = MonitorDraftCodec.from(futureOAuth)!!
+        assertFalse(futureOAuthDraft.websocketAuthEditable)
+        val retainedFutureOAuth = MonitorDraftCodec.safeExistingPayload(futureOAuth, futureOAuthDraft)!!
+        assertEquals(futureOAuth["oauth_auth_method"], retainedFutureOAuth["oauth_auth_method"])
+        assertEquals(futureOAuth["oauth_client_secret"], retainedFutureOAuth["oauth_client_secret"])
+    }
+
+    @Test
+    fun websocketOAuthAndMtlsValidationRequiresNewSecrets() {
+        val base = MonitorDraft.create("websocket-upgrade").copy(
+            name = "Socket",
+            endpoint = "wss://example.com/socket",
+        )
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_REQUIRED,
+            MonitorDraftCodec.validate(base.copy(websocketAuthMethod = WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS)),
+        )
+        val oauth = base.copy(
+            websocketAuthMethod = WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS,
+            websocketOAuthTokenUrl = "https://id.example.com/token",
+            websocketOAuthClientId = "client",
+        )
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_INVALID,
+            MonitorDraftCodec.validate(oauth.copy(websocketOAuthTokenUrl = "wss://id.example.com/token")),
+        )
+        assertEquals(MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED, MonitorDraftCodec.validate(oauth))
+        assertNull(MonitorDraftCodec.validate(oauth.copy(websocketOAuthClientSecret = "new-secret")))
+        assertEquals(
+            MonitorDraftError.WEBSOCKET_MTLS_CERTIFICATE_REQUIRED,
+            MonitorDraftCodec.validate(base.copy(websocketAuthMethod = WebSocketAuthMethod.MTLS)),
+        )
+        val mtls = base.copy(
+            websocketAuthMethod = WebSocketAuthMethod.MTLS,
+            websocketTlsCertificate = "certificate",
+        )
+        assertEquals(MonitorDraftError.WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED, MonitorDraftCodec.validate(mtls))
+        assertNull(MonitorDraftCodec.validate(mtls.copy(websocketTlsPrivateKey = "private-key")))
     }
 
     @Test
