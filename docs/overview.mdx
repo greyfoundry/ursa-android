@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-04
+last-updated: 2026-10-05
 owner: astoris
 status: stable
 ---
@@ -83,8 +83,9 @@ and the module docs under `docs/modules/`.
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.
 - Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
-  partial CP-031 advanced monitor-type creation boundary. Native keyword, JSON-query, and SFTP
-  creation and editing are included; less common type-specific forms remain in Kuma. This includes
+  partial CP-031 advanced monitor-type creation boundary. Native keyword, JSON-query,
+  WebSocket, MQTT, SMTP, and SFTP creation and editing are included; less common
+  type-specific forms remain in Kuma. This includes
   fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
   favourite-monitor live-heartbeat panel, encrypted local incident notes, and a
@@ -110,8 +111,9 @@ and the module docs under `docs/modules/`.
   validation/codec profile, conditional dependencies, fidelity, transfer policy,
   help mode, and browser fallback. Existing edits fetch a fresh full object and
   pass a runtime guard that rejects type drift or any unrelated-field change.
-  Common-protocol increments now cover Kuma's keyword matching and JSON-query
-  expression/comparison behavior without claiming unsupported advanced HTTP fields.
+  Common-protocol increments now cover Kuma's keyword matching, JSON-query
+  expression/comparison behavior, WebSocket handshakes/authentication, MQTT message
+  checks, and SMTP transport verification without claiming unsupported advanced fields.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;

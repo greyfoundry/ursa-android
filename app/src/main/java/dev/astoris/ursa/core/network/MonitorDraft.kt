@@ -12,6 +12,8 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.URI
 import java.security.SecureRandom
 import dev.astoris.ursa.data.model.MonitorTagAssignment
@@ -89,6 +91,16 @@ enum class MqttCheckType(val wireValue: String) {
     }
 }
 
+enum class SmtpSecurityMode(val wireValue: String) {
+    SMTPS("secure"),
+    PLAINTEXT("nostarttls"),
+    STARTTLS("starttls");
+
+    companion object {
+        fun fromWire(value: String?): SmtpSecurityMode? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
 data class MonitorHeaderDraft(
     val name: String = "",
     val value: String = "",
@@ -155,6 +167,8 @@ data class MonitorDraft(
     val mqttSuccessMessage: String = "",
     val mqttJsonQueryExpression: String = "$",
     val mqttJsonQueryExpectedValue: String = "",
+    val smtpSecurityMode: SmtpSecurityMode? = null,
+    val smtpSecurityEditable: Boolean = true,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -227,6 +241,8 @@ enum class MonitorDraftError {
     MQTT_WEBSOCKET_PATH_INVALID,
     MQTT_JSON_QUERY_EXPRESSION_REQUIRED,
     MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
+    SMTP_HOST_INVALID,
+    SMTP_SECURITY_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -243,6 +259,8 @@ object MonitorDraftCodec {
         val websocketOAuthAuthMethod = WebSocketOAuthAuthMethod.fromWire(raw.string("oauth_auth_method"))
         val rawMqttCheckType = raw.string("mqttCheckType")
         val mqttCheckType = MqttCheckType.fromWire(rawMqttCheckType)
+        val rawSmtpSecurity = raw.string("smtpSecurity")
+        val smtpSecurityMode = SmtpSecurityMode.fromWire(rawSmtpSecurity)
         return MonitorDraft(
             id = id,
             type = type,
@@ -322,6 +340,8 @@ object MonitorDraftCodec {
             mqttSuccessMessage = raw.string("mqttSuccessMessage").orEmpty(),
             mqttJsonQueryExpression = raw.string("jsonPath") ?: "$",
             mqttJsonQueryExpectedValue = raw.string("expectedValue").orEmpty(),
+            smtpSecurityMode = smtpSecurityMode,
+            smtpSecurityEditable = type != "smtp" || smtpSecurityMode != null,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -373,6 +393,12 @@ object MonitorDraftCodec {
                 if (draft.mqttJsonQueryExpectedValue.isEmpty()) {
                     return MonitorDraftError.MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED
                 }
+            }
+        }
+        if (definition.validation == MonitorEditorValidation.SMTP) {
+            if (!isValidSmtpHost(draft.endpoint)) return MonitorDraftError.SMTP_HOST_INVALID
+            if (draft.smtpSecurityEditable && draft.smtpSecurityMode == null) {
+                return MonitorDraftError.SMTP_SECURITY_REQUIRED
             }
         }
         if (definition.validation == MonitorEditorValidation.SFTP) {
@@ -504,6 +530,7 @@ object MonitorDraftCodec {
         applyJsonQuery(values, draft)
         applyWebsocket(values, draft)
         applyMqtt(values, draft, raw)
+        applySmtp(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -555,6 +582,7 @@ object MonitorDraftCodec {
         applyJsonQuery(mutable, draft)
         applyWebsocket(mutable, draft)
         applyMqtt(mutable, draft)
+        applySmtp(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -662,6 +690,16 @@ object MonitorDraftCodec {
         values["mqttSuccessMessage"] = JsonPrimitive(draft.mqttSuccessMessage)
         values["jsonPath"] = JsonPrimitive(draft.mqttJsonQueryExpression)
         values["expectedValue"] = JsonPrimitive(draft.mqttJsonQueryExpectedValue)
+    }
+
+    private fun applySmtp(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (
+            MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.SMTP ||
+            !draft.smtpSecurityEditable
+        ) {
+            return
+        }
+        draft.smtpSecurityMode?.let { values["smtpSecurity"] = JsonPrimitive(it.wireValue) }
     }
 
     private fun applyKeyword(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
@@ -883,6 +921,32 @@ object MonitorDraftCodec {
 
     private val MQTT_SCHEMES = setOf("mqtt", "mqtts", "ws", "wss")
     private val MQTT_WEBSOCKET_PATH = Regex("^/[A-Za-z0-9-_&()*+]*$")
+
+    private fun isValidSmtpHost(value: String): Boolean {
+        val host = value.trim().removeSuffix(".")
+        if (
+            host.isEmpty() ||
+            host.length > 253 ||
+            host.any(Char::isWhitespace) ||
+            host.any { it in "/?#@" } ||
+            "://" in host
+        ) {
+            return false
+        }
+        if (':' in host) {
+            return runCatching { InetAddress.getByName(host) is Inet6Address }.getOrDefault(false)
+        }
+        val labels = host.split('.')
+        if (labels.size == 4 && labels.all { it.isNotEmpty() && it.all(Char::isDigit) }) {
+            return labels.all { it.toIntOrNull() in 0..255 }
+        }
+        return labels.all { label ->
+            label.length in 1..63 &&
+                label.first() != '-' &&
+                label.last() != '-' &&
+                label.all { it.isLetterOrDigit() || it == '-' || it == '_' }
+        }
+    }
 }
 
 data class MonitorMutationResult(

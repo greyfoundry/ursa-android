@@ -185,6 +185,83 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun newSmtpPayloadRequiresAndMapsAnExplicitSecurityMode() {
+        val draft = MonitorDraft.create("smtp").copy(
+            name = "Mail relay",
+            endpoint = "smtp.example.net",
+            port = 587,
+            smtpSecurityMode = SmtpSecurityMode.STARTTLS,
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals("smtp", payload["type"]!!.jsonPrimitive.content)
+        assertEquals("smtp.example.net", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals(587, payload["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals("starttls", payload["smtpSecurity"]!!.jsonPrimitive.content)
+        assertEquals(
+            MonitorDraftError.SMTP_SECURITY_REQUIRED,
+            MonitorDraftCodec.validate(draft.copy(smtpSecurityMode = null)),
+        )
+        assertEquals(
+            MonitorDraftError.SMTP_HOST_INVALID,
+            MonitorDraftCodec.validate(draft.copy(endpoint = "smtp://smtp.example.net")),
+        )
+        assertEquals(
+            MonitorDraftError.SMTP_HOST_INVALID,
+            MonitorDraftCodec.validate(draft.copy(endpoint = "999.1.1.1")),
+        )
+        assertNull(MonitorDraftCodec.validate(draft.copy(endpoint = "2001:db8::25")))
+    }
+
+    @Test
+    fun smtpEditChangesOnlyTheDeclaredMode() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":45,"type":"smtp","name":"Mail","hostname":"mail.internal","port":465,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"smtpSecurity":"secure","expiryNotification":true,
+                "futureTls":{"minimum":"TLSv1.3"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertEquals(SmtpSecurityMode.SMTPS, loaded.smtpSecurityMode)
+        val updated = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(smtpSecurityMode = SmtpSecurityMode.STARTTLS, port = 587),
+        )!!
+        assertEquals("starttls", updated["smtpSecurity"]!!.jsonPrimitive.content)
+        assertEquals(587, updated["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals(raw["expiryNotification"], updated["expiryNotification"])
+        assertEquals(raw["futureTls"], updated["futureTls"])
+    }
+
+    @Test
+    fun nullAndUnknownSmtpSecurityModesRemainOpaque() {
+        listOf("null", "\"future-tls\"").forEach { rawMode ->
+            val raw = Json.parseToJsonElement(
+                """{
+                    "id":45,"type":"smtp","name":"Mail","hostname":"mail.internal","port":25,
+                    "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                    "notificationIDList":{},"smtpSecurity":$rawMode,"futureTls":true
+                }""",
+            ).jsonObject
+            val loaded = MonitorDraftCodec.from(raw)!!
+
+            assertFalse(loaded.smtpSecurityEditable)
+            assertEquals(
+                MonitorDraftError.SMTP_HOST_INVALID,
+                MonitorDraftCodec.validate(loaded.copy(endpoint = "smtp://mail.internal")),
+            )
+            val updated = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(name = "Renamed"))!!
+            assertEquals(raw["smtpSecurity"], updated["smtpSecurity"])
+            assertEquals(raw["futureTls"], updated["futureTls"])
+        }
+    }
+
+    @Test
     fun editingCommonFieldsPreservesUnknownAndSensitiveProperties() {
         val raw = Json.parseToJsonElement(
             """{

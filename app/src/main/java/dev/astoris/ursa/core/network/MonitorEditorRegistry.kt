@@ -44,6 +44,7 @@ enum class MonitorEditorField {
     MQTT_SUCCESS_MESSAGE,
     MQTT_JSON_QUERY_EXPRESSION,
     MQTT_JSON_QUERY_EXPECTED_VALUE,
+    SMTP_SECURITY,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -59,6 +60,7 @@ enum class MonitorEditorCodec {
     JSON_QUERY,
     WEBSOCKET,
     MQTT,
+    SMTP,
     SFTP,
 }
 
@@ -70,6 +72,7 @@ enum class MonitorEditorValidation {
     JSON_QUERY,
     WEBSOCKET,
     MQTT,
+    SMTP,
     SFTP,
 }
 
@@ -259,7 +262,16 @@ object MonitorEditorRegistry {
         definition("ntp", "NTP", verifiedMin = KumaVersion(2, 5, 0)),
         definition("rabbitmq", "RabbitMQ"),
         definition("sip-options", "SIP options ping"),
-        definition("smtp", "SMTP"),
+        definition(
+            "smtp",
+            "SMTP",
+            MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            codec = MonitorEditorCodec.SMTP,
+            validation = MonitorEditorValidation.SMTP,
+            extraFields = setOf(MonitorEditorField.SMTP_SECURITY),
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+        ),
         definition("snmp", "SNMP"),
         definition(
             type = "sftp",
@@ -541,6 +553,9 @@ object MonitorRoundTripGuard {
                 add("mqttSuccessMessage")
                 add("jsonPath")
                 add("expectedValue")
+            }
+            if (definition.codec == MonitorEditorCodec.SMTP) {
+                add("smtpSecurity")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

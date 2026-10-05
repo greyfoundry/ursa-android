@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-04
+last-updated: 2026-10-05
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,29 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-05 - Native SMTP monitor editing
+
+**changed**: Added native SMTP creation and editing for Kuma's hostname, explicit
+port, and exact `secure`, `nostarttls`, or `starttls` transport-security mode. The
+form explains that the monitor verifies an SMTP connection without sending email
+or collecting mailbox credentials. URSA invents neither a port nor a security
+default.
+
+**security and compatibility**: Existing null or unknown future security modes stay
+opaque and require the browser editor rather than being normalized. Known edits
+change only the declared SMTP fields while the full-object guard preserves expiry,
+TLS, and future fields. Host validation accepts Kuma-compatible hostnames and IP
+addresses while rejecting URL schemes and malformed numeric addresses.
+
+**verification**: Focused registry and codec tests cover exact create/update wire
+values, required fields, hostname/IP validation, future-field preservation, and
+opaque null/unknown modes. Android 17/live Kuma 2.5.5 QA covered plaintext creation,
+direct database verification, native reload, conversion to required STARTTLS on
+port 587, a second reload, and confirmed deletion. The server returned to its
+original five monitors; app crash logs were empty and container logs contained only
+the expected synthetic monitor failures and acknowledged lifecycle operations. The
+complete two-flavor phone/Wear build, test, and lint gate passes.
 
 ### 2026-10-04 - Native MQTT monitor editing
 

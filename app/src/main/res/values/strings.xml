@@ -1218,6 +1218,14 @@
     <string name="monitor_mqtt_success_message">Success message (optional)</string>
     <string name="monitor_mqtt_success_message_help">Leave blank to accept any message received on the topic.</string>
     <string name="monitor_mqtt_browser_only">This monitor uses a newer MQTT check mode. Its MQTT fields will stay unchanged; use Uptime Kuma for MQTT-specific changes.</string>
+    <string name="monitor_smtp_security_title">SMTP connection security</string>
+    <string name="monitor_smtp_security_label">Security mode</string>
+    <string name="monitor_smtp_security_choose">Choose a security mode</string>
+    <string name="monitor_smtp_security_smtps">SMTPS</string>
+    <string name="monitor_smtp_security_plaintext">Plaintext (ignore STARTTLS)</string>
+    <string name="monitor_smtp_security_starttls">Require STARTTLS</string>
+    <string name="monitor_smtp_security_help">SMTPS tests SMTP over TLS. Plaintext disables STARTTLS. Require STARTTLS upgrades the connection and verifies the server certificate. This check does not send email.</string>
+    <string name="monitor_smtp_browser_only">This monitor uses an unknown SMTP security mode. The mode will stay unchanged; use Uptime Kuma to change connection security.</string>
     <string name="action_show">Show</string>
     <string name="action_hide">Hide</string>
     <string name="monitor_discovery_title">Local service</string>
@@ -1260,6 +1268,8 @@
     <string name="monitor_error_mqtt_websocket_path">Enter a valid MQTT WebSocket path beginning with /.</string>
     <string name="monitor_error_mqtt_json_query_expression">Enter the MQTT JSON query expression.</string>
     <string name="monitor_error_mqtt_json_query_expected_value">Enter the expected MQTT JSON query value.</string>
+    <string name="monitor_error_smtp_host">Enter a valid SMTP hostname or IP address without a URL scheme.</string>
+    <string name="monitor_error_smtp_security">Choose how URSA should verify the SMTP connection.</string>
     <string name="action_saving">Saving…</string>
     <string name="action_edit_monitor">Edit monitor</string>
     <string name="action_delete_monitor">Delete monitor</string>

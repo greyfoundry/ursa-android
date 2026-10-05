@@ -37,6 +37,7 @@ class MonitorEditorRegistryTest {
                 "push",
                 "manual",
                 "mqtt",
+                "smtp",
                 "sftp",
                 "websocket-upgrade",
             ),
@@ -142,6 +143,21 @@ class MonitorEditorRegistryTest {
                     MqttCheckType.JSON_QUERY.wireValue in it.acceptedValues
             },
         )
+    }
+
+    @Test
+    fun smtpDeclaresItsSingleCredentialFreeProtocolField() {
+        val smtp = requireNotNull(MonitorEditorRegistry.find("smtp"))
+
+        assertTrue(smtp.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, smtp.endpointKind)
+        assertEquals(MonitorEditorCodec.SMTP, smtp.codec)
+        assertEquals(MonitorEditorValidation.SMTP, smtp.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, smtp.fidelity)
+        assertTrue(MonitorEditorField.SMTP_SECURITY in smtp.editableFields)
+        assertTrue(smtp.sensitiveFields.isEmpty())
+        assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, smtp.transferEligibility)
+        assertNull(smtp.defaults.port)
     }
 
     @Test

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-04
+last-updated: 2026-10-05
 owner: astoris
 status: in-flux
 ---
@@ -155,6 +155,9 @@ authentication-method change clears credentials belonging to the old method.
 MQTT passwords also reduce to a saved-value flag. A blank field retains the fresh
 server value, a replacement remains masked, and a separate explicit control removes
 the saved password. The password never enters URSA's persistent storage or logs.
+SMTP editing is deliberately credential-free: it changes only hostname, explicit
+port, and the known transport-security mode. Null or future modes remain opaque,
+and unrelated expiry/TLS or future fields survive the guarded full-object round trip.
 
 The separate destructive-action preference is off by default for compatibility. When
 enabled, monitor deletion, maintenance deletion, public-incident deletion, managed-push

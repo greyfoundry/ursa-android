@@ -65,6 +65,7 @@ import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.MqttCheckType
 import dev.astoris.ursa.core.network.SftpAuthMethod
+import dev.astoris.ursa.core.network.SmtpSecurityMode
 import dev.astoris.ursa.core.network.WebSocketAuthMethod
 import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
@@ -431,13 +432,16 @@ private fun MonitorForm(
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
         }
+        if (definition?.codec == MonitorEditorCodec.SMTP) {
+            SmtpFields(draft = draft, onDraftChange = onDraftChange)
+        }
         if (draft.type == "sftp") {
             SftpFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (
             draft.isNew &&
             option?.endpointKind != MonitorEndpointKind.NONE &&
-            draft.type !in setOf("mqtt", "sftp", "websocket-upgrade")
+            draft.type !in setOf("mqtt", "smtp", "sftp", "websocket-upgrade")
         ) {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
@@ -1253,6 +1257,66 @@ private fun MqttFields(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SmtpFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    if (!draft.smtpSecurityEditable) {
+        Text(
+            stringResource(R.string.monitor_smtp_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        return
+    }
+    var securityMenuOpen by remember { mutableStateOf(false) }
+    Text(stringResource(R.string.monitor_smtp_security_title), style = MaterialTheme.typography.titleSmall)
+    ExposedDropdownMenuBox(
+        expanded = securityMenuOpen,
+        onExpandedChange = { securityMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = draft.smtpSecurityMode?.let { stringResource(it.labelRes) }
+                ?: stringResource(R.string.monitor_smtp_security_choose),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_smtp_security_label)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(securityMenuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = securityMenuOpen,
+            onDismissRequest = { securityMenuOpen = false },
+        ) {
+            SmtpSecurityMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(mode.labelRes)) },
+                    onClick = {
+                        onDraftChange(draft.copy(smtpSecurityMode = mode))
+                        securityMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.monitor_smtp_security_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private val SmtpSecurityMode.labelRes: Int
+    get() = when (this) {
+        SmtpSecurityMode.SMTPS -> R.string.monitor_smtp_security_smtps
+        SmtpSecurityMode.PLAINTEXT -> R.string.monitor_smtp_security_plaintext
+        SmtpSecurityMode.STARTTLS -> R.string.monitor_smtp_security_starttls
+    }
+
 @Composable
 private fun PushMonitorSetup(pushUrl: String?, pushToken: String, isNew: Boolean) {
     val context = LocalContext.current
@@ -1407,6 +1471,8 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
             R.string.monitor_error_mqtt_json_query_expression
         MonitorDraftError.MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED ->
             R.string.monitor_error_mqtt_json_query_expected_value
+        MonitorDraftError.SMTP_HOST_INVALID -> R.string.monitor_error_smtp_host
+        MonitorDraftError.SMTP_SECURITY_REQUIRED -> R.string.monitor_error_smtp_security
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

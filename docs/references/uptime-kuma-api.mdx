@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-04
+last-updated: 2026-10-05
 owner: astoris
 status: stable
 source: verified from Uptime Kuma source and live 2.4.0 through 2.5.5 containers
@@ -168,6 +168,16 @@ message. JSON-query mode evaluates `jsonPath` and compares its string result exa
 with `expectedValue`. The WebSocket path is empty or matches
 `^/[A-Za-z0-9-_&amp;()*+]*$`. A non-empty `conditions` array takes precedence server-side,
 so clients that do not edit conditions must preserve it unchanged.
+
+SMTP monitors use required `hostname` and `port` fields plus nullable
+`smtpSecurity`. Kuma 2.5.5 maps `secure` to SMTP over TLS, `nostarttls` to
+plaintext with STARTTLS disabled, and `starttls` to a required STARTTLS upgrade
+with certificate verification. The server falls back to port 25 when the wire
+value is absent, but its editor requires an explicit port and URSA does not invent
+that default. The monitor calls Nodemailer's transport verification only; it does
+not send email or require mailbox credentials. Existing null or unknown security
+values must remain opaque because converting them would silently change transport
+behavior.
 
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
