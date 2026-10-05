@@ -36,7 +36,7 @@ desktop but cramped on a phone, the existing apps are abandoned or read-only, an
 "just get alerts" path seems to end at Firebase or a third-party relay you have to trust.
 
 URSA fixes that. It's the companion app your Kuma setup has been missing: fast, native,
-and yours. Point it at your server, log in, and your monitors are just... there -
+and yours. Point it at your server, log in, and your monitors are just.... there -
 whenever you pull your phone out.
 
 ## ✨ What you get
