@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-05 - Native Globalping Ping monitor editing
+
+**changed**: Added native Globalping Ping creation and editing for hostname/IP target,
+one probe-location expression, automatic/IPv4/IPv6 selection, ICMP or TCP, conditional
+TCP port, and a 1-100 packet count. New drafts match Kuma 2.5.5's `world`, automatic
+family, ICMP, port 80, three-packet, and 48-second defaults.
+
+**security and compatibility**: Ping is credential-free and eligible for
+credential-free transfer. Host/IP, location, protocol, port, and packet bounds are
+validated locally. Globalping HTTP/DNS, unknown protocols, and unknown IP-family
+values remain opaque; unrelated future fields survive the guarded full-object edit.
+
+**verification**: Focused registry and codec tests cover exact defaults and wire
+fields, validation boundaries, edit round trips, future-field retention, and opaque
+fallbacks. Android 17/live Kuma 2.5.5 QA created an ICMP monitor against `example.com`,
+received an Up heartbeat at 27 ms, verified the stored schema, reloaded and edited it
+to Germany/IPv4/TCP/443/four packets, reloaded those exact values, and deleted it.
+The server returned to its original five monitors, Android runtime crash logs were
+empty, and container output contained only the expected synthetic TLS failures.
+
 ### 2026-10-05 - Native NTP monitor editing
 
 **changed**: Added native NTP creation and editing for hostname, UDP port, stratum,

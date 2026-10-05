@@ -48,6 +48,11 @@ enum class MonitorEditorField {
     NTP_STRATUM_THRESHOLD,
     NTP_TIME_OFFSET_THRESHOLD,
     NTP_ROOT_DISPERSION_THRESHOLD,
+    GLOBALPING_SUBTYPE,
+    GLOBALPING_LOCATION,
+    GLOBALPING_IP_FAMILY,
+    GLOBALPING_PROTOCOL,
+    GLOBALPING_PING_COUNT,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -65,6 +70,7 @@ enum class MonitorEditorCodec {
     MQTT,
     SMTP,
     NTP,
+    GLOBALPING,
     SFTP,
 }
 
@@ -78,6 +84,7 @@ enum class MonitorEditorValidation {
     MQTT,
     SMTP,
     NTP,
+    GLOBALPING,
     SFTP,
 }
 
@@ -211,7 +218,24 @@ object MonitorEditorRegistry {
             createSupported = true,
             transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
         ),
-        definition("globalping", "Globalping"),
+        definition(
+            "globalping",
+            "Globalping",
+            createSupported = true,
+            defaultPort = 80,
+            codec = MonitorEditorCodec.GLOBALPING,
+            validation = MonitorEditorValidation.GLOBALPING,
+            extraFields = setOf(
+                MonitorEditorField.ENDPOINT,
+                MonitorEditorField.PORT,
+                MonitorEditorField.GLOBALPING_SUBTYPE,
+                MonitorEditorField.GLOBALPING_LOCATION,
+                MonitorEditorField.GLOBALPING_IP_FAMILY,
+                MonitorEditorField.GLOBALPING_PROTOCOL,
+                MonitorEditorField.GLOBALPING_PING_COUNT,
+            ),
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+        ),
         definition("grpc-keyword", "gRPC(s) - keyword"),
         definition(
             "json-query",
@@ -587,6 +611,15 @@ object MonitorRoundTripGuard {
                 add("ntpStratumThreshold")
                 add("ntpTimeOffsetThreshold")
                 add("ntpRootDispersionThreshold")
+            }
+            if (definition.codec == MonitorEditorCodec.GLOBALPING) {
+                add("subtype")
+                add("hostname")
+                add("port")
+                add("location")
+                add("ipFamily")
+                add("protocol")
+                add("ping_count")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

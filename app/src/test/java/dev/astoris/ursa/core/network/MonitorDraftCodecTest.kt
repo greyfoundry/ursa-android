@@ -22,6 +22,7 @@ class MonitorDraftCodecTest {
         assertTrue(keys.containsAll(listOf("http", "globalping", "rabbitmq", "sftp", "oracledb", "gamedig")))
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "sftp" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "mqtt" })
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "globalping" })
     }
 
     @Test
@@ -343,6 +344,134 @@ class MonitorDraftCodecTest {
         assertEquals(JsonNull, updated["ntpTimeOffsetThreshold"])
         assertEquals(250, updated["ntpRootDispersionThreshold"]!!.jsonPrimitive.content.toInt())
         assertEquals(raw["futureNtp"], updated["futureNtp"])
+    }
+
+    @Test
+    fun newGlobalpingPingPayloadMatchesKumaDefaultsAndWireFields() {
+        val draft = MonitorDraft.create("globalping").copy(
+            name = "Global edge",
+            globalpingTarget = "example.com",
+        )
+
+        assertEquals(GlobalpingSubtype.PING, draft.globalpingSubtype)
+        assertEquals("world", draft.globalpingLocation)
+        assertEquals(GlobalpingIpFamily.AUTO, draft.globalpingIpFamily)
+        assertEquals(GlobalpingPingProtocol.ICMP, draft.globalpingPingProtocol)
+        assertEquals(80, draft.port)
+        assertEquals(3, draft.globalpingPingCount)
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals("globalping", payload["type"]!!.jsonPrimitive.content)
+        assertEquals("ping", payload["subtype"]!!.jsonPrimitive.content)
+        assertEquals("example.com", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals("world", payload["location"]!!.jsonPrimitive.content)
+        assertEquals(JsonNull, payload["ipFamily"])
+        assertEquals("ICMP", payload["protocol"]!!.jsonPrimitive.content)
+        assertEquals(80, payload["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals(3, payload["ping_count"]!!.jsonPrimitive.content.toInt())
+        assertEquals(48, payload["timeout"]!!.jsonPrimitive.content.toInt())
+    }
+
+    @Test
+    fun globalpingPingValidationMatchesKumaBounds() {
+        val draft = MonitorDraft.create("globalping").copy(
+            name = "Global edge",
+            globalpingTarget = "example.com",
+        )
+
+        assertEquals(
+            MonitorDraftError.GLOBALPING_HOST_INVALID,
+            MonitorDraftCodec.validate(draft.copy(globalpingTarget = "https://example.com")),
+        )
+        assertEquals(
+            MonitorDraftError.GLOBALPING_LOCATION_REQUIRED,
+            MonitorDraftCodec.validate(draft.copy(globalpingLocation = " ")),
+        )
+        assertEquals(
+            MonitorDraftError.GLOBALPING_LOCATION_MULTIPLE,
+            MonitorDraftCodec.validate(draft.copy(globalpingLocation = "germany,france")),
+        )
+        assertEquals(
+            MonitorDraftError.GLOBALPING_PROTOCOL_INVALID,
+            MonitorDraftCodec.validate(draft.copy(globalpingPingProtocol = null)),
+        )
+        assertEquals(
+            MonitorDraftError.GLOBALPING_PORT_REQUIRED,
+            MonitorDraftCodec.validate(
+                draft.copy(globalpingPingProtocol = GlobalpingPingProtocol.TCP, port = null),
+            ),
+        )
+        assertEquals(
+            MonitorDraftError.GLOBALPING_PING_COUNT_INVALID,
+            MonitorDraftCodec.validate(draft.copy(globalpingPingCount = 0)),
+        )
+        assertNull(
+            MonitorDraftCodec.validate(
+                draft.copy(
+                    globalpingTarget = "2001:4860:4860::8888",
+                    globalpingIpFamily = GlobalpingIpFamily.IPV6,
+                    globalpingPingProtocol = GlobalpingPingProtocol.TCP,
+                    port = 443,
+                    globalpingPingCount = 100,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun globalpingPingEditPreservesFutureFields() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":47,"type":"globalping","subtype":"ping","name":"Edge",
+                "hostname":"example.com","port":80,"location":"world","ipFamily":null,
+                "protocol":"ICMP","ping_count":3,"interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "futureGlobalping":{"routing":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.globalpingEditable)
+        val updated = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(
+                globalpingLocation = "germany",
+                globalpingIpFamily = GlobalpingIpFamily.IPV4,
+                globalpingPingProtocol = GlobalpingPingProtocol.TCP,
+                port = 443,
+                globalpingPingCount = 4,
+            ),
+        )!!
+
+        assertEquals("germany", updated["location"]!!.jsonPrimitive.content)
+        assertEquals("ipv4", updated["ipFamily"]!!.jsonPrimitive.content)
+        assertEquals("TCP", updated["protocol"]!!.jsonPrimitive.content)
+        assertEquals(443, updated["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals(4, updated["ping_count"]!!.jsonPrimitive.content.toInt())
+        assertEquals(raw["futureGlobalping"], updated["futureGlobalping"])
+    }
+
+    @Test
+    fun unsupportedGlobalpingVariantsRemainOpaque() {
+        val unsupportedVariants = listOf(
+            """{"id":48,"type":"globalping","subtype":"http","name":"HTTP edge","url":"https://example.com","location":"world","protocol":"GET","futureGlobalping":1}""",
+            """{"id":49,"type":"globalping","subtype":"ping","name":"Future ping","hostname":"example.com","location":"world","protocol":"QUIC","futureGlobalping":2}""",
+            """{"id":50,"type":"globalping","subtype":"ping","name":"Future family","hostname":"example.com","location":"world","protocol":"ICMP","ipFamily":"ipv8","futureGlobalping":3}""",
+        )
+
+        unsupportedVariants.forEach { encoded ->
+            val raw = Json.parseToJsonElement(encoded).jsonObject
+            val loaded = MonitorDraftCodec.from(raw)!!
+
+            assertFalse(loaded.globalpingEditable)
+            val updated = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(name = "Renamed"))!!
+            assertEquals("Renamed", updated["name"]!!.jsonPrimitive.content)
+            assertEquals(raw["subtype"], updated["subtype"])
+            assertEquals(raw["protocol"], updated["protocol"])
+            assertEquals(raw["ipFamily"], updated["ipFamily"])
+            assertEquals(raw["futureGlobalping"], updated["futureGlobalping"])
+        }
     }
 
     @Test

@@ -54,6 +54,8 @@ import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.LocalServiceDiscoveryError
 import dev.astoris.ursa.core.network.LocalServiceDiscoveryState
 import dev.astoris.ursa.core.network.LocalServiceProtocol
+import dev.astoris.ursa.core.network.GlobalpingIpFamily
+import dev.astoris.ursa.core.network.GlobalpingPingProtocol
 import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEditorCodec
@@ -280,6 +282,9 @@ private fun MonitorForm(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        if (definition?.codec == MonitorEditorCodec.GLOBALPING) {
+            GlobalpingPingFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (draft.type == "push") {
             PushMonitorSetup(
@@ -1359,6 +1364,135 @@ private fun NtpFields(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GlobalpingPingFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    if (!draft.globalpingEditable) {
+        Text(
+            stringResource(R.string.monitor_globalping_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        return
+    }
+    var ipFamilyMenuOpen by remember { mutableStateOf(false) }
+    var protocolMenuOpen by remember { mutableStateOf(false) }
+
+    Text(stringResource(R.string.monitor_globalping_ping_title), style = MaterialTheme.typography.titleSmall)
+    OutlinedTextField(
+        value = draft.globalpingTarget,
+        onValueChange = { onDraftChange(draft.copy(globalpingTarget = it.take(253))) },
+        label = { Text(stringResource(R.string.monitor_host_label)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.globalpingLocation,
+        onValueChange = { onDraftChange(draft.copy(globalpingLocation = it.take(255))) },
+        label = { Text(stringResource(R.string.monitor_globalping_location)) },
+        supportingText = { Text(stringResource(R.string.monitor_globalping_location_help)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ExposedDropdownMenuBox(
+        expanded = ipFamilyMenuOpen,
+        onExpandedChange = { ipFamilyMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = stringResource((draft.globalpingIpFamily ?: GlobalpingIpFamily.AUTO).labelRes),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_globalping_ip_family)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(ipFamilyMenuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = ipFamilyMenuOpen,
+            onDismissRequest = { ipFamilyMenuOpen = false },
+        ) {
+            GlobalpingIpFamily.entries.forEach { family ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(family.labelRes)) },
+                    onClick = {
+                        onDraftChange(draft.copy(globalpingIpFamily = family))
+                        ipFamilyMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.monitor_globalping_ip_family_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    ExposedDropdownMenuBox(
+        expanded = protocolMenuOpen,
+        onExpandedChange = { protocolMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = draft.globalpingPingProtocol?.wireValue.orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_globalping_protocol)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(protocolMenuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = protocolMenuOpen,
+            onDismissRequest = { protocolMenuOpen = false },
+        ) {
+            GlobalpingPingProtocol.entries.forEach { protocol ->
+                DropdownMenuItem(
+                    text = { Text(protocol.wireValue) },
+                    onClick = {
+                        onDraftChange(
+                            draft.copy(
+                                globalpingPingProtocol = protocol,
+                                port = draft.port ?: 80,
+                            ),
+                        )
+                        protocolMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    if (draft.globalpingPingProtocol == GlobalpingPingProtocol.TCP) {
+        NumberField(
+            value = draft.port,
+            onValueChange = { onDraftChange(draft.copy(port = it)) },
+            label = stringResource(R.string.monitor_port_label),
+            maxDigits = 5,
+        )
+    }
+    NumberField(
+        value = draft.globalpingPingCount,
+        onValueChange = { onDraftChange(draft.copy(globalpingPingCount = it)) },
+        label = stringResource(R.string.monitor_globalping_ping_count),
+        maxDigits = 3,
+    )
+    Text(
+        stringResource(R.string.monitor_globalping_ping_count_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private val GlobalpingIpFamily.labelRes: Int
+    get() = when (this) {
+        GlobalpingIpFamily.AUTO -> R.string.monitor_globalping_ip_auto
+        GlobalpingIpFamily.IPV4 -> R.string.monitor_globalping_ip_v4
+        GlobalpingIpFamily.IPV6 -> R.string.monitor_globalping_ip_v6
+    }
+
 private val SmtpSecurityMode.labelRes: Int
     get() = when (this) {
         SmtpSecurityMode.SMTPS -> R.string.monitor_smtp_security_smtps
@@ -1527,6 +1661,12 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.NTP_TIME_OFFSET_THRESHOLD_INVALID -> R.string.monitor_error_ntp_offset_threshold
         MonitorDraftError.NTP_ROOT_DISPERSION_THRESHOLD_INVALID ->
             R.string.monitor_error_ntp_dispersion_threshold
+        MonitorDraftError.GLOBALPING_HOST_INVALID -> R.string.monitor_error_globalping_host
+        MonitorDraftError.GLOBALPING_LOCATION_REQUIRED -> R.string.monitor_error_globalping_location
+        MonitorDraftError.GLOBALPING_LOCATION_MULTIPLE -> R.string.monitor_error_globalping_location_multiple
+        MonitorDraftError.GLOBALPING_PROTOCOL_INVALID -> R.string.monitor_error_globalping_protocol
+        MonitorDraftError.GLOBALPING_PORT_REQUIRED -> R.string.monitor_error_globalping_port
+        MonitorDraftError.GLOBALPING_PING_COUNT_INVALID -> R.string.monitor_error_globalping_ping_count
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

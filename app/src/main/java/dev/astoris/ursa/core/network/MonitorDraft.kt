@@ -101,6 +101,35 @@ enum class SmtpSecurityMode(val wireValue: String) {
     }
 }
 
+enum class GlobalpingSubtype(val wireValue: String) {
+    PING("ping"),
+    HTTP("http"),
+    DNS("dns");
+
+    companion object {
+        fun fromWire(value: String?): GlobalpingSubtype? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+enum class GlobalpingIpFamily(val wireValue: String?) {
+    AUTO(null),
+    IPV4("ipv4"),
+    IPV6("ipv6");
+
+    companion object {
+        fun fromWire(value: String?): GlobalpingIpFamily? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+enum class GlobalpingPingProtocol(val wireValue: String) {
+    ICMP("ICMP"),
+    TCP("TCP");
+
+    companion object {
+        fun fromWire(value: String?): GlobalpingPingProtocol? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
 data class MonitorHeaderDraft(
     val name: String = "",
     val value: String = "",
@@ -172,6 +201,13 @@ data class MonitorDraft(
     val ntpStratumThreshold: Int? = null,
     val ntpTimeOffsetThreshold: Int? = null,
     val ntpRootDispersionThreshold: Int? = null,
+    val globalpingSubtype: GlobalpingSubtype? = null,
+    val globalpingTarget: String = "",
+    val globalpingLocation: String = "",
+    val globalpingIpFamily: GlobalpingIpFamily? = null,
+    val globalpingPingProtocol: GlobalpingPingProtocol? = null,
+    val globalpingPingCount: Int? = null,
+    val globalpingEditable: Boolean = true,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -202,6 +238,11 @@ data class MonitorDraft(
                 ntpStratumThreshold = if (option.key == "ntp") 5 else null,
                 ntpTimeOffsetThreshold = if (option.key == "ntp") 1_000 else null,
                 ntpRootDispersionThreshold = if (option.key == "ntp") 500 else null,
+                globalpingSubtype = if (option.key == "globalping") GlobalpingSubtype.PING else null,
+                globalpingLocation = if (option.key == "globalping") "world" else "",
+                globalpingIpFamily = if (option.key == "globalping") GlobalpingIpFamily.AUTO else null,
+                globalpingPingProtocol = if (option.key == "globalping") GlobalpingPingProtocol.ICMP else null,
+                globalpingPingCount = if (option.key == "globalping") 3 else null,
             )
         }
 
@@ -253,6 +294,12 @@ enum class MonitorDraftError {
     NTP_STRATUM_THRESHOLD_INVALID,
     NTP_TIME_OFFSET_THRESHOLD_INVALID,
     NTP_ROOT_DISPERSION_THRESHOLD_INVALID,
+    GLOBALPING_HOST_INVALID,
+    GLOBALPING_LOCATION_REQUIRED,
+    GLOBALPING_LOCATION_MULTIPLE,
+    GLOBALPING_PROTOCOL_INVALID,
+    GLOBALPING_PORT_REQUIRED,
+    GLOBALPING_PING_COUNT_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -271,6 +318,12 @@ object MonitorDraftCodec {
         val mqttCheckType = MqttCheckType.fromWire(rawMqttCheckType)
         val rawSmtpSecurity = raw.string("smtpSecurity")
         val smtpSecurityMode = SmtpSecurityMode.fromWire(rawSmtpSecurity)
+        val rawGlobalpingSubtype = raw.string("subtype")
+        val globalpingSubtype = GlobalpingSubtype.fromWire(rawGlobalpingSubtype)
+        val rawGlobalpingIpFamily = raw.string("ipFamily")
+        val globalpingIpFamily = GlobalpingIpFamily.fromWire(rawGlobalpingIpFamily)
+        val rawGlobalpingProtocol = raw.string("protocol")
+        val globalpingPingProtocol = GlobalpingPingProtocol.fromWire(rawGlobalpingProtocol)
         return MonitorDraft(
             id = id,
             type = type,
@@ -355,6 +408,21 @@ object MonitorDraftCodec {
             ntpStratumThreshold = raw.int("ntpStratumThreshold"),
             ntpTimeOffsetThreshold = raw.int("ntpTimeOffsetThreshold"),
             ntpRootDispersionThreshold = raw.int("ntpRootDispersionThreshold"),
+            globalpingSubtype = globalpingSubtype,
+            globalpingTarget = when (globalpingSubtype) {
+                GlobalpingSubtype.HTTP -> raw.string("url")
+                GlobalpingSubtype.PING, GlobalpingSubtype.DNS -> raw.string("hostname")
+                null -> null
+            }.orEmpty(),
+            globalpingLocation = raw.string("location").orEmpty(),
+            globalpingIpFamily = globalpingIpFamily,
+            globalpingPingProtocol = globalpingPingProtocol,
+            globalpingPingCount = raw.int("ping_count"),
+            globalpingEditable = type != "globalping" || (
+                globalpingSubtype == GlobalpingSubtype.PING &&
+                    globalpingPingProtocol != null &&
+                    (rawGlobalpingIpFamily == null || globalpingIpFamily != null)
+                ),
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -424,6 +492,19 @@ object MonitorDraftCodec {
             }
             if (draft.ntpRootDispersionThreshold != null && draft.ntpRootDispersionThreshold < 1) {
                 return MonitorDraftError.NTP_ROOT_DISPERSION_THRESHOLD_INVALID
+            }
+        }
+        if (definition.validation == MonitorEditorValidation.GLOBALPING && draft.globalpingEditable) {
+            if (!isValidHostOrIp(draft.globalpingTarget)) return MonitorDraftError.GLOBALPING_HOST_INVALID
+            if (draft.globalpingLocation.trim().isEmpty()) return MonitorDraftError.GLOBALPING_LOCATION_REQUIRED
+            if (',' in draft.globalpingLocation) return MonitorDraftError.GLOBALPING_LOCATION_MULTIPLE
+            val protocol = draft.globalpingPingProtocol
+                ?: return MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
+            if (protocol == GlobalpingPingProtocol.TCP && (draft.port ?: 0) !in 1..65_535) {
+                return MonitorDraftError.GLOBALPING_PORT_REQUIRED
+            }
+            if ((draft.globalpingPingCount ?: 0) !in 1..100) {
+                return MonitorDraftError.GLOBALPING_PING_COUNT_INVALID
             }
         }
         if (definition.validation == MonitorEditorValidation.SFTP) {
@@ -557,6 +638,7 @@ object MonitorDraftCodec {
         applyMqtt(values, draft, raw)
         applySmtp(values, draft)
         applyNtp(values, draft)
+        applyGlobalping(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -610,6 +692,7 @@ object MonitorDraftCodec {
         applyMqtt(mutable, draft)
         applySmtp(mutable, draft)
         applyNtp(mutable, draft)
+        applyGlobalping(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -735,6 +818,23 @@ object MonitorDraftCodec {
         values["ntpTimeOffsetThreshold"] = draft.ntpTimeOffsetThreshold?.let(::JsonPrimitive) ?: JsonNull
         values["ntpRootDispersionThreshold"] =
             draft.ntpRootDispersionThreshold?.let(::JsonPrimitive) ?: JsonNull
+    }
+
+    private fun applyGlobalping(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (
+            MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.GLOBALPING ||
+            !draft.globalpingEditable ||
+            draft.globalpingSubtype != GlobalpingSubtype.PING
+        ) {
+            return
+        }
+        values["subtype"] = JsonPrimitive(GlobalpingSubtype.PING.wireValue)
+        values["hostname"] = JsonPrimitive(draft.globalpingTarget.trim())
+        values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
+        values["location"] = JsonPrimitive(draft.globalpingLocation.trim())
+        values["ipFamily"] = draft.globalpingIpFamily?.wireValue?.let(::JsonPrimitive) ?: JsonNull
+        values["protocol"] = JsonPrimitive(draft.globalpingPingProtocol!!.wireValue)
+        values["ping_count"] = draft.globalpingPingCount?.let(::JsonPrimitive) ?: JsonNull
     }
 
     private fun applyKeyword(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {

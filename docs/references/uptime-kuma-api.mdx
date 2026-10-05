@@ -190,6 +190,17 @@ and root dispersion at or above its threshold. Falsy server values fall back to
 5/1000/500; clients must preserve explicit null values during unrelated edits
 rather than silently materializing those defaults.
 
+Globalping monitors use a subtype-specific contract. Ping sends `subtype: "ping"`,
+`hostname`, one `location` magic string, nullable `ipFamily` (`ipv4` or `ipv6` when
+explicit), `protocol` (`ICMP` or `TCP`), `ping_count`, and a `port` used only by TCP.
+Kuma's editor initializes Ping to `world`, automatic IP family, ICMP, retained port
+80, three packets, and a 48-second timeout. It accepts one location expression; `+`
+may combine provider and geography filters, while comma-separated locations are not
+supported. Packet count is 1 through 100 and TCP ports are 1 through 65535. URSA's
+native codec currently owns Ping only. The HTTP and DNS subtypes, unknown protocols,
+and unknown IP families remain opaque so a common-field edit cannot normalize or
+discard their subtype-specific data.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from

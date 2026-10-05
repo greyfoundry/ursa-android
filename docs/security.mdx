@@ -161,6 +161,10 @@ and unrelated expiry/TLS or future fields survive the guarded full-object round 
 NTP editing is likewise credential-free and owns only hostname, UDP port, and the
 three quality thresholds. Null thresholds and unrelated future fields survive the
 same guarded full-object round trip.
+Globalping Ping editing is credential-free and owns only its target, one probe
+location, IP family, ICMP/TCP protocol, conditional TCP port, and packet count.
+Unsupported Globalping subtypes and future protocol or IP-family values stay opaque;
+unrelated fields survive the same guarded full-object round trip.
 
 The separate destructive-action preference is off by default for compatibility. When
 enabled, monitor deletion, maintenance deletion, public-incident deletion, managed-push

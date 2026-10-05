@@ -89,7 +89,7 @@ here so the rest of the app sees clean domain models.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
-  NTP, and SFTP create flows. Keyword monitors map
+  NTP, Globalping Ping, and SFTP create flows. Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
@@ -118,6 +118,11 @@ here so the rest of the app sees clean domain models.
   NTP maps host/UDP port and the stratum, absolute-offset, and root-dispersion
   thresholds. New drafts match Kuma's port 123, five-minute interval, 48-second
   timeout, and 5/1000/500 threshold defaults; existing null values remain null.
+  Globalping Ping maps the target hostname/IP, one probe-location filter, automatic
+  or explicit IP family, ICMP/TCP protocol, conditional TCP port, and 1-100 packet
+  count. New drafts match Kuma's `world`, automatic-family, ICMP, port 80, three-packet,
+  and 48-second defaults. HTTP, DNS, unknown protocols, and unknown IP-family values
+  stay opaque until their dedicated codecs are implemented.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
@@ -183,7 +188,10 @@ here so the rest of the app sees clean domain models.
   connection, topic, and message-check fields while retaining future modes and
   conditions. SMTP supports host, port, and transport-security mode while
   preserving expiry/TLS and future fields. NTP supports its three quality
-  thresholds while retaining unrelated future fields. SFTP supports username, path,
+  thresholds while retaining unrelated future fields. Globalping Ping supports its
+  target, one location filter, IP family, protocol, conditional port, and packet count
+  while retaining unrelated future fields; other Globalping subtypes remain opaque.
+  SFTP supports username, path,
   password, private key, and optional passphrase replacement without exposing saved
   secret values. Other credentials, advanced settings, and fields introduced by
   future Kuma versions never leave the network adapter and are preserved in the

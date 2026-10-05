@@ -41,6 +41,7 @@ class MonitorEditorRegistryTest {
                 "smtp",
                 "sftp",
                 "websocket-upgrade",
+                "globalping",
             ),
             definitions.filter(MonitorEditorDefinition::createSupported)
                 .map(MonitorEditorDefinition::type)
@@ -178,6 +179,26 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.NTP_ROOT_DISPERSION_THRESHOLD in ntp.editableFields)
         assertTrue(ntp.sensitiveFields.isEmpty())
         assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, ntp.transferEligibility)
+    }
+
+    @Test
+    fun globalpingDeclaresCredentialFreePingFieldsAndDefaults() {
+        val globalping = requireNotNull(MonitorEditorRegistry.find("globalping"))
+
+        assertTrue(globalping.createSupported)
+        assertEquals(MonitorEndpointKind.NONE, globalping.endpointKind)
+        assertEquals(MonitorEditorCodec.GLOBALPING, globalping.codec)
+        assertEquals(MonitorEditorValidation.GLOBALPING, globalping.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, globalping.fidelity)
+        assertEquals(80, globalping.defaults.port)
+        assertEquals(48, globalping.defaults.timeoutSeconds)
+        assertTrue(MonitorEditorField.GLOBALPING_SUBTYPE in globalping.editableFields)
+        assertTrue(MonitorEditorField.GLOBALPING_LOCATION in globalping.editableFields)
+        assertTrue(MonitorEditorField.GLOBALPING_IP_FAMILY in globalping.editableFields)
+        assertTrue(MonitorEditorField.GLOBALPING_PROTOCOL in globalping.editableFields)
+        assertTrue(MonitorEditorField.GLOBALPING_PING_COUNT in globalping.editableFields)
+        assertTrue(globalping.sensitiveFields.isEmpty())
+        assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, globalping.transferEligibility)
     }
 
     @Test
