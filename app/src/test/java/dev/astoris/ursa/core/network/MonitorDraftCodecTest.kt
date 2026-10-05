@@ -262,6 +262,90 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun newNtpPayloadMatchesKumaDefaultsAndWireFields() {
+        val draft = MonitorDraft.create("ntp").copy(
+            name = "Public time",
+            endpoint = "time.google.com",
+        )
+
+        assertEquals(123, draft.port)
+        assertEquals(300, draft.intervalSeconds)
+        assertEquals(5, draft.ntpStratumThreshold)
+        assertEquals(1_000, draft.ntpTimeOffsetThreshold)
+        assertEquals(500, draft.ntpRootDispersionThreshold)
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals("ntp", payload["type"]!!.jsonPrimitive.content)
+        assertEquals("time.google.com", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals(123, payload["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals(300, payload["interval"]!!.jsonPrimitive.content.toInt())
+        assertEquals(48, payload["timeout"]!!.jsonPrimitive.content.toInt())
+        assertEquals(5, payload["ntpStratumThreshold"]!!.jsonPrimitive.content.toInt())
+        assertEquals(1_000, payload["ntpTimeOffsetThreshold"]!!.jsonPrimitive.content.toInt())
+        assertEquals(500, payload["ntpRootDispersionThreshold"]!!.jsonPrimitive.content.toInt())
+    }
+
+    @Test
+    fun ntpValidationMatchesKumaThresholdBounds() {
+        val draft = MonitorDraft.create("ntp").copy(
+            name = "Time",
+            endpoint = "time.internal",
+        )
+
+        assertEquals(
+            MonitorDraftError.NTP_HOST_INVALID,
+            MonitorDraftCodec.validate(draft.copy(endpoint = "ntp://time.internal")),
+        )
+        assertEquals(
+            MonitorDraftError.NTP_STRATUM_THRESHOLD_INVALID,
+            MonitorDraftCodec.validate(draft.copy(ntpStratumThreshold = 16)),
+        )
+        assertEquals(
+            MonitorDraftError.NTP_TIME_OFFSET_THRESHOLD_INVALID,
+            MonitorDraftCodec.validate(draft.copy(ntpTimeOffsetThreshold = 0)),
+        )
+        assertEquals(
+            MonitorDraftError.NTP_ROOT_DISPERSION_THRESHOLD_INVALID,
+            MonitorDraftCodec.validate(draft.copy(ntpRootDispersionThreshold = 0)),
+        )
+        assertNull(
+            MonitorDraftCodec.validate(
+                draft.copy(
+                    endpoint = "2001:4860:4806:8::",
+                    ntpStratumThreshold = null,
+                    ntpTimeOffsetThreshold = null,
+                    ntpRootDispersionThreshold = null,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun ntpEditChangesThresholdsWithoutNormalizingNullOrFutureFields() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":46,"type":"ntp","name":"Time","hostname":"time.internal","port":123,
+                "interval":300,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"ntpStratumThreshold":5,"ntpTimeOffsetThreshold":null,
+                "ntpRootDispersionThreshold":500,"futureNtp":{"version":4}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertEquals(5, loaded.ntpStratumThreshold)
+        assertNull(loaded.ntpTimeOffsetThreshold)
+        val updated = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(ntpStratumThreshold = 4, ntpRootDispersionThreshold = 250),
+        )!!
+        assertEquals(4, updated["ntpStratumThreshold"]!!.jsonPrimitive.content.toInt())
+        assertEquals(JsonNull, updated["ntpTimeOffsetThreshold"])
+        assertEquals(250, updated["ntpRootDispersionThreshold"]!!.jsonPrimitive.content.toInt())
+        assertEquals(raw["futureNtp"], updated["futureNtp"])
+    }
+
+    @Test
     fun editingCommonFieldsPreservesUnknownAndSensitiveProperties() {
         val raw = Json.parseToJsonElement(
             """{

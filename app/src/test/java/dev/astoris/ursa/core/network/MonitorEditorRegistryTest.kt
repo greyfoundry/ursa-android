@@ -37,6 +37,7 @@ class MonitorEditorRegistryTest {
                 "push",
                 "manual",
                 "mqtt",
+                "ntp",
                 "smtp",
                 "sftp",
                 "websocket-upgrade",
@@ -158,6 +159,25 @@ class MonitorEditorRegistryTest {
         assertTrue(smtp.sensitiveFields.isEmpty())
         assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, smtp.transferEligibility)
         assertNull(smtp.defaults.port)
+    }
+
+    @Test
+    fun ntpDeclaresItsVersionedDefaultsAndThresholdFields() {
+        val ntp = requireNotNull(MonitorEditorRegistry.find("ntp"))
+
+        assertTrue(ntp.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, ntp.endpointKind)
+        assertEquals(MonitorEditorCodec.NTP, ntp.codec)
+        assertEquals(MonitorEditorValidation.NTP, ntp.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, ntp.fidelity)
+        assertEquals(123, ntp.defaults.port)
+        assertEquals(300, ntp.defaults.intervalSeconds)
+        assertEquals(48, ntp.defaults.timeoutSeconds)
+        assertTrue(MonitorEditorField.NTP_STRATUM_THRESHOLD in ntp.editableFields)
+        assertTrue(MonitorEditorField.NTP_TIME_OFFSET_THRESHOLD in ntp.editableFields)
+        assertTrue(MonitorEditorField.NTP_ROOT_DISPERSION_THRESHOLD in ntp.editableFields)
+        assertTrue(ntp.sensitiveFields.isEmpty())
+        assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, ntp.transferEligibility)
     }
 
     @Test

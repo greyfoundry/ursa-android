@@ -169,6 +169,9 @@ data class MonitorDraft(
     val mqttJsonQueryExpectedValue: String = "",
     val smtpSecurityMode: SmtpSecurityMode? = null,
     val smtpSecurityEditable: Boolean = true,
+    val ntpStratumThreshold: Int? = null,
+    val ntpTimeOffsetThreshold: Int? = null,
+    val ntpRootDispersionThreshold: Int? = null,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -196,6 +199,9 @@ data class MonitorDraft(
                 resendIntervalSeconds = defaults.resendIntervalSeconds,
                 maxRetries = defaults.maxRetries,
                 pushToken = if (option.key == "push") newPushToken() else "",
+                ntpStratumThreshold = if (option.key == "ntp") 5 else null,
+                ntpTimeOffsetThreshold = if (option.key == "ntp") 1_000 else null,
+                ntpRootDispersionThreshold = if (option.key == "ntp") 500 else null,
             )
         }
 
@@ -243,6 +249,10 @@ enum class MonitorDraftError {
     MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     SMTP_HOST_INVALID,
     SMTP_SECURITY_REQUIRED,
+    NTP_HOST_INVALID,
+    NTP_STRATUM_THRESHOLD_INVALID,
+    NTP_TIME_OFFSET_THRESHOLD_INVALID,
+    NTP_ROOT_DISPERSION_THRESHOLD_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -342,6 +352,9 @@ object MonitorDraftCodec {
             mqttJsonQueryExpectedValue = raw.string("expectedValue").orEmpty(),
             smtpSecurityMode = smtpSecurityMode,
             smtpSecurityEditable = type != "smtp" || smtpSecurityMode != null,
+            ntpStratumThreshold = raw.int("ntpStratumThreshold"),
+            ntpTimeOffsetThreshold = raw.int("ntpTimeOffsetThreshold"),
+            ntpRootDispersionThreshold = raw.int("ntpRootDispersionThreshold"),
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -396,9 +409,21 @@ object MonitorDraftCodec {
             }
         }
         if (definition.validation == MonitorEditorValidation.SMTP) {
-            if (!isValidSmtpHost(draft.endpoint)) return MonitorDraftError.SMTP_HOST_INVALID
+            if (!isValidHostOrIp(draft.endpoint)) return MonitorDraftError.SMTP_HOST_INVALID
             if (draft.smtpSecurityEditable && draft.smtpSecurityMode == null) {
                 return MonitorDraftError.SMTP_SECURITY_REQUIRED
+            }
+        }
+        if (definition.validation == MonitorEditorValidation.NTP) {
+            if (!isValidHostOrIp(draft.endpoint)) return MonitorDraftError.NTP_HOST_INVALID
+            if (draft.ntpStratumThreshold != null && draft.ntpStratumThreshold !in 1..15) {
+                return MonitorDraftError.NTP_STRATUM_THRESHOLD_INVALID
+            }
+            if (draft.ntpTimeOffsetThreshold != null && draft.ntpTimeOffsetThreshold < 1) {
+                return MonitorDraftError.NTP_TIME_OFFSET_THRESHOLD_INVALID
+            }
+            if (draft.ntpRootDispersionThreshold != null && draft.ntpRootDispersionThreshold < 1) {
+                return MonitorDraftError.NTP_ROOT_DISPERSION_THRESHOLD_INVALID
             }
         }
         if (definition.validation == MonitorEditorValidation.SFTP) {
@@ -531,6 +556,7 @@ object MonitorDraftCodec {
         applyWebsocket(values, draft)
         applyMqtt(values, draft, raw)
         applySmtp(values, draft)
+        applyNtp(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -583,6 +609,7 @@ object MonitorDraftCodec {
         applyWebsocket(mutable, draft)
         applyMqtt(mutable, draft)
         applySmtp(mutable, draft)
+        applyNtp(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -700,6 +727,14 @@ object MonitorDraftCodec {
             return
         }
         draft.smtpSecurityMode?.let { values["smtpSecurity"] = JsonPrimitive(it.wireValue) }
+    }
+
+    private fun applyNtp(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.NTP) return
+        values["ntpStratumThreshold"] = draft.ntpStratumThreshold?.let(::JsonPrimitive) ?: JsonNull
+        values["ntpTimeOffsetThreshold"] = draft.ntpTimeOffsetThreshold?.let(::JsonPrimitive) ?: JsonNull
+        values["ntpRootDispersionThreshold"] =
+            draft.ntpRootDispersionThreshold?.let(::JsonPrimitive) ?: JsonNull
     }
 
     private fun applyKeyword(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
@@ -922,7 +957,7 @@ object MonitorDraftCodec {
     private val MQTT_SCHEMES = setOf("mqtt", "mqtts", "ws", "wss")
     private val MQTT_WEBSOCKET_PATH = Regex("^/[A-Za-z0-9-_&()*+]*$")
 
-    private fun isValidSmtpHost(value: String): Boolean {
+    private fun isValidHostOrIp(value: String): Boolean {
         val host = value.trim().removeSuffix(".")
         if (
             host.isEmpty() ||

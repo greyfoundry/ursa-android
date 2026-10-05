@@ -179,6 +179,17 @@ not send email or require mailbox credentials. Existing null or unknown security
 values must remain opaque because converting them would silently change transport
 behavior.
 
+NTP monitors, available from Kuma 2.5.0, use required `hostname` and `port` plus
+`ntpStratumThreshold`, `ntpTimeOffsetThreshold`, and
+`ntpRootDispersionThreshold`. The editor defaults new monitors to UDP port 123, a
+300-second interval, a 48-second timeout, and thresholds 5, 1000 ms, and 500 ms.
+Stratum accepts 1 through 15; the two millisecond thresholds accept positive
+integers. The checker always rejects unsynchronized stratum 16, then rejects
+stratum at or above its threshold, absolute clock offset at or above its threshold,
+and root dispersion at or above its threshold. Falsy server values fall back to
+5/1000/500; clients must preserve explicit null values during unrelated edits
+rather than silently materializing those defaults.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from

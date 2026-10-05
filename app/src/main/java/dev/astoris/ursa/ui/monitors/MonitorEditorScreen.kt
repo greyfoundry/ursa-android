@@ -57,6 +57,7 @@ import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEditorCodec
+import dev.astoris.ursa.core.network.MonitorEditorDefaults
 import dev.astoris.ursa.core.network.MonitorEditorHelp
 import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.network.MonitorEndpointKind
@@ -239,7 +240,13 @@ private fun MonitorForm(
                                     defaults.copy(
                                         name = draft.name,
                                         description = draft.description,
-                                        intervalSeconds = draft.intervalSeconds,
+                                        intervalSeconds = if (
+                                            defaults.intervalSeconds != MonitorEditorDefaults().intervalSeconds
+                                        ) {
+                                            defaults.intervalSeconds
+                                        } else {
+                                            draft.intervalSeconds
+                                        },
                                         retryIntervalSeconds = draft.retryIntervalSeconds,
                                         resendIntervalSeconds = draft.resendIntervalSeconds,
                                         maxRetries = draft.maxRetries,
@@ -429,6 +436,9 @@ private fun MonitorForm(
                 maxDigits = 5,
             )
         }
+        if (definition?.codec == MonitorEditorCodec.NTP) {
+            NtpFields(draft = draft, onDraftChange = onDraftChange)
+        }
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
         }
@@ -441,7 +451,7 @@ private fun MonitorForm(
         if (
             draft.isNew &&
             option?.endpointKind != MonitorEndpointKind.NONE &&
-            draft.type !in setOf("mqtt", "smtp", "sftp", "websocket-upgrade")
+            draft.type !in setOf("mqtt", "ntp", "smtp", "sftp", "websocket-upgrade")
         ) {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
@@ -1310,6 +1320,45 @@ private fun SmtpFields(
     )
 }
 
+@Composable
+private fun NtpFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    Text(stringResource(R.string.monitor_ntp_thresholds_title), style = MaterialTheme.typography.titleSmall)
+    NumberField(
+        value = draft.ntpStratumThreshold,
+        onValueChange = { onDraftChange(draft.copy(ntpStratumThreshold = it)) },
+        label = stringResource(R.string.monitor_ntp_stratum_threshold),
+        maxDigits = 2,
+    )
+    Text(
+        stringResource(R.string.monitor_ntp_stratum_threshold_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    NumberField(
+        value = draft.ntpTimeOffsetThreshold,
+        onValueChange = { onDraftChange(draft.copy(ntpTimeOffsetThreshold = it)) },
+        label = stringResource(R.string.monitor_ntp_offset_threshold),
+    )
+    Text(
+        stringResource(R.string.monitor_ntp_offset_threshold_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    NumberField(
+        value = draft.ntpRootDispersionThreshold,
+        onValueChange = { onDraftChange(draft.copy(ntpRootDispersionThreshold = it)) },
+        label = stringResource(R.string.monitor_ntp_dispersion_threshold),
+    )
+    Text(
+        stringResource(R.string.monitor_ntp_dispersion_threshold_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
 private val SmtpSecurityMode.labelRes: Int
     get() = when (this) {
         SmtpSecurityMode.SMTPS -> R.string.monitor_smtp_security_smtps
@@ -1473,6 +1522,11 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
             R.string.monitor_error_mqtt_json_query_expected_value
         MonitorDraftError.SMTP_HOST_INVALID -> R.string.monitor_error_smtp_host
         MonitorDraftError.SMTP_SECURITY_REQUIRED -> R.string.monitor_error_smtp_security
+        MonitorDraftError.NTP_HOST_INVALID -> R.string.monitor_error_ntp_host
+        MonitorDraftError.NTP_STRATUM_THRESHOLD_INVALID -> R.string.monitor_error_ntp_stratum_threshold
+        MonitorDraftError.NTP_TIME_OFFSET_THRESHOLD_INVALID -> R.string.monitor_error_ntp_offset_threshold
+        MonitorDraftError.NTP_ROOT_DISPERSION_THRESHOLD_INVALID ->
+            R.string.monitor_error_ntp_dispersion_threshold
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

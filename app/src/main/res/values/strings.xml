@@ -1226,6 +1226,13 @@
     <string name="monitor_smtp_security_starttls">Require STARTTLS</string>
     <string name="monitor_smtp_security_help">SMTPS tests SMTP over TLS. Plaintext disables STARTTLS. Require STARTTLS upgrades the connection and verifies the server certificate. This check does not send email.</string>
     <string name="monitor_smtp_browser_only">This monitor uses an unknown SMTP security mode. The mode will stay unchanged; use Uptime Kuma to change connection security.</string>
+    <string name="monitor_ntp_thresholds_title">NTP thresholds</string>
+    <string name="monitor_ntp_stratum_threshold">Stratum threshold</string>
+    <string name="monitor_ntp_stratum_threshold_help">Mark down when stratum is at or above this value. Use 1-15; blank keeps the server fallback of 5.</string>
+    <string name="monitor_ntp_offset_threshold">Time offset threshold (ms)</string>
+    <string name="monitor_ntp_offset_threshold_help">Mark down when the absolute time offset reaches this value. Blank keeps the server fallback of 1000 ms.</string>
+    <string name="monitor_ntp_dispersion_threshold">Root dispersion threshold (ms)</string>
+    <string name="monitor_ntp_dispersion_threshold_help">Mark down when root dispersion reaches this value. Blank keeps the server fallback of 500 ms.</string>
     <string name="action_show">Show</string>
     <string name="action_hide">Hide</string>
     <string name="monitor_discovery_title">Local service</string>
@@ -1270,6 +1277,10 @@
     <string name="monitor_error_mqtt_json_query_expected_value">Enter the expected MQTT JSON query value.</string>
     <string name="monitor_error_smtp_host">Enter a valid SMTP hostname or IP address without a URL scheme.</string>
     <string name="monitor_error_smtp_security">Choose how URSA should verify the SMTP connection.</string>
+    <string name="monitor_error_ntp_host">Enter a valid NTP hostname or IP address without a URL scheme.</string>
+    <string name="monitor_error_ntp_stratum_threshold">Enter a stratum threshold from 1 to 15, or leave it blank for the server default.</string>
+    <string name="monitor_error_ntp_offset_threshold">Enter a positive time offset threshold, or leave it blank for the server default.</string>
+    <string name="monitor_error_ntp_dispersion_threshold">Enter a positive root dispersion threshold, or leave it blank for the server default.</string>
     <string name="action_saving">Saving…</string>
     <string name="action_edit_monitor">Edit monitor</string>
     <string name="action_delete_monitor">Delete monitor</string>

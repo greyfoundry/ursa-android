@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-05 - Native NTP monitor editing
+
+**changed**: Added native NTP creation and editing for hostname, UDP port, stratum,
+absolute time-offset, and root-dispersion thresholds. New monitors match Kuma's
+port 123, five-minute interval, 48-second timeout, and 5/1000/500 threshold
+defaults while retaining the existing Kuma 2.5.0 schema gate.
+
+**security and compatibility**: NTP carries no credentials and is eligible for
+credential-free transfer. Host/IP and threshold bounds are validated locally;
+existing null thresholds remain null, unrelated future fields stay server-owned,
+and HTTP local-service discovery is not offered for this UDP protocol.
+
+**verification**: Focused registry and codec tests cover versioned defaults, exact
+wire fields, host/IP and threshold validation, null preservation, and guarded
+future-field retention. Android 17/live Kuma 2.5.5 QA covered public NTP creation,
+an initial successful 79 ms check, exact database defaults, native reload, threshold
+editing to 4/750/250, a second reload, the expected offset-threshold transition,
+and confirmed deletion. The server returned to its original five monitors; app
+crash logs were empty, and the only container error was the known inactive test
+UnifiedPush subscriber after the deliberate down transition. The complete
+two-flavor phone/Wear build, test, and lint gate passes.
+
 ### 2026-10-05 - Native SMTP monitor editing
 
 **changed**: Added native SMTP creation and editing for Kuma's hostname, explicit

@@ -89,7 +89,7 @@ here so the rest of the app sees clean domain models.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
-  and SFTP create flows. Keyword monitors map
+  NTP, and SFTP create flows. Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
@@ -115,6 +115,9 @@ here so the rest of the app sees clean domain models.
   SMTP maps only the host, explicit port, and Kuma's exact `secure`, `nostarttls`,
   or `starttls` security mode. URSA invents no SMTP port or security default;
   existing null or future modes stay opaque and unchanged.
+  NTP maps host/UDP port and the stratum, absolute-offset, and root-dispersion
+  thresholds. New drafts match Kuma's port 123, five-minute interval, 48-second
+  timeout, and 5/1000/500 threshold defaults; existing null values remain null.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
@@ -179,7 +182,8 @@ here so the rest of the app sees clean domain models.
   change only fields present in the typed editor. MQTT supports its native
   connection, topic, and message-check fields while retaining future modes and
   conditions. SMTP supports host, port, and transport-security mode while
-  preserving expiry/TLS and future fields. SFTP supports username, path,
+  preserving expiry/TLS and future fields. NTP supports its three quality
+  thresholds while retaining unrelated future fields. SFTP supports username, path,
   password, private key, and optional passphrase replacement without exposing saved
   secret values. Other credentials, advanced settings, and fields introduced by
   future Kuma versions never leave the network adapter and are preserved in the

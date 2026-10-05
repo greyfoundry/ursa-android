@@ -45,6 +45,9 @@ enum class MonitorEditorField {
     MQTT_JSON_QUERY_EXPRESSION,
     MQTT_JSON_QUERY_EXPECTED_VALUE,
     SMTP_SECURITY,
+    NTP_STRATUM_THRESHOLD,
+    NTP_TIME_OFFSET_THRESHOLD,
+    NTP_ROOT_DISPERSION_THRESHOLD,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -61,6 +64,7 @@ enum class MonitorEditorCodec {
     WEBSOCKET,
     MQTT,
     SMTP,
+    NTP,
     SFTP,
 }
 
@@ -73,6 +77,7 @@ enum class MonitorEditorValidation {
     WEBSOCKET,
     MQTT,
     SMTP,
+    NTP,
     SFTP,
 }
 
@@ -259,7 +264,23 @@ object MonitorEditorRegistry {
             ),
             transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
         ),
-        definition("ntp", "NTP", verifiedMin = KumaVersion(2, 5, 0)),
+        definition(
+            "ntp",
+            "NTP",
+            MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            defaultPort = 123,
+            intervalSeconds = 300,
+            verifiedMin = KumaVersion(2, 5, 0),
+            codec = MonitorEditorCodec.NTP,
+            validation = MonitorEditorValidation.NTP,
+            extraFields = setOf(
+                MonitorEditorField.NTP_STRATUM_THRESHOLD,
+                MonitorEditorField.NTP_TIME_OFFSET_THRESHOLD,
+                MonitorEditorField.NTP_ROOT_DISPERSION_THRESHOLD,
+            ),
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+        ),
         definition("rabbitmq", "RabbitMQ"),
         definition("sip-options", "SIP options ping"),
         definition(
@@ -432,6 +453,7 @@ object MonitorEditorRegistry {
         createSupported: Boolean = false,
         defaultPort: Int? = null,
         timeoutSeconds: Int = if (type == "ping") 10 else 48,
+        intervalSeconds: Int = 60,
         verifiedMin: KumaVersion = KumaCapabilities.VERIFIED_MIN,
         codec: MonitorEditorCodec = MonitorEditorCodec.COMMON,
         validation: MonitorEditorValidation = if (endpointKind == MonitorEndpointKind.NONE) {
@@ -459,7 +481,11 @@ object MonitorEditorRegistry {
             verifiedMax = KumaCapabilities.VERIFIED_MAX,
             endpointKind = endpointKind,
             createSupported = createSupported,
-            defaults = MonitorEditorDefaults(port = defaultPort, timeoutSeconds = timeoutSeconds),
+            defaults = MonitorEditorDefaults(
+                port = defaultPort,
+                intervalSeconds = intervalSeconds,
+                timeoutSeconds = timeoutSeconds,
+            ),
             editableFields = commonFields + endpointFields + extraFields,
             sensitiveFields = sensitiveFields,
             conditions = conditions,
@@ -556,6 +582,11 @@ object MonitorRoundTripGuard {
             }
             if (definition.codec == MonitorEditorCodec.SMTP) {
                 add("smtpSecurity")
+            }
+            if (definition.codec == MonitorEditorCodec.NTP) {
+                add("ntpStratumThreshold")
+                add("ntpTimeOffsetThreshold")
+                add("ntpRootDispersionThreshold")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

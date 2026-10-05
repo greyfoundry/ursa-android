@@ -84,7 +84,7 @@ and the module docs under `docs/modules/`.
   device-tested. See `docs/sessions/log.mdx`.
 - Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
   partial CP-031 advanced monitor-type creation boundary. Native keyword, JSON-query,
-  WebSocket, MQTT, SMTP, and SFTP creation and editing are included; less common
+  WebSocket, MQTT, SMTP, NTP, and SFTP creation and editing are included; less common
   type-specific forms remain in Kuma. This includes
   fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
@@ -113,7 +113,8 @@ and the module docs under `docs/modules/`.
   pass a runtime guard that rejects type drift or any unrelated-field change.
   Common-protocol increments now cover Kuma's keyword matching, JSON-query
   expression/comparison behavior, WebSocket handshakes/authentication, MQTT message
-  checks, and SMTP transport verification without claiming unsupported advanced fields.
+  checks, SMTP transport verification, and NTP quality thresholds without claiming
+  unsupported advanced fields.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;
