@@ -182,14 +182,14 @@ class MonitorEditorRegistryTest {
     }
 
     @Test
-    fun globalpingDeclaresCredentialFreePingFieldsAndDefaults() {
+    fun globalpingDeclaresFullSubtypeAndSecretContract() {
         val globalping = requireNotNull(MonitorEditorRegistry.find("globalping"))
 
         assertTrue(globalping.createSupported)
         assertEquals(MonitorEndpointKind.NONE, globalping.endpointKind)
         assertEquals(MonitorEditorCodec.GLOBALPING, globalping.codec)
         assertEquals(MonitorEditorValidation.GLOBALPING, globalping.validation)
-        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, globalping.fidelity)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, globalping.fidelity)
         assertEquals(80, globalping.defaults.port)
         assertEquals(48, globalping.defaults.timeoutSeconds)
         assertTrue(MonitorEditorField.GLOBALPING_SUBTYPE in globalping.editableFields)
@@ -197,8 +197,13 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.GLOBALPING_IP_FAMILY in globalping.editableFields)
         assertTrue(MonitorEditorField.GLOBALPING_PROTOCOL in globalping.editableFields)
         assertTrue(MonitorEditorField.GLOBALPING_PING_COUNT in globalping.editableFields)
-        assertTrue(globalping.sensitiveFields.isEmpty())
-        assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, globalping.transferEligibility)
+        assertTrue(MonitorEditorField.GLOBALPING_DNS_RECORD_TYPE in globalping.editableFields)
+        assertTrue(MonitorEditorField.GLOBALPING_HTTP_METHOD in globalping.editableFields)
+        assertTrue(MonitorEditorField.WEBSOCKET_HEADERS in globalping.editableFields)
+        assertTrue(MonitorEditorField.WEBSOCKET_BASIC_PASSWORD in globalping.sensitiveFields)
+        assertTrue(MonitorEditorField.WEBSOCKET_BEARER_TOKEN in globalping.sensitiveFields)
+        assertTrue(MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_SECRET in globalping.sensitiveFields)
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, globalping.transferEligibility)
     }
 
     @Test
@@ -227,7 +232,7 @@ class MonitorEditorRegistryTest {
         )
         assertTrue(
             MonitorEditorRegistry.all
-                .filter { it.type != "sftp" }
+                .filter { it.type !in setOf("sftp", "globalping") }
                 .all { it.fidelity == MonitorEditorFidelity.SAFE_COMMON_EDIT },
         )
     }

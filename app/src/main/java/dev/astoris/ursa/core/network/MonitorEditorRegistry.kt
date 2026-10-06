@@ -53,6 +53,14 @@ enum class MonitorEditorField {
     GLOBALPING_IP_FAMILY,
     GLOBALPING_PROTOCOL,
     GLOBALPING_PING_COUNT,
+    GLOBALPING_RESOLVER,
+    GLOBALPING_DNS_RECORD_TYPE,
+    GLOBALPING_HTTP_METHOD,
+    GLOBALPING_HTTP_ACCEPTED_CODES,
+    GLOBALPING_HTTP_RESPONSE_CHECK,
+    GLOBALPING_HTTP_IGNORE_TLS,
+    GLOBALPING_HTTP_EXPIRY_NOTIFICATION,
+    GLOBALPING_HTTP_CACHE_BUST,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -233,8 +241,39 @@ object MonitorEditorRegistry {
                 MonitorEditorField.GLOBALPING_IP_FAMILY,
                 MonitorEditorField.GLOBALPING_PROTOCOL,
                 MonitorEditorField.GLOBALPING_PING_COUNT,
+                MonitorEditorField.GLOBALPING_RESOLVER,
+                MonitorEditorField.GLOBALPING_DNS_RECORD_TYPE,
+                MonitorEditorField.GLOBALPING_HTTP_METHOD,
+                MonitorEditorField.GLOBALPING_HTTP_ACCEPTED_CODES,
+                MonitorEditorField.GLOBALPING_HTTP_RESPONSE_CHECK,
+                MonitorEditorField.GLOBALPING_HTTP_IGNORE_TLS,
+                MonitorEditorField.GLOBALPING_HTTP_EXPIRY_NOTIFICATION,
+                MonitorEditorField.GLOBALPING_HTTP_CACHE_BUST,
+                MonitorEditorField.KEYWORD,
+                MonitorEditorField.INVERT_KEYWORD,
+                MonitorEditorField.JSON_QUERY_EXPRESSION,
+                MonitorEditorField.JSON_QUERY_OPERATOR,
+                MonitorEditorField.JSON_QUERY_EXPECTED_VALUE,
+                MonitorEditorField.WEBSOCKET_HEADERS,
+                MonitorEditorField.WEBSOCKET_AUTH_METHOD,
+                MonitorEditorField.WEBSOCKET_BASIC_USERNAME,
+                MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
+                MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+                MonitorEditorField.WEBSOCKET_OAUTH_AUTH_METHOD,
+                MonitorEditorField.WEBSOCKET_OAUTH_TOKEN_URL,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_ID,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_SECRET,
+                MonitorEditorField.WEBSOCKET_OAUTH_SCOPES,
+                MonitorEditorField.WEBSOCKET_OAUTH_AUDIENCE,
             ),
-            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+            sensitiveFields = setOf(
+                MonitorEditorField.WEBSOCKET_BASIC_PASSWORD,
+                MonitorEditorField.WEBSOCKET_BEARER_TOKEN,
+                MonitorEditorField.WEBSOCKET_OAUTH_CLIENT_SECRET,
+            ),
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+            help = MonitorEditorHelp.FULL_NATIVE,
         ),
         definition("grpc-keyword", "gRPC(s) - keyword"),
         definition(
@@ -615,11 +654,38 @@ object MonitorRoundTripGuard {
             if (definition.codec == MonitorEditorCodec.GLOBALPING) {
                 add("subtype")
                 add("hostname")
+                add("url")
                 add("port")
                 add("location")
                 add("ipFamily")
                 add("protocol")
                 add("ping_count")
+                add("dns_resolve_type")
+                add("dns_resolve_server")
+                add("method")
+                add("accepted_statuscodes")
+                add("ignoreTls")
+                add("expiryNotification")
+                add("cacheBust")
+                add("keyword")
+                add("invertKeyword")
+                add("jsonPath")
+                add("jsonPathOperator")
+                add("expectedValue")
+                add("headers")
+                add("authMethod")
+                add("basic_auth_user")
+                add("basic_auth_pass")
+                add("bearer_token")
+                add("oauth_auth_method")
+                add("oauth_token_url")
+                add("oauth_client_id")
+                add("oauth_client_secret")
+                add("oauth_scopes")
+                add("oauth_audience")
+                add("tlsCert")
+                add("tlsKey")
+                add("tlsCa")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

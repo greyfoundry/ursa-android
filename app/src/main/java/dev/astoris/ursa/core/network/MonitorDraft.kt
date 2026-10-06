@@ -130,6 +130,63 @@ enum class GlobalpingPingProtocol(val wireValue: String) {
     }
 }
 
+enum class GlobalpingDnsProtocol(val wireValue: String) {
+    UDP("UDP"),
+    TCP("TCP");
+
+    companion object {
+        fun fromWire(value: String?): GlobalpingDnsProtocol? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+enum class GlobalpingDnsRecordType(val wireValue: String) {
+    A("A"),
+    AAAA("AAAA"),
+    ANY("ANY"),
+    CNAME("CNAME"),
+    DNSKEY("DNSKEY"),
+    DS("DS"),
+    HTTPS("HTTPS"),
+    MX("MX"),
+    NS("NS"),
+    NSEC("NSEC"),
+    PTR("PTR"),
+    RRSIG("RRSIG"),
+    SOA("SOA"),
+    SRV("SRV"),
+    SVCB("SVCB"),
+    TXT("TXT");
+
+    companion object {
+        fun fromWire(value: String?): GlobalpingDnsRecordType? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+enum class GlobalpingHttpProtocol(val wireValue: String?) {
+    AUTO(null),
+    HTTP2("HTTP2");
+
+    companion object {
+        fun fromWire(value: String?): GlobalpingHttpProtocol? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+enum class GlobalpingHttpMethod(val wireValue: String) {
+    HEAD("HEAD"),
+    GET("GET"),
+    OPTIONS("OPTIONS");
+
+    companion object {
+        fun fromWire(value: String?): GlobalpingHttpMethod? = entries.firstOrNull { it.wireValue == value }
+    }
+}
+
+enum class GlobalpingHttpResponseCheck {
+    NONE,
+    KEYWORD,
+    JSON_QUERY,
+}
+
 data class MonitorHeaderDraft(
     val name: String = "",
     val value: String = "",
@@ -202,11 +259,22 @@ data class MonitorDraft(
     val ntpTimeOffsetThreshold: Int? = null,
     val ntpRootDispersionThreshold: Int? = null,
     val globalpingSubtype: GlobalpingSubtype? = null,
+    val globalpingOriginalSubtype: GlobalpingSubtype? = null,
     val globalpingTarget: String = "",
     val globalpingLocation: String = "",
     val globalpingIpFamily: GlobalpingIpFamily? = null,
     val globalpingPingProtocol: GlobalpingPingProtocol? = null,
     val globalpingPingCount: Int? = null,
+    val globalpingDnsProtocol: GlobalpingDnsProtocol? = null,
+    val globalpingDnsRecordType: GlobalpingDnsRecordType? = null,
+    val globalpingResolver: String = "",
+    val globalpingHttpProtocol: GlobalpingHttpProtocol? = null,
+    val globalpingHttpMethod: GlobalpingHttpMethod? = null,
+    val globalpingHttpAcceptedCodes: String = "200-299",
+    val globalpingHttpResponseCheck: GlobalpingHttpResponseCheck = GlobalpingHttpResponseCheck.NONE,
+    val globalpingHttpIgnoreTls: Boolean = false,
+    val globalpingHttpExpiryNotification: Boolean = false,
+    val globalpingHttpCacheBust: Boolean = false,
     val globalpingEditable: Boolean = true,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
@@ -243,6 +311,10 @@ data class MonitorDraft(
                 globalpingIpFamily = if (option.key == "globalping") GlobalpingIpFamily.AUTO else null,
                 globalpingPingProtocol = if (option.key == "globalping") GlobalpingPingProtocol.ICMP else null,
                 globalpingPingCount = if (option.key == "globalping") 3 else null,
+                globalpingDnsProtocol = if (option.key == "globalping") GlobalpingDnsProtocol.UDP else null,
+                globalpingDnsRecordType = if (option.key == "globalping") GlobalpingDnsRecordType.A else null,
+                globalpingHttpProtocol = if (option.key == "globalping") GlobalpingHttpProtocol.AUTO else null,
+                globalpingHttpMethod = if (option.key == "globalping") GlobalpingHttpMethod.GET else null,
             )
         }
 
@@ -300,6 +372,16 @@ enum class MonitorDraftError {
     GLOBALPING_PROTOCOL_INVALID,
     GLOBALPING_PORT_REQUIRED,
     GLOBALPING_PING_COUNT_INVALID,
+    GLOBALPING_RESOLVER_INVALID,
+    GLOBALPING_DNS_RECORD_TYPE_INVALID,
+    GLOBALPING_HTTP_URL_INVALID,
+    GLOBALPING_HTTP_METHOD_INVALID,
+    GLOBALPING_HTTP_STATUS_CODES_REQUIRED,
+    GLOBALPING_HTTP_STATUS_CODE_INVALID,
+    GLOBALPING_HTTP_KEYWORD_REQUIRED,
+    GLOBALPING_HTTP_JSON_QUERY_EXPRESSION_REQUIRED,
+    GLOBALPING_HTTP_JSON_QUERY_OPERATOR_INVALID,
+    GLOBALPING_HTTP_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -310,7 +392,11 @@ object MonitorDraftCodec {
         val id = raw.int("id")?.takeIf { it > 0 } ?: return null
         val type = raw.string("type") ?: return null
         val option = MonitorTypeCatalog.find(type)
-        val websocketHeaders = parseWebsocketHeaders(raw.string("headers"), type)
+        val rawGlobalpingSubtype = raw.string("subtype")
+        val globalpingSubtype = GlobalpingSubtype.fromWire(rawGlobalpingSubtype)
+        val usesRequestOptions = type == "websocket-upgrade" ||
+            type == "globalping" && globalpingSubtype == GlobalpingSubtype.HTTP
+        val websocketHeaders = parseRequestHeaders(raw.string("headers"), usesRequestOptions)
         val rawWebsocketAuthMethod = raw.string("authMethod")
         val websocketAuthMethod = WebSocketAuthMethod.fromWire(rawWebsocketAuthMethod)
         val websocketOAuthAuthMethod = WebSocketOAuthAuthMethod.fromWire(raw.string("oauth_auth_method"))
@@ -318,12 +404,28 @@ object MonitorDraftCodec {
         val mqttCheckType = MqttCheckType.fromWire(rawMqttCheckType)
         val rawSmtpSecurity = raw.string("smtpSecurity")
         val smtpSecurityMode = SmtpSecurityMode.fromWire(rawSmtpSecurity)
-        val rawGlobalpingSubtype = raw.string("subtype")
-        val globalpingSubtype = GlobalpingSubtype.fromWire(rawGlobalpingSubtype)
         val rawGlobalpingIpFamily = raw.string("ipFamily")
         val globalpingIpFamily = GlobalpingIpFamily.fromWire(rawGlobalpingIpFamily)
         val rawGlobalpingProtocol = raw.string("protocol")
         val globalpingPingProtocol = GlobalpingPingProtocol.fromWire(rawGlobalpingProtocol)
+        val globalpingDnsProtocol = GlobalpingDnsProtocol.fromWire(rawGlobalpingProtocol)
+        val globalpingDnsRecordType = GlobalpingDnsRecordType.fromWire(raw.string("dns_resolve_type"))
+        val globalpingHttpProtocol = GlobalpingHttpProtocol.fromWire(rawGlobalpingProtocol)
+        val globalpingHttpMethod = GlobalpingHttpMethod.fromWire(raw.string("method"))
+        val globalpingHttpAcceptedCodes = (raw["accepted_statuscodes"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+            ?.joinToString(", ")
+            ?.takeIf(String::isNotBlank)
+            ?: "200-299"
+        val globalpingHttpResponseCheck = when {
+            raw.string("keyword").isNullOrEmpty().not() -> GlobalpingHttpResponseCheck.KEYWORD
+            raw.string("expectedValue").isNullOrEmpty().not() -> GlobalpingHttpResponseCheck.JSON_QUERY
+            else -> GlobalpingHttpResponseCheck.NONE
+        }
+        val requestAuthEditable = !usesRequestOptions ||
+            websocketAuthMethod != null &&
+            (websocketAuthMethod != WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS || websocketOAuthAuthMethod != null) &&
+            (type != "globalping" || websocketAuthMethod != WebSocketAuthMethod.MTLS)
         return MonitorDraft(
             id = id,
             type = type,
@@ -365,26 +467,21 @@ object MonitorDraftCodec {
             websocketHeaders = websocketHeaders.drafts,
             websocketHeadersEditable = websocketHeaders.editable,
             websocketAuthMethod = websocketAuthMethod ?: WebSocketAuthMethod.NONE,
-            websocketOriginalAuthMethod = if (type == "websocket-upgrade") websocketAuthMethod else null,
-            websocketAuthEditable = type != "websocket-upgrade" ||
-                websocketAuthMethod != null &&
-                (
-                    websocketAuthMethod != WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS ||
-                        websocketOAuthAuthMethod != null
-                    ),
-            websocketBasicUsername = if (type == "websocket-upgrade") {
+            websocketOriginalAuthMethod = if (usesRequestOptions) websocketAuthMethod else null,
+            websocketAuthEditable = requestAuthEditable,
+            websocketBasicUsername = if (usesRequestOptions) {
                 raw.string("basic_auth_user").orEmpty()
             } else {
                 ""
             },
-            websocketHasSavedBasicPassword = type == "websocket-upgrade" &&
+            websocketHasSavedBasicPassword = usesRequestOptions &&
                 raw.string("basic_auth_pass")?.isNotEmpty() == true,
-            websocketHasSavedBearerToken = type == "websocket-upgrade" &&
+            websocketHasSavedBearerToken = usesRequestOptions &&
                 raw.string("bearer_token")?.isNotEmpty() == true,
             websocketOAuthAuthMethod = websocketOAuthAuthMethod ?: WebSocketOAuthAuthMethod.AUTHORIZATION_HEADER,
             websocketOAuthTokenUrl = raw.string("oauth_token_url").orEmpty(),
             websocketOAuthClientId = raw.string("oauth_client_id").orEmpty(),
-            websocketHasSavedOAuthClientSecret = type == "websocket-upgrade" &&
+            websocketHasSavedOAuthClientSecret = usesRequestOptions &&
                 raw.string("oauth_client_secret")?.isNotEmpty() == true,
             websocketOAuthScopes = raw.string("oauth_scopes").orEmpty(),
             websocketOAuthAudience = raw.string("oauth_audience").orEmpty(),
@@ -409,6 +506,7 @@ object MonitorDraftCodec {
             ntpTimeOffsetThreshold = raw.int("ntpTimeOffsetThreshold"),
             ntpRootDispersionThreshold = raw.int("ntpRootDispersionThreshold"),
             globalpingSubtype = globalpingSubtype,
+            globalpingOriginalSubtype = if (type == "globalping") globalpingSubtype else null,
             globalpingTarget = when (globalpingSubtype) {
                 GlobalpingSubtype.HTTP -> raw.string("url")
                 GlobalpingSubtype.PING, GlobalpingSubtype.DNS -> raw.string("hostname")
@@ -418,11 +516,26 @@ object MonitorDraftCodec {
             globalpingIpFamily = globalpingIpFamily,
             globalpingPingProtocol = globalpingPingProtocol,
             globalpingPingCount = raw.int("ping_count"),
-            globalpingEditable = type != "globalping" || (
-                globalpingSubtype == GlobalpingSubtype.PING &&
-                    globalpingPingProtocol != null &&
-                    (rawGlobalpingIpFamily == null || globalpingIpFamily != null)
-                ),
+            globalpingDnsProtocol = globalpingDnsProtocol,
+            globalpingDnsRecordType = globalpingDnsRecordType,
+            globalpingResolver = raw.string("dns_resolve_server").orEmpty(),
+            globalpingHttpProtocol = globalpingHttpProtocol,
+            globalpingHttpMethod = globalpingHttpMethod,
+            globalpingHttpAcceptedCodes = globalpingHttpAcceptedCodes,
+            globalpingHttpResponseCheck = globalpingHttpResponseCheck,
+            globalpingHttpIgnoreTls = raw.boolean("ignoreTls"),
+            globalpingHttpExpiryNotification = raw.boolean("expiryNotification"),
+            globalpingHttpCacheBust = raw.boolean("cacheBust"),
+            globalpingEditable = type != "globalping" ||
+                (rawGlobalpingIpFamily == null || globalpingIpFamily != null) &&
+                when (globalpingSubtype) {
+                    GlobalpingSubtype.PING -> globalpingPingProtocol != null
+                    GlobalpingSubtype.DNS -> globalpingDnsProtocol != null && globalpingDnsRecordType != null
+                    GlobalpingSubtype.HTTP -> globalpingHttpProtocol != null &&
+                        globalpingHttpMethod != null &&
+                        httpStatusCodes(globalpingHttpAcceptedCodes) != null
+                    null -> false
+                },
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -495,16 +608,74 @@ object MonitorDraftCodec {
             }
         }
         if (definition.validation == MonitorEditorValidation.GLOBALPING && draft.globalpingEditable) {
-            if (!isValidHostOrIp(draft.globalpingTarget)) return MonitorDraftError.GLOBALPING_HOST_INVALID
             if (draft.globalpingLocation.trim().isEmpty()) return MonitorDraftError.GLOBALPING_LOCATION_REQUIRED
             if (',' in draft.globalpingLocation) return MonitorDraftError.GLOBALPING_LOCATION_MULTIPLE
-            val protocol = draft.globalpingPingProtocol
-                ?: return MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
-            if (protocol == GlobalpingPingProtocol.TCP && (draft.port ?: 0) !in 1..65_535) {
-                return MonitorDraftError.GLOBALPING_PORT_REQUIRED
+            if (draft.globalpingResolver.isNotBlank() && !isValidHostOrIp(draft.globalpingResolver)) {
+                return MonitorDraftError.GLOBALPING_RESOLVER_INVALID
             }
-            if ((draft.globalpingPingCount ?: 0) !in 1..100) {
-                return MonitorDraftError.GLOBALPING_PING_COUNT_INVALID
+            when (draft.globalpingSubtype) {
+                GlobalpingSubtype.PING -> {
+                    if (!isValidHostOrIp(draft.globalpingTarget)) {
+                        return MonitorDraftError.GLOBALPING_HOST_INVALID
+                    }
+                    val protocol = draft.globalpingPingProtocol
+                        ?: return MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
+                    if (protocol == GlobalpingPingProtocol.TCP && (draft.port ?: 0) !in 1..65_535) {
+                        return MonitorDraftError.GLOBALPING_PORT_REQUIRED
+                    }
+                    if ((draft.globalpingPingCount ?: 0) !in 1..100) {
+                        return MonitorDraftError.GLOBALPING_PING_COUNT_INVALID
+                    }
+                }
+                GlobalpingSubtype.DNS -> {
+                    if (!isValidHostOrIp(draft.globalpingTarget)) {
+                        return MonitorDraftError.GLOBALPING_HOST_INVALID
+                    }
+                    if (draft.port !in 1..65_535) return MonitorDraftError.GLOBALPING_PORT_REQUIRED
+                    if (draft.globalpingDnsProtocol == null) {
+                        return MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
+                    }
+                    if (draft.globalpingDnsRecordType == null) {
+                        return MonitorDraftError.GLOBALPING_DNS_RECORD_TYPE_INVALID
+                    }
+                }
+                GlobalpingSubtype.HTTP -> {
+                    val uri = runCatching { URI(draft.globalpingTarget.trim()) }.getOrNull()
+                    if (uri?.scheme?.lowercase() !in setOf("http", "https") || uri?.host.isNullOrBlank()) {
+                        return MonitorDraftError.GLOBALPING_HTTP_URL_INVALID
+                    }
+                    if (draft.globalpingHttpProtocol == null) {
+                        return MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
+                    }
+                    if (draft.globalpingHttpMethod == null) {
+                        return MonitorDraftError.GLOBALPING_HTTP_METHOD_INVALID
+                    }
+                    if (draft.globalpingHttpAcceptedCodes.isBlank()) {
+                        return MonitorDraftError.GLOBALPING_HTTP_STATUS_CODES_REQUIRED
+                    }
+                    if (httpStatusCodes(draft.globalpingHttpAcceptedCodes) == null) {
+                        return MonitorDraftError.GLOBALPING_HTTP_STATUS_CODE_INVALID
+                    }
+                    when (draft.globalpingHttpResponseCheck) {
+                        GlobalpingHttpResponseCheck.NONE -> Unit
+                        GlobalpingHttpResponseCheck.KEYWORD -> if (draft.keyword.isEmpty()) {
+                            return MonitorDraftError.GLOBALPING_HTTP_KEYWORD_REQUIRED
+                        }
+                        GlobalpingHttpResponseCheck.JSON_QUERY -> {
+                            if (draft.jsonQueryExpression.isEmpty()) {
+                                return MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_EXPRESSION_REQUIRED
+                            }
+                            if (draft.jsonQueryOperator !in JSON_QUERY_OPERATORS) {
+                                return MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_OPERATOR_INVALID
+                            }
+                            if (draft.jsonQueryExpectedValue.isEmpty()) {
+                                return MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_EXPECTED_VALUE_REQUIRED
+                            }
+                        }
+                    }
+                    validateRequestOptions(draft, allowMtls = false)?.let { return it }
+                }
+                null -> return MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
             }
         }
         if (definition.validation == MonitorEditorValidation.SFTP) {
@@ -541,83 +712,79 @@ object MonitorDraftCodec {
             val acceptedCodes = websocketAcceptedCodes(draft.websocketAcceptedCodes)
             if (draft.websocketAcceptedCodes.isBlank()) return MonitorDraftError.WEBSOCKET_ACCEPTED_CODES_REQUIRED
             if (acceptedCodes == null) return MonitorDraftError.WEBSOCKET_ACCEPTED_CODE_INVALID
-            if (draft.websocketHeadersEditable) {
-                if (draft.websocketHeaders.size > WEBSOCKET_HEADER_LIMIT) {
-                    return MonitorDraftError.WEBSOCKET_TOO_MANY_HEADERS
-                }
-                val names = mutableSetOf<String>()
-                draft.websocketHeaders.forEach { header ->
-                    val canKeepSaved = header.hasSavedValue &&
-                        header.originalName?.equals(header.name.trim(), ignoreCase = true) == true
-                    if (header.value.isBlank() && !canKeepSaved) {
-                        return MonitorDraftError.WEBSOCKET_HEADER_VALUE_REQUIRED
-                    }
-                    val value = header.value.ifBlank { "saved" }
-                    val normalized = RequestHeader(header.name, value).normalizedOrNull()
-                        ?: return MonitorDraftError.WEBSOCKET_HEADER_INVALID
-                    if (!names.add(normalized.name.lowercase())) {
-                        return MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE
-                    }
-                }
-            }
-            if (draft.websocketAuthEditable) {
-                when (draft.websocketAuthMethod) {
-                    WebSocketAuthMethod.NONE -> Unit
-                    WebSocketAuthMethod.BASIC -> {
-                        val canKeepSaved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BASIC &&
-                            draft.websocketHasSavedBasicPassword
-                        if (draft.websocketBasicPassword.isEmpty() && !canKeepSaved) {
-                            return MonitorDraftError.WEBSOCKET_BASIC_PASSWORD_REQUIRED
-                        }
-                    }
-                    WebSocketAuthMethod.BEARER -> {
-                        val canKeepSaved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BEARER &&
-                            draft.websocketHasSavedBearerToken
-                        if (draft.websocketBearerToken.isEmpty() && !canKeepSaved) {
-                            return MonitorDraftError.WEBSOCKET_BEARER_TOKEN_REQUIRED
-                        }
-                    }
-                    WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS -> {
-                        if (draft.websocketOAuthTokenUrl.trim().isEmpty()) {
-                            return MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_REQUIRED
-                        }
-                        val tokenUri = runCatching { URI(draft.websocketOAuthTokenUrl.trim()) }.getOrNull()
-                        if (
-                            tokenUri?.scheme?.lowercase() !in setOf("http", "https") ||
-                            tokenUri?.host.isNullOrBlank()
-                        ) {
-                            return MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_INVALID
-                        }
-                        if (draft.websocketOAuthClientId.trim().isEmpty()) {
-                            return MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_ID_REQUIRED
-                        }
-                        val canKeepSaved =
-                            draft.websocketOriginalAuthMethod == WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS &&
-                                draft.websocketHasSavedOAuthClientSecret
-                        if (draft.websocketOAuthClientSecret.isEmpty() && !canKeepSaved) {
-                            return MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED
-                        }
-                    }
-                    WebSocketAuthMethod.MTLS -> {
-                        val canKeepCertificate = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS &&
-                            draft.websocketHasSavedTlsCertificate
-                        if (draft.websocketTlsCertificate.isBlank() && !canKeepCertificate) {
-                            return MonitorDraftError.WEBSOCKET_MTLS_CERTIFICATE_REQUIRED
-                        }
-                        val canKeepPrivateKey = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS &&
-                            draft.websocketHasSavedTlsPrivateKey
-                        if (draft.websocketTlsPrivateKey.isBlank() && !canKeepPrivateKey) {
-                            return MonitorDraftError.WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED
-                        }
-                    }
-                }
-            }
+            validateRequestOptions(draft, allowMtls = true)?.let { return it }
         }
         if (draft.intervalSeconds < 1 || draft.retryIntervalSeconds < 1 || draft.resendIntervalSeconds < 0) {
             return MonitorDraftError.INVALID_INTERVAL
         }
         if (draft.maxRetries !in 0..100) return MonitorDraftError.INVALID_RETRIES
         return null
+    }
+
+    private fun validateRequestOptions(draft: MonitorDraft, allowMtls: Boolean): MonitorDraftError? {
+        if (draft.websocketHeadersEditable) {
+            if (draft.websocketHeaders.size > WEBSOCKET_HEADER_LIMIT) {
+                return MonitorDraftError.WEBSOCKET_TOO_MANY_HEADERS
+            }
+            val names = mutableSetOf<String>()
+            draft.websocketHeaders.forEach { header ->
+                val canKeepSaved = header.hasSavedValue &&
+                    header.originalName?.equals(header.name.trim(), ignoreCase = true) == true
+                if (header.value.isBlank() && !canKeepSaved) {
+                    return MonitorDraftError.WEBSOCKET_HEADER_VALUE_REQUIRED
+                }
+                val value = header.value.ifBlank { "saved" }
+                val normalized = RequestHeader(header.name, value).normalizedOrNull()
+                    ?: return MonitorDraftError.WEBSOCKET_HEADER_INVALID
+                if (!names.add(normalized.name.lowercase())) {
+                    return MonitorDraftError.WEBSOCKET_HEADER_DUPLICATE
+                }
+            }
+        }
+        if (!draft.websocketAuthEditable) return null
+        return when (draft.websocketAuthMethod) {
+            WebSocketAuthMethod.NONE -> null
+            WebSocketAuthMethod.BASIC -> {
+                val canKeepSaved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BASIC &&
+                    draft.websocketHasSavedBasicPassword
+                MonitorDraftError.WEBSOCKET_BASIC_PASSWORD_REQUIRED
+                    .takeIf { draft.websocketBasicPassword.isEmpty() && !canKeepSaved }
+            }
+            WebSocketAuthMethod.BEARER -> {
+                val canKeepSaved = draft.websocketOriginalAuthMethod == WebSocketAuthMethod.BEARER &&
+                    draft.websocketHasSavedBearerToken
+                MonitorDraftError.WEBSOCKET_BEARER_TOKEN_REQUIRED
+                    .takeIf { draft.websocketBearerToken.isEmpty() && !canKeepSaved }
+            }
+            WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS -> {
+                val tokenUrl = draft.websocketOAuthTokenUrl.trim()
+                val tokenUri = runCatching { URI(tokenUrl) }.getOrNull()
+                when {
+                    tokenUrl.isEmpty() -> MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_REQUIRED
+                    tokenUri?.scheme?.lowercase() !in setOf("http", "https") || tokenUri?.host.isNullOrBlank() ->
+                        MonitorDraftError.WEBSOCKET_OAUTH_TOKEN_URL_INVALID
+                    draft.websocketOAuthClientId.trim().isEmpty() ->
+                        MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_ID_REQUIRED
+                    draft.websocketOAuthClientSecret.isEmpty() &&
+                        !(draft.websocketOriginalAuthMethod == WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS &&
+                            draft.websocketHasSavedOAuthClientSecret) ->
+                        MonitorDraftError.WEBSOCKET_OAUTH_CLIENT_SECRET_REQUIRED
+                    else -> null
+                }
+            }
+            WebSocketAuthMethod.MTLS -> when {
+                !allowMtls -> MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
+                draft.websocketTlsCertificate.isBlank() &&
+                    !(draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS &&
+                        draft.websocketHasSavedTlsCertificate) ->
+                    MonitorDraftError.WEBSOCKET_MTLS_CERTIFICATE_REQUIRED
+                draft.websocketTlsPrivateKey.isBlank() &&
+                    !(draft.websocketOriginalAuthMethod == WebSocketAuthMethod.MTLS &&
+                        draft.websocketHasSavedTlsPrivateKey) ->
+                    MonitorDraftError.WEBSOCKET_MTLS_PRIVATE_KEY_REQUIRED
+                else -> null
+            }
+        }
     }
 
     fun applyToExisting(raw: JsonObject, draft: MonitorDraft): JsonObject {
@@ -823,18 +990,90 @@ object MonitorDraftCodec {
     private fun applyGlobalping(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
         if (
             MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.GLOBALPING ||
-            !draft.globalpingEditable ||
-            draft.globalpingSubtype != GlobalpingSubtype.PING
+            !draft.globalpingEditable
         ) {
             return
         }
-        values["subtype"] = JsonPrimitive(GlobalpingSubtype.PING.wireValue)
-        values["hostname"] = JsonPrimitive(draft.globalpingTarget.trim())
-        values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
+        val subtype = draft.globalpingSubtype ?: return
+        values["subtype"] = JsonPrimitive(subtype.wireValue)
         values["location"] = JsonPrimitive(draft.globalpingLocation.trim())
         values["ipFamily"] = draft.globalpingIpFamily?.wireValue?.let(::JsonPrimitive) ?: JsonNull
-        values["protocol"] = JsonPrimitive(draft.globalpingPingProtocol!!.wireValue)
-        values["ping_count"] = draft.globalpingPingCount?.let(::JsonPrimitive) ?: JsonNull
+        when (subtype) {
+            GlobalpingSubtype.PING -> {
+                values["hostname"] = JsonPrimitive(draft.globalpingTarget.trim())
+                values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
+                values["protocol"] = JsonPrimitive(draft.globalpingPingProtocol!!.wireValue)
+                values["ping_count"] = draft.globalpingPingCount?.let(::JsonPrimitive) ?: JsonNull
+            }
+            GlobalpingSubtype.DNS -> {
+                values["hostname"] = JsonPrimitive(draft.globalpingTarget.trim())
+                values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
+                values["protocol"] = JsonPrimitive(draft.globalpingDnsProtocol!!.wireValue)
+                values["dns_resolve_type"] = JsonPrimitive(draft.globalpingDnsRecordType!!.wireValue)
+                values["dns_resolve_server"] = JsonPrimitive(draft.globalpingResolver.trim())
+                values["keyword"] = JsonPrimitive(draft.keyword)
+            }
+            GlobalpingSubtype.HTTP -> {
+                values["url"] = JsonPrimitive(draft.globalpingTarget.trim())
+                values["protocol"] = draft.globalpingHttpProtocol?.wireValue?.let(::JsonPrimitive) ?: JsonNull
+                values["dns_resolve_server"] = JsonPrimitive(draft.globalpingResolver.trim())
+                values["method"] = JsonPrimitive(draft.globalpingHttpMethod!!.wireValue)
+                values["accepted_statuscodes"] = JsonArray(
+                    requireNotNull(httpStatusCodes(draft.globalpingHttpAcceptedCodes)).map(::JsonPrimitive),
+                )
+                values["ignoreTls"] = JsonPrimitive(draft.globalpingHttpIgnoreTls)
+                values["expiryNotification"] = JsonPrimitive(draft.globalpingHttpExpiryNotification)
+                values["cacheBust"] = JsonPrimitive(draft.globalpingHttpCacheBust)
+                applyGlobalpingHttpResponse(values, draft)
+                applyWebsocketHeaders(values, draft)
+                applyWebsocketAuth(values, draft)
+            }
+        }
+        if (draft.globalpingOriginalSubtype == GlobalpingSubtype.HTTP && subtype != GlobalpingSubtype.HTTP) {
+            clearGlobalpingHttpSecrets(values)
+        }
+    }
+
+    private fun applyGlobalpingHttpResponse(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+    ) {
+        when (draft.globalpingHttpResponseCheck) {
+            GlobalpingHttpResponseCheck.NONE -> {
+                values["keyword"] = JsonPrimitive("")
+                values["expectedValue"] = JsonPrimitive("")
+            }
+            GlobalpingHttpResponseCheck.KEYWORD -> {
+                values["keyword"] = JsonPrimitive(draft.keyword)
+                values["invertKeyword"] = JsonPrimitive(draft.invertKeyword)
+                values["expectedValue"] = JsonPrimitive("")
+            }
+            GlobalpingHttpResponseCheck.JSON_QUERY -> {
+                values["keyword"] = JsonPrimitive("")
+                values["jsonPath"] = JsonPrimitive(draft.jsonQueryExpression)
+                values["jsonPathOperator"] = JsonPrimitive(draft.jsonQueryOperator)
+                values["expectedValue"] = JsonPrimitive(draft.jsonQueryExpectedValue)
+            }
+        }
+    }
+
+    private fun clearGlobalpingHttpSecrets(values: MutableMap<String, JsonElement>) {
+        values["headers"] = JsonPrimitive("")
+        values["authMethod"] = JsonNull
+        listOf(
+            "basic_auth_user",
+            "basic_auth_pass",
+            "bearer_token",
+            "oauth_auth_method",
+            "oauth_token_url",
+            "oauth_client_id",
+            "oauth_client_secret",
+            "oauth_scopes",
+            "oauth_audience",
+            "tlsCert",
+            "tlsKey",
+            "tlsCa",
+        ).forEach { values[it] = JsonPrimitive("") }
     }
 
     private fun applyKeyword(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
@@ -997,6 +1236,9 @@ object MonitorDraftCodec {
 
     private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
     private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull
+    private fun JsonObject.boolean(key: String): Boolean = this[key]?.jsonPrimitive?.booleanOrNull
+        ?: int(key)?.let { it != 0 }
+        ?: false
 
     fun pushUrl(serverUrl: String, pushToken: String): String? {
         if (!isValidPushToken(pushToken)) return null
@@ -1019,16 +1261,31 @@ object MonitorDraftCodec {
         return codes.distinct().map(Int::toString)
     }
 
-    private fun parseWebsocketHeaders(raw: String?, type: String): ParsedWebsocketHeaders {
-        if (type != "websocket-upgrade" || raw.isNullOrBlank()) return ParsedWebsocketHeaders()
-        val parsed = parseHeaderObject(raw) ?: return ParsedWebsocketHeaders(editable = false)
-        if (parsed.size > WEBSOCKET_HEADER_LIMIT) return ParsedWebsocketHeaders(editable = false)
+    private fun httpStatusCodes(value: String): List<String>? {
+        val parts = value.split(',').map(String::trim)
+        if (parts.any(String::isEmpty)) return null
+        return parts.map { code ->
+            val range = HTTP_STATUS_RANGE.matchEntire(code)
+            if (range != null) {
+                val first = range.groupValues[1].toInt()
+                val last = range.groupValues[2].toInt()
+                code.takeIf { first in 100..999 && last in 100..999 && first <= last } ?: return null
+            } else {
+                code.toIntOrNull()?.takeIf { it in 100..999 }?.toString() ?: return null
+            }
+        }.distinct()
+    }
+
+    private fun parseRequestHeaders(raw: String?, supported: Boolean): ParsedRequestHeaders {
+        if (!supported || raw.isNullOrBlank()) return ParsedRequestHeaders()
+        val parsed = parseHeaderObject(raw) ?: return ParsedRequestHeaders(editable = false)
+        if (parsed.size > WEBSOCKET_HEADER_LIMIT) return ParsedRequestHeaders(editable = false)
         if (parsed.values.any { it !is JsonPrimitive || !it.isString }) {
-            return ParsedWebsocketHeaders(editable = false)
+            return ParsedRequestHeaders(editable = false)
         }
         val names = parsed.keys.map(String::lowercase)
-        if (names.distinct().size != names.size) return ParsedWebsocketHeaders(editable = false)
-        return ParsedWebsocketHeaders(
+        if (names.distinct().size != names.size) return ParsedRequestHeaders(editable = false)
+        return ParsedRequestHeaders(
             drafts = parsed.keys.map { name ->
                 MonitorHeaderDraft(name = name, originalName = name, hasSavedValue = true)
             },
@@ -1039,12 +1296,14 @@ object MonitorDraftCodec {
         ?.takeIf(String::isNotBlank)
         ?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() }
 
-    private data class ParsedWebsocketHeaders(
+    private data class ParsedRequestHeaders(
         val drafts: List<MonitorHeaderDraft> = emptyList(),
         val editable: Boolean = true,
     )
 
     const val WEBSOCKET_HEADER_LIMIT = 8
+
+    private val HTTP_STATUS_RANGE = Regex("^(\\d{3})-(\\d{3})$")
 
     private fun isValidMqttEndpoint(value: String): Boolean {
         val endpoint = value.trim()

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-05
+last-updated: 2026-10-06
 owner: astoris
 status: stable
 ---
@@ -115,15 +115,17 @@ route stack while screens migrate incrementally.
   headers, and masked Basic/Bearer/OAuth2/mTLS authentication, native MQTT
   connection/topic plus keyword and JSON-query checks, native SMTP host/port plus
   explicit SMTPS, plaintext, or required-STARTTLS selection, native NTP host/port
-  plus stratum, time-offset, and root-dispersion thresholds, native Globalping Ping
-  target/location/IP-family/protocol/packet controls with a conditional TCP port, native SFTP
+  plus stratum, time-offset, and root-dispersion thresholds, native subtype-aware
+  Globalping Ping, DNS, and HTTP controls, native SFTP
   password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
   server errors, and no raw JSON surface. Saved MQTT and SFTP secrets are never
   prefilled; blank fields retain them and replacements are masked by default. The
   SMTP form verifies connectivity only and does not collect mail credentials or
-  send email.
+  send email. Globalping HTTP reuses the eight-header limit and masked
+  Basic/Bearer/OAuth2 credential handling; mTLS is absent because Kuma does not
+  offer it for this subtype.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.

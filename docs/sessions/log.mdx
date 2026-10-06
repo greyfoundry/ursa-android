@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-05
+last-updated: 2026-10-06
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,30 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-06 - Complete native Globalping monitor editing
+
+**changed**: Completed the connected Globalping editor with native DNS and HTTP
+subtypes alongside Ping. DNS owns host, resolver, port, the exact Kuma 2.5.5 record
+catalogue, optional record match, and UDP/TCP. HTTP owns URL, resolver, protocol,
+HEAD/GET/OPTIONS, accepted statuses, TLS/expiry/cache-bust flags, response checks,
+bounded request headers, and Basic/Bearer/OAuth2 client credentials.
+
+**security and compatibility**: HTTP reuses the existing eight-header validator and
+presence-only secret model; saved header values, passwords, tokens, and client secrets
+never enter editable state. Unknown subtypes, future enums, unsupported mTLS, and
+future header/auth shapes remain opaque behind the fresh-object round-trip guard.
+DNS match input is passed to Kuma without JVM-regex prevalidation because the server
+evaluates JavaScript regular expressions.
+
+**verification**: Focused two-flavor codec/registry tests cover exact create and edit
+payloads, defaults, validation, secret retention/replacement/removal, subtype changes,
+and future-shape preservation. Android 17/live Kuma 2.5.5 QA created all three
+subtypes in one session, confirmed live responses and exact database fields, reloaded
+and edited DNS to AAAA/TCP with a new resolver, reloaded masked HTTP secrets, and
+applied HTTP2/HEAD/status/cache-bust/keyword edits. Confirmed deletion restored the
+original five-monitor inventory; Android runtime crash logs were empty and Kuma stayed
+healthy apart from the expected inactive UnifiedPush test-subscriber notification.
 
 ### 2026-10-05 - Native Globalping Ping monitor editing
 

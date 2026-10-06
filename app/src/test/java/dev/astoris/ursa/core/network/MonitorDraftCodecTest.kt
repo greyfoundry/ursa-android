@@ -453,11 +453,262 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun globalpingDnsCreateAndEditUseVerifiedFields() {
+        val createdDraft = MonitorDraft.create("globalping").copy(
+            name = "Global DNS",
+            globalpingSubtype = GlobalpingSubtype.DNS,
+            globalpingTarget = "example.com",
+            globalpingDnsProtocol = GlobalpingDnsProtocol.UDP,
+            globalpingDnsRecordType = GlobalpingDnsRecordType.AAAA,
+            globalpingResolver = "1.1.1.1",
+            port = 53,
+            keyword = "^2606:",
+        )
+
+        assertNull(MonitorDraftCodec.validate(createdDraft))
+        val created = MonitorDraftCodec.newPayload(createdDraft)
+        assertEquals("dns", created["subtype"]!!.jsonPrimitive.content)
+        assertEquals("example.com", created["hostname"]!!.jsonPrimitive.content)
+        assertEquals(53, created["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals("UDP", created["protocol"]!!.jsonPrimitive.content)
+        assertEquals("AAAA", created["dns_resolve_type"]!!.jsonPrimitive.content)
+        assertEquals("1.1.1.1", created["dns_resolve_server"]!!.jsonPrimitive.content)
+        assertEquals("^2606:", created["keyword"]!!.jsonPrimitive.content)
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":51,"type":"globalping","subtype":"dns","name":"DNS edge",
+                "hostname":"example.com","port":53,"location":"world","ipFamily":null,
+                "protocol":"UDP","dns_resolve_type":"A","dns_resolve_server":"",
+                "keyword":"","dns_last_result":"93.184.216.34","interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "futureGlobalping":{"routing":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+        assertTrue(loaded.globalpingEditable)
+        assertEquals(GlobalpingSubtype.DNS, loaded.globalpingSubtype)
+        val updated = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(
+                globalpingDnsProtocol = GlobalpingDnsProtocol.TCP,
+                globalpingDnsRecordType = GlobalpingDnsRecordType.TXT,
+                globalpingResolver = "8.8.8.8",
+                port = 5353,
+                keyword = "verification",
+            ),
+        )!!
+        assertEquals("TCP", updated["protocol"]!!.jsonPrimitive.content)
+        assertEquals("TXT", updated["dns_resolve_type"]!!.jsonPrimitive.content)
+        assertEquals("8.8.8.8", updated["dns_resolve_server"]!!.jsonPrimitive.content)
+        assertEquals(5353, updated["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals("verification", updated["keyword"]!!.jsonPrimitive.content)
+        assertEquals(raw["dns_last_result"], updated["dns_last_result"])
+        assertEquals(raw["futureGlobalping"], updated["futureGlobalping"])
+    }
+
+    @Test
+    fun globalpingDnsValidationRejectsInvalidSubtypeFields() {
+        val draft = MonitorDraft.create("globalping").copy(
+            name = "Global DNS",
+            globalpingSubtype = GlobalpingSubtype.DNS,
+            globalpingTarget = "example.com",
+            globalpingDnsProtocol = GlobalpingDnsProtocol.UDP,
+            globalpingDnsRecordType = GlobalpingDnsRecordType.A,
+            port = 53,
+        )
+
+        assertEquals(
+            MonitorDraftError.GLOBALPING_RESOLVER_INVALID,
+            MonitorDraftCodec.validate(draft.copy(globalpingResolver = "https://1.1.1.1")),
+        )
+        assertEquals(
+            MonitorDraftError.GLOBALPING_PORT_REQUIRED,
+            MonitorDraftCodec.validate(draft.copy(port = 0)),
+        )
+    }
+
+    @Test
+    fun globalpingHttpCreateUsesRequestAuthAndResponseFields() {
+        val draft = MonitorDraft.create("globalping").copy(
+            name = "Global HTTP",
+            globalpingSubtype = GlobalpingSubtype.HTTP,
+            globalpingTarget = "https://example.com/health?ready=1",
+            globalpingResolver = "1.1.1.1",
+            globalpingHttpProtocol = GlobalpingHttpProtocol.HTTP2,
+            globalpingHttpMethod = GlobalpingHttpMethod.HEAD,
+            globalpingHttpAcceptedCodes = "200-299, 304",
+            globalpingHttpIgnoreTls = true,
+            globalpingHttpExpiryNotification = true,
+            globalpingHttpCacheBust = true,
+            globalpingHttpResponseCheck = GlobalpingHttpResponseCheck.KEYWORD,
+            keyword = "ready",
+            websocketHeaders = listOf(MonitorHeaderDraft(name = "X-Tenant", value = "primary")),
+            websocketAuthMethod = WebSocketAuthMethod.BASIC,
+            websocketBasicUsername = "probe",
+            websocketBasicPassword = "secret",
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val created = MonitorDraftCodec.newPayload(draft)
+        assertEquals("http", created["subtype"]!!.jsonPrimitive.content)
+        assertEquals("https://example.com/health?ready=1", created["url"]!!.jsonPrimitive.content)
+        assertEquals("HTTP2", created["protocol"]!!.jsonPrimitive.content)
+        assertEquals("HEAD", created["method"]!!.jsonPrimitive.content)
+        assertEquals(
+            listOf("200-299", "304"),
+            created["accepted_statuscodes"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
+        assertTrue(created["ignoreTls"]!!.jsonPrimitive.content.toBoolean())
+        assertTrue(created["expiryNotification"]!!.jsonPrimitive.content.toBoolean())
+        assertTrue(created["cacheBust"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals("ready", created["keyword"]!!.jsonPrimitive.content)
+        assertEquals("basic", created["authMethod"]!!.jsonPrimitive.content)
+        assertEquals("secret", created["basic_auth_pass"]!!.jsonPrimitive.content)
+        assertEquals(
+            "primary",
+            Json.parseToJsonElement(created["headers"]!!.jsonPrimitive.content)
+                .jsonObject["X-Tenant"]!!.jsonPrimitive.content,
+        )
+    }
+
+    @Test
+    fun globalpingHttpEditMasksSecretsAndSubtypeChangeClearsThem() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":52,"type":"globalping","subtype":"http","name":"HTTP edge",
+                "url":"https://example.com/health","location":"world","ipFamily":null,
+                "protocol":null,"method":"GET","accepted_statuscodes":["200-299"],
+                "dns_resolve_server":"1.1.1.1","ignoreTls":false,"expiryNotification":true,
+                "cacheBust":false,"headers":"{\"X-API-Key\":\"saved-key\"}",
+                "authMethod":"basic","basic_auth_user":"probe","basic_auth_pass":"saved-password",
+                "keyword":"","expectedValue":"","interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "futureGlobalping":{"routing":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.globalpingEditable)
+        assertEquals(GlobalpingHttpProtocol.AUTO, loaded.globalpingHttpProtocol)
+        assertEquals(listOf("X-API-Key"), loaded.websocketHeaders.map { it.name })
+        assertTrue(loaded.websocketHeaders.single().hasSavedValue)
+        assertTrue(loaded.websocketHasSavedBasicPassword)
+        assertTrue(loaded.websocketBasicPassword.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+
+        val retained = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(globalpingHttpAcceptedCodes = "200-299, 304"),
+        )!!
+        assertEquals("saved-password", retained["basic_auth_pass"]!!.jsonPrimitive.content)
+        assertEquals(raw["headers"], retained["headers"])
+        assertEquals(raw["futureGlobalping"], retained["futureGlobalping"])
+
+        val switched = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(
+                globalpingSubtype = GlobalpingSubtype.DNS,
+                globalpingTarget = "example.com",
+                globalpingDnsProtocol = GlobalpingDnsProtocol.UDP,
+                globalpingDnsRecordType = GlobalpingDnsRecordType.A,
+                port = 53,
+            ),
+        )!!
+        assertEquals("dns", switched["subtype"]!!.jsonPrimitive.content)
+        assertTrue(switched["authMethod"] is JsonNull)
+        assertEquals("", switched["headers"]!!.jsonPrimitive.content)
+        assertEquals("", switched["basic_auth_pass"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun globalpingHttpOAuthSecretsAndFutureRequestShapesStayOpaque() {
+        val oauthRaw = Json.parseToJsonElement(
+            """{
+                "id":54,"type":"globalping","subtype":"http","name":"OAuth edge",
+                "url":"https://example.com","location":"world","ipFamily":null,"protocol":null,
+                "method":"GET","accepted_statuscodes":["200-299"],"authMethod":"oauth2-cc",
+                "oauth_auth_method":"client_secret_post","oauth_token_url":"https://id.example.com/token",
+                "oauth_client_id":"probe","oauth_client_secret":"saved-secret","oauth_scopes":"read",
+                "oauth_audience":"globalping","interval":60,"retryInterval":60,"resendInterval":0,
+                "maxretries":0,"active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val oauthDraft = MonitorDraftCodec.from(oauthRaw)!!
+        assertTrue(oauthDraft.websocketAuthEditable)
+        assertTrue(oauthDraft.websocketHasSavedOAuthClientSecret)
+        assertTrue(oauthDraft.websocketOAuthClientSecret.isEmpty())
+        assertNull(MonitorDraftCodec.validate(oauthDraft))
+        val retained = MonitorDraftCodec.safeExistingPayload(oauthRaw, oauthDraft.copy(name = "Renamed"))!!
+        assertEquals("saved-secret", retained["oauth_client_secret"]!!.jsonPrimitive.content)
+        val replaced = MonitorDraftCodec.safeExistingPayload(
+            oauthRaw,
+            oauthDraft.copy(websocketOAuthClientSecret = "replacement-secret"),
+        )!!
+        assertEquals("replacement-secret", replaced["oauth_client_secret"]!!.jsonPrimitive.content)
+
+        val futureRaw = Json.parseToJsonElement(
+            """{
+                "id":55,"type":"globalping","subtype":"http","name":"Future edge",
+                "url":"https://example.com","location":"world","ipFamily":null,"protocol":null,
+                "method":"GET","accepted_statuscodes":["200-299"],
+                "headers":"{\"X-List\":[\"one\",\"two\"]}","authMethod":"future-auth",
+                "future_secret":"opaque","interval":60,"retryInterval":60,"resendInterval":0,
+                "maxretries":0,"active":true,"notificationIDList":{}
+            }""",
+        ).jsonObject
+        val futureDraft = MonitorDraftCodec.from(futureRaw)!!
+        assertTrue(futureDraft.globalpingEditable)
+        assertFalse(futureDraft.websocketHeadersEditable)
+        assertFalse(futureDraft.websocketAuthEditable)
+        val futureUpdated = MonitorDraftCodec.safeExistingPayload(
+            futureRaw,
+            futureDraft.copy(globalpingLocation = "germany"),
+        )!!
+        assertEquals(futureRaw["headers"], futureUpdated["headers"])
+        assertEquals(futureRaw["authMethod"], futureUpdated["authMethod"])
+        assertEquals(futureRaw["future_secret"], futureUpdated["future_secret"])
+    }
+
+    @Test
+    fun globalpingHttpJsonResponseAndStatusValidationMatchKuma() {
+        val base = MonitorDraft.create("globalping").copy(
+            name = "Global HTTP",
+            globalpingSubtype = GlobalpingSubtype.HTTP,
+            globalpingTarget = "https://example.com/health",
+            globalpingHttpResponseCheck = GlobalpingHttpResponseCheck.JSON_QUERY,
+            jsonQueryExpression = "status",
+            jsonQueryOperator = "==",
+            jsonQueryExpectedValue = "ready",
+        )
+
+        assertNull(MonitorDraftCodec.validate(base))
+        listOf("", "99", "1000", "299-200", "200-299,").forEach { invalid ->
+            assertTrue(
+                MonitorDraftCodec.validate(base.copy(globalpingHttpAcceptedCodes = invalid)) in setOf(
+                    MonitorDraftError.GLOBALPING_HTTP_STATUS_CODES_REQUIRED,
+                    MonitorDraftError.GLOBALPING_HTTP_STATUS_CODE_INVALID,
+                ),
+            )
+        }
+        assertEquals(
+            MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_OPERATOR_INVALID,
+            MonitorDraftCodec.validate(base.copy(jsonQueryOperator = "matches")),
+        )
+        val payload = MonitorDraftCodec.newPayload(base)
+        assertEquals("", payload["keyword"]!!.jsonPrimitive.content)
+        assertEquals("status", payload["jsonPath"]!!.jsonPrimitive.content)
+        assertEquals("==", payload["jsonPathOperator"]!!.jsonPrimitive.content)
+        assertEquals("ready", payload["expectedValue"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun unsupportedGlobalpingVariantsRemainOpaque() {
         val unsupportedVariants = listOf(
             """{"id":48,"type":"globalping","subtype":"http","name":"HTTP edge","url":"https://example.com","location":"world","protocol":"GET","futureGlobalping":1}""",
             """{"id":49,"type":"globalping","subtype":"ping","name":"Future ping","hostname":"example.com","location":"world","protocol":"QUIC","futureGlobalping":2}""",
             """{"id":50,"type":"globalping","subtype":"ping","name":"Future family","hostname":"example.com","location":"world","protocol":"ICMP","ipFamily":"ipv8","futureGlobalping":3}""",
+            """{"id":53,"type":"globalping","subtype":"dns","name":"Future DNS","hostname":"example.com","location":"world","protocol":"UDP","dns_resolve_type":"CAA","futureGlobalping":4}""",
         )
 
         unsupportedVariants.forEach { encoded ->

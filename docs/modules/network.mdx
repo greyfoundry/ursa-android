@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-05
+last-updated: 2026-10-06
 owner: astoris
 status: stable
 ---
@@ -89,7 +89,7 @@ here so the rest of the app sees clean domain models.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
-  NTP, Globalping Ping, and SFTP create flows. Keyword monitors map
+  NTP, Globalping Ping/DNS/HTTP, and SFTP create flows. Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
@@ -118,11 +118,12 @@ here so the rest of the app sees clean domain models.
   NTP maps host/UDP port and the stratum, absolute-offset, and root-dispersion
   thresholds. New drafts match Kuma's port 123, five-minute interval, 48-second
   timeout, and 5/1000/500 threshold defaults; existing null values remain null.
-  Globalping Ping maps the target hostname/IP, one probe-location filter, automatic
-  or explicit IP family, ICMP/TCP protocol, conditional TCP port, and 1-100 packet
-  count. New drafts match Kuma's `world`, automatic-family, ICMP, port 80, three-packet,
-  and 48-second defaults. HTTP, DNS, unknown protocols, and unknown IP-family values
-  stay opaque until their dedicated codecs are implemented.
+  Globalping maps all three Kuma 2.5.5 subtypes through one editor contract. Ping
+  owns target, location, IP family, ICMP/TCP, conditional port, and packet count.
+  DNS owns host, optional resolver, port, record type, optional match expression,
+  and UDP/TCP. HTTP owns URL, optional resolver, protocol/method, accepted statuses,
+  TLS/expiry/cache-bust flags, response checks, and the existing bounded masked
+  header/authentication contracts. Unknown subtypes and future enums stay opaque.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
@@ -188,9 +189,10 @@ here so the rest of the app sees clean domain models.
   connection, topic, and message-check fields while retaining future modes and
   conditions. SMTP supports host, port, and transport-security mode while
   preserving expiry/TLS and future fields. NTP supports its three quality
-  thresholds while retaining unrelated future fields. Globalping Ping supports its
-  target, one location filter, IP family, protocol, conditional port, and packet count
-  while retaining unrelated future fields; other Globalping subtypes remain opaque.
+  thresholds while retaining unrelated future fields. Globalping supports its Ping,
+  DNS, and HTTP subtype fields while retaining unrelated future fields. Saved HTTP
+  headers and credentials become presence-only draft state; blank values retain the
+  fresh server secret only while the same entry or method remains selected.
   SFTP supports username, path,
   password, private key, and optional passphrase replacement without exposing saved
   secret values. Other credentials, advanced settings, and fields introduced by

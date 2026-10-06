@@ -55,7 +55,13 @@ import dev.astoris.ursa.core.network.LocalServiceDiscoveryError
 import dev.astoris.ursa.core.network.LocalServiceDiscoveryState
 import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.GlobalpingIpFamily
+import dev.astoris.ursa.core.network.GlobalpingDnsProtocol
+import dev.astoris.ursa.core.network.GlobalpingDnsRecordType
+import dev.astoris.ursa.core.network.GlobalpingHttpMethod
+import dev.astoris.ursa.core.network.GlobalpingHttpProtocol
+import dev.astoris.ursa.core.network.GlobalpingHttpResponseCheck
 import dev.astoris.ursa.core.network.GlobalpingPingProtocol
+import dev.astoris.ursa.core.network.GlobalpingSubtype
 import dev.astoris.ursa.core.network.MonitorDraftCodec
 import dev.astoris.ursa.core.network.MonitorDraftError
 import dev.astoris.ursa.core.network.MonitorEditorCodec
@@ -284,7 +290,7 @@ private fun MonitorForm(
             )
         }
         if (definition?.codec == MonitorEditorCodec.GLOBALPING) {
-            GlobalpingPingFields(draft = draft, onDraftChange = onDraftChange)
+            GlobalpingFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (draft.type == "push") {
             PushMonitorSetup(
@@ -767,6 +773,7 @@ private fun <T> List<T>.replaced(index: Int, value: T): List<T> =
 private fun WebsocketAuthFields(
     draft: MonitorDraft,
     onDraftChange: (MonitorDraft) -> Unit,
+    allowMtls: Boolean = true,
 ) {
     Text(stringResource(R.string.monitor_websocket_auth_title), style = MaterialTheme.typography.titleSmall)
     if (!draft.websocketAuthEditable) {
@@ -798,7 +805,7 @@ private fun WebsocketAuthFields(
                 .fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            WebSocketAuthMethod.entries.forEach { method ->
+            WebSocketAuthMethod.entries.filter { allowMtls || it != WebSocketAuthMethod.MTLS }.forEach { method ->
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -857,7 +864,7 @@ private fun WebsocketAuthFields(
                 draft.websocketHasSavedBearerToken,
         )
         WebSocketAuthMethod.OAUTH2_CLIENT_CREDENTIALS -> WebsocketOAuthFields(draft, onDraftChange)
-        WebSocketAuthMethod.MTLS -> WebsocketMtlsFields(draft, onDraftChange)
+        WebSocketAuthMethod.MTLS -> if (allowMtls) WebsocketMtlsFields(draft, onDraftChange)
     }
 }
 
@@ -1366,10 +1373,7 @@ private fun NtpFields(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GlobalpingPingFields(
-    draft: MonitorDraft,
-    onDraftChange: (MonitorDraft) -> Unit,
-) {
+private fun GlobalpingFields(draft: MonitorDraft, onDraftChange: (MonitorDraft) -> Unit) {
     if (!draft.globalpingEditable) {
         Text(
             stringResource(R.string.monitor_globalping_browser_only),
@@ -1378,14 +1382,47 @@ private fun GlobalpingPingFields(
         )
         return
     }
+    var subtypeMenuOpen by remember { mutableStateOf(false) }
     var ipFamilyMenuOpen by remember { mutableStateOf(false) }
     var protocolMenuOpen by remember { mutableStateOf(false) }
+    var recordTypeMenuOpen by remember { mutableStateOf(false) }
+    var methodMenuOpen by remember { mutableStateOf(false) }
+    var responseMenuOpen by remember { mutableStateOf(false) }
+    var jsonOperatorMenuOpen by remember { mutableStateOf(false) }
+    val subtype = draft.globalpingSubtype ?: GlobalpingSubtype.PING
 
-    Text(stringResource(R.string.monitor_globalping_ping_title), style = MaterialTheme.typography.titleSmall)
+    Text(stringResource(R.string.monitor_globalping_title), style = MaterialTheme.typography.titleSmall)
+    ExposedDropdownMenuBox(expanded = subtypeMenuOpen, onExpandedChange = { subtypeMenuOpen = it }) {
+        OutlinedTextField(
+            value = stringResource(subtype.labelRes),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_globalping_subtype)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(subtypeMenuOpen) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = subtypeMenuOpen, onDismissRequest = { subtypeMenuOpen = false }) {
+            GlobalpingSubtype.entries.forEach { next ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(next.labelRes)) },
+                    onClick = {
+                        onDraftChange(draft.forGlobalpingSubtype(next))
+                        subtypeMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
     OutlinedTextField(
         value = draft.globalpingTarget,
-        onValueChange = { onDraftChange(draft.copy(globalpingTarget = it.take(253))) },
-        label = { Text(stringResource(R.string.monitor_host_label)) },
+        onValueChange = { onDraftChange(draft.copy(globalpingTarget = it.take(2_048))) },
+        label = {
+            Text(
+                stringResource(
+                    if (subtype == GlobalpingSubtype.HTTP) R.string.monitor_url_label else R.string.monitor_host_label,
+                ),
+            )
+        },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -1397,24 +1434,16 @@ private fun GlobalpingPingFields(
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
-    ExposedDropdownMenuBox(
-        expanded = ipFamilyMenuOpen,
-        onExpandedChange = { ipFamilyMenuOpen = it },
-    ) {
+    ExposedDropdownMenuBox(expanded = ipFamilyMenuOpen, onExpandedChange = { ipFamilyMenuOpen = it }) {
         OutlinedTextField(
             value = stringResource((draft.globalpingIpFamily ?: GlobalpingIpFamily.AUTO).labelRes),
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.monitor_globalping_ip_family)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(ipFamilyMenuOpen) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
         )
-        ExposedDropdownMenu(
-            expanded = ipFamilyMenuOpen,
-            onDismissRequest = { ipFamilyMenuOpen = false },
-        ) {
+        ExposedDropdownMenu(expanded = ipFamilyMenuOpen, onDismissRequest = { ipFamilyMenuOpen = false }) {
             GlobalpingIpFamily.entries.forEach { family ->
                 DropdownMenuItem(
                     text = { Text(stringResource(family.labelRes)) },
@@ -1431,60 +1460,337 @@ private fun GlobalpingPingFields(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    ExposedDropdownMenuBox(
-        expanded = protocolMenuOpen,
-        onExpandedChange = { protocolMenuOpen = it },
-    ) {
+    if (subtype != GlobalpingSubtype.PING) {
         OutlinedTextField(
-            value = draft.globalpingPingProtocol?.wireValue.orEmpty(),
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.monitor_globalping_protocol)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(protocolMenuOpen) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
+            value = draft.globalpingResolver,
+            onValueChange = { onDraftChange(draft.copy(globalpingResolver = it.take(253))) },
+            label = { Text(stringResource(R.string.monitor_globalping_resolver)) },
+            supportingText = { Text(stringResource(R.string.monitor_globalping_resolver_help)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
         )
-        ExposedDropdownMenu(
-            expanded = protocolMenuOpen,
-            onDismissRequest = { protocolMenuOpen = false },
-        ) {
-            GlobalpingPingProtocol.entries.forEach { protocol ->
-                DropdownMenuItem(
-                    text = { Text(protocol.wireValue) },
-                    onClick = {
-                        onDraftChange(
-                            draft.copy(
-                                globalpingPingProtocol = protocol,
-                                port = draft.port ?: 80,
-                            ),
-                        )
-                        protocolMenuOpen = false
-                    },
+    }
+    when (subtype) {
+        GlobalpingSubtype.PING -> {
+            GlobalpingProtocolField(
+                value = draft.globalpingPingProtocol?.wireValue.orEmpty(),
+                options = GlobalpingPingProtocol.entries.map(GlobalpingPingProtocol::wireValue),
+                expanded = protocolMenuOpen,
+                onExpandedChange = { protocolMenuOpen = it },
+                onSelect = { value ->
+                    onDraftChange(
+                        draft.copy(
+                            globalpingPingProtocol = GlobalpingPingProtocol.fromWire(value),
+                            port = draft.port ?: 80,
+                        ),
+                    )
+                    protocolMenuOpen = false
+                },
+            )
+            if (draft.globalpingPingProtocol == GlobalpingPingProtocol.TCP) {
+                NumberField(
+                    value = draft.port,
+                    onValueChange = { onDraftChange(draft.copy(port = it)) },
+                    label = stringResource(R.string.monitor_port_label),
+                    maxDigits = 5,
                 )
+            }
+            NumberField(
+                value = draft.globalpingPingCount,
+                onValueChange = { onDraftChange(draft.copy(globalpingPingCount = it)) },
+                label = stringResource(R.string.monitor_globalping_ping_count),
+                maxDigits = 3,
+            )
+            Text(
+                stringResource(R.string.monitor_globalping_ping_count_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        GlobalpingSubtype.DNS -> {
+            NumberField(
+                value = draft.port,
+                onValueChange = { onDraftChange(draft.copy(port = it)) },
+                label = stringResource(R.string.monitor_port_label),
+                maxDigits = 5,
+            )
+            ExposedDropdownMenuBox(
+                expanded = recordTypeMenuOpen,
+                onExpandedChange = { recordTypeMenuOpen = it },
+            ) {
+                OutlinedTextField(
+                    value = draft.globalpingDnsRecordType?.wireValue.orEmpty(),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.monitor_globalping_dns_record_type)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(recordTypeMenuOpen) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = recordTypeMenuOpen,
+                    onDismissRequest = { recordTypeMenuOpen = false },
+                ) {
+                    GlobalpingDnsRecordType.entries.forEach { recordType ->
+                        DropdownMenuItem(
+                            text = { Text(recordType.wireValue) },
+                            onClick = {
+                                onDraftChange(draft.copy(globalpingDnsRecordType = recordType))
+                                recordTypeMenuOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = draft.keyword,
+                onValueChange = { onDraftChange(draft.copy(keyword = it.take(2_000))) },
+                label = { Text(stringResource(R.string.monitor_globalping_dns_match)) },
+                supportingText = { Text(stringResource(R.string.monitor_globalping_dns_match_help)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            GlobalpingProtocolField(
+                value = draft.globalpingDnsProtocol?.wireValue.orEmpty(),
+                options = GlobalpingDnsProtocol.entries.map(GlobalpingDnsProtocol::wireValue),
+                expanded = protocolMenuOpen,
+                onExpandedChange = { protocolMenuOpen = it },
+                onSelect = { value ->
+                    onDraftChange(draft.copy(globalpingDnsProtocol = GlobalpingDnsProtocol.fromWire(value)))
+                    protocolMenuOpen = false
+                },
+            )
+        }
+        GlobalpingSubtype.HTTP -> {
+            GlobalpingProtocolField(
+                value = stringResource(
+                    if (draft.globalpingHttpProtocol == GlobalpingHttpProtocol.HTTP2) {
+                        R.string.monitor_globalping_http2
+                    } else {
+                        R.string.monitor_globalping_ip_auto
+                    },
+                ),
+                options = listOf(
+                    stringResource(R.string.monitor_globalping_ip_auto),
+                    stringResource(R.string.monitor_globalping_http2),
+                ),
+                expanded = protocolMenuOpen,
+                onExpandedChange = { protocolMenuOpen = it },
+                onSelect = { value ->
+                    onDraftChange(
+                        draft.copy(
+                            globalpingHttpProtocol = if (value == "HTTP2") {
+                                GlobalpingHttpProtocol.HTTP2
+                            } else {
+                                GlobalpingHttpProtocol.AUTO
+                            },
+                        ),
+                    )
+                    protocolMenuOpen = false
+                },
+            )
+            ExposedDropdownMenuBox(expanded = methodMenuOpen, onExpandedChange = { methodMenuOpen = it }) {
+                OutlinedTextField(
+                    value = draft.globalpingHttpMethod?.wireValue.orEmpty(),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.monitor_globalping_http_method)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(methodMenuOpen) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = methodMenuOpen, onDismissRequest = { methodMenuOpen = false }) {
+                    GlobalpingHttpMethod.entries.forEach { method ->
+                        DropdownMenuItem(
+                            text = { Text(method.wireValue) },
+                            onClick = {
+                                onDraftChange(draft.copy(globalpingHttpMethod = method))
+                                methodMenuOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = draft.globalpingHttpAcceptedCodes,
+                onValueChange = { onDraftChange(draft.copy(globalpingHttpAcceptedCodes = it.take(500))) },
+                label = { Text(stringResource(R.string.monitor_globalping_http_status_codes)) },
+                supportingText = { Text(stringResource(R.string.monitor_globalping_http_status_codes_help)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            GlobalpingHttpToggle(
+                checked = draft.globalpingHttpIgnoreTls,
+                label = stringResource(R.string.monitor_globalping_http_ignore_tls),
+                onCheckedChange = { onDraftChange(draft.copy(globalpingHttpIgnoreTls = it)) },
+            )
+            GlobalpingHttpToggle(
+                checked = draft.globalpingHttpExpiryNotification,
+                label = stringResource(R.string.monitor_globalping_http_expiry),
+                onCheckedChange = { onDraftChange(draft.copy(globalpingHttpExpiryNotification = it)) },
+            )
+            GlobalpingHttpToggle(
+                checked = draft.globalpingHttpCacheBust,
+                label = stringResource(R.string.monitor_globalping_http_cache_bust),
+                onCheckedChange = { onDraftChange(draft.copy(globalpingHttpCacheBust = it)) },
+            )
+            WebsocketHeaderFields(draft = draft, onDraftChange = onDraftChange)
+            WebsocketAuthFields(draft = draft, onDraftChange = onDraftChange, allowMtls = false)
+            ExposedDropdownMenuBox(expanded = responseMenuOpen, onExpandedChange = { responseMenuOpen = it }) {
+                OutlinedTextField(
+                    value = stringResource(draft.globalpingHttpResponseCheck.labelRes),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.monitor_globalping_http_response_check)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(responseMenuOpen) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                )
+                ExposedDropdownMenu(expanded = responseMenuOpen, onDismissRequest = { responseMenuOpen = false }) {
+                    GlobalpingHttpResponseCheck.entries.forEach { check ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(check.labelRes)) },
+                            onClick = {
+                                onDraftChange(draft.copy(globalpingHttpResponseCheck = check))
+                                responseMenuOpen = false
+                            },
+                        )
+                    }
+                }
+            }
+            when (draft.globalpingHttpResponseCheck) {
+                GlobalpingHttpResponseCheck.NONE -> Unit
+                GlobalpingHttpResponseCheck.KEYWORD -> {
+                    OutlinedTextField(
+                        value = draft.keyword,
+                        onValueChange = { onDraftChange(draft.copy(keyword = it.take(2_000))) },
+                        label = { Text(stringResource(R.string.monitor_keyword_label)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    GlobalpingHttpToggle(
+                        checked = draft.invertKeyword,
+                        label = stringResource(R.string.monitor_keyword_invert),
+                        onCheckedChange = { onDraftChange(draft.copy(invertKeyword = it)) },
+                    )
+                }
+                GlobalpingHttpResponseCheck.JSON_QUERY -> {
+                    OutlinedTextField(
+                        value = draft.jsonQueryExpression,
+                        onValueChange = { onDraftChange(draft.copy(jsonQueryExpression = it.take(2_000))) },
+                        label = { Text(stringResource(R.string.monitor_json_query_expression)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    ExposedDropdownMenuBox(
+                        expanded = jsonOperatorMenuOpen,
+                        onExpandedChange = { jsonOperatorMenuOpen = it },
+                    ) {
+                        OutlinedTextField(
+                            value = draft.jsonQueryOperator,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.monitor_json_query_operator)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(jsonOperatorMenuOpen) },
+                            modifier = Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = jsonOperatorMenuOpen,
+                            onDismissRequest = { jsonOperatorMenuOpen = false },
+                        ) {
+                            MonitorDraftCodec.JSON_QUERY_OPERATORS.forEach { operator ->
+                                DropdownMenuItem(
+                                    text = { Text(operator) },
+                                    onClick = {
+                                        onDraftChange(draft.copy(jsonQueryOperator = operator))
+                                        jsonOperatorMenuOpen = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = draft.jsonQueryExpectedValue,
+                        onValueChange = { onDraftChange(draft.copy(jsonQueryExpectedValue = it.take(2_000))) },
+                        label = { Text(stringResource(R.string.monitor_json_query_expected_value)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }
-    if (draft.globalpingPingProtocol == GlobalpingPingProtocol.TCP) {
-        NumberField(
-            value = draft.port,
-            onValueChange = { onDraftChange(draft.copy(port = it)) },
-            label = stringResource(R.string.monitor_port_label),
-            maxDigits = 5,
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GlobalpingProtocolField(
+    value: String,
+    options: List<String>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onSelect: (String) -> Unit,
+) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = onExpandedChange) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_globalping_protocol)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
         )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+            options.forEach { option ->
+                DropdownMenuItem(text = { Text(option) }, onClick = { onSelect(option) })
+            }
+        }
     }
-    NumberField(
-        value = draft.globalpingPingCount,
-        onValueChange = { onDraftChange(draft.copy(globalpingPingCount = it)) },
-        label = stringResource(R.string.monitor_globalping_ping_count),
-        maxDigits = 3,
+}
+
+@Composable
+private fun GlobalpingHttpToggle(checked: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().toggleable(checked, role = Role.Checkbox, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Text(label)
+    }
+}
+
+private fun MonitorDraft.forGlobalpingSubtype(subtype: GlobalpingSubtype): MonitorDraft = when (subtype) {
+    GlobalpingSubtype.PING -> copy(
+        globalpingSubtype = subtype,
+        globalpingPingProtocol = GlobalpingPingProtocol.ICMP,
+        globalpingPingCount = globalpingPingCount ?: 3,
+        port = 80,
     )
-    Text(
-        stringResource(R.string.monitor_globalping_ping_count_help),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    GlobalpingSubtype.DNS -> copy(
+        globalpingSubtype = subtype,
+        globalpingDnsProtocol = GlobalpingDnsProtocol.UDP,
+        globalpingDnsRecordType = globalpingDnsRecordType ?: GlobalpingDnsRecordType.A,
+        port = 53,
+    )
+    GlobalpingSubtype.HTTP -> copy(
+        globalpingSubtype = subtype,
+        globalpingHttpProtocol = GlobalpingHttpProtocol.AUTO,
+        globalpingHttpMethod = globalpingHttpMethod ?: GlobalpingHttpMethod.GET,
+        globalpingHttpAcceptedCodes = globalpingHttpAcceptedCodes.ifBlank { "200-299" },
     )
 }
+
+private val GlobalpingSubtype.labelRes: Int
+    get() = when (this) {
+        GlobalpingSubtype.PING -> R.string.monitor_globalping_subtype_ping
+        GlobalpingSubtype.HTTP -> R.string.monitor_globalping_subtype_http
+        GlobalpingSubtype.DNS -> R.string.monitor_globalping_subtype_dns
+    }
+
+private val GlobalpingHttpResponseCheck.labelRes: Int
+    get() = when (this) {
+        GlobalpingHttpResponseCheck.NONE -> R.string.monitor_globalping_http_response_none
+        GlobalpingHttpResponseCheck.KEYWORD -> R.string.monitor_globalping_http_response_keyword
+        GlobalpingHttpResponseCheck.JSON_QUERY -> R.string.monitor_globalping_http_response_json
+    }
 
 private val GlobalpingIpFamily.labelRes: Int
     get() = when (this) {
@@ -1667,6 +1973,21 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.GLOBALPING_PROTOCOL_INVALID -> R.string.monitor_error_globalping_protocol
         MonitorDraftError.GLOBALPING_PORT_REQUIRED -> R.string.monitor_error_globalping_port
         MonitorDraftError.GLOBALPING_PING_COUNT_INVALID -> R.string.monitor_error_globalping_ping_count
+        MonitorDraftError.GLOBALPING_RESOLVER_INVALID -> R.string.monitor_error_globalping_resolver
+        MonitorDraftError.GLOBALPING_DNS_RECORD_TYPE_INVALID -> R.string.monitor_error_globalping_dns_record_type
+        MonitorDraftError.GLOBALPING_HTTP_URL_INVALID -> R.string.monitor_error_globalping_http_url
+        MonitorDraftError.GLOBALPING_HTTP_METHOD_INVALID -> R.string.monitor_error_globalping_http_method
+        MonitorDraftError.GLOBALPING_HTTP_STATUS_CODES_REQUIRED ->
+            R.string.monitor_error_globalping_http_status_codes_required
+        MonitorDraftError.GLOBALPING_HTTP_STATUS_CODE_INVALID ->
+            R.string.monitor_error_globalping_http_status_code_invalid
+        MonitorDraftError.GLOBALPING_HTTP_KEYWORD_REQUIRED -> R.string.monitor_error_globalping_http_keyword
+        MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_EXPRESSION_REQUIRED ->
+            R.string.monitor_error_globalping_http_json_expression
+        MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_OPERATOR_INVALID ->
+            R.string.monitor_error_globalping_http_json_operator
+        MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_EXPECTED_VALUE_REQUIRED ->
+            R.string.monitor_error_globalping_http_json_value
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

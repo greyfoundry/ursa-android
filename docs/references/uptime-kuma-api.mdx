@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-05
+last-updated: 2026-10-06
 owner: astoris
 status: stable
 source: verified from Uptime Kuma source and live 2.4.0 through 2.5.5 containers
@@ -197,9 +197,27 @@ Kuma's editor initializes Ping to `world`, automatic IP family, ICMP, retained p
 80, three packets, and a 48-second timeout. It accepts one location expression; `+`
 may combine provider and geography filters, while comma-separated locations are not
 supported. Packet count is 1 through 100 and TCP ports are 1 through 65535. URSA's
-native codec currently owns Ping only. The HTTP and DNS subtypes, unknown protocols,
-and unknown IP families remain opaque so a common-field edit cannot normalize or
-discard their subtype-specific data.
+native codec owns this exact shape.
+
+DNS sends `subtype: "dns"`, `hostname`, `location`, nullable `ipFamily`, optional
+`dns_resolve_server`, required port, `dns_resolve_type`, optional `keyword`, and
+`protocol` (`UDP` or `TCP`). Kuma 2.5.5 offers A, AAAA, ANY, CNAME, DNSKEY, DS,
+HTTPS, MX, NS, NSEC, PTR, RRSIG, SOA, SRV, SVCB, and TXT. New drafts use
+world/automatic, port 53, A, and UDP. The server treats `keyword` as a
+case-insensitive JavaScript regular expression over returned records, so URSA does
+not apply an incompatible JVM-regex validator.
+
+HTTP sends `subtype: "http"`, `url`, `location`, nullable `ipFamily`, optional
+resolver, nullable protocol (automatic) or `HTTP2`, `method` (`HEAD`, `GET`, or
+`OPTIONS`), JSON-encoded accepted status codes, `ignoreTls`, `expiryNotification`,
+`cacheBust`, response-check fields, JSON-encoded request headers, and optional
+Basic, Bearer, or OAuth2 client-credentials authentication. Kuma does not offer mTLS
+for this subtype. URSA reuses its eight-entry validated header model and
+presence-only secret state: saved values never enter editable fields, blank
+unchanged entries are recovered only from the fresh full object, and changing or
+removing an entry or method clears superseded secrets. Keyword and JSON-query
+response checks are mutually exclusive on save. Unknown subtypes, future enum
+values, unsupported authentication, and future header shapes remain opaque.
 
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
