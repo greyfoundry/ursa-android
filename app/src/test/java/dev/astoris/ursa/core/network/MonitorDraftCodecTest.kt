@@ -23,6 +23,109 @@ class MonitorDraftCodecTest {
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "sftp" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "mqtt" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "globalping" })
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "postgres" })
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "redis" })
+    }
+
+    @Test
+    fun newDatabasePayloadsMapTheKuma255Contracts() {
+        val sqlTypes = listOf("postgres", "sqlserver", "mysql")
+        sqlTypes.forEach { type ->
+            val draft = MonitorDraft.create(type).copy(
+                name = type,
+                databaseConnectionString = "$type://user:secret@database/service",
+                databaseQuery = "SELECT 1",
+                databasePassword = if (type == "mysql") "override" else "",
+            )
+
+            assertNull(MonitorDraftCodec.validate(draft))
+            val payload = MonitorDraftCodec.newPayload(draft)
+            assertEquals(type, payload["type"]!!.jsonPrimitive.content)
+            assertEquals("$type://user:secret@database/service", payload["databaseConnectionString"]!!.jsonPrimitive.content)
+            assertEquals("SELECT 1", payload["databaseQuery"]!!.jsonPrimitive.content)
+            if (type == "mysql") assertEquals("override", payload["radiusPassword"]!!.jsonPrimitive.content)
+        }
+
+        val mongodb = MonitorDraft.create("mongodb").copy(
+            name = "MongoDB",
+            databaseConnectionString = "mongodb://user:secret@database/service",
+            databaseQuery = "{\"ping\":1}",
+            databaseJsonQueryExpression = "ok",
+            databaseExpectedValue = "1",
+        )
+        assertNull(MonitorDraftCodec.validate(mongodb))
+        val mongoPayload = MonitorDraftCodec.newPayload(mongodb)
+        assertEquals("{\"ping\":1}", mongoPayload["databaseQuery"]!!.jsonPrimitive.content)
+        assertEquals("ok", mongoPayload["jsonPath"]!!.jsonPrimitive.content)
+        assertEquals("1", mongoPayload["expectedValue"]!!.jsonPrimitive.content)
+
+        val redis = MonitorDraft.create("redis").copy(
+            name = "Redis",
+            databaseConnectionString = "rediss://user:secret@database:6379",
+            databaseIgnoreTls = true,
+        )
+        assertNull(MonitorDraftCodec.validate(redis))
+        val redisPayload = MonitorDraftCodec.newPayload(redis)
+        assertEquals("rediss://user:secret@database:6379", redisPayload["databaseConnectionString"]!!.jsonPrimitive.content)
+        assertTrue(redisPayload["ignoreTls"]!!.jsonPrimitive.content.toBoolean())
+        assertNull(redisPayload["databaseQuery"])
+    }
+
+    @Test
+    fun databaseEditsMaskAndRetainSavedSecretsAndUnknownFields() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":61,"type":"mysql","name":"Database","databaseConnectionString":"mysql://user:secret@db/app",
+                "databaseQuery":"SELECT 1","radiusPassword":"saved-override",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"conditions":[{"type":"expression","variable":"result","operator":"equals","value":"1","andOr":"and"}],
+                "futureDatabase":{"pool":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.databaseHasSavedConnectionString)
+        assertTrue(loaded.databaseConnectionString.isEmpty())
+        assertTrue(loaded.databaseHasSavedPassword)
+        assertTrue(loaded.databasePassword.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+
+        val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(databaseQuery = "SELECT 2"))!!
+        assertEquals("mysql://user:secret@db/app", retained["databaseConnectionString"]!!.jsonPrimitive.content)
+        assertEquals("saved-override", retained["radiusPassword"]!!.jsonPrimitive.content)
+        assertEquals("SELECT 2", retained["databaseQuery"]!!.jsonPrimitive.content)
+        assertEquals(raw["conditions"], retained["conditions"])
+        assertEquals(raw["futureDatabase"], retained["futureDatabase"])
+
+        val replaced = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(databaseConnectionString = "mysql://user:new@db/app", databasePassword = "replacement"),
+        )!!
+        assertEquals("mysql://user:new@db/app", replaced["databaseConnectionString"]!!.jsonPrimitive.content)
+        assertEquals("replacement", replaced["radiusPassword"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun databaseValidationRequiresAConnectionAndValidMongoCommand() {
+        val postgres = MonitorDraft.create("postgres").copy(name = "PostgreSQL")
+        assertEquals(
+            MonitorDraftError.DATABASE_CONNECTION_STRING_REQUIRED,
+            MonitorDraftCodec.validate(postgres),
+        )
+        val mongodb = MonitorDraft.create("mongodb").copy(
+            name = "MongoDB",
+            databaseConnectionString = "mongodb://database/app",
+            databaseQuery = "{not-json}",
+        )
+        assertEquals(
+            MonitorDraftError.DATABASE_MONGODB_COMMAND_INVALID,
+            MonitorDraftCodec.validate(mongodb),
+        )
+        assertEquals(
+            MonitorDraftError.DATABASE_MONGODB_COMMAND_INVALID,
+            MonitorDraftCodec.validate(mongodb.copy(databaseQuery = "[1, 2]")),
+        )
+        assertNull(MonitorDraftCodec.validate(mongodb.copy(databaseQuery = "")))
     }
 
     @Test

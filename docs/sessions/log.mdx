@@ -9,6 +9,32 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-06 - Native database monitor editing
+
+**changed**: Added one native database editor wave for PostgreSQL, MySQL/MariaDB,
+Microsoft SQL Server, MongoDB, and Redis. The shared form owns each connection
+string; SQL types expose optional queries, MySQL exposes its separate password
+override, MongoDB exposes a JSON command plus JSONata/expected-value checks, and
+Redis exposes its TLS-certificate-error switch.
+
+**security and compatibility**: Saved connection strings and the MySQL password
+override reduce to presence flags before UI state and are recovered only from a
+fresh full object when blank. Replacing a connection requires the complete string.
+Mongo commands must be JSON objects. Recursive MySQL/SQL Server result conditions
+and unrelated future fields stay opaque and unchanged behind the round-trip guard;
+the browser editor remains available for those conditions.
+
+**verification**: Focused two-flavor codec/registry tests cover all five exact
+payloads, object-only Mongo validation, masked retention and replacement, registry
+fidelity, and unknown-field/condition preservation. Android 17/live Kuma 2.5.5 QA
+created all five types against disposable PostgreSQL, MySQL, SQL Server, MongoDB,
+and Redis services; each reached Up and matched its exact server row. Native reloads
+kept connection strings and the MySQL override blank, edits preserved those secrets,
+second reloads matched the edited values, and confirmed deletion restored the
+original five-monitor inventory. URSA had no crash or ANR; Kuma and fixture logs
+contained only expected baseline/fixture warnings and the deliberately corrected
+first MySQL authentication attempt.
+
 ### 2026-10-06 - Complete native Globalping monitor editing
 
 **changed**: Completed the connected Globalping editor with native DNS and HTTP

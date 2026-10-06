@@ -292,6 +292,9 @@ private fun MonitorForm(
         if (definition?.codec == MonitorEditorCodec.GLOBALPING) {
             GlobalpingFields(draft = draft, onDraftChange = onDraftChange)
         }
+        if (definition?.codec == MonitorEditorCodec.DATABASE) {
+            DatabaseFields(draft = draft, onDraftChange = onDraftChange)
+        }
         if (draft.type == "push") {
             PushMonitorSetup(
                 pushUrl = accessConnection?.url?.let { MonitorDraftCodec.pushUrl(it, draft.pushToken) },
@@ -1371,6 +1374,118 @@ private fun NtpFields(
     )
 }
 
+@Composable
+private fun DatabaseFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    Text(stringResource(R.string.monitor_database_connection_title), style = MaterialTheme.typography.titleSmall)
+    SensitiveField(
+        value = draft.databaseConnectionString,
+        onValueChange = { onDraftChange(draft.copy(databaseConnectionString = it.take(4_096))) },
+        label = stringResource(R.string.monitor_database_connection_string),
+        saved = draft.databaseHasSavedConnectionString,
+        savedMessage = stringResource(R.string.monitor_database_connection_saved),
+    )
+    Text(
+        stringResource(
+            R.string.monitor_database_connection_example,
+            when (draft.type) {
+                "sqlserver" -> "Server=host,1433;Database=db;User Id=user;Password=password;Encrypt=true"
+                "postgres" -> "postgres://user:password@host:5432/database"
+                "mysql" -> "mysql://user@host:3306/database"
+                "mongodb" -> "mongodb://user:password@host:27017/database"
+                else -> "redis://user:password@host:6379"
+            },
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (draft.type == "mysql") {
+        SensitiveField(
+            value = draft.databasePassword,
+            onValueChange = { onDraftChange(draft.copy(databasePassword = it.take(2_048))) },
+            label = stringResource(R.string.monitor_database_password_override),
+            saved = draft.databaseHasSavedPassword,
+        )
+        Text(
+            stringResource(R.string.monitor_database_password_override_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (draft.type != "redis") {
+        OutlinedTextField(
+            value = draft.databaseQuery,
+            onValueChange = { onDraftChange(draft.copy(databaseQuery = it.take(10_000))) },
+            label = {
+                Text(
+                    stringResource(
+                        if (draft.type == "mongodb") {
+                            R.string.monitor_database_mongodb_command
+                        } else {
+                            R.string.monitor_database_query
+                        },
+                    ),
+                )
+            },
+            supportingText = {
+                Text(
+                    stringResource(
+                        if (draft.type == "mongodb") {
+                            R.string.monitor_database_mongodb_command_help
+                        } else {
+                            R.string.monitor_database_query_help
+                        },
+                    ),
+                )
+            },
+            minLines = 3,
+            maxLines = 8,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    if (draft.type == "mongodb") {
+        OutlinedTextField(
+            value = draft.databaseJsonQueryExpression,
+            onValueChange = { onDraftChange(draft.copy(databaseJsonQueryExpression = it.take(2_000))) },
+            label = { Text(stringResource(R.string.monitor_json_query_expression)) },
+            supportingText = { Text(stringResource(R.string.monitor_database_mongodb_jsonata_help)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = draft.databaseExpectedValue,
+            onValueChange = { onDraftChange(draft.copy(databaseExpectedValue = it.take(2_000))) },
+            label = { Text(stringResource(R.string.monitor_json_query_expected_value)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    if (draft.type == "redis") {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = draft.databaseIgnoreTls,
+                    role = Role.Checkbox,
+                    onValueChange = { onDraftChange(draft.copy(databaseIgnoreTls = it)) },
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = draft.databaseIgnoreTls, onCheckedChange = null)
+            Text(stringResource(R.string.monitor_database_redis_ignore_tls))
+        }
+    }
+    if (draft.type == "mysql" || draft.type == "sqlserver") {
+        Text(
+            stringResource(R.string.monitor_database_conditions_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GlobalpingFields(draft: MonitorDraft, onDraftChange: (MonitorDraft) -> Unit) {
@@ -1988,6 +2103,10 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
             R.string.monitor_error_globalping_http_json_operator
         MonitorDraftError.GLOBALPING_HTTP_JSON_QUERY_EXPECTED_VALUE_REQUIRED ->
             R.string.monitor_error_globalping_http_json_value
+        MonitorDraftError.DATABASE_CONNECTION_STRING_REQUIRED ->
+            R.string.monitor_error_database_connection_string
+        MonitorDraftError.DATABASE_MONGODB_COMMAND_INVALID ->
+            R.string.monitor_error_database_mongodb_command
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

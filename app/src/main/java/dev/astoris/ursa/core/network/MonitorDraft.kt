@@ -276,6 +276,14 @@ data class MonitorDraft(
     val globalpingHttpExpiryNotification: Boolean = false,
     val globalpingHttpCacheBust: Boolean = false,
     val globalpingEditable: Boolean = true,
+    val databaseConnectionString: String = "",
+    val databaseHasSavedConnectionString: Boolean = false,
+    val databaseQuery: String = "",
+    val databasePassword: String = "",
+    val databaseHasSavedPassword: Boolean = false,
+    val databaseIgnoreTls: Boolean = false,
+    val databaseJsonQueryExpression: String = "$",
+    val databaseExpectedValue: String = "",
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -315,6 +323,7 @@ data class MonitorDraft(
                 globalpingDnsRecordType = if (option.key == "globalping") GlobalpingDnsRecordType.A else null,
                 globalpingHttpProtocol = if (option.key == "globalping") GlobalpingHttpProtocol.AUTO else null,
                 globalpingHttpMethod = if (option.key == "globalping") GlobalpingHttpMethod.GET else null,
+                databaseJsonQueryExpression = if (option.key == "mongodb") "$" else "",
             )
         }
 
@@ -382,6 +391,8 @@ enum class MonitorDraftError {
     GLOBALPING_HTTP_JSON_QUERY_EXPRESSION_REQUIRED,
     GLOBALPING_HTTP_JSON_QUERY_OPERATOR_INVALID,
     GLOBALPING_HTTP_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
+    DATABASE_CONNECTION_STRING_REQUIRED,
+    DATABASE_MONGODB_COMMAND_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -404,6 +415,7 @@ object MonitorDraftCodec {
         val mqttCheckType = MqttCheckType.fromWire(rawMqttCheckType)
         val rawSmtpSecurity = raw.string("smtpSecurity")
         val smtpSecurityMode = SmtpSecurityMode.fromWire(rawSmtpSecurity)
+        val isDatabase = type in DATABASE_TYPES
         val rawGlobalpingIpFamily = raw.string("ipFamily")
         val globalpingIpFamily = GlobalpingIpFamily.fromWire(rawGlobalpingIpFamily)
         val rawGlobalpingProtocol = raw.string("protocol")
@@ -536,6 +548,13 @@ object MonitorDraftCodec {
                         httpStatusCodes(globalpingHttpAcceptedCodes) != null
                     null -> false
                 },
+            databaseHasSavedConnectionString = isDatabase &&
+                raw.string("databaseConnectionString")?.isNotEmpty() == true,
+            databaseQuery = if (type in DATABASE_QUERY_TYPES) raw.string("databaseQuery").orEmpty() else "",
+            databaseHasSavedPassword = type == "mysql" && raw.string("radiusPassword")?.isNotEmpty() == true,
+            databaseIgnoreTls = type == "redis" && raw.boolean("ignoreTls"),
+            databaseJsonQueryExpression = if (type == "mongodb") raw.string("jsonPath") ?: "$" else "",
+            databaseExpectedValue = if (type == "mongodb") raw.string("expectedValue").orEmpty() else "",
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -678,6 +697,19 @@ object MonitorDraftCodec {
                 null -> return MonitorDraftError.GLOBALPING_PROTOCOL_INVALID
             }
         }
+        if (definition.validation == MonitorEditorValidation.DATABASE) {
+            if (draft.databaseConnectionString.isBlank() && !draft.databaseHasSavedConnectionString) {
+                return MonitorDraftError.DATABASE_CONNECTION_STRING_REQUIRED
+            }
+            if (
+                draft.type == "mongodb" &&
+                draft.databaseQuery.isNotBlank() &&
+                runCatching { Json.parseToJsonElement(draft.databaseQuery) as? JsonObject }
+                    .getOrNull() == null
+            ) {
+                return MonitorDraftError.DATABASE_MONGODB_COMMAND_INVALID
+            }
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -806,6 +838,7 @@ object MonitorDraftCodec {
         applySmtp(values, draft)
         applyNtp(values, draft)
         applyGlobalping(values, draft)
+        applyDatabase(values, draft, raw)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -860,6 +893,7 @@ object MonitorDraftCodec {
         applySmtp(mutable, draft)
         applyNtp(mutable, draft)
         applyGlobalping(mutable, draft)
+        applyDatabase(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -879,6 +913,32 @@ object MonitorDraftCodec {
         }
         if (MonitorEditorRegistry.find(draft.type)?.endpointKind == MonitorEndpointKind.HOST_PORT) {
             values["port"] = draft.port?.let(::JsonPrimitive) ?: JsonNull
+        }
+    }
+
+    private fun applyDatabase(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.DATABASE) return
+        val connectionString = draft.databaseConnectionString.trim().ifEmpty {
+            existing?.string("databaseConnectionString").orEmpty()
+        }
+        values["databaseConnectionString"] = JsonPrimitive(connectionString)
+        if (draft.type in DATABASE_QUERY_TYPES) {
+            values["databaseQuery"] = JsonPrimitive(draft.databaseQuery.trim())
+        }
+        if (draft.type == "mysql") {
+            val password = draft.databasePassword.ifEmpty { existing?.string("radiusPassword").orEmpty() }
+            values["radiusPassword"] = JsonPrimitive(password)
+        }
+        if (draft.type == "mongodb") {
+            values["jsonPath"] = JsonPrimitive(draft.databaseJsonQueryExpression.trim())
+            values["expectedValue"] = JsonPrimitive(draft.databaseExpectedValue)
+        }
+        if (draft.type == "redis") {
+            values["ignoreTls"] = JsonPrimitive(draft.databaseIgnoreTls)
         }
     }
 
@@ -1253,6 +1313,9 @@ object MonitorDraftCodec {
         token.length == 32 && token.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' }
 
     val JSON_QUERY_OPERATORS: Set<String> = setOf(">", ">=", "<", "<=", "!=", "==", "contains")
+
+    private val DATABASE_TYPES = setOf("postgres", "mysql", "sqlserver", "mongodb", "redis")
+    private val DATABASE_QUERY_TYPES = setOf("postgres", "mysql", "sqlserver", "mongodb")
 
     private fun websocketAcceptedCodes(value: String): List<String>? {
         val parts = value.split(',').map(String::trim)

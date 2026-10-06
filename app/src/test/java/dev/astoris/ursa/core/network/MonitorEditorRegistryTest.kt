@@ -42,6 +42,11 @@ class MonitorEditorRegistryTest {
                 "sftp",
                 "websocket-upgrade",
                 "globalping",
+                "postgres",
+                "mysql",
+                "sqlserver",
+                "mongodb",
+                "redis",
             ),
             definitions.filter(MonitorEditorDefinition::createSupported)
                 .map(MonitorEditorDefinition::type)
@@ -232,9 +237,30 @@ class MonitorEditorRegistryTest {
         )
         assertTrue(
             MonitorEditorRegistry.all
-                .filter { it.type !in setOf("sftp", "globalping") }
+                .filter { it.type !in setOf("sftp", "globalping", "postgres", "mongodb", "redis") }
                 .all { it.fidelity == MonitorEditorFidelity.SAFE_COMMON_EDIT },
         )
+    }
+
+    @Test
+    fun databaseWaveDeclaresOneSharedSecretContractWithoutOverstatingConditions() {
+        val definitions = listOf("postgres", "mysql", "sqlserver", "mongodb", "redis")
+            .map { requireNotNull(MonitorEditorRegistry.find(it)) }
+
+        definitions.forEach { definition ->
+            assertTrue(definition.createSupported)
+            assertEquals(MonitorEndpointKind.NONE, definition.endpointKind)
+            assertEquals(MonitorEditorCodec.DATABASE, definition.codec)
+            assertEquals(MonitorEditorValidation.DATABASE, definition.validation)
+            assertTrue(MonitorEditorField.DATABASE_CONNECTION_STRING in definition.sensitiveFields)
+            assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, definition.transferEligibility)
+        }
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, MonitorEditorRegistry.find("mysql")!!.fidelity)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, MonitorEditorRegistry.find("sqlserver")!!.fidelity)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, MonitorEditorRegistry.find("postgres")!!.fidelity)
+        assertTrue(MonitorEditorField.DATABASE_PASSWORD in MonitorEditorRegistry.find("mysql")!!.sensitiveFields)
+        assertTrue(MonitorEditorField.DATABASE_IGNORE_TLS in MonitorEditorRegistry.find("redis")!!.editableFields)
+        assertTrue(MonitorEditorField.DATABASE_JSON_QUERY_EXPRESSION in MonitorEditorRegistry.find("mongodb")!!.editableFields)
     }
 
     @Test

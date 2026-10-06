@@ -219,6 +219,17 @@ removing an entry or method clears superseded secrets. Keyword and JSON-query
 response checks are mutually exclusive on save. Unknown subtypes, future enum
 values, unsupported authentication, and future header shapes remain opaque.
 
+Database monitors share `databaseConnectionString`. PostgreSQL, MySQL/MariaDB,
+Microsoft SQL Server, and MongoDB also use `databaseQuery`; a blank SQL query falls
+back to `SELECT 1`, while a blank MongoDB query runs `{ "ping": 1 }`. MongoDB passes
+a parsed JSON object to the driver command and can evaluate `jsonPath` with JSONata
+before comparing its string result with `expectedValue`. MySQL can supply a separate
+`radiusPassword` override. Redis uses `ignoreTls` and has no query field. MySQL and
+SQL Server can also carry recursive result `conditions`; clients without the exact
+condition editor must preserve that array unchanged. Connection strings and the
+MySQL override can contain credentials and therefore must not be prefilled, logged,
+or copied into local monitor caches.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from

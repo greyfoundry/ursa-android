@@ -61,6 +61,12 @@ enum class MonitorEditorField {
     GLOBALPING_HTTP_IGNORE_TLS,
     GLOBALPING_HTTP_EXPIRY_NOTIFICATION,
     GLOBALPING_HTTP_CACHE_BUST,
+    DATABASE_CONNECTION_STRING,
+    DATABASE_QUERY,
+    DATABASE_PASSWORD,
+    DATABASE_IGNORE_TLS,
+    DATABASE_JSON_QUERY_EXPRESSION,
+    DATABASE_EXPECTED_VALUE,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -79,6 +85,7 @@ enum class MonitorEditorCodec {
     SMTP,
     NTP,
     GLOBALPING,
+    DATABASE,
     SFTP,
 }
 
@@ -93,6 +100,7 @@ enum class MonitorEditorValidation {
     SMTP,
     NTP,
     GLOBALPING,
+    DATABASE,
     SFTP,
 }
 
@@ -484,13 +492,32 @@ object MonitorEditorRegistry {
             },
             transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
         ),
-        definition("sqlserver", "Microsoft SQL Server"),
-        definition("mongodb", "MongoDB"),
-        definition("mysql", "MySQL/MariaDB"),
+        databaseDefinition("sqlserver", "Microsoft SQL Server"),
+        databaseDefinition(
+            "mongodb",
+            "MongoDB",
+            extraFields = setOf(
+                MonitorEditorField.DATABASE_JSON_QUERY_EXPRESSION,
+                MonitorEditorField.DATABASE_EXPECTED_VALUE,
+            ),
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+        ),
+        databaseDefinition(
+            "mysql",
+            "MySQL/MariaDB",
+            extraFields = setOf(MonitorEditorField.DATABASE_PASSWORD),
+            sensitiveFields = setOf(MonitorEditorField.DATABASE_PASSWORD),
+        ),
         definition("oracledb", "Oracle Database"),
-        definition("postgres", "PostgreSQL"),
+        databaseDefinition("postgres", "PostgreSQL", fidelity = MonitorEditorFidelity.FULL_FIDELITY),
         definition("radius", "RADIUS"),
-        definition("redis", "Redis"),
+        databaseDefinition(
+            "redis",
+            "Redis",
+            hasQuery = false,
+            extraFields = setOf(MonitorEditorField.DATABASE_IGNORE_TLS),
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+        ),
         definition("gamedig", "GameDig"),
         definition("steam", "Steam game server"),
     )
@@ -508,6 +535,28 @@ object MonitorEditorRegistry {
 
     fun writeVerified(type: String, compatibility: KumaCompatibility): Boolean =
         find(type)?.writeVerifiedFor(compatibility) == true
+
+    private fun databaseDefinition(
+        type: String,
+        label: String,
+        hasQuery: Boolean = true,
+        extraFields: Set<MonitorEditorField> = emptySet(),
+        sensitiveFields: Set<MonitorEditorField> = emptySet(),
+        fidelity: MonitorEditorFidelity = MonitorEditorFidelity.SAFE_COMMON_EDIT,
+    ) = definition(
+        type = type,
+        label = label,
+        createSupported = true,
+        codec = MonitorEditorCodec.DATABASE,
+        validation = MonitorEditorValidation.DATABASE,
+        fidelity = fidelity,
+        extraFields = setOf(MonitorEditorField.DATABASE_CONNECTION_STRING) +
+            setOf(MonitorEditorField.DATABASE_QUERY).takeIf { hasQuery }.orEmpty() +
+            extraFields,
+        sensitiveFields = setOf(MonitorEditorField.DATABASE_CONNECTION_STRING) + sensitiveFields,
+        transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+        help = MonitorEditorHelp.FULL_NATIVE,
+    )
 
     private fun definition(
         type: String,
@@ -686,6 +735,16 @@ object MonitorRoundTripGuard {
                 add("tlsCert")
                 add("tlsKey")
                 add("tlsCa")
+            }
+            if (definition.codec == MonitorEditorCodec.DATABASE) {
+                add("databaseConnectionString")
+                if (type != "redis") add("databaseQuery")
+                if (type == "mysql") add("radiusPassword")
+                if (type == "mongodb") {
+                    add("jsonPath")
+                    add("expectedValue")
+                }
+                if (type == "redis") add("ignoreTls")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

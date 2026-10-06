@@ -89,7 +89,7 @@ here so the rest of the app sees clean domain models.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
-  NTP, Globalping Ping/DNS/HTTP, and SFTP create flows. Keyword monitors map
+  NTP, Globalping Ping/DNS/HTTP, database, and SFTP create flows. Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
@@ -124,6 +124,12 @@ here so the rest of the app sees clean domain models.
   and UDP/TCP. HTTP owns URL, optional resolver, protocol/method, accepted statuses,
   TLS/expiry/cache-bust flags, response checks, and the existing bounded masked
   header/authentication contracts. Unknown subtypes and future enums stay opaque.
+  Database monitors share one presence-only connection-string boundary. PostgreSQL,
+  MySQL/MariaDB, and Microsoft SQL Server map optional SQL; MySQL also masks its
+  separate password override. MongoDB maps an optional JSON-object command plus
+  JSONata/expected-value fields, and Redis maps its TLS-verification switch. Blank
+  saved secrets are recovered only from the freshly fetched full object. MySQL and
+  SQL Server nested result conditions remain opaque and unchanged.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
@@ -190,7 +196,10 @@ here so the rest of the app sees clean domain models.
   conditions. SMTP supports host, port, and transport-security mode while
   preserving expiry/TLS and future fields. NTP supports its three quality
   thresholds while retaining unrelated future fields. Globalping supports its Ping,
-  DNS, and HTTP subtype fields while retaining unrelated future fields. Saved HTTP
+  DNS, and HTTP subtype fields while retaining unrelated future fields. Database
+  types retain masked connection strings and the MySQL password override from the
+  fresh object while exposing only their verified native fields; MySQL and SQL
+  Server result conditions remain server-owned. Saved HTTP
   headers and credentials become presence-only draft state; blank values retain the
   fresh server secret only while the same entry or method remains selected.
   SFTP supports username, path,
