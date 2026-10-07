@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-07 - Native SNMPv1/v2c monitor editing
+
+**changed**: Added native SNMPv1/v2c creation and editing for host/port, masked
+community, numeric OID, decimal request timeout, retries, and JSONata comparison.
+SNMP no longer offers the unrelated HTTP local-service discovery controls.
+
+**security and compatibility**: Saved communities reduce to presence flags and are
+recovered only from a fresh full monitor when blank. Kuma 2.5.5 does not persist or
+return the SNMPv3 username used by its checker, so v3 and unknown versions remain
+opaque with a browser-only notice instead of a lossy native form.
+
+**verification**: Focused two-flavor codec/registry tests cover the exact v2c
+payload, secret retention/replacement, OID/timeout/query validation, future-field
+preservation, and opaque v3/unknown records. Android 17/live Kuma 2.5.5 QA queried a
+real disposable SNMP agent, reached Up, matched the exact database row, reloaded
+with a blank community and saved-value notice, edited port and expected value while
+retaining the secret, reloaded the edited comparison, and deleted back to the
+five-monitor baseline. URSA had no crash or ANR; fixture/Kuma logs contained only
+expected baseline warnings and the deliberately corrected first host-port mapping.
+
 ### 2026-10-07 - Native gRPC keyword monitor editing
 
 **changed**: Added the first specialist monitor editor for gRPC keyword checks. The

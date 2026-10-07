@@ -118,7 +118,9 @@ and the module docs under `docs/modules/`.
   MySQL/MariaDB, Microsoft SQL Server, MongoDB, and Redis configuration without
   claiming future fields. gRPC keyword monitors additionally expose the target,
   inline protobuf, service and method, masked JSON-object body, TLS, and keyword
-  match while preserving unused legacy metadata opaquely.
+  match while preserving unused legacy metadata opaquely. SNMPv1/v2c monitors
+  expose host/port, masked community, OID, bounded timeout, and JSONata comparison;
+  SNMPv3 stays opaque because Kuma 2.5.5 cannot round-trip its username.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;

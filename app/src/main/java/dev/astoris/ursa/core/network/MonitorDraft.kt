@@ -101,6 +101,18 @@ enum class SmtpSecurityMode(val wireValue: String) {
     }
 }
 
+enum class SnmpVersion(val wireValue: String) {
+    V1("1"),
+    V2C("2c"),
+    V3("3"),
+    UNSUPPORTED("");
+
+    companion object {
+        fun fromWire(value: String?): SnmpVersion =
+            if (value == null) V2C else entries.firstOrNull { it.wireValue == value } ?: UNSUPPORTED
+    }
+}
+
 enum class GlobalpingSubtype(val wireValue: String) {
     PING("ping"),
     HTTP("http"),
@@ -291,6 +303,12 @@ data class MonitorDraft(
     val grpcBody: String = "",
     val grpcHasSavedBody: Boolean = false,
     val grpcEnableTls: Boolean = false,
+    val snmpVersion: SnmpVersion = SnmpVersion.V2C,
+    val snmpFieldsEditable: Boolean = true,
+    val snmpCommunity: String = "",
+    val snmpHasSavedCommunity: Boolean = false,
+    val snmpOid: String = "",
+    val snmpTimeoutSeconds: String = "48",
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -332,6 +350,7 @@ data class MonitorDraft(
                 globalpingHttpMethod = if (option.key == "globalping") GlobalpingHttpMethod.GET else null,
                 databaseJsonQueryExpression = if (option.key == "mongodb") "$" else "",
                 grpcBody = if (option.key == "grpc-keyword") "{}" else "",
+                snmpTimeoutSeconds = defaults.timeoutSeconds.toString(),
             )
         }
 
@@ -406,6 +425,10 @@ enum class MonitorDraftError {
     GRPC_SERVICE_REQUIRED,
     GRPC_METHOD_REQUIRED,
     GRPC_BODY_INVALID,
+    SNMP_HOST_INVALID,
+    SNMP_COMMUNITY_REQUIRED,
+    SNMP_OID_INVALID,
+    SNMP_TIMEOUT_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -428,6 +451,8 @@ object MonitorDraftCodec {
         val mqttCheckType = MqttCheckType.fromWire(rawMqttCheckType)
         val rawSmtpSecurity = raw.string("smtpSecurity")
         val smtpSecurityMode = SmtpSecurityMode.fromWire(rawSmtpSecurity)
+        val rawSnmpVersion = raw.string("snmpVersion")
+        val snmpVersion = SnmpVersion.fromWire(rawSnmpVersion)
         val isDatabase = type in DATABASE_TYPES
         val rawGlobalpingIpFamily = raw.string("ipFamily")
         val globalpingIpFamily = GlobalpingIpFamily.fromWire(rawGlobalpingIpFamily)
@@ -574,6 +599,16 @@ object MonitorDraftCodec {
             grpcMethod = if (type == "grpc-keyword") raw.string("grpcMethod").orEmpty() else "",
             grpcHasSavedBody = type == "grpc-keyword" && raw.string("grpcBody")?.isNotEmpty() == true,
             grpcEnableTls = type == "grpc-keyword" && raw.boolean("grpcEnableTls"),
+            snmpVersion = snmpVersion,
+            snmpFieldsEditable = type != "snmp" ||
+                rawSnmpVersion == null || snmpVersion == SnmpVersion.V1 || snmpVersion == SnmpVersion.V2C,
+            snmpHasSavedCommunity = type == "snmp" && raw.string("radiusPassword")?.isNotEmpty() == true,
+            snmpOid = if (type == "snmp") raw.string("snmpOid").orEmpty() else "",
+            snmpTimeoutSeconds = if (type == "snmp") {
+                raw.string("timeout") ?: MonitorEditorRegistry.find(type)?.defaults?.timeoutSeconds?.toString().orEmpty()
+            } else {
+                "48"
+            },
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -747,6 +782,24 @@ object MonitorDraftCodec {
                 }
             }
         }
+        if (definition.validation == MonitorEditorValidation.SNMP && draft.snmpFieldsEditable) {
+            if (!isValidHostOrIp(draft.endpoint)) return MonitorDraftError.SNMP_HOST_INVALID
+            if (draft.snmpCommunity.isEmpty() && !draft.snmpHasSavedCommunity) {
+                return MonitorDraftError.SNMP_COMMUNITY_REQUIRED
+            }
+            if (!SNMP_OID.matches(draft.snmpOid.trim())) return MonitorDraftError.SNMP_OID_INVALID
+            val timeout = draft.snmpTimeoutSeconds.trim().toDoubleOrNull()
+            if (timeout == null || timeout < 0 || timeout > draft.intervalSeconds * 0.8) {
+                return MonitorDraftError.SNMP_TIMEOUT_INVALID
+            }
+            if (draft.jsonQueryExpression.isEmpty()) return MonitorDraftError.JSON_QUERY_EXPRESSION_REQUIRED
+            if (draft.jsonQueryOperator !in JSON_QUERY_OPERATORS) {
+                return MonitorDraftError.JSON_QUERY_OPERATOR_INVALID
+            }
+            if (draft.jsonQueryExpectedValue.isEmpty()) {
+                return MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED
+            }
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -877,6 +930,7 @@ object MonitorDraftCodec {
         applyGlobalping(values, draft)
         applyDatabase(values, draft, raw)
         applyGrpc(values, draft, raw)
+        applySnmp(values, draft, raw)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -933,6 +987,7 @@ object MonitorDraftCodec {
         applyGlobalping(mutable, draft)
         applyDatabase(mutable, draft)
         applyGrpc(mutable, draft)
+        applySnmp(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -997,6 +1052,25 @@ object MonitorDraftCodec {
         values["grpcEnableTls"] = JsonPrimitive(draft.grpcEnableTls)
         values["keyword"] = JsonPrimitive(draft.keyword)
         values["invertKeyword"] = JsonPrimitive(draft.invertKeyword)
+    }
+
+    private fun applySnmp(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.SNMP || !draft.snmpFieldsEditable) {
+            return
+        }
+        values["snmpVersion"] = JsonPrimitive(draft.snmpVersion.wireValue)
+        values["radiusPassword"] = JsonPrimitive(
+            draft.snmpCommunity.ifEmpty { existing?.string("radiusPassword").orEmpty() },
+        )
+        values["snmpOid"] = JsonPrimitive(draft.snmpOid.trim())
+        values["timeout"] = JsonPrimitive(draft.snmpTimeoutSeconds.trim().toDouble())
+        values["jsonPath"] = JsonPrimitive(draft.jsonQueryExpression)
+        values["jsonPathOperator"] = JsonPrimitive(draft.jsonQueryOperator)
+        values["expectedValue"] = JsonPrimitive(draft.jsonQueryExpectedValue)
     }
 
     private fun applySftp(
@@ -1423,6 +1497,7 @@ object MonitorDraftCodec {
 
     const val WEBSOCKET_HEADER_LIMIT = 8
 
+    private val SNMP_OID = Regex("^([0-2])((\\.0)|(\\.[1-9][0-9]*))*$")
     private val HTTP_STATUS_RANGE = Regex("^(\\d{3})-(\\d{3})$")
 
     private fun isValidMqttEndpoint(value: String): Boolean {

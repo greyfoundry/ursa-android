@@ -75,6 +75,7 @@ import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.MqttCheckType
 import dev.astoris.ursa.core.network.SftpAuthMethod
 import dev.astoris.ursa.core.network.SmtpSecurityMode
+import dev.astoris.ursa.core.network.SnmpVersion
 import dev.astoris.ursa.core.network.WebSocketAuthMethod
 import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
@@ -205,7 +206,6 @@ private fun MonitorForm(
     val validation = MonitorDraftCodec.validate(draft)
     var typeMenuOpen by remember { mutableStateOf(false) }
     var groupMenuOpen by remember { mutableStateOf(false) }
-    var jsonOperatorMenuOpen by remember { mutableStateOf(false) }
     val parentGroups = eligibleParentGroups(monitors, draft.id)
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp),
@@ -355,54 +355,7 @@ private fun MonitorForm(
             )
         }
         if (definition?.codec == MonitorEditorCodec.JSON_QUERY) {
-            OutlinedTextField(
-                value = draft.jsonQueryExpression,
-                onValueChange = { onDraftChange(draft.copy(jsonQueryExpression = it.take(2_000))) },
-                label = { Text(stringResource(R.string.monitor_json_query_expression)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ExposedDropdownMenuBox(
-                expanded = jsonOperatorMenuOpen,
-                onExpandedChange = { jsonOperatorMenuOpen = it },
-            ) {
-                OutlinedTextField(
-                    value = draft.jsonQueryOperator,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.monitor_json_query_operator)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(jsonOperatorMenuOpen) },
-                    modifier = Modifier
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth(),
-                )
-                ExposedDropdownMenu(
-                    expanded = jsonOperatorMenuOpen,
-                    onDismissRequest = { jsonOperatorMenuOpen = false },
-                ) {
-                    MonitorDraftCodec.JSON_QUERY_OPERATORS.forEach { operator ->
-                        DropdownMenuItem(
-                            text = { Text(operator) },
-                            onClick = {
-                                onDraftChange(draft.copy(jsonQueryOperator = operator))
-                                jsonOperatorMenuOpen = false
-                            },
-                        )
-                    }
-                }
-            }
-            OutlinedTextField(
-                value = draft.jsonQueryExpectedValue,
-                onValueChange = { onDraftChange(draft.copy(jsonQueryExpectedValue = it.take(2_000))) },
-                label = { Text(stringResource(R.string.monitor_json_query_expected_value)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                stringResource(R.string.monitor_json_query_help),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            JsonQueryFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (definition?.codec == MonitorEditorCodec.WEBSOCKET) {
             OutlinedTextField(
@@ -456,6 +409,9 @@ private fun MonitorForm(
         if (definition?.codec == MonitorEditorCodec.NTP) {
             NtpFields(draft = draft, onDraftChange = onDraftChange)
         }
+        if (definition?.codec == MonitorEditorCodec.SNMP) {
+            SnmpFields(draft = draft, onDraftChange = onDraftChange)
+        }
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
         }
@@ -468,7 +424,7 @@ private fun MonitorForm(
         if (
             draft.isNew &&
             option?.endpointKind != MonitorEndpointKind.NONE &&
-            draft.type !in setOf("mqtt", "ntp", "smtp", "sftp", "websocket-upgrade")
+            draft.type !in setOf("mqtt", "ntp", "smtp", "snmp", "sftp", "websocket-upgrade")
         ) {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
@@ -1489,6 +1445,138 @@ private fun DatabaseFields(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun JsonQueryFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+    enabled: Boolean = true,
+) {
+    var operatorMenuOpen by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value = draft.jsonQueryExpression,
+        onValueChange = { onDraftChange(draft.copy(jsonQueryExpression = it.take(2_000))) },
+        label = { Text(stringResource(R.string.monitor_json_query_expression)) },
+        singleLine = true,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ExposedDropdownMenuBox(
+        expanded = operatorMenuOpen,
+        onExpandedChange = { if (enabled) operatorMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = draft.jsonQueryOperator,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(stringResource(R.string.monitor_json_query_operator)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(operatorMenuOpen) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = operatorMenuOpen,
+            onDismissRequest = { operatorMenuOpen = false },
+        ) {
+            MonitorDraftCodec.JSON_QUERY_OPERATORS.forEach { operator ->
+                DropdownMenuItem(
+                    text = { Text(operator) },
+                    onClick = {
+                        onDraftChange(draft.copy(jsonQueryOperator = operator))
+                        operatorMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    OutlinedTextField(
+        value = draft.jsonQueryExpectedValue,
+        onValueChange = { onDraftChange(draft.copy(jsonQueryExpectedValue = it.take(2_000))) },
+        label = { Text(stringResource(R.string.monitor_json_query_expected_value)) },
+        singleLine = true,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Text(
+        stringResource(R.string.monitor_json_query_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SnmpFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    var versionMenuOpen by remember { mutableStateOf(false) }
+    val enabled = draft.snmpFieldsEditable
+    Text(stringResource(R.string.monitor_snmp_title), style = MaterialTheme.typography.titleSmall)
+    if (!enabled) {
+        Text(
+            stringResource(R.string.monitor_snmp_v3_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+    ExposedDropdownMenuBox(
+        expanded = versionMenuOpen,
+        onExpandedChange = { if (enabled) versionMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = stringResource(draft.snmpVersion.labelRes),
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(stringResource(R.string.monitor_snmp_version)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(versionMenuOpen) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = versionMenuOpen, onDismissRequest = { versionMenuOpen = false }) {
+            listOf(SnmpVersion.V1, SnmpVersion.V2C).forEach { version ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(version.labelRes)) },
+                    onClick = {
+                        onDraftChange(draft.copy(snmpVersion = version))
+                        versionMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    SensitiveField(
+        value = draft.snmpCommunity,
+        onValueChange = { onDraftChange(draft.copy(snmpCommunity = it.take(2_000))) },
+        label = stringResource(R.string.monitor_snmp_community),
+        saved = draft.snmpHasSavedCommunity,
+        savedMessage = stringResource(R.string.monitor_snmp_community_saved),
+        enabled = enabled,
+    )
+    OutlinedTextField(
+        value = draft.snmpOid,
+        onValueChange = { onDraftChange(draft.copy(snmpOid = it.take(512))) },
+        label = { Text(stringResource(R.string.monitor_snmp_oid)) },
+        supportingText = { Text(stringResource(R.string.monitor_snmp_oid_help)) },
+        singleLine = true,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.snmpTimeoutSeconds,
+        onValueChange = { onDraftChange(draft.copy(snmpTimeoutSeconds = it.take(12))) },
+        label = { Text(stringResource(R.string.monitor_snmp_timeout)) },
+        supportingText = { Text(stringResource(R.string.monitor_snmp_timeout_help)) },
+        singleLine = true,
+        enabled = enabled,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    JsonQueryFields(draft = draft, onDraftChange = onDraftChange, enabled = enabled)
+}
+
 @Composable
 private fun GrpcFields(
     draft: MonitorDraft,
@@ -1984,6 +2072,14 @@ private val SmtpSecurityMode.labelRes: Int
         SmtpSecurityMode.STARTTLS -> R.string.monitor_smtp_security_starttls
     }
 
+private val SnmpVersion.labelRes: Int
+    get() = when (this) {
+        SnmpVersion.V1 -> R.string.monitor_snmp_version_1
+        SnmpVersion.V2C -> R.string.monitor_snmp_version_2c
+        SnmpVersion.V3 -> R.string.monitor_snmp_version_3
+        SnmpVersion.UNSUPPORTED -> R.string.monitor_snmp_version_unsupported
+    }
+
 @Composable
 private fun PushMonitorSetup(pushUrl: String?, pushToken: String, isNew: Boolean) {
     val context = LocalContext.current
@@ -2175,6 +2271,10 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.GRPC_SERVICE_REQUIRED -> R.string.monitor_error_grpc_service
         MonitorDraftError.GRPC_METHOD_REQUIRED -> R.string.monitor_error_grpc_method
         MonitorDraftError.GRPC_BODY_INVALID -> R.string.monitor_error_grpc_body
+        MonitorDraftError.SNMP_HOST_INVALID -> R.string.monitor_error_snmp_host
+        MonitorDraftError.SNMP_COMMUNITY_REQUIRED -> R.string.monitor_error_snmp_community
+        MonitorDraftError.SNMP_OID_INVALID -> R.string.monitor_error_snmp_oid
+        MonitorDraftError.SNMP_TIMEOUT_INVALID -> R.string.monitor_error_snmp_timeout
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

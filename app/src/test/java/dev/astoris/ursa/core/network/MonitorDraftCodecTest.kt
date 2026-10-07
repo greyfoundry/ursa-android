@@ -26,6 +26,7 @@ class MonitorDraftCodecTest {
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "postgres" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "redis" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "grpc-keyword" })
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "snmp" })
     }
 
     @Test
@@ -101,6 +102,107 @@ class MonitorDraftCodecTest {
         assertEquals(MonitorDraftError.GRPC_METHOD_REQUIRED, MonitorDraftCodec.validate(valid.copy(grpcMethod = "")))
         assertEquals(MonitorDraftError.KEYWORD_REQUIRED, MonitorDraftCodec.validate(valid.copy(keyword = "")))
         assertEquals(MonitorDraftError.GRPC_BODY_INVALID, MonitorDraftCodec.validate(valid.copy(grpcBody = "[]")))
+    }
+
+    @Test
+    fun snmpPayloadMapsTheKuma255V2cContract() {
+        val draft = MonitorDraft.create("snmp").copy(
+            name = "Router description",
+            endpoint = "snmp.example.com",
+            port = 161,
+            snmpVersion = SnmpVersion.V2C,
+            snmpCommunity = "private-community",
+            snmpOid = "1.3.6.1.2.1.1.1.0",
+            snmpTimeoutSeconds = "5",
+            jsonQueryExpression = "$",
+            jsonQueryOperator = "contains",
+            jsonQueryExpectedValue = "Linux",
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+        assertEquals("snmp.example.com", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals("161", payload["port"]!!.jsonPrimitive.content)
+        assertEquals("2c", payload["snmpVersion"]!!.jsonPrimitive.content)
+        assertEquals("private-community", payload["radiusPassword"]!!.jsonPrimitive.content)
+        assertEquals("1.3.6.1.2.1.1.1.0", payload["snmpOid"]!!.jsonPrimitive.content)
+        assertEquals(5.0, payload["timeout"]!!.jsonPrimitive.content.toDouble(), 0.0)
+        assertEquals("$", payload["jsonPath"]!!.jsonPrimitive.content)
+        assertEquals("contains", payload["jsonPathOperator"]!!.jsonPrimitive.content)
+        assertEquals("Linux", payload["expectedValue"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun snmpEditsMaskAndRetainCommunityAndFutureFields() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":63,"type":"snmp","name":"Router","hostname":"router","port":161,
+                "snmpVersion":"2c","radiusPassword":"private-community","snmpOid":"1.3.6.1.2.1.1.1.0",
+                "timeout":5,"jsonPath":"$","jsonPathOperator":"contains","expectedValue":"Linux",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureSnmp":{"mode":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.snmpFieldsEditable)
+        assertTrue(loaded.snmpHasSavedCommunity)
+        assertTrue(loaded.snmpCommunity.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+
+        val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(jsonQueryExpectedValue = "Router"))!!
+        assertEquals("private-community", retained["radiusPassword"]!!.jsonPrimitive.content)
+        assertEquals(raw["futureSnmp"], retained["futureSnmp"])
+
+        val replaced = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(snmpCommunity = "replacement"),
+        )!!
+        assertEquals("replacement", replaced["radiusPassword"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun snmpV3AndUnknownVersionsStayOpaque() {
+        listOf("3", "future").forEach { version ->
+            val raw = Json.parseToJsonElement(
+                """{
+                    "id":64,"type":"snmp","name":"Router","hostname":"router","port":161,
+                    "snmpVersion":"$version","snmp_v3_username":"operator","snmpOid":"1.3.6.1.2.1.1.1.0",
+                    "timeout":5,"jsonPath":"$","jsonPathOperator":"contains","expectedValue":"Linux",
+                    "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                    "notificationIDList":{}
+                }""",
+            ).jsonObject
+            val loaded = MonitorDraftCodec.from(raw)!!
+
+            assertFalse(loaded.snmpFieldsEditable)
+            assertNull(MonitorDraftCodec.validate(loaded))
+            val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(name = "Renamed"))!!
+            assertEquals(raw["snmpVersion"], retained["snmpVersion"])
+            assertEquals(raw["snmp_v3_username"], retained["snmp_v3_username"])
+            assertEquals(raw["snmpOid"], retained["snmpOid"])
+        }
+    }
+
+    @Test
+    fun snmpValidationRequiresItsReachableQueryContract() {
+        val valid = MonitorDraft.create("snmp").copy(
+            name = "Router",
+            endpoint = "router",
+            snmpCommunity = "public",
+            snmpOid = "1.3.6.1.2.1.1.1.0",
+            jsonQueryExpectedValue = "Linux",
+        )
+
+        assertNull(MonitorDraftCodec.validate(valid))
+        assertEquals(MonitorDraftError.SNMP_HOST_INVALID, MonitorDraftCodec.validate(valid.copy(endpoint = "bad host")))
+        assertEquals(MonitorDraftError.SNMP_COMMUNITY_REQUIRED, MonitorDraftCodec.validate(valid.copy(snmpCommunity = "")))
+        assertEquals(MonitorDraftError.SNMP_OID_INVALID, MonitorDraftCodec.validate(valid.copy(snmpOid = "1.03")))
+        assertEquals(MonitorDraftError.SNMP_TIMEOUT_INVALID, MonitorDraftCodec.validate(valid.copy(snmpTimeoutSeconds = "49")))
+        assertEquals(
+            MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(jsonQueryExpectedValue = "")),
+        )
     }
 
     @Test

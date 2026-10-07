@@ -118,7 +118,8 @@ route stack while screens migrate incrementally.
   plus stratum, time-offset, and root-dispersion thresholds, native subtype-aware
   Globalping Ping, DNS, and HTTP controls, native PostgreSQL, MySQL/MariaDB,
   Microsoft SQL Server, MongoDB, and Redis controls, native gRPC keyword target,
-  protobuf, call, body, TLS, and match controls, native SFTP
+  protobuf, call, body, TLS, and match controls, native SNMPv1/v2c query controls,
+  native SFTP
   password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
@@ -136,6 +137,8 @@ route stack while screens migrate incrementally.
   unchanged and retain the browser editor escape.
   Saved gRPC request bodies are likewise never prefilled; the body must be a JSON
   object when created or replaced, while blank edits retain the saved value.
+  SNMP community strings follow the same masked-retention rule. Existing SNMPv3 and
+  unknown versions show a browser-only compatibility notice and remain unchanged.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.

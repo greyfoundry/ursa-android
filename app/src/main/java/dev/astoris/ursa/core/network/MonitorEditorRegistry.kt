@@ -73,6 +73,10 @@ enum class MonitorEditorField {
     GRPC_METHOD,
     GRPC_BODY,
     GRPC_ENABLE_TLS,
+    SNMP_VERSION,
+    SNMP_COMMUNITY,
+    SNMP_OID,
+    SNMP_TIMEOUT,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -93,6 +97,7 @@ enum class MonitorEditorCodec {
     GLOBALPING,
     DATABASE,
     GRPC,
+    SNMP,
     SFTP,
 }
 
@@ -109,6 +114,7 @@ enum class MonitorEditorValidation {
     GLOBALPING,
     DATABASE,
     GRPC,
+    SNMP,
     SFTP,
 }
 
@@ -392,7 +398,28 @@ object MonitorEditorRegistry {
             extraFields = setOf(MonitorEditorField.SMTP_SECURITY),
             transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
         ),
-        definition("snmp", "SNMP"),
+        definition(
+            "snmp",
+            "SNMP",
+            endpointKind = MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            defaultPort = 161,
+            timeoutSeconds = 5,
+            codec = MonitorEditorCodec.SNMP,
+            validation = MonitorEditorValidation.SNMP,
+            extraFields = setOf(
+                MonitorEditorField.SNMP_VERSION,
+                MonitorEditorField.SNMP_COMMUNITY,
+                MonitorEditorField.SNMP_OID,
+                MonitorEditorField.SNMP_TIMEOUT,
+                MonitorEditorField.JSON_QUERY_EXPRESSION,
+                MonitorEditorField.JSON_QUERY_OPERATOR,
+                MonitorEditorField.JSON_QUERY_EXPECTED_VALUE,
+            ),
+            sensitiveFields = setOf(MonitorEditorField.SNMP_COMMUNITY),
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition(
             type = "sftp",
             label = "SFTP",
@@ -785,6 +812,19 @@ object MonitorRoundTripGuard {
                         "grpcEnableTls",
                         "keyword",
                         "invertKeyword",
+                    ),
+                )
+            }
+            if (definition.codec == MonitorEditorCodec.SNMP) {
+                addAll(
+                    setOf(
+                        "snmpVersion",
+                        "radiusPassword",
+                        "snmpOid",
+                        "timeout",
+                        "jsonPath",
+                        "jsonPathOperator",
+                        "expectedValue",
                     ),
                 )
             }

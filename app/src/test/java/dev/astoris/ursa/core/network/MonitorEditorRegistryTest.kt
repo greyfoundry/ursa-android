@@ -43,6 +43,7 @@ class MonitorEditorRegistryTest {
                 "websocket-upgrade",
                 "globalping",
                 "grpc-keyword",
+                "snmp",
                 "postgres",
                 "mysql",
                 "sqlserver",
@@ -276,6 +277,21 @@ class MonitorEditorRegistryTest {
         assertEquals(MonitorEditorValidation.GRPC, definition.validation)
         assertEquals(MonitorEditorFidelity.FULL_FIDELITY, definition.fidelity)
         assertTrue(MonitorEditorField.GRPC_BODY in definition.sensitiveFields)
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, definition.transferEligibility)
+    }
+
+    @Test
+    fun snmpDeclaresItsCommunityAndVersionLimitedNativeContract() {
+        val definition = requireNotNull(MonitorEditorRegistry.find("snmp"))
+
+        assertTrue(definition.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, definition.endpointKind)
+        assertEquals(161, definition.defaults.port)
+        assertEquals(5, definition.defaults.timeoutSeconds)
+        assertEquals(MonitorEditorCodec.SNMP, definition.codec)
+        assertEquals(MonitorEditorValidation.SNMP, definition.validation)
+        assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, definition.fidelity)
+        assertTrue(MonitorEditorField.SNMP_COMMUNITY in definition.sensitiveFields)
         assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, definition.transferEligibility)
     }
 

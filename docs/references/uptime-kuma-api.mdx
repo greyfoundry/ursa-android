@@ -240,6 +240,17 @@ return legacy `grpcMetadata` only in sensitive monitor responses, but its editor
 checker do not use it; URSA preserves it opaquely rather than exposing a misleading
 control.
 
+SNMP monitors use `hostname`, `port`, `radiusPassword` for the community,
+`snmpOid`, `snmpVersion` (`1`, `2c`, or `3`), `timeout`, `maxretries`, `jsonPath`,
+`jsonPathOperator`, and `expectedValue`. The 2.5.5 web form defaults to port 161,
+v2c, a five-second timeout, `$`, and `==`; its OID pattern accepts numeric roots 0-2
+without leading zeroes. URSA natively creates and edits v1/v2c, keeps community
+strings presence-only, and mirrors Kuma's timeout ceiling of 80% of the interval.
+Kuma 2.5.5's checker reads `snmp_v3_username`, but its monitor edit event does not
+persist the form's `snmpV3Username` and its monitor response does not return it.
+URSA therefore preserves existing v3 and unknown records opaquely and retains the
+browser escape rather than claiming a safe v3 editor.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from
