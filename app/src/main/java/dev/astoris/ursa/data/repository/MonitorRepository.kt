@@ -32,6 +32,7 @@ import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
@@ -165,6 +166,10 @@ class MonitorRepository(
 
     val notifications: StateFlow<List<KumaNotification>> = activeClient
         .flatMapLatest { client -> client?.notifications ?: flowOf(emptyList()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val dockerHosts: StateFlow<List<KumaDockerHost>> = activeClient
+        .flatMapLatest { client -> client?.dockerHosts ?: flowOf(emptyList()) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val maintenances: StateFlow<List<MaintenanceDraft>> = activeClient

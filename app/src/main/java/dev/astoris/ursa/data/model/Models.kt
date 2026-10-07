@@ -104,6 +104,13 @@ data class KumaNotification(
     val isDefault: Boolean,
 )
 
+/** Selection-safe Docker host metadata; the daemon address never leaves the network adapter. */
+data class KumaDockerHost(
+    val id: Int,
+    val name: String,
+    val type: String,
+)
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,

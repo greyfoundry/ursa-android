@@ -90,7 +90,7 @@ here so the rest of the app sees clean domain models.
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
   NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, SNMPv1/v2c, RabbitMQ,
-  Kafka producer, and SFTP create flows.
+  Kafka producer, Docker, and SFTP create flows.
   Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
@@ -145,6 +145,10 @@ here so the rest of the app sees clean domain models.
   auto-topic creation, connection timeout, and `None`, PLAIN, SCRAM-SHA-256,
   SCRAM-SHA-512, or AWS SASL. Passwords, AWS secret keys, and session tokens remain
   outside editable state until replaced; unknown future SASL objects stay opaque.
+  Docker maps the exact `docker_container` and `docker_host` fields. Its host selector
+  consumes only ID, name, and type from Kuma's live `dockerHostList`; daemon endpoints
+  and user IDs are discarded before repository or UI state. Docker hosts remain
+  Kuma-managed and Docker monitors remain server-bound rather than portable.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

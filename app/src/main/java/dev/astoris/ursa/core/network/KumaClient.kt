@@ -4,6 +4,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
@@ -81,6 +82,8 @@ class KumaClient(
     val notifications: StateFlow<List<KumaNotification>> = _notifications.asStateFlow()
     private val _notificationListReady = MutableStateFlow(false)
     val notificationListReady: StateFlow<Boolean> = _notificationListReady.asStateFlow()
+    private val _dockerHosts = MutableStateFlow<List<KumaDockerHost>>(emptyList())
+    val dockerHosts: StateFlow<List<KumaDockerHost>> = _dockerHosts.asStateFlow()
     private val _maintenances = MutableStateFlow<Map<Int, MaintenanceDraft>>(emptyMap())
     val maintenances: StateFlow<Map<Int, MaintenanceDraft>> = _maintenances.asStateFlow()
 
@@ -168,6 +171,9 @@ class KumaClient(
                 _managedPushNotifications.value = KumaParse.managedPushNotifications(it)
                 _notificationListReady.value = true
             }
+        }
+        s.on("dockerHostList") { args ->
+            args.jsonArrayAt(0)?.let { _dockerHosts.value = KumaParse.dockerHosts(it) }
         }
         s.on("maintenanceList") { args ->
             args.jsonAt(0)?.let { _maintenances.value = MaintenanceCodec.list(it) }
@@ -639,6 +645,7 @@ class KumaClient(
         _monitorListReady.value = false
         _managedPushNotifications.value = emptyList()
         _notifications.value = emptyList()
+        _dockerHosts.value = emptyList()
         _maintenances.value = emptyMap()
         _notificationListReady.value = false
         _state.value = ConnectionState.Disconnected

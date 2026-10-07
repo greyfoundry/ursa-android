@@ -346,6 +346,54 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun dockerPayloadRoundTripsContainerHostAndFutureFields() {
+        val draft = MonitorDraft.create("docker").copy(
+            name = "Worker",
+            dockerContainer = "ursa-worker",
+            dockerHostId = 7,
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+        assertEquals("ursa-worker", payload["docker_container"]!!.jsonPrimitive.content)
+        assertEquals(7, payload["docker_host"]!!.jsonPrimitive.content.toInt())
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":68,"type":"docker","name":"Worker","docker_container":"ursa-worker","docker_host":7,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureDocker":{"mode":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+        assertEquals("ursa-worker", loaded.dockerContainer)
+        assertEquals(7, loaded.dockerHostId)
+        val edited = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(dockerContainer = "ursa-worker-2"))!!
+        assertEquals("ursa-worker-2", edited["docker_container"]!!.jsonPrimitive.content)
+        assertEquals(7, edited["docker_host"]!!.jsonPrimitive.content.toInt())
+        assertEquals(raw["futureDocker"], edited["futureDocker"])
+    }
+
+    @Test
+    fun dockerValidationRequiresContainerAndConfiguredHost() {
+        val valid = MonitorDraft.create("docker").copy(
+            name = "Worker",
+            dockerContainer = "ursa-worker",
+            dockerHostId = 7,
+        )
+
+        assertNull(MonitorDraftCodec.validate(valid))
+        assertEquals(
+            MonitorDraftError.DOCKER_CONTAINER_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(dockerContainer = "")),
+        )
+        assertEquals(
+            MonitorDraftError.DOCKER_HOST_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(dockerHostId = null)),
+        )
+    }
+
+    @Test
     fun brokerValidationRejectsUnusableEndpointsAndMissingSecrets() {
         val rabbit = MonitorDraft.create("rabbitmq").copy(
             name = "Rabbit",

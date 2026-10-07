@@ -81,6 +81,7 @@ import dev.astoris.ursa.core.network.WebSocketAuthMethod
 import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorTagAssignment
@@ -100,6 +101,7 @@ fun MonitorEditorScreen(
 ) {
     val state by vm.monitorEditor.collectAsStateWithLifecycle()
     val notifications by vm.notifications.collectAsStateWithLifecycle()
+    val dockerHosts by vm.dockerHosts.collectAsStateWithLifecycle()
     val serverTags by vm.serverTags.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
@@ -167,6 +169,7 @@ fun MonitorEditorScreen(
                 accessConnection = activeConnection,
                 serverError = serverError,
                 notifications = notifications,
+                dockerHosts = dockerHosts,
                 serverTags = serverTags,
                 monitors = monitors,
                 discoveryState = discoveryState,
@@ -192,6 +195,7 @@ private fun MonitorForm(
     accessConnection: ServerConnection?,
     serverError: String?,
     notifications: List<KumaNotification>,
+    dockerHosts: List<KumaDockerHost>,
     serverTags: List<KumaTag>,
     monitors: List<Monitor>,
     discoveryState: LocalServiceDiscoveryState,
@@ -418,6 +422,9 @@ private fun MonitorForm(
         }
         if (definition?.codec == MonitorEditorCodec.KAFKA) {
             KafkaFields(draft = draft, onDraftChange = onDraftChange)
+        }
+        if (definition?.codec == MonitorEditorCodec.DOCKER) {
+            DockerFields(draft = draft, hosts = dockerHosts, onDraftChange = onDraftChange)
         }
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
@@ -1706,6 +1713,60 @@ private fun KafkaFields(draft: MonitorDraft, onDraftChange: (MonitorDraft) -> Un
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DockerFields(
+    draft: MonitorDraft,
+    hosts: List<KumaDockerHost>,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    var hostMenuOpen by remember { mutableStateOf(false) }
+    val selectedHost = hosts.firstOrNull { it.id == draft.dockerHostId }
+    Text(stringResource(R.string.monitor_docker_title), style = MaterialTheme.typography.titleSmall)
+    OutlinedTextField(
+        value = draft.dockerContainer,
+        onValueChange = { onDraftChange(draft.copy(dockerContainer = it.take(1_000))) },
+        label = { Text(stringResource(R.string.monitor_docker_container)) },
+        supportingText = { Text(stringResource(R.string.monitor_docker_container_help)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ExposedDropdownMenuBox(
+        expanded = hostMenuOpen,
+        onExpandedChange = { if (hosts.isNotEmpty()) hostMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = selectedHost?.name ?: draft.dockerHostId?.let {
+                stringResource(R.string.monitor_docker_unavailable_host, it)
+            }.orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            enabled = hosts.isNotEmpty(),
+            label = { Text(stringResource(R.string.monitor_docker_host)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(hostMenuOpen) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = hostMenuOpen, onDismissRequest = { hostMenuOpen = false }) {
+            hosts.forEach { host ->
+                DropdownMenuItem(
+                    text = { Text(host.name) },
+                    onClick = {
+                        onDraftChange(draft.copy(dockerHostId = host.id))
+                        hostMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    if (hosts.isEmpty()) {
+        Text(
+            stringResource(R.string.monitor_docker_no_hosts),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 private fun BooleanEditorRow(checked: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
     Row(
@@ -2514,6 +2575,8 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.KAFKA_AWS_IDENTITY_REQUIRED -> R.string.monitor_error_kafka_identity
         MonitorDraftError.KAFKA_AWS_ACCESS_KEY_REQUIRED -> R.string.monitor_error_kafka_access_key
         MonitorDraftError.KAFKA_AWS_SECRET_REQUIRED -> R.string.monitor_error_kafka_secret_key
+        MonitorDraftError.DOCKER_CONTAINER_REQUIRED -> R.string.monitor_error_docker_container
+        MonitorDraftError.DOCKER_HOST_REQUIRED -> R.string.monitor_error_docker_host
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

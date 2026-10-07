@@ -1333,6 +1333,12 @@
     <string name="monitor_kafka_secret_key">Secret access key</string>
     <string name="monitor_kafka_session_token">Session token (optional)</string>
     <string name="monitor_kafka_clear_session_token">Remove the saved session token</string>
+    <string name="monitor_docker_title">Docker container</string>
+    <string name="monitor_docker_container">Container name or ID</string>
+    <string name="monitor_docker_container_help">Use the exact container name or ID known to the selected Docker host.</string>
+    <string name="monitor_docker_host">Docker host</string>
+    <string name="monitor_docker_no_hosts">No Docker hosts are configured. Add one in Uptime Kuma, then reopen this editor.</string>
+    <string name="monitor_docker_unavailable_host">Unavailable host #%1$d</string>
     <string name="action_show">Show</string>
     <string name="action_hide">Hide</string>
     <string name="monitor_discovery_title">Local service</string>
@@ -1422,6 +1428,8 @@
     <string name="monitor_error_kafka_identity">Enter the AWS authorization identity.</string>
     <string name="monitor_error_kafka_access_key">Enter the AWS access key ID.</string>
     <string name="monitor_error_kafka_secret_key">Enter the AWS secret access key.</string>
+    <string name="monitor_error_docker_container">Enter the Docker container name or ID.</string>
+    <string name="monitor_error_docker_host">Choose a Docker host configured in Uptime Kuma.</string>
     <string name="action_saving">Saving…</string>
     <string name="action_edit_monitor">Edit monitor</string>
     <string name="action_delete_monitor">Delete monitor</string>

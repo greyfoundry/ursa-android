@@ -3,6 +3,7 @@ package dev.astoris.ursa.core.network
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
@@ -99,6 +100,17 @@ object KumaParse {
         val name = tag["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
             ?: return@mapNotNull null
         KumaTag(id, name, tag["color"]?.jsonPrimitive?.contentOrNull.orEmpty())
+    }.sortedBy { it.name.lowercase() }
+
+    /** Exposes only fields needed to select an existing Docker host. */
+    fun dockerHosts(arr: JsonArray): List<KumaDockerHost> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val id = obj["id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+        val name = obj["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val type = obj["dockerType"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        KumaDockerHost(id, name, type)
     }.sortedBy { it.name.lowercase() }
 
     /** `heartbeat` event (object, camelCase). */

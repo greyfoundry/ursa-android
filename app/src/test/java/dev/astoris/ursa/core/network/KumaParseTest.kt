@@ -144,6 +144,24 @@ class KumaParseTest {
         assertEquals("webhook", rows.last().type)
     }
 
+    @Test fun dockerHostsExposeOnlySelectionMetadata() {
+        val rows = KumaParse.dockerHosts(
+            Json.parseToJsonElement(
+                """[
+                    {"id":7,"name":"Local socket","dockerType":"socket","dockerDaemon":"/var/run/docker.sock","userID":1},
+                    {"id":8,"name":"Remote","dockerType":"tcp","dockerDaemon":"https://private.example:2376"},
+                    {"id":0,"name":"Invalid","dockerType":"tcp"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("Local socket", rows.first().name)
+        assertEquals("socket", rows.first().type)
+        assertFalse(rows.first().toString().contains("docker.sock"))
+        assertFalse(rows.last().toString().contains("private.example"))
+    }
+
     @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {
         val row = KumaParse.managedPushNotifications(
             Json.parseToJsonElement(

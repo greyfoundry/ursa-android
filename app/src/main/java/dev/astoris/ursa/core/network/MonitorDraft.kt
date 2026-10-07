@@ -346,6 +346,8 @@ data class MonitorDraft(
     val kafkaSessionToken: String = "",
     val kafkaHasSavedSessionToken: Boolean = false,
     val kafkaClearSavedSessionToken: Boolean = false,
+    val dockerContainer: String = "",
+    val dockerHostId: Int? = null,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -481,6 +483,8 @@ enum class MonitorDraftError {
     KAFKA_AWS_IDENTITY_REQUIRED,
     KAFKA_AWS_ACCESS_KEY_REQUIRED,
     KAFKA_AWS_SECRET_REQUIRED,
+    DOCKER_CONTAINER_REQUIRED,
+    DOCKER_HOST_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -694,6 +698,8 @@ object MonitorDraftCodec {
                 kafkaSasl?.string("secretAccessKey")?.isNotEmpty() == true,
             kafkaHasSavedSessionToken = type == "kafka-producer" &&
                 kafkaSasl?.string("sessionToken")?.isNotEmpty() == true,
+            dockerContainer = if (type == "docker") raw.string("docker_container").orEmpty() else "",
+            dockerHostId = if (type == "docker") raw.int("docker_host") else null,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -935,6 +941,10 @@ object MonitorDraftCodec {
                 }
             }
         }
+        if (definition.validation == MonitorEditorValidation.DOCKER) {
+            if (draft.dockerContainer.trim().isEmpty()) return MonitorDraftError.DOCKER_CONTAINER_REQUIRED
+            if (draft.dockerHostId == null || draft.dockerHostId <= 0) return MonitorDraftError.DOCKER_HOST_REQUIRED
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -1068,6 +1078,7 @@ object MonitorDraftCodec {
         applySnmp(values, draft, raw)
         applyRabbitmq(values, draft, raw)
         applyKafka(values, draft, raw)
+        applyDocker(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -1127,6 +1138,7 @@ object MonitorDraftCodec {
         applySnmp(mutable, draft)
         applyRabbitmq(mutable, draft)
         applyKafka(mutable, draft)
+        applyDocker(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -1283,6 +1295,12 @@ object MonitorDraftCodec {
             }
         }
         values["kafkaProducerSaslOptions"] = options
+    }
+
+    private fun applyDocker(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.DOCKER) return
+        values["docker_container"] = JsonPrimitive(draft.dockerContainer.trim())
+        values["docker_host"] = draft.dockerHostId?.let(::JsonPrimitive) ?: JsonNull
     }
 
     private fun applySftp(

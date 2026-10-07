@@ -46,6 +46,7 @@ class MonitorEditorRegistryTest {
                 "snmp",
                 "rabbitmq",
                 "kafka-producer",
+                "docker",
                 "postgres",
                 "mysql",
                 "sqlserver",
@@ -248,6 +249,7 @@ class MonitorEditorRegistryTest {
                         "grpc-keyword",
                         "rabbitmq",
                         "kafka-producer",
+                        "docker",
                         "postgres",
                         "mongodb",
                         "redis",
@@ -323,6 +325,20 @@ class MonitorEditorRegistryTest {
         assertEquals(MonitorEditorFidelity.FULL_FIDELITY, kafka.fidelity)
         assertTrue(MonitorEditorField.KAFKA_SASL_OPTIONS in kafka.sensitiveFields)
         assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, kafka.transferEligibility)
+    }
+
+    @Test
+    fun dockerDeclaresItsCompleteServerBoundContract() {
+        val docker = requireNotNull(MonitorEditorRegistry.find("docker"))
+
+        assertTrue(docker.createSupported)
+        assertEquals(MonitorEditorCodec.DOCKER, docker.codec)
+        assertEquals(MonitorEditorValidation.DOCKER, docker.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, docker.fidelity)
+        assertEquals(MonitorTransferEligibility.NOT_ELIGIBLE, docker.transferEligibility)
+        assertTrue(MonitorEditorField.DOCKER_CONTAINER in docker.editableFields)
+        assertTrue(MonitorEditorField.DOCKER_HOST in docker.editableFields)
+        assertTrue(docker.sensitiveFields.isEmpty())
     }
 
     @Test

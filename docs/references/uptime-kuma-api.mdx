@@ -46,6 +46,10 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   proxyList, dockerHostList, apiKeyList, remoteBrowserList, statusPageList,
   initServerTimezone`
 
+`dockerHostList` is an array of `{ id, userID, dockerDaemon, dockerType, name }`.
+URSA retains only positive `id`, non-empty `name`, and `dockerType` for selection;
+the daemon address and owning user ID are discarded at the network boundary.
+
 **client → server events (with ack callback)**
 - `getMonitorBeats(id, periodHours)` → `{ ok, data: HeartbeatRow[] }`
   rows are **snake_case**: `{ id, monitor_id, status, msg, time, ping, duration,
@@ -268,6 +272,14 @@ secret access key, and optional session token. URSA never places returned
 passwords, secret keys, or session tokens in editable state. Blank edits retain
 only same-mechanism secrets, the optional session token can be removed explicitly,
 and unknown future SASL objects remain unchanged.
+
+Docker monitors use `docker_container` for the exact container name or ID and
+`docker_host` for the numeric ID of a server-configured Docker host. Kuma inspects
+`/containers/{container}/json`; a running container without a health check is Up,
+while a paused or stopped container is not. URSA creates and edits these two fields,
+selects only hosts received from the current server, and leaves host administration
+in Kuma. The server-bound host ID makes Docker monitors ineligible for cross-server
+transfer.
 
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array

@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-07 - Native Docker monitor editing
+
+**changed**: Added native Docker monitor creation and editing for the exact container
+name or ID and an existing Kuma-managed Docker host. The live host list is exposed
+through the existing socket/repository flow; URSA does not duplicate Docker host
+administration.
+
+**security and compatibility**: Only host ID, name, and type leave the network
+adapter. Kuma's daemon endpoint and owning user ID are discarded before app state.
+Existing unavailable host IDs stay visible and unchanged, unknown monitor fields
+round-trip opaquely, and Docker monitors remain ineligible for cross-server transfer.
+
+**verification**: Focused codec, parser, and registry tests cover exact payloads,
+validation, future-field preservation, selection-only host metadata, and the
+server-bound transfer policy. Android 17/live Kuma 2.5.5 QA used a read-only Docker
+socket proxy and two real disposable containers. URSA created the first-container
+monitor, reached Up, reloaded the exact host and container, edited it to the second
+container, reached Up again, and reloaded the edited values. Proxy logs confirmed
+successful inspections of both containers. Confirmed deletion and fixture cleanup
+restored the five-monitor baseline; URSA had no crash or ANR and Kuma showed only
+the pre-existing TLS warnings.
+
 ### 2026-10-07 - Native RabbitMQ and Kafka producer monitor editing
 
 **changed**: Added one broker-oriented specialist checkpoint. RabbitMQ now owns an

@@ -87,6 +87,8 @@ enum class MonitorEditorField {
     KAFKA_SSL,
     KAFKA_AUTO_TOPIC_CREATION,
     KAFKA_SASL_OPTIONS,
+    DOCKER_CONTAINER,
+    DOCKER_HOST,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -110,6 +112,7 @@ enum class MonitorEditorCodec {
     SNMP,
     RABBITMQ,
     KAFKA,
+    DOCKER,
     SFTP,
 }
 
@@ -129,6 +132,7 @@ enum class MonitorEditorValidation {
     SNMP,
     RABBITMQ,
     KAFKA,
+    DOCKER,
     SFTP,
 }
 
@@ -236,7 +240,16 @@ object MonitorEditorRegistry {
             createSupported = true,
             defaultPort = 53,
         ),
-        definition("docker", "Docker container"),
+        definition(
+            "docker",
+            "Docker container",
+            createSupported = true,
+            codec = MonitorEditorCodec.DOCKER,
+            validation = MonitorEditorValidation.DOCKER,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(MonitorEditorField.DOCKER_CONTAINER, MonitorEditorField.DOCKER_HOST),
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition("system-service", "System service"),
         definition("pm2", "PM2 process", verifiedMin = KumaVersion(2, 5, 0)),
         definition("real-browser", "Browser engine", MonitorEndpointKind.URL),
@@ -893,6 +906,9 @@ object MonitorRoundTripGuard {
                         "timeout",
                     ),
                 )
+            }
+            if (definition.codec == MonitorEditorCodec.DOCKER) {
+                addAll(setOf("docker_container", "docker_host"))
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }
