@@ -117,7 +117,8 @@ route stack while screens migrate incrementally.
   explicit SMTPS, plaintext, or required-STARTTLS selection, native NTP host/port
   plus stratum, time-offset, and root-dispersion thresholds, native subtype-aware
   Globalping Ping, DNS, and HTTP controls, native PostgreSQL, MySQL/MariaDB,
-  Microsoft SQL Server, MongoDB, and Redis controls, native SFTP
+  Microsoft SQL Server, MongoDB, and Redis controls, native gRPC keyword target,
+  protobuf, call, body, TLS, and match controls, native SFTP
   password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
@@ -133,6 +134,8 @@ route stack while screens migrate incrementally.
   check, and Redis exposes TLS-certificate-error handling. MySQL's separate
   password override is also masked. Nested MySQL/SQL Server result conditions stay
   unchanged and retain the browser editor escape.
+  Saved gRPC request bodies are likewise never prefilled; the body must be a JSON
+  object when created or replaced, while blank edits retain the saved value.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.

@@ -25,6 +25,82 @@ class MonitorDraftCodecTest {
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "globalping" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "postgres" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "redis" })
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "grpc-keyword" })
+    }
+
+    @Test
+    fun grpcPayloadMapsTheKuma255Contract() {
+        val draft = MonitorDraft.create("grpc-keyword").copy(
+            name = "Health",
+            grpcTarget = "grpc.example.com:443",
+            grpcProtobuf = "syntax = \"proto3\"; service Health { rpc Check (Request) returns (Response); }",
+            grpcServiceName = "Health",
+            grpcMethod = "check",
+            grpcBody = "{\"service\":\"api\"}",
+            grpcEnableTls = true,
+            keyword = "SERVING",
+            invertKeyword = false,
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+        assertEquals("grpc.example.com:443", payload["grpcUrl"]!!.jsonPrimitive.content)
+        assertEquals(draft.grpcProtobuf, payload["grpcProtobuf"]!!.jsonPrimitive.content)
+        assertEquals("Health", payload["grpcServiceName"]!!.jsonPrimitive.content)
+        assertEquals("check", payload["grpcMethod"]!!.jsonPrimitive.content)
+        assertEquals("{\"service\":\"api\"}", payload["grpcBody"]!!.jsonPrimitive.content)
+        assertTrue(payload["grpcEnableTls"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals("SERVING", payload["keyword"]!!.jsonPrimitive.content)
+        assertFalse(payload["invertKeyword"]!!.jsonPrimitive.content.toBoolean())
+    }
+
+    @Test
+    fun grpcEditsMaskAndRetainTheSavedBodyAndLegacyMetadata() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":62,"type":"grpc-keyword","name":"Health","grpcUrl":"grpc:50051",
+                "grpcProtobuf":"syntax = \"proto3\";","grpcServiceName":"Health","grpcMethod":"check",
+                "grpcBody":"{\"service\":\"api\"}","grpcMetadata":"{\"authorization\":\"secret\"}",
+                "grpcEnableTls":false,"keyword":"SERVING","invertKeyword":false,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureGrpc":{"mode":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.grpcHasSavedBody)
+        assertTrue(loaded.grpcBody.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+
+        val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(keyword = "READY"))!!
+        assertEquals("{\"service\":\"api\"}", retained["grpcBody"]!!.jsonPrimitive.content)
+        assertEquals(raw["grpcMetadata"], retained["grpcMetadata"])
+        assertEquals(raw["futureGrpc"], retained["futureGrpc"])
+
+        val replaced = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(grpcBody = "{\"service\":\"worker\"}"),
+        )!!
+        assertEquals("{\"service\":\"worker\"}", replaced["grpcBody"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun grpcValidationRequiresTheExecutableContract() {
+        val valid = MonitorDraft.create("grpc-keyword").copy(
+            name = "Health",
+            grpcTarget = "grpc:50051",
+            grpcProtobuf = "syntax = \"proto3\";",
+            grpcServiceName = "Health",
+            grpcMethod = "check",
+            keyword = "SERVING",
+        )
+        assertNull(MonitorDraftCodec.validate(valid))
+        assertEquals(MonitorDraftError.GRPC_TARGET_REQUIRED, MonitorDraftCodec.validate(valid.copy(grpcTarget = "")))
+        assertEquals(MonitorDraftError.GRPC_PROTOBUF_REQUIRED, MonitorDraftCodec.validate(valid.copy(grpcProtobuf = "")))
+        assertEquals(MonitorDraftError.GRPC_SERVICE_REQUIRED, MonitorDraftCodec.validate(valid.copy(grpcServiceName = "")))
+        assertEquals(MonitorDraftError.GRPC_METHOD_REQUIRED, MonitorDraftCodec.validate(valid.copy(grpcMethod = "")))
+        assertEquals(MonitorDraftError.KEYWORD_REQUIRED, MonitorDraftCodec.validate(valid.copy(keyword = "")))
+        assertEquals(MonitorDraftError.GRPC_BODY_INVALID, MonitorDraftCodec.validate(valid.copy(grpcBody = "[]")))
     }
 
     @Test

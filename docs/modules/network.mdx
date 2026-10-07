@@ -89,7 +89,8 @@ here so the rest of the app sees clean domain models.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
-  NTP, Globalping Ping/DNS/HTTP, database, and SFTP create flows. Keyword monitors map
+  NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, and SFTP create flows.
+  Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
@@ -130,6 +131,10 @@ here so the rest of the app sees clean domain models.
   JSONata/expected-value fields, and Redis maps its TLS-verification switch. Blank
   saved secrets are recovered only from the freshly fetched full object. MySQL and
   SQL Server nested result conditions remain opaque and unchanged.
+  gRPC keyword monitors map the target, inline protobuf, service and method names,
+  JSON-object request body, TLS switch, keyword, and inverse match. Saved request
+  bodies reduce to a presence flag and are recovered only from the freshly fetched
+  object when left blank; unused legacy metadata and future fields remain opaque.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

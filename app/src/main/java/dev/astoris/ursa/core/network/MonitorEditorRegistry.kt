@@ -67,6 +67,12 @@ enum class MonitorEditorField {
     DATABASE_IGNORE_TLS,
     DATABASE_JSON_QUERY_EXPRESSION,
     DATABASE_EXPECTED_VALUE,
+    GRPC_TARGET,
+    GRPC_PROTOBUF,
+    GRPC_SERVICE_NAME,
+    GRPC_METHOD,
+    GRPC_BODY,
+    GRPC_ENABLE_TLS,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -86,6 +92,7 @@ enum class MonitorEditorCodec {
     NTP,
     GLOBALPING,
     DATABASE,
+    GRPC,
     SFTP,
 }
 
@@ -101,6 +108,7 @@ enum class MonitorEditorValidation {
     NTP,
     GLOBALPING,
     DATABASE,
+    GRPC,
     SFTP,
 }
 
@@ -283,7 +291,27 @@ object MonitorEditorRegistry {
             transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
             help = MonitorEditorHelp.FULL_NATIVE,
         ),
-        definition("grpc-keyword", "gRPC(s) - keyword"),
+        definition(
+            "grpc-keyword",
+            "gRPC(s) - keyword",
+            createSupported = true,
+            codec = MonitorEditorCodec.GRPC,
+            validation = MonitorEditorValidation.GRPC,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(
+                MonitorEditorField.KEYWORD,
+                MonitorEditorField.INVERT_KEYWORD,
+                MonitorEditorField.GRPC_TARGET,
+                MonitorEditorField.GRPC_PROTOBUF,
+                MonitorEditorField.GRPC_SERVICE_NAME,
+                MonitorEditorField.GRPC_METHOD,
+                MonitorEditorField.GRPC_BODY,
+                MonitorEditorField.GRPC_ENABLE_TLS,
+            ),
+            sensitiveFields = setOf(MonitorEditorField.GRPC_BODY),
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition(
             "json-query",
             "HTTP(s) - JSON query",
@@ -745,6 +773,20 @@ object MonitorRoundTripGuard {
                     add("expectedValue")
                 }
                 if (type == "redis") add("ignoreTls")
+            }
+            if (definition.codec == MonitorEditorCodec.GRPC) {
+                addAll(
+                    setOf(
+                        "grpcUrl",
+                        "grpcProtobuf",
+                        "grpcServiceName",
+                        "grpcMethod",
+                        "grpcBody",
+                        "grpcEnableTls",
+                        "keyword",
+                        "invertKeyword",
+                    ),
+                )
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

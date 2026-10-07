@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-06
+last-updated: 2026-10-07
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,26 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-07 - Native gRPC keyword monitor editing
+
+**changed**: Added the first specialist monitor editor for gRPC keyword checks. The
+native form owns the target, inline protobuf, service and generated method names,
+JSON-object request body, TLS switch, keyword, and inverse match.
+
+**security and compatibility**: Saved request bodies reduce to presence flags before
+UI state and are recovered only from a freshly fetched full monitor when blank.
+Unused legacy `grpcMetadata` and unrelated future fields remain opaque and unchanged
+behind the round-trip guard.
+
+**verification**: Focused two-flavor codec/registry tests cover exact payloads,
+required fields, object-only body validation, masked retention/replacement, registry
+fidelity, and unknown-field preservation. Android 17/live Kuma 2.5.5 QA called a
+real disposable gRPC service, reached Up, matched the exact database row, reloaded
+with a blank body and saved-value notice, edited only the keyword while preserving
+the body, reloaded again, and deleted back to the five-monitor baseline. URSA had no
+crash or ANR; fixture/Kuma logs contained only expected baseline warnings and the
+deliberately corrected first fixture-start attempt.
 
 ### 2026-10-06 - Native database monitor editing
 

@@ -284,6 +284,13 @@ data class MonitorDraft(
     val databaseIgnoreTls: Boolean = false,
     val databaseJsonQueryExpression: String = "$",
     val databaseExpectedValue: String = "",
+    val grpcTarget: String = "",
+    val grpcProtobuf: String = "",
+    val grpcServiceName: String = "",
+    val grpcMethod: String = "",
+    val grpcBody: String = "",
+    val grpcHasSavedBody: Boolean = false,
+    val grpcEnableTls: Boolean = false,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -324,6 +331,7 @@ data class MonitorDraft(
                 globalpingHttpProtocol = if (option.key == "globalping") GlobalpingHttpProtocol.AUTO else null,
                 globalpingHttpMethod = if (option.key == "globalping") GlobalpingHttpMethod.GET else null,
                 databaseJsonQueryExpression = if (option.key == "mongodb") "$" else "",
+                grpcBody = if (option.key == "grpc-keyword") "{}" else "",
             )
         }
 
@@ -393,6 +401,11 @@ enum class MonitorDraftError {
     GLOBALPING_HTTP_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     DATABASE_CONNECTION_STRING_REQUIRED,
     DATABASE_MONGODB_COMMAND_INVALID,
+    GRPC_TARGET_REQUIRED,
+    GRPC_PROTOBUF_REQUIRED,
+    GRPC_SERVICE_REQUIRED,
+    GRPC_METHOD_REQUIRED,
+    GRPC_BODY_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -555,6 +568,12 @@ object MonitorDraftCodec {
             databaseIgnoreTls = type == "redis" && raw.boolean("ignoreTls"),
             databaseJsonQueryExpression = if (type == "mongodb") raw.string("jsonPath") ?: "$" else "",
             databaseExpectedValue = if (type == "mongodb") raw.string("expectedValue").orEmpty() else "",
+            grpcTarget = if (type == "grpc-keyword") raw.string("grpcUrl").orEmpty() else "",
+            grpcProtobuf = if (type == "grpc-keyword") raw.string("grpcProtobuf").orEmpty() else "",
+            grpcServiceName = if (type == "grpc-keyword") raw.string("grpcServiceName").orEmpty() else "",
+            grpcMethod = if (type == "grpc-keyword") raw.string("grpcMethod").orEmpty() else "",
+            grpcHasSavedBody = type == "grpc-keyword" && raw.string("grpcBody")?.isNotEmpty() == true,
+            grpcEnableTls = type == "grpc-keyword" && raw.boolean("grpcEnableTls"),
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -710,6 +729,24 @@ object MonitorDraftCodec {
                 return MonitorDraftError.DATABASE_MONGODB_COMMAND_INVALID
             }
         }
+        if (definition.validation == MonitorEditorValidation.GRPC) {
+            if (draft.grpcTarget.isBlank()) return MonitorDraftError.GRPC_TARGET_REQUIRED
+            if (draft.grpcProtobuf.isBlank()) return MonitorDraftError.GRPC_PROTOBUF_REQUIRED
+            if (draft.grpcServiceName.isBlank()) return MonitorDraftError.GRPC_SERVICE_REQUIRED
+            if (draft.grpcMethod.isBlank()) return MonitorDraftError.GRPC_METHOD_REQUIRED
+            if (draft.keyword.isEmpty()) return MonitorDraftError.KEYWORD_REQUIRED
+            if (
+                !draft.grpcHasSavedBody || draft.grpcBody.isNotEmpty()
+            ) {
+                if (
+                    draft.grpcBody.isBlank() ||
+                    runCatching { Json.parseToJsonElement(draft.grpcBody) as? JsonObject }
+                        .getOrNull() == null
+                ) {
+                    return MonitorDraftError.GRPC_BODY_INVALID
+                }
+            }
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -839,6 +876,7 @@ object MonitorDraftCodec {
         applyNtp(values, draft)
         applyGlobalping(values, draft)
         applyDatabase(values, draft, raw)
+        applyGrpc(values, draft, raw)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -894,6 +932,7 @@ object MonitorDraftCodec {
         applyNtp(mutable, draft)
         applyGlobalping(mutable, draft)
         applyDatabase(mutable, draft)
+        applyGrpc(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -940,6 +979,24 @@ object MonitorDraftCodec {
         if (draft.type == "redis") {
             values["ignoreTls"] = JsonPrimitive(draft.databaseIgnoreTls)
         }
+    }
+
+    private fun applyGrpc(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.GRPC) return
+        values["grpcUrl"] = JsonPrimitive(draft.grpcTarget.trim())
+        values["grpcProtobuf"] = JsonPrimitive(draft.grpcProtobuf.trim())
+        values["grpcServiceName"] = JsonPrimitive(draft.grpcServiceName.trim())
+        values["grpcMethod"] = JsonPrimitive(draft.grpcMethod.trim())
+        values["grpcBody"] = JsonPrimitive(
+            draft.grpcBody.ifEmpty { existing?.string("grpcBody").orEmpty() },
+        )
+        values["grpcEnableTls"] = JsonPrimitive(draft.grpcEnableTls)
+        values["keyword"] = JsonPrimitive(draft.keyword)
+        values["invertKeyword"] = JsonPrimitive(draft.invertKeyword)
     }
 
     private fun applySftp(

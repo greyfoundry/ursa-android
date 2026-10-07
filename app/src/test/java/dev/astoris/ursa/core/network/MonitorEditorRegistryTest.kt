@@ -42,6 +42,7 @@ class MonitorEditorRegistryTest {
                 "sftp",
                 "websocket-upgrade",
                 "globalping",
+                "grpc-keyword",
                 "postgres",
                 "mysql",
                 "sqlserver",
@@ -237,7 +238,9 @@ class MonitorEditorRegistryTest {
         )
         assertTrue(
             MonitorEditorRegistry.all
-                .filter { it.type !in setOf("sftp", "globalping", "postgres", "mongodb", "redis") }
+                .filter {
+                    it.type !in setOf("sftp", "globalping", "grpc-keyword", "postgres", "mongodb", "redis")
+                }
                 .all { it.fidelity == MonitorEditorFidelity.SAFE_COMMON_EDIT },
         )
     }
@@ -261,6 +264,19 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.DATABASE_PASSWORD in MonitorEditorRegistry.find("mysql")!!.sensitiveFields)
         assertTrue(MonitorEditorField.DATABASE_IGNORE_TLS in MonitorEditorRegistry.find("redis")!!.editableFields)
         assertTrue(MonitorEditorField.DATABASE_JSON_QUERY_EXPRESSION in MonitorEditorRegistry.find("mongodb")!!.editableFields)
+    }
+
+    @Test
+    fun grpcDeclaresItsSensitiveBodyAndFullNativeContract() {
+        val definition = requireNotNull(MonitorEditorRegistry.find("grpc-keyword"))
+
+        assertTrue(definition.createSupported)
+        assertEquals(MonitorEndpointKind.NONE, definition.endpointKind)
+        assertEquals(MonitorEditorCodec.GRPC, definition.codec)
+        assertEquals(MonitorEditorValidation.GRPC, definition.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, definition.fidelity)
+        assertTrue(MonitorEditorField.GRPC_BODY in definition.sensitiveFields)
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, definition.transferEligibility)
     }
 
     @Test

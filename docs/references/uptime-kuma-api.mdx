@@ -230,6 +230,16 @@ condition editor must preserve that array unchanged. Connection strings and the
 MySQL override can contain credentials and therefore must not be prefilled, logged,
 or copied into local monitor caches.
 
+gRPC keyword monitors use `grpcUrl`, inline `grpcProtobuf`, `grpcServiceName`,
+`grpcMethod`, JSON-object string `grpcBody`, `grpcEnableTls`, `keyword`, and
+`invertKeyword`. Kuma's checker parses the body before invoking the generated
+camel-case method and searches the JSON response string for the keyword. The body
+may contain credentials, so URSA keeps only a presence flag in editor state and
+recovers an unchanged value from the freshly fetched full object. Kuma 2.5.5 can
+return legacy `grpcMetadata` only in sensitive monitor responses, but its editor and
+checker do not use it; URSA preserves it opaquely rather than exposing a misleading
+control.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from

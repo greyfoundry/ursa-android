@@ -295,6 +295,9 @@ private fun MonitorForm(
         if (definition?.codec == MonitorEditorCodec.DATABASE) {
             DatabaseFields(draft = draft, onDraftChange = onDraftChange)
         }
+        if (definition?.codec == MonitorEditorCodec.GRPC) {
+            GrpcFields(draft = draft, onDraftChange = onDraftChange)
+        }
         if (draft.type == "push") {
             PushMonitorSetup(
                 pushUrl = accessConnection?.url?.let { MonitorDraftCodec.pushUrl(it, draft.pushToken) },
@@ -321,7 +324,7 @@ private fun MonitorForm(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        if (definition?.codec == MonitorEditorCodec.KEYWORD) {
+        if (definition?.codec == MonitorEditorCodec.KEYWORD || definition?.codec == MonitorEditorCodec.GRPC) {
             OutlinedTextField(
                 value = draft.keyword,
                 onValueChange = { onDraftChange(draft.copy(keyword = it.take(2_000))) },
@@ -1486,6 +1489,66 @@ private fun DatabaseFields(
     }
 }
 
+@Composable
+private fun GrpcFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    Text(stringResource(R.string.monitor_grpc_title), style = MaterialTheme.typography.titleSmall)
+    OutlinedTextField(
+        value = draft.grpcTarget,
+        onValueChange = { onDraftChange(draft.copy(grpcTarget = it.take(2_048))) },
+        label = { Text(stringResource(R.string.monitor_grpc_target)) },
+        supportingText = { Text(stringResource(R.string.monitor_grpc_target_help)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.grpcServiceName,
+        onValueChange = { onDraftChange(draft.copy(grpcServiceName = it.take(512))) },
+        label = { Text(stringResource(R.string.monitor_grpc_service)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.grpcMethod,
+        onValueChange = { onDraftChange(draft.copy(grpcMethod = it.take(256))) },
+        label = { Text(stringResource(R.string.monitor_grpc_method)) },
+        supportingText = { Text(stringResource(R.string.monitor_grpc_method_help)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.grpcProtobuf,
+        onValueChange = { onDraftChange(draft.copy(grpcProtobuf = it.take(100_000))) },
+        label = { Text(stringResource(R.string.monitor_grpc_protobuf)) },
+        minLines = 5,
+        maxLines = 12,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SensitiveField(
+        value = draft.grpcBody,
+        onValueChange = { onDraftChange(draft.copy(grpcBody = it.take(20_000))) },
+        label = stringResource(R.string.monitor_grpc_body),
+        saved = draft.grpcHasSavedBody,
+        savedMessage = stringResource(R.string.monitor_grpc_body_saved),
+        minLines = 3,
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = draft.grpcEnableTls,
+                role = Role.Checkbox,
+                onValueChange = { onDraftChange(draft.copy(grpcEnableTls = it)) },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = draft.grpcEnableTls, onCheckedChange = null)
+        Text(stringResource(R.string.monitor_grpc_tls))
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GlobalpingFields(draft: MonitorDraft, onDraftChange: (MonitorDraft) -> Unit) {
@@ -2107,6 +2170,11 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
             R.string.monitor_error_database_connection_string
         MonitorDraftError.DATABASE_MONGODB_COMMAND_INVALID ->
             R.string.monitor_error_database_mongodb_command
+        MonitorDraftError.GRPC_TARGET_REQUIRED -> R.string.monitor_error_grpc_target
+        MonitorDraftError.GRPC_PROTOBUF_REQUIRED -> R.string.monitor_error_grpc_protobuf
+        MonitorDraftError.GRPC_SERVICE_REQUIRED -> R.string.monitor_error_grpc_service
+        MonitorDraftError.GRPC_METHOD_REQUIRED -> R.string.monitor_error_grpc_method
+        MonitorDraftError.GRPC_BODY_INVALID -> R.string.monitor_error_grpc_body
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key
