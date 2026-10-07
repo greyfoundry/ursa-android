@@ -72,6 +72,7 @@ import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorHeaderDraft
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
 import dev.astoris.ursa.core.network.KumaCompatibility
+import dev.astoris.ursa.core.network.KafkaSaslMechanism
 import dev.astoris.ursa.core.network.MqttCheckType
 import dev.astoris.ursa.core.network.SftpAuthMethod
 import dev.astoris.ursa.core.network.SmtpSecurityMode
@@ -411,6 +412,12 @@ private fun MonitorForm(
         }
         if (definition?.codec == MonitorEditorCodec.SNMP) {
             SnmpFields(draft = draft, onDraftChange = onDraftChange)
+        }
+        if (definition?.codec == MonitorEditorCodec.RABBITMQ) {
+            RabbitmqFields(draft = draft, onDraftChange = onDraftChange)
+        }
+        if (definition?.codec == MonitorEditorCodec.KAFKA) {
+            KafkaFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
@@ -1506,6 +1513,214 @@ private fun JsonQueryFields(
     )
 }
 
+@Composable
+private fun BrokerTimeoutField(draft: MonitorDraft, onDraftChange: (MonitorDraft) -> Unit) {
+    OutlinedTextField(
+        value = draft.brokerTimeoutSeconds,
+        onValueChange = { onDraftChange(draft.copy(brokerTimeoutSeconds = it.take(12))) },
+        label = { Text(stringResource(R.string.monitor_broker_timeout)) },
+        supportingText = { Text(stringResource(R.string.monitor_broker_timeout_help)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun RabbitmqFields(draft: MonitorDraft, onDraftChange: (MonitorDraft) -> Unit) {
+    Text(stringResource(R.string.monitor_rabbitmq_title), style = MaterialTheme.typography.titleSmall)
+    OutlinedTextField(
+        value = draft.rabbitmqNodes,
+        onValueChange = { onDraftChange(draft.copy(rabbitmqNodes = it.take(10_000))) },
+        label = { Text(stringResource(R.string.monitor_rabbitmq_nodes)) },
+        supportingText = { Text(stringResource(R.string.monitor_rabbitmq_nodes_help)) },
+        minLines = 2,
+        maxLines = 6,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.rabbitmqUsername,
+        onValueChange = { onDraftChange(draft.copy(rabbitmqUsername = it.take(1_000))) },
+        label = { Text(stringResource(R.string.monitor_rabbitmq_username)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SensitiveField(
+        value = draft.rabbitmqPassword,
+        onValueChange = { onDraftChange(draft.copy(rabbitmqPassword = it.take(4_000))) },
+        label = stringResource(R.string.monitor_rabbitmq_password),
+        saved = draft.rabbitmqHasSavedPassword,
+        savedMessage = stringResource(R.string.monitor_broker_secret_saved),
+    )
+    BrokerTimeoutField(draft, onDraftChange)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KafkaFields(draft: MonitorDraft, onDraftChange: (MonitorDraft) -> Unit) {
+    var mechanismMenuOpen by remember { mutableStateOf(false) }
+    Text(stringResource(R.string.monitor_kafka_title), style = MaterialTheme.typography.titleSmall)
+    OutlinedTextField(
+        value = draft.kafkaBrokers,
+        onValueChange = { onDraftChange(draft.copy(kafkaBrokers = it.take(10_000))) },
+        label = { Text(stringResource(R.string.monitor_kafka_brokers)) },
+        supportingText = { Text(stringResource(R.string.monitor_kafka_brokers_help)) },
+        minLines = 2,
+        maxLines = 6,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.kafkaTopic,
+        onValueChange = { onDraftChange(draft.copy(kafkaTopic = it.take(1_000))) },
+        label = { Text(stringResource(R.string.monitor_kafka_topic)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.kafkaMessage,
+        onValueChange = { onDraftChange(draft.copy(kafkaMessage = it.take(20_000))) },
+        label = { Text(stringResource(R.string.monitor_kafka_message)) },
+        minLines = 2,
+        maxLines = 6,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    BooleanEditorRow(
+        checked = draft.kafkaSsl,
+        label = stringResource(R.string.monitor_kafka_ssl),
+        onCheckedChange = { onDraftChange(draft.copy(kafkaSsl = it)) },
+    )
+    BooleanEditorRow(
+        checked = draft.kafkaAllowAutoTopicCreation,
+        label = stringResource(R.string.monitor_kafka_auto_topic),
+        onCheckedChange = { onDraftChange(draft.copy(kafkaAllowAutoTopicCreation = it)) },
+    )
+    BrokerTimeoutField(draft, onDraftChange)
+    Text(stringResource(R.string.monitor_kafka_sasl_title), style = MaterialTheme.typography.titleSmall)
+    if (!draft.kafkaSaslEditable) {
+        Text(
+            stringResource(R.string.monitor_kafka_sasl_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+    ExposedDropdownMenuBox(
+        expanded = mechanismMenuOpen,
+        onExpandedChange = { if (draft.kafkaSaslEditable) mechanismMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = stringResource(draft.kafkaSaslMechanism.labelRes),
+            onValueChange = {},
+            readOnly = true,
+            enabled = draft.kafkaSaslEditable,
+            label = { Text(stringResource(R.string.monitor_kafka_sasl_mechanism)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(mechanismMenuOpen) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = mechanismMenuOpen, onDismissRequest = { mechanismMenuOpen = false }) {
+            KafkaSaslMechanism.entries.filter { it != KafkaSaslMechanism.UNSUPPORTED }.forEach { mechanism ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(mechanism.labelRes)) },
+                    onClick = {
+                        onDraftChange(
+                            draft.copy(
+                                kafkaSaslMechanism = mechanism,
+                                kafkaPassword = "",
+                                kafkaSecretAccessKey = "",
+                                kafkaSessionToken = "",
+                                kafkaClearSavedSessionToken = false,
+                            ),
+                        )
+                        mechanismMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    when (draft.kafkaSaslMechanism) {
+        KafkaSaslMechanism.PLAIN,
+        KafkaSaslMechanism.SCRAM_SHA_256,
+        KafkaSaslMechanism.SCRAM_SHA_512,
+        -> {
+            OutlinedTextField(
+                value = draft.kafkaUsername,
+                onValueChange = { onDraftChange(draft.copy(kafkaUsername = it.take(1_000))) },
+                label = { Text(stringResource(R.string.monitor_kafka_username)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SensitiveField(
+                value = draft.kafkaPassword,
+                onValueChange = { onDraftChange(draft.copy(kafkaPassword = it.take(4_000))) },
+                label = stringResource(R.string.monitor_kafka_password),
+                saved = draft.kafkaOriginalSaslMechanism == draft.kafkaSaslMechanism &&
+                    draft.kafkaHasSavedPassword,
+                savedMessage = stringResource(R.string.monitor_broker_secret_saved),
+            )
+        }
+        KafkaSaslMechanism.AWS -> {
+            OutlinedTextField(
+                value = draft.kafkaAuthorizationIdentity,
+                onValueChange = { onDraftChange(draft.copy(kafkaAuthorizationIdentity = it.take(1_000))) },
+                label = { Text(stringResource(R.string.monitor_kafka_authorization_identity)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = draft.kafkaAccessKeyId,
+                onValueChange = { onDraftChange(draft.copy(kafkaAccessKeyId = it.take(1_000))) },
+                label = { Text(stringResource(R.string.monitor_kafka_access_key)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SensitiveField(
+                value = draft.kafkaSecretAccessKey,
+                onValueChange = { onDraftChange(draft.copy(kafkaSecretAccessKey = it.take(4_000))) },
+                label = stringResource(R.string.monitor_kafka_secret_key),
+                saved = draft.kafkaOriginalSaslMechanism == KafkaSaslMechanism.AWS &&
+                    draft.kafkaHasSavedSecretAccessKey,
+                savedMessage = stringResource(R.string.monitor_broker_secret_saved),
+            )
+            SensitiveField(
+                value = draft.kafkaSessionToken,
+                onValueChange = {
+                    onDraftChange(draft.copy(kafkaSessionToken = it.take(8_000), kafkaClearSavedSessionToken = false))
+                },
+                label = stringResource(R.string.monitor_kafka_session_token),
+                saved = draft.kafkaOriginalSaslMechanism == KafkaSaslMechanism.AWS &&
+                    draft.kafkaHasSavedSessionToken && !draft.kafkaClearSavedSessionToken,
+                savedMessage = stringResource(R.string.monitor_broker_secret_saved),
+            )
+            if (draft.kafkaHasSavedSessionToken) {
+                BooleanEditorRow(
+                    checked = draft.kafkaClearSavedSessionToken,
+                    label = stringResource(R.string.monitor_kafka_clear_session_token),
+                    onCheckedChange = {
+                        onDraftChange(draft.copy(kafkaClearSavedSessionToken = it, kafkaSessionToken = ""))
+                    },
+                )
+            }
+        }
+        KafkaSaslMechanism.NONE,
+        KafkaSaslMechanism.UNSUPPORTED,
+        -> Unit
+    }
+}
+
+@Composable
+private fun BooleanEditorRow(checked: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().toggleable(
+            value = checked,
+            role = Role.Checkbox,
+            onValueChange = onCheckedChange,
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Text(label)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SnmpFields(
@@ -2080,6 +2295,16 @@ private val SnmpVersion.labelRes: Int
         SnmpVersion.UNSUPPORTED -> R.string.monitor_snmp_version_unsupported
     }
 
+private val KafkaSaslMechanism.labelRes: Int
+    get() = when (this) {
+        KafkaSaslMechanism.NONE -> R.string.monitor_kafka_sasl_none
+        KafkaSaslMechanism.PLAIN -> R.string.monitor_kafka_sasl_plain
+        KafkaSaslMechanism.SCRAM_SHA_256 -> R.string.monitor_kafka_sasl_scram_256
+        KafkaSaslMechanism.SCRAM_SHA_512 -> R.string.monitor_kafka_sasl_scram_512
+        KafkaSaslMechanism.AWS -> R.string.monitor_kafka_sasl_aws
+        KafkaSaslMechanism.UNSUPPORTED -> R.string.monitor_kafka_sasl_unsupported
+    }
+
 @Composable
 private fun PushMonitorSetup(pushUrl: String?, pushToken: String, isNew: Boolean) {
     val context = LocalContext.current
@@ -2275,6 +2500,20 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.SNMP_COMMUNITY_REQUIRED -> R.string.monitor_error_snmp_community
         MonitorDraftError.SNMP_OID_INVALID -> R.string.monitor_error_snmp_oid
         MonitorDraftError.SNMP_TIMEOUT_INVALID -> R.string.monitor_error_snmp_timeout
+        MonitorDraftError.BROKER_TIMEOUT_INVALID -> R.string.monitor_error_broker_timeout
+        MonitorDraftError.RABBITMQ_NODES_REQUIRED -> R.string.monitor_error_rabbitmq_nodes
+        MonitorDraftError.RABBITMQ_NODE_INVALID -> R.string.monitor_error_rabbitmq_node
+        MonitorDraftError.RABBITMQ_USERNAME_REQUIRED -> R.string.monitor_error_rabbitmq_username
+        MonitorDraftError.RABBITMQ_PASSWORD_REQUIRED -> R.string.monitor_error_rabbitmq_password
+        MonitorDraftError.KAFKA_BROKERS_REQUIRED -> R.string.monitor_error_kafka_brokers
+        MonitorDraftError.KAFKA_BROKER_INVALID -> R.string.monitor_error_kafka_broker
+        MonitorDraftError.KAFKA_TOPIC_REQUIRED -> R.string.monitor_error_kafka_topic
+        MonitorDraftError.KAFKA_MESSAGE_REQUIRED -> R.string.monitor_error_kafka_message
+        MonitorDraftError.KAFKA_SASL_USERNAME_REQUIRED -> R.string.monitor_error_kafka_username
+        MonitorDraftError.KAFKA_SASL_PASSWORD_REQUIRED -> R.string.monitor_error_kafka_password
+        MonitorDraftError.KAFKA_AWS_IDENTITY_REQUIRED -> R.string.monitor_error_kafka_identity
+        MonitorDraftError.KAFKA_AWS_ACCESS_KEY_REQUIRED -> R.string.monitor_error_kafka_access_key
+        MonitorDraftError.KAFKA_AWS_SECRET_REQUIRED -> R.string.monitor_error_kafka_secret_key
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

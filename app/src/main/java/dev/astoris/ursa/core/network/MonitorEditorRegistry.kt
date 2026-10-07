@@ -77,6 +77,16 @@ enum class MonitorEditorField {
     SNMP_COMMUNITY,
     SNMP_OID,
     SNMP_TIMEOUT,
+    BROKER_TIMEOUT,
+    RABBITMQ_NODES,
+    RABBITMQ_USERNAME,
+    RABBITMQ_PASSWORD,
+    KAFKA_BROKERS,
+    KAFKA_TOPIC,
+    KAFKA_MESSAGE,
+    KAFKA_SSL,
+    KAFKA_AUTO_TOPIC_CREATION,
+    KAFKA_SASL_OPTIONS,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -98,6 +108,8 @@ enum class MonitorEditorCodec {
     DATABASE,
     GRPC,
     SNMP,
+    RABBITMQ,
+    KAFKA,
     SFTP,
 }
 
@@ -115,6 +127,8 @@ enum class MonitorEditorValidation {
     DATABASE,
     GRPC,
     SNMP,
+    RABBITMQ,
+    KAFKA,
     SFTP,
 }
 
@@ -331,7 +345,27 @@ object MonitorEditorRegistry {
                 MonitorEditorField.JSON_QUERY_EXPECTED_VALUE,
             ),
         ),
-        definition("kafka-producer", "Kafka producer"),
+        definition(
+            "kafka-producer",
+            "Kafka producer",
+            createSupported = true,
+            timeoutSeconds = 1,
+            codec = MonitorEditorCodec.KAFKA,
+            validation = MonitorEditorValidation.KAFKA,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(
+                MonitorEditorField.BROKER_TIMEOUT,
+                MonitorEditorField.KAFKA_BROKERS,
+                MonitorEditorField.KAFKA_TOPIC,
+                MonitorEditorField.KAFKA_MESSAGE,
+                MonitorEditorField.KAFKA_SSL,
+                MonitorEditorField.KAFKA_AUTO_TOPIC_CREATION,
+                MonitorEditorField.KAFKA_SASL_OPTIONS,
+            ),
+            sensitiveFields = setOf(MonitorEditorField.KAFKA_SASL_OPTIONS),
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition(
             "mqtt",
             "MQTT",
@@ -386,7 +420,23 @@ object MonitorEditorRegistry {
             ),
             transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
         ),
-        definition("rabbitmq", "RabbitMQ"),
+        definition(
+            "rabbitmq",
+            "RabbitMQ",
+            createSupported = true,
+            codec = MonitorEditorCodec.RABBITMQ,
+            validation = MonitorEditorValidation.RABBITMQ,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(
+                MonitorEditorField.BROKER_TIMEOUT,
+                MonitorEditorField.RABBITMQ_NODES,
+                MonitorEditorField.RABBITMQ_USERNAME,
+                MonitorEditorField.RABBITMQ_PASSWORD,
+            ),
+            sensitiveFields = setOf(MonitorEditorField.RABBITMQ_PASSWORD),
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition("sip-options", "SIP options ping"),
         definition(
             "smtp",
@@ -825,6 +875,22 @@ object MonitorRoundTripGuard {
                         "jsonPath",
                         "jsonPathOperator",
                         "expectedValue",
+                    ),
+                )
+            }
+            if (definition.codec == MonitorEditorCodec.RABBITMQ) {
+                addAll(setOf("rabbitmqNodes", "rabbitmqUsername", "rabbitmqPassword", "timeout"))
+            }
+            if (definition.codec == MonitorEditorCodec.KAFKA) {
+                addAll(
+                    setOf(
+                        "kafkaProducerBrokers",
+                        "kafkaProducerTopic",
+                        "kafkaProducerMessage",
+                        "kafkaProducerSsl",
+                        "kafkaProducerAllowAutoTopicCreation",
+                        "kafkaProducerSaslOptions",
+                        "timeout",
                     ),
                 )
             }

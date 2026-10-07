@@ -120,7 +120,10 @@ and the module docs under `docs/modules/`.
   inline protobuf, service and method, masked JSON-object body, TLS, and keyword
   match while preserving unused legacy metadata opaquely. SNMPv1/v2c monitors
   expose host/port, masked community, OID, bounded timeout, and JSONata comparison;
-  SNMPv3 stays opaque because Kuma 2.5.5 cannot round-trip its username.
+  SNMPv3 stays opaque because Kuma 2.5.5 cannot round-trip its username. RabbitMQ
+  monitors expose management-node failover, masked credentials, and timeout;
+  Kafka producer monitors expose brokers, topic/message, TLS, auto-topic creation,
+  timeout, and every 2.5.5 SASL mechanism with presence-only secret handling.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;

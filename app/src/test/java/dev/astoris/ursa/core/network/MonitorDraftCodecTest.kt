@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.network
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -202,6 +203,182 @@ class MonitorDraftCodecTest {
         assertEquals(
             MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED,
             MonitorDraftCodec.validate(valid.copy(jsonQueryExpectedValue = "")),
+        )
+    }
+
+    @Test
+    fun rabbitmqPayloadMapsNodesCredentialsAndTimeout() {
+        val draft = MonitorDraft.create("rabbitmq").copy(
+            name = "RabbitMQ",
+            rabbitmqNodes = "https://rabbit-a.example:15672\nhttps://rabbit-b.example:15672",
+            rabbitmqUsername = "monitor",
+            rabbitmqPassword = "secret",
+            brokerTimeoutSeconds = "4.5",
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+        assertEquals(
+            listOf("https://rabbit-a.example:15672", "https://rabbit-b.example:15672"),
+            payload["rabbitmqNodes"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
+        assertEquals("monitor", payload["rabbitmqUsername"]!!.jsonPrimitive.content)
+        assertEquals("secret", payload["rabbitmqPassword"]!!.jsonPrimitive.content)
+        assertEquals(4.5, payload["timeout"]!!.jsonPrimitive.content.toDouble(), 0.0)
+    }
+
+    @Test
+    fun rabbitmqEditMasksAndRetainsPasswordAndFutureFields() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":65,"type":"rabbitmq","name":"RabbitMQ","rabbitmqNodes":["http://rabbit:15672"],
+                "rabbitmqUsername":"monitor","rabbitmqPassword":"secret","timeout":5,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureRabbit":{"mode":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.rabbitmqHasSavedPassword)
+        assertTrue(loaded.rabbitmqPassword.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+        val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(brokerTimeoutSeconds = "4"))!!
+        assertEquals("secret", retained["rabbitmqPassword"]!!.jsonPrimitive.content)
+        assertEquals(raw["futureRabbit"], retained["futureRabbit"])
+    }
+
+    @Test
+    fun kafkaPayloadMapsAnonymousAndAuthenticatedContracts() {
+        val anonymous = MonitorDraft.create("kafka-producer").copy(
+            name = "Kafka",
+            kafkaBrokers = "kafka-a:9092\nkafka-b:9092",
+            kafkaTopic = "health",
+            kafkaMessage = "probe",
+            kafkaAllowAutoTopicCreation = true,
+        )
+        assertNull(MonitorDraftCodec.validate(anonymous))
+        val anonymousPayload = MonitorDraftCodec.newPayload(anonymous)
+        assertEquals(
+            listOf("kafka-a:9092", "kafka-b:9092"),
+            anonymousPayload["kafkaProducerBrokers"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
+        assertEquals("None", anonymousPayload["kafkaProducerSaslOptions"]!!.jsonObject["mechanism"]!!.jsonPrimitive.content)
+        assertEquals(1.0, anonymousPayload["timeout"]!!.jsonPrimitive.content.toDouble(), 0.0)
+
+        val authenticated = anonymous.copy(
+            kafkaSaslMechanism = KafkaSaslMechanism.SCRAM_SHA_256,
+            kafkaUsername = "monitor",
+            kafkaPassword = "secret",
+        )
+        assertNull(MonitorDraftCodec.validate(authenticated))
+        val sasl = MonitorDraftCodec.newPayload(authenticated)["kafkaProducerSaslOptions"]!!.jsonObject
+        assertEquals("scram-sha-256", sasl["mechanism"]!!.jsonPrimitive.content)
+        assertEquals("monitor", sasl["username"]!!.jsonPrimitive.content)
+        assertEquals("secret", sasl["password"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun kafkaEditMasksAndRetainsKnownSecretsAndUnknownSaslShapes() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":66,"type":"kafka-producer","name":"Kafka","kafkaProducerBrokers":["kafka:9092"],
+                "kafkaProducerTopic":"health","kafkaProducerMessage":"probe","kafkaProducerSsl":false,
+                "kafkaProducerAllowAutoTopicCreation":false,"timeout":1,
+                "kafkaProducerSaslOptions":{"mechanism":"plain","username":"monitor","password":"secret"},
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureKafka":{"mode":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+        assertTrue(loaded.kafkaHasSavedPassword)
+        assertTrue(loaded.kafkaPassword.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+        val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(kafkaMessage = "edited"))!!
+        val retainedSasl = retained["kafkaProducerSaslOptions"]!!.jsonObject
+        assertEquals("secret", retainedSasl["password"]!!.jsonPrimitive.content)
+        assertEquals(raw["futureKafka"], retained["futureKafka"])
+
+        val unknownRaw = JsonObject(
+            raw.toMutableMap().apply {
+                this["kafkaProducerSaslOptions"] = Json.parseToJsonElement(
+                    """{"mechanism":"future","token":"opaque"}""",
+                )
+            },
+        )
+        val unknown = MonitorDraftCodec.from(unknownRaw)!!
+        assertFalse(unknown.kafkaSaslEditable)
+        assertNull(MonitorDraftCodec.validate(unknown))
+        val opaque = MonitorDraftCodec.safeExistingPayload(unknownRaw, unknown.copy(kafkaMessage = "edited"))!!
+        assertEquals(unknownRaw["kafkaProducerSaslOptions"], opaque["kafkaProducerSaslOptions"])
+    }
+
+    @Test
+    fun kafkaAwsSecretsStayMaskedAndOptionalSessionTokenCanBeRemoved() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":67,"type":"kafka-producer","name":"Kafka AWS","kafkaProducerBrokers":["kafka:9092"],
+                "kafkaProducerTopic":"health","kafkaProducerMessage":"probe","kafkaProducerSsl":true,
+                "kafkaProducerAllowAutoTopicCreation":false,"timeout":1,
+                "kafkaProducerSaslOptions":{"mechanism":"aws","authorizationIdentity":"role",
+                "accessKeyId":"AKIAEXAMPLE","secretAccessKey":"secret","sessionToken":"session"},
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertTrue(loaded.kafkaHasSavedSecretAccessKey)
+        assertTrue(loaded.kafkaHasSavedSessionToken)
+        assertTrue(loaded.kafkaSecretAccessKey.isEmpty())
+        assertTrue(loaded.kafkaSessionToken.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+
+        val retainedPayload = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(kafkaTopic = "edited"))!!
+        val retained = retainedPayload["kafkaProducerSaslOptions"]!!.jsonObject
+        assertEquals("secret", retained["secretAccessKey"]!!.jsonPrimitive.content)
+        assertEquals("session", retained["sessionToken"]!!.jsonPrimitive.content)
+
+        val cleared = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(kafkaClearSavedSessionToken = true),
+        )!!["kafkaProducerSaslOptions"]!!.jsonObject
+        assertFalse("sessionToken" in cleared)
+    }
+
+    @Test
+    fun brokerValidationRejectsUnusableEndpointsAndMissingSecrets() {
+        val rabbit = MonitorDraft.create("rabbitmq").copy(
+            name = "Rabbit",
+            rabbitmqNodes = "rabbit:15672",
+            rabbitmqUsername = "monitor",
+            rabbitmqPassword = "secret",
+        )
+        assertEquals(MonitorDraftError.RABBITMQ_NODE_INVALID, MonitorDraftCodec.validate(rabbit))
+        assertEquals(
+            MonitorDraftError.RABBITMQ_PASSWORD_REQUIRED,
+            MonitorDraftCodec.validate(rabbit.copy(rabbitmqNodes = "http://rabbit:15672", rabbitmqPassword = "")),
+        )
+
+        val kafka = MonitorDraft.create("kafka-producer").copy(
+            name = "Kafka",
+            kafkaBrokers = "kafka",
+            kafkaTopic = "health",
+            kafkaMessage = "probe",
+        )
+        assertEquals(MonitorDraftError.KAFKA_BROKER_INVALID, MonitorDraftCodec.validate(kafka))
+        assertEquals(
+            MonitorDraftError.KAFKA_SASL_PASSWORD_REQUIRED,
+            MonitorDraftCodec.validate(
+                kafka.copy(
+                    kafkaBrokers = "kafka:9092",
+                    kafkaSaslMechanism = KafkaSaslMechanism.PLAIN,
+                    kafkaUsername = "monitor",
+                ),
+            ),
+        )
+        assertEquals(
+            MonitorDraftError.BROKER_TIMEOUT_INVALID,
+            MonitorDraftCodec.validate(kafka.copy(kafkaBrokers = "kafka:9092", brokerTimeoutSeconds = "49")),
         )
     }
 

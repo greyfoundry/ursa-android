@@ -44,6 +44,8 @@ class MonitorEditorRegistryTest {
                 "globalping",
                 "grpc-keyword",
                 "snmp",
+                "rabbitmq",
+                "kafka-producer",
                 "postgres",
                 "mysql",
                 "sqlserver",
@@ -240,7 +242,16 @@ class MonitorEditorRegistryTest {
         assertTrue(
             MonitorEditorRegistry.all
                 .filter {
-                    it.type !in setOf("sftp", "globalping", "grpc-keyword", "postgres", "mongodb", "redis")
+                    it.type !in setOf(
+                        "sftp",
+                        "globalping",
+                        "grpc-keyword",
+                        "rabbitmq",
+                        "kafka-producer",
+                        "postgres",
+                        "mongodb",
+                        "redis",
+                    )
                 }
                 .all { it.fidelity == MonitorEditorFidelity.SAFE_COMMON_EDIT },
         )
@@ -293,6 +304,25 @@ class MonitorEditorRegistryTest {
         assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, definition.fidelity)
         assertTrue(MonitorEditorField.SNMP_COMMUNITY in definition.sensitiveFields)
         assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, definition.transferEligibility)
+    }
+
+    @Test
+    fun brokerMonitorsDeclareTheirCompleteSecretAwareContracts() {
+        val rabbitmq = requireNotNull(MonitorEditorRegistry.find("rabbitmq"))
+        assertTrue(rabbitmq.createSupported)
+        assertEquals(MonitorEditorCodec.RABBITMQ, rabbitmq.codec)
+        assertEquals(MonitorEditorValidation.RABBITMQ, rabbitmq.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, rabbitmq.fidelity)
+        assertTrue(MonitorEditorField.RABBITMQ_PASSWORD in rabbitmq.sensitiveFields)
+
+        val kafka = requireNotNull(MonitorEditorRegistry.find("kafka-producer"))
+        assertTrue(kafka.createSupported)
+        assertEquals(1, kafka.defaults.timeoutSeconds)
+        assertEquals(MonitorEditorCodec.KAFKA, kafka.codec)
+        assertEquals(MonitorEditorValidation.KAFKA, kafka.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, kafka.fidelity)
+        assertTrue(MonitorEditorField.KAFKA_SASL_OPTIONS in kafka.sensitiveFields)
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, kafka.transferEligibility)
     }
 
     @Test

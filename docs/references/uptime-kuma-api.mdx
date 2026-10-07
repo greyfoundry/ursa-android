@@ -251,6 +251,24 @@ persist the form's `snmpV3Username` and its monitor response does not return it.
 URSA therefore preserves existing v3 and unknown records opaquely and retains the
 browser escape rather than claiming a safe v3 editor.
 
+RabbitMQ monitors use JSON-array `rabbitmqNodes`, `rabbitmqUsername`,
+`rabbitmqPassword`, and `timeout`. Kuma tries each management base URL in order and
+reports Up when one returns HTTP 200 from `api/health/checks/alarms/`; HTTP 503
+returns the cluster alarm reason. Node URLs must use HTTP or HTTPS. URSA keeps the
+password presence-only and recovers an unchanged value only from the fresh full
+object used for that edit.
+
+Kafka producer monitors use JSON-array `kafkaProducerBrokers`,
+`kafkaProducerTopic`, `kafkaProducerMessage`, `kafkaProducerSsl`,
+`kafkaProducerAllowAutoTopicCreation`, `timeout`, and object
+`kafkaProducerSaslOptions`. Kuma 2.5.5 accepts SASL mechanisms `None`, `plain`,
+`scram-sha-256`, `scram-sha-512`, and `aws`; the first three authenticated modes
+use username/password, while AWS uses authorization identity, access-key ID,
+secret access key, and optional session token. URSA never places returned
+passwords, secret keys, or session tokens in editable state. Blank edits retain
+only same-mechanism secrets, the optional session token can be removed explicitly,
+and unknown future SASL objects remain unchanged.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from

@@ -9,6 +9,31 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-07 - Native RabbitMQ and Kafka producer monitor editing
+
+**changed**: Added one broker-oriented specialist checkpoint. RabbitMQ now owns an
+ordered management-node list, username, masked password, and bounded timeout.
+Kafka producer now owns brokers, topic/message, TLS, automatic topic creation,
+timeout, and Kuma 2.5.5's None, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and AWS SASL
+shapes.
+
+**security and compatibility**: RabbitMQ passwords, Kafka passwords, AWS secret
+keys, and AWS session tokens reduce to presence flags before reaching editable UI
+state. Blank edits recover same-contract values only from the freshly fetched full
+object; AWS session tokens have an explicit removal control. Unknown future Kafka
+SASL objects remain opaque and unchanged.
+
+**verification**: Focused and complete two-flavor app unit, lint, and assemble
+checks cover exact payloads, validation, registry fidelity, future-field
+preservation, known-secret retention, optional-token removal, and unknown SASL
+round trips. Android 17/live Kuma 2.5.5 QA used real disposable RabbitMQ 4 and
+Kafka 4.1 services. Both monitors reached Up, exact database rows matched, Kafka's
+topic contained both original and edited messages, RabbitMQ logs confirmed the
+configured user, masked reloads retained secrets, non-secret edits survived second
+reloads, and confirmed deletion restored the five-monitor baseline. URSA had no
+crash or ANR; Kuma showed only the expected baseline TLS failures and KafkaJS's
+one-time partitioner migration warning.
+
 ### 2026-10-07 - Native SNMPv1/v2c monitor editing
 
 **changed**: Added native SNMPv1/v2c creation and editing for host/port, masked

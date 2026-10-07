@@ -113,6 +113,20 @@ enum class SnmpVersion(val wireValue: String) {
     }
 }
 
+enum class KafkaSaslMechanism(val wireValue: String) {
+    NONE("None"),
+    PLAIN("plain"),
+    SCRAM_SHA_256("scram-sha-256"),
+    SCRAM_SHA_512("scram-sha-512"),
+    AWS("aws"),
+    UNSUPPORTED("");
+
+    companion object {
+        fun fromWire(value: String?): KafkaSaslMechanism =
+            if (value == null) NONE else entries.firstOrNull { it.wireValue == value } ?: UNSUPPORTED
+    }
+}
+
 enum class GlobalpingSubtype(val wireValue: String) {
     PING("ping"),
     HTTP("http"),
@@ -309,6 +323,29 @@ data class MonitorDraft(
     val snmpHasSavedCommunity: Boolean = false,
     val snmpOid: String = "",
     val snmpTimeoutSeconds: String = "48",
+    val brokerTimeoutSeconds: String = "48",
+    val rabbitmqNodes: String = "",
+    val rabbitmqUsername: String = "",
+    val rabbitmqPassword: String = "",
+    val rabbitmqHasSavedPassword: Boolean = false,
+    val kafkaBrokers: String = "",
+    val kafkaTopic: String = "",
+    val kafkaMessage: String = "",
+    val kafkaSsl: Boolean = false,
+    val kafkaAllowAutoTopicCreation: Boolean = false,
+    val kafkaSaslMechanism: KafkaSaslMechanism = KafkaSaslMechanism.NONE,
+    val kafkaOriginalSaslMechanism: KafkaSaslMechanism? = null,
+    val kafkaSaslEditable: Boolean = true,
+    val kafkaUsername: String = "",
+    val kafkaPassword: String = "",
+    val kafkaHasSavedPassword: Boolean = false,
+    val kafkaAuthorizationIdentity: String = "",
+    val kafkaAccessKeyId: String = "",
+    val kafkaSecretAccessKey: String = "",
+    val kafkaHasSavedSecretAccessKey: Boolean = false,
+    val kafkaSessionToken: String = "",
+    val kafkaHasSavedSessionToken: Boolean = false,
+    val kafkaClearSavedSessionToken: Boolean = false,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -351,6 +388,7 @@ data class MonitorDraft(
                 databaseJsonQueryExpression = if (option.key == "mongodb") "$" else "",
                 grpcBody = if (option.key == "grpc-keyword") "{}" else "",
                 snmpTimeoutSeconds = defaults.timeoutSeconds.toString(),
+                brokerTimeoutSeconds = defaults.timeoutSeconds.toString(),
             )
         }
 
@@ -429,6 +467,20 @@ enum class MonitorDraftError {
     SNMP_COMMUNITY_REQUIRED,
     SNMP_OID_INVALID,
     SNMP_TIMEOUT_INVALID,
+    BROKER_TIMEOUT_INVALID,
+    RABBITMQ_NODES_REQUIRED,
+    RABBITMQ_NODE_INVALID,
+    RABBITMQ_USERNAME_REQUIRED,
+    RABBITMQ_PASSWORD_REQUIRED,
+    KAFKA_BROKERS_REQUIRED,
+    KAFKA_BROKER_INVALID,
+    KAFKA_TOPIC_REQUIRED,
+    KAFKA_MESSAGE_REQUIRED,
+    KAFKA_SASL_USERNAME_REQUIRED,
+    KAFKA_SASL_PASSWORD_REQUIRED,
+    KAFKA_AWS_IDENTITY_REQUIRED,
+    KAFKA_AWS_ACCESS_KEY_REQUIRED,
+    KAFKA_AWS_SECRET_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -453,6 +505,9 @@ object MonitorDraftCodec {
         val smtpSecurityMode = SmtpSecurityMode.fromWire(rawSmtpSecurity)
         val rawSnmpVersion = raw.string("snmpVersion")
         val snmpVersion = SnmpVersion.fromWire(rawSnmpVersion)
+        val kafkaSasl = raw["kafkaProducerSaslOptions"] as? JsonObject
+        val rawKafkaSaslMechanism = kafkaSasl?.string("mechanism")
+        val kafkaSaslMechanism = KafkaSaslMechanism.fromWire(rawKafkaSaslMechanism)
         val isDatabase = type in DATABASE_TYPES
         val rawGlobalpingIpFamily = raw.string("ipFamily")
         val globalpingIpFamily = GlobalpingIpFamily.fromWire(rawGlobalpingIpFamily)
@@ -609,6 +664,36 @@ object MonitorDraftCodec {
             } else {
                 "48"
             },
+            brokerTimeoutSeconds = if (type == "rabbitmq" || type == "kafka-producer") {
+                raw.string("timeout") ?: MonitorEditorRegistry.find(type)?.defaults?.timeoutSeconds?.toString().orEmpty()
+            } else {
+                "48"
+            },
+            rabbitmqNodes = if (type == "rabbitmq") raw.stringList("rabbitmqNodes").joinToString("\n") else "",
+            rabbitmqUsername = if (type == "rabbitmq") raw.string("rabbitmqUsername").orEmpty() else "",
+            rabbitmqHasSavedPassword = type == "rabbitmq" && raw.string("rabbitmqPassword")?.isNotEmpty() == true,
+            kafkaBrokers = if (type == "kafka-producer") {
+                raw.stringList("kafkaProducerBrokers").joinToString("\n")
+            } else {
+                ""
+            },
+            kafkaTopic = if (type == "kafka-producer") raw.string("kafkaProducerTopic").orEmpty() else "",
+            kafkaMessage = if (type == "kafka-producer") raw.string("kafkaProducerMessage").orEmpty() else "",
+            kafkaSsl = type == "kafka-producer" && raw.boolean("kafkaProducerSsl"),
+            kafkaAllowAutoTopicCreation = type == "kafka-producer" &&
+                raw.boolean("kafkaProducerAllowAutoTopicCreation"),
+            kafkaSaslMechanism = kafkaSaslMechanism,
+            kafkaOriginalSaslMechanism = if (type == "kafka-producer") kafkaSaslMechanism else null,
+            kafkaSaslEditable = type != "kafka-producer" ||
+                rawKafkaSaslMechanism == null || kafkaSaslMechanism != KafkaSaslMechanism.UNSUPPORTED,
+            kafkaUsername = kafkaSasl?.string("username").orEmpty(),
+            kafkaHasSavedPassword = type == "kafka-producer" && kafkaSasl?.string("password")?.isNotEmpty() == true,
+            kafkaAuthorizationIdentity = kafkaSasl?.string("authorizationIdentity").orEmpty(),
+            kafkaAccessKeyId = kafkaSasl?.string("accessKeyId").orEmpty(),
+            kafkaHasSavedSecretAccessKey = type == "kafka-producer" &&
+                kafkaSasl?.string("secretAccessKey")?.isNotEmpty() == true,
+            kafkaHasSavedSessionToken = type == "kafka-producer" &&
+                kafkaSasl?.string("sessionToken")?.isNotEmpty() == true,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -800,6 +885,56 @@ object MonitorDraftCodec {
                 return MonitorDraftError.JSON_QUERY_EXPECTED_VALUE_REQUIRED
             }
         }
+        if (definition.validation == MonitorEditorValidation.RABBITMQ) {
+            val nodes = lineValues(draft.rabbitmqNodes)
+            if (nodes.isEmpty()) return MonitorDraftError.RABBITMQ_NODES_REQUIRED
+            if (nodes.any { !isHttpUrl(it) }) return MonitorDraftError.RABBITMQ_NODE_INVALID
+            if (draft.rabbitmqUsername.trim().isEmpty()) return MonitorDraftError.RABBITMQ_USERNAME_REQUIRED
+            if (draft.rabbitmqPassword.isEmpty() && !draft.rabbitmqHasSavedPassword) {
+                return MonitorDraftError.RABBITMQ_PASSWORD_REQUIRED
+            }
+            if (!isValidBrokerTimeout(draft)) return MonitorDraftError.BROKER_TIMEOUT_INVALID
+        }
+        if (definition.validation == MonitorEditorValidation.KAFKA) {
+            val brokers = lineValues(draft.kafkaBrokers)
+            if (brokers.isEmpty()) return MonitorDraftError.KAFKA_BROKERS_REQUIRED
+            if (brokers.any { !isKafkaBroker(it) }) return MonitorDraftError.KAFKA_BROKER_INVALID
+            if (draft.kafkaTopic.trim().isEmpty()) return MonitorDraftError.KAFKA_TOPIC_REQUIRED
+            if (draft.kafkaMessage.isEmpty()) return MonitorDraftError.KAFKA_MESSAGE_REQUIRED
+            if (!isValidBrokerTimeout(draft)) return MonitorDraftError.BROKER_TIMEOUT_INVALID
+            if (draft.kafkaSaslEditable) {
+                when (draft.kafkaSaslMechanism) {
+                    KafkaSaslMechanism.NONE -> Unit
+                    KafkaSaslMechanism.PLAIN,
+                    KafkaSaslMechanism.SCRAM_SHA_256,
+                    KafkaSaslMechanism.SCRAM_SHA_512,
+                    -> {
+                        if (draft.kafkaUsername.trim().isEmpty()) {
+                            return MonitorDraftError.KAFKA_SASL_USERNAME_REQUIRED
+                        }
+                        val canKeepSaved = draft.kafkaOriginalSaslMechanism == draft.kafkaSaslMechanism &&
+                            draft.kafkaHasSavedPassword
+                        if (draft.kafkaPassword.isEmpty() && !canKeepSaved) {
+                            return MonitorDraftError.KAFKA_SASL_PASSWORD_REQUIRED
+                        }
+                    }
+                    KafkaSaslMechanism.AWS -> {
+                        if (draft.kafkaAuthorizationIdentity.trim().isEmpty()) {
+                            return MonitorDraftError.KAFKA_AWS_IDENTITY_REQUIRED
+                        }
+                        if (draft.kafkaAccessKeyId.trim().isEmpty()) {
+                            return MonitorDraftError.KAFKA_AWS_ACCESS_KEY_REQUIRED
+                        }
+                        val canKeepSaved = draft.kafkaOriginalSaslMechanism == KafkaSaslMechanism.AWS &&
+                            draft.kafkaHasSavedSecretAccessKey
+                        if (draft.kafkaSecretAccessKey.isEmpty() && !canKeepSaved) {
+                            return MonitorDraftError.KAFKA_AWS_SECRET_REQUIRED
+                        }
+                    }
+                    KafkaSaslMechanism.UNSUPPORTED -> Unit
+                }
+            }
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -931,6 +1066,8 @@ object MonitorDraftCodec {
         applyDatabase(values, draft, raw)
         applyGrpc(values, draft, raw)
         applySnmp(values, draft, raw)
+        applyRabbitmq(values, draft, raw)
+        applyKafka(values, draft, raw)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -988,6 +1125,8 @@ object MonitorDraftCodec {
         applyDatabase(mutable, draft)
         applyGrpc(mutable, draft)
         applySnmp(mutable, draft)
+        applyRabbitmq(mutable, draft)
+        applyKafka(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -1071,6 +1210,79 @@ object MonitorDraftCodec {
         values["jsonPath"] = JsonPrimitive(draft.jsonQueryExpression)
         values["jsonPathOperator"] = JsonPrimitive(draft.jsonQueryOperator)
         values["expectedValue"] = JsonPrimitive(draft.jsonQueryExpectedValue)
+    }
+
+    private fun applyRabbitmq(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.RABBITMQ) return
+        values["rabbitmqNodes"] = JsonArray(lineValues(draft.rabbitmqNodes).map(::JsonPrimitive))
+        values["rabbitmqUsername"] = JsonPrimitive(draft.rabbitmqUsername.trim())
+        values["rabbitmqPassword"] = JsonPrimitive(
+            draft.rabbitmqPassword.ifEmpty { existing?.string("rabbitmqPassword").orEmpty() },
+        )
+        values["timeout"] = JsonPrimitive(draft.brokerTimeoutSeconds.trim().toDouble())
+    }
+
+    private fun applyKafka(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.KAFKA) return
+        values["kafkaProducerBrokers"] = JsonArray(lineValues(draft.kafkaBrokers).map(::JsonPrimitive))
+        values["kafkaProducerTopic"] = JsonPrimitive(draft.kafkaTopic.trim())
+        values["kafkaProducerMessage"] = JsonPrimitive(draft.kafkaMessage)
+        values["kafkaProducerSsl"] = JsonPrimitive(draft.kafkaSsl)
+        values["kafkaProducerAllowAutoTopicCreation"] = JsonPrimitive(draft.kafkaAllowAutoTopicCreation)
+        values["timeout"] = JsonPrimitive(draft.brokerTimeoutSeconds.trim().toDouble())
+        if (!draft.kafkaSaslEditable) return
+
+        val previous = existing?.get("kafkaProducerSaslOptions") as? JsonObject
+        val options = buildJsonObject {
+            put("mechanism", draft.kafkaSaslMechanism.wireValue)
+            when (draft.kafkaSaslMechanism) {
+                KafkaSaslMechanism.NONE -> Unit
+                KafkaSaslMechanism.PLAIN,
+                KafkaSaslMechanism.SCRAM_SHA_256,
+                KafkaSaslMechanism.SCRAM_SHA_512,
+                -> {
+                    put("username", draft.kafkaUsername.trim())
+                    put(
+                        "password",
+                        draft.kafkaPassword.ifEmpty {
+                            previous?.string("password").orEmpty()
+                                .takeIf { draft.kafkaOriginalSaslMechanism == draft.kafkaSaslMechanism }
+                                .orEmpty()
+                        },
+                    )
+                }
+                KafkaSaslMechanism.AWS -> {
+                    put("authorizationIdentity", draft.kafkaAuthorizationIdentity.trim())
+                    put("accessKeyId", draft.kafkaAccessKeyId.trim())
+                    put(
+                        "secretAccessKey",
+                        draft.kafkaSecretAccessKey.ifEmpty {
+                            previous?.string("secretAccessKey").orEmpty()
+                                .takeIf { draft.kafkaOriginalSaslMechanism == KafkaSaslMechanism.AWS }
+                                .orEmpty()
+                        },
+                    )
+                    val sessionToken = when {
+                        draft.kafkaClearSavedSessionToken -> ""
+                        draft.kafkaSessionToken.isNotEmpty() -> draft.kafkaSessionToken
+                        draft.kafkaOriginalSaslMechanism == KafkaSaslMechanism.AWS ->
+                            previous?.string("sessionToken").orEmpty()
+                        else -> ""
+                    }
+                    if (sessionToken.isNotEmpty()) put("sessionToken", sessionToken)
+                }
+                KafkaSaslMechanism.UNSUPPORTED -> Unit
+            }
+        }
+        values["kafkaProducerSaslOptions"] = options
     }
 
     private fun applySftp(
@@ -1426,6 +1638,9 @@ object MonitorDraftCodec {
     )
 
     private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
+    private fun JsonObject.stringList(key: String): List<String> = (this[key] as? JsonArray)
+        ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+        .orEmpty()
     private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull
     private fun JsonObject.boolean(key: String): Boolean = this[key]?.jsonPrimitive?.booleanOrNull
         ?: int(key)?.let { it != 0 }
@@ -1442,6 +1657,27 @@ object MonitorDraftCodec {
 
     private fun isValidPushToken(token: String): Boolean =
         token.length == 32 && token.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' }
+
+    private fun lineValues(value: String): List<String> =
+        value.lineSequence().map(String::trim).filter(String::isNotEmpty).distinct().toList()
+
+    private fun isHttpUrl(value: String): Boolean {
+        val uri = runCatching { URI(value) }.getOrNull() ?: return false
+        return uri.scheme?.lowercase() in setOf("http", "https") &&
+            !uri.host.isNullOrBlank() && uri.userInfo == null && uri.rawFragment == null
+    }
+
+    private fun isKafkaBroker(value: String): Boolean {
+        if (value.any(Char::isWhitespace)) return false
+        val uri = runCatching { URI("tcp://$value") }.getOrNull() ?: return false
+        return !uri.host.isNullOrBlank() && uri.port in 1..65535 &&
+            uri.userInfo == null && uri.rawPath.isEmpty() && uri.rawQuery == null && uri.rawFragment == null
+    }
+
+    private fun isValidBrokerTimeout(draft: MonitorDraft): Boolean {
+        val timeout = draft.brokerTimeoutSeconds.trim().toDoubleOrNull() ?: return false
+        return timeout >= 0 && timeout <= draft.intervalSeconds * 0.8
+    }
 
     val JSON_QUERY_OPERATORS: Set<String> = setOf(">", ">=", "<", "<=", "!=", "==", "contains")
 
