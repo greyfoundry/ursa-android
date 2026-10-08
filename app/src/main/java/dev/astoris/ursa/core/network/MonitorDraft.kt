@@ -348,6 +348,8 @@ data class MonitorDraft(
     val kafkaClearSavedSessionToken: Boolean = false,
     val dockerContainer: String = "",
     val dockerHostId: Int? = null,
+    val remoteBrowserId: Int? = null,
+    val screenshotDelayMs: Int = 0,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -485,6 +487,8 @@ enum class MonitorDraftError {
     KAFKA_AWS_SECRET_REQUIRED,
     DOCKER_CONTAINER_REQUIRED,
     DOCKER_HOST_REQUIRED,
+    REAL_BROWSER_INVALID,
+    REAL_BROWSER_SCREENSHOT_DELAY_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -700,6 +704,8 @@ object MonitorDraftCodec {
                 kafkaSasl?.string("sessionToken")?.isNotEmpty() == true,
             dockerContainer = if (type == "docker") raw.string("docker_container").orEmpty() else "",
             dockerHostId = if (type == "docker") raw.int("docker_host") else null,
+            remoteBrowserId = if (type == "real-browser") raw.int("remote_browser") else null,
+            screenshotDelayMs = if (type == "real-browser") raw.int("screenshot_delay") ?: 0 else 0,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -945,6 +951,14 @@ object MonitorDraftCodec {
             if (draft.dockerContainer.trim().isEmpty()) return MonitorDraftError.DOCKER_CONTAINER_REQUIRED
             if (draft.dockerHostId == null || draft.dockerHostId <= 0) return MonitorDraftError.DOCKER_HOST_REQUIRED
         }
+        if (definition.validation == MonitorEditorValidation.REAL_BROWSER) {
+            if (draft.remoteBrowserId != null && draft.remoteBrowserId <= 0) {
+                return MonitorDraftError.REAL_BROWSER_INVALID
+            }
+            if (draft.screenshotDelayMs < 0 || draft.screenshotDelayMs.toLong() > draft.intervalSeconds * 500L) {
+                return MonitorDraftError.REAL_BROWSER_SCREENSHOT_DELAY_INVALID
+            }
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -1079,6 +1093,7 @@ object MonitorDraftCodec {
         applyRabbitmq(values, draft, raw)
         applyKafka(values, draft, raw)
         applyDocker(values, draft)
+        applyRealBrowser(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -1139,6 +1154,7 @@ object MonitorDraftCodec {
         applyRabbitmq(mutable, draft)
         applyKafka(mutable, draft)
         applyDocker(mutable, draft)
+        applyRealBrowser(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -1301,6 +1317,12 @@ object MonitorDraftCodec {
         if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.DOCKER) return
         values["docker_container"] = JsonPrimitive(draft.dockerContainer.trim())
         values["docker_host"] = draft.dockerHostId?.let(::JsonPrimitive) ?: JsonNull
+    }
+
+    private fun applyRealBrowser(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.REAL_BROWSER) return
+        values["remote_browser"] = draft.remoteBrowserId?.let(::JsonPrimitive) ?: JsonNull
+        values["screenshot_delay"] = JsonPrimitive(draft.screenshotDelayMs)
     }
 
     private fun applySftp(

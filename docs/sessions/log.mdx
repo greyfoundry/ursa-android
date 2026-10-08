@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-07
+last-updated: 2026-10-08
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,31 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-08 - Native Real Browser monitor editing
+
+**changed**: Added native Real Browser creation and editing for the HTTP(S) target,
+optional existing Kuma-managed remote browser, and screenshot delay. Delay validation
+matches Kuma's zero-to-half-interval range; null remote selection uses Kuma-local
+Chromium.
+
+**security and compatibility**: `remoteBrowserList` is reduced to ID and name at the
+network boundary. Its WebSocket URL may contain an access token and never reaches
+repository or UI state. Unavailable saved IDs stay visible and unchanged, future
+monitor fields remain opaque, browser administration stays in Kuma, and the monitor
+remains server-bound rather than transferable.
+
+**verification**: Focused parser, codec, validation, registry, and round-trip tests
+cover both local and remote engines, exact wire fields, future-field preservation,
+delay bounds, selection-only metadata, and transfer policy. Android 17/live Kuma
+2.5.5 QA used a real Browserless Playwright endpoint and nginx target. URSA created
+the remote-backed monitor with a 1,200 ms delay, reached Up/HTTP 200, and reloaded
+the exact browser and delay. It then switched to Kuma-local Chromium with an 800 ms
+delay, reached Up/HTTP 200 again, reloaded the local selection, and deleted back to
+the five-monitor baseline. Browserless recorded successful Playwright traffic; its
+60-second session timeout reflects Kuma retaining the remote connection after each
+successful check. URSA had no crash or ANR, and every disposable row, heartbeat,
+container, and network was removed.
 
 ### 2026-10-07 - Native Docker monitor editing
 

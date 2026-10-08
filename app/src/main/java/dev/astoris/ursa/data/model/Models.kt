@@ -111,6 +111,12 @@ data class KumaDockerHost(
     val type: String,
 )
 
+/** Selection-safe remote browser metadata; its potentially tokenized URL stays in the network adapter. */
+data class KumaRemoteBrowser(
+    val id: Int,
+    val name: String,
+)
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,

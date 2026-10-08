@@ -1339,6 +1339,13 @@
     <string name="monitor_docker_host">Docker host</string>
     <string name="monitor_docker_no_hosts">No Docker hosts are configured. Add one in Uptime Kuma, then reopen this editor.</string>
     <string name="monitor_docker_unavailable_host">Unavailable host #%1$d</string>
+    <string name="monitor_real_browser_title">Browser engine</string>
+    <string name="monitor_real_browser_use_remote">Use a configured remote browser</string>
+    <string name="monitor_real_browser_remote">Remote browser</string>
+    <string name="monitor_real_browser_local_only">Kuma will use its local Chromium. Configure remote browsers in Uptime Kuma to select one here.</string>
+    <string name="monitor_real_browser_unavailable">Unavailable browser #%1$d</string>
+    <string name="monitor_real_browser_screenshot_delay">Screenshot delay (milliseconds)</string>
+    <string name="monitor_real_browser_screenshot_delay_help">Wait before capture; maximum for this interval: %1$d ms.</string>
     <string name="action_show">Show</string>
     <string name="action_hide">Hide</string>
     <string name="monitor_discovery_title">Local service</string>
@@ -1430,6 +1437,8 @@
     <string name="monitor_error_kafka_secret_key">Enter the AWS secret access key.</string>
     <string name="monitor_error_docker_container">Enter the Docker container name or ID.</string>
     <string name="monitor_error_docker_host">Choose a Docker host configured in Uptime Kuma.</string>
+    <string name="monitor_error_real_browser">Choose a valid remote browser or use local Chromium.</string>
+    <string name="monitor_error_real_browser_screenshot_delay">Screenshot delay must be between zero and half the monitor interval.</string>
     <string name="action_saving">Saving…</string>
     <string name="action_edit_monitor">Edit monitor</string>
     <string name="action_delete_monitor">Delete monitor</string>

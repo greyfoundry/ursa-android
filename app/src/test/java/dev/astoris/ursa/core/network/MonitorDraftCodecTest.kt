@@ -394,6 +394,59 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun realBrowserPayloadRoundTripsBrowserDelayAndFutureFields() {
+        val draft = MonitorDraft.create("real-browser").copy(
+            name = "Checkout",
+            endpoint = "https://example.com/checkout",
+            intervalSeconds = 60,
+            remoteBrowserId = 9,
+            screenshotDelayMs = 3_000,
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+        assertEquals("https://example.com/checkout", payload["url"]!!.jsonPrimitive.content)
+        assertEquals(9, payload["remote_browser"]!!.jsonPrimitive.content.toInt())
+        assertEquals(3_000, payload["screenshot_delay"]!!.jsonPrimitive.content.toInt())
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":69,"type":"real-browser","name":"Checkout","url":"https://example.com/checkout",
+                "remote_browser":9,"screenshot_delay":3000,"interval":60,"retryInterval":60,
+                "resendInterval":0,"maxretries":0,"active":true,"notificationIDList":{},
+                "futureBrowser":{"wait":"networkidle"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+        assertEquals(9, loaded.remoteBrowserId)
+        assertEquals(3_000, loaded.screenshotDelayMs)
+        val edited = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(remoteBrowserId = null))!!
+        assertTrue(edited["remote_browser"] is JsonNull)
+        assertEquals(3_000, edited["screenshot_delay"]!!.jsonPrimitive.content.toInt())
+        assertEquals(raw["futureBrowser"], edited["futureBrowser"])
+    }
+
+    @Test
+    fun realBrowserValidationCapsDelayAtHalfTheInterval() {
+        val valid = MonitorDraft.create("real-browser").copy(
+            name = "Checkout",
+            endpoint = "https://example.com",
+            intervalSeconds = 60,
+            screenshotDelayMs = 30_000,
+        )
+
+        assertNull(MonitorDraftCodec.validate(valid))
+        assertEquals(
+            MonitorDraftError.REAL_BROWSER_SCREENSHOT_DELAY_INVALID,
+            MonitorDraftCodec.validate(valid.copy(screenshotDelayMs = 30_001)),
+        )
+        assertEquals(
+            MonitorDraftError.REAL_BROWSER_INVALID,
+            MonitorDraftCodec.validate(valid.copy(remoteBrowserId = 0)),
+        )
+    }
+
+    @Test
     fun brokerValidationRejectsUnusableEndpointsAndMissingSecrets() {
         val rabbit = MonitorDraft.create("rabbitmq").copy(
             name = "Rabbit",

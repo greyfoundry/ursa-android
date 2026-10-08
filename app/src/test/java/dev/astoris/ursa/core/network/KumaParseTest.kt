@@ -162,6 +162,24 @@ class KumaParseTest {
         assertFalse(rows.last().toString().contains("private.example"))
     }
 
+    @Test fun remoteBrowsersExposeOnlySelectionMetadata() {
+        val rows = KumaParse.remoteBrowsers(
+            Json.parseToJsonElement(
+                """[
+                    {"id":9,"name":"Browserless","url":"ws://browserless:3000?token=secret"},
+                    {"id":10,"name":"Lab browser","url":"ws://lab:3000"},
+                    {"id":0,"name":"Invalid","url":"ws://invalid:3000"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("Browserless", rows.first().name)
+        assertEquals(9, rows.first().id)
+        assertFalse(rows.first().toString().contains("secret"))
+        assertFalse(rows.last().toString().contains("ws://"))
+    }
+
     @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {
         val row = KumaParse.managedPushNotifications(
             Json.parseToJsonElement(

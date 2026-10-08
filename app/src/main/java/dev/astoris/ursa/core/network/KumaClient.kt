@@ -6,6 +6,7 @@ import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
@@ -84,6 +85,8 @@ class KumaClient(
     val notificationListReady: StateFlow<Boolean> = _notificationListReady.asStateFlow()
     private val _dockerHosts = MutableStateFlow<List<KumaDockerHost>>(emptyList())
     val dockerHosts: StateFlow<List<KumaDockerHost>> = _dockerHosts.asStateFlow()
+    private val _remoteBrowsers = MutableStateFlow<List<KumaRemoteBrowser>>(emptyList())
+    val remoteBrowsers: StateFlow<List<KumaRemoteBrowser>> = _remoteBrowsers.asStateFlow()
     private val _maintenances = MutableStateFlow<Map<Int, MaintenanceDraft>>(emptyMap())
     val maintenances: StateFlow<Map<Int, MaintenanceDraft>> = _maintenances.asStateFlow()
 
@@ -174,6 +177,9 @@ class KumaClient(
         }
         s.on("dockerHostList") { args ->
             args.jsonArrayAt(0)?.let { _dockerHosts.value = KumaParse.dockerHosts(it) }
+        }
+        s.on("remoteBrowserList") { args ->
+            args.jsonArrayAt(0)?.let { _remoteBrowsers.value = KumaParse.remoteBrowsers(it) }
         }
         s.on("maintenanceList") { args ->
             args.jsonAt(0)?.let { _maintenances.value = MaintenanceCodec.list(it) }
@@ -646,6 +652,7 @@ class KumaClient(
         _managedPushNotifications.value = emptyList()
         _notifications.value = emptyList()
         _dockerHosts.value = emptyList()
+        _remoteBrowsers.value = emptyList()
         _maintenances.value = emptyMap()
         _notificationListReady.value = false
         _state.value = ConnectionState.Disconnected

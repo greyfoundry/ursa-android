@@ -50,6 +50,10 @@ endpoint. Passing one to `loginByToken` is rejected by design.
 URSA retains only positive `id`, non-empty `name`, and `dockerType` for selection;
 the daemon address and owning user ID are discarded at the network boundary.
 
+`remoteBrowserList` is an array of `{ id, url, name }`. The URL is a Playwright
+WebSocket address and may include an access token. URSA retains only positive `id`
+and non-empty `name`; the URL is discarded at the network boundary.
+
 **client → server events (with ack callback)**
 - `getMonitorBeats(id, periodHours)` → `{ ok, data: HeartbeatRow[] }`
   rows are **snake_case**: `{ id, monitor_id, status, msg, time, ping, duration,
@@ -280,6 +284,15 @@ while a paused or stopped container is not. URSA creates and edits these two fie
 selects only hosts received from the current server, and leaves host administration
 in Kuma. The server-bound host ID makes Docker monitors ineligible for cross-server
 transfer.
+
+Real Browser monitors use HTTP(S) `url`, nullable numeric `remote_browser`, and
+integer `screenshot_delay` in milliseconds. Null selects Kuma-local Chromium;
+otherwise the ID must belong to the authenticated user's `remoteBrowserList`.
+Kuma waits for network idle, optionally delays, captures a screenshot, and accepts
+HTTP 200-399. Its web form caps the delay at half the interval. URSA mirrors those
+fields and that bound, leaves remote-browser administration in Kuma, and treats the
+server-bound selector as non-transferable. The remote connection lifecycle remains
+owned by Kuma, not the client editing the monitor.
 
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array

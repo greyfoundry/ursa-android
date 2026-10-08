@@ -82,6 +82,7 @@ import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorTagAssignment
@@ -102,6 +103,7 @@ fun MonitorEditorScreen(
     val state by vm.monitorEditor.collectAsStateWithLifecycle()
     val notifications by vm.notifications.collectAsStateWithLifecycle()
     val dockerHosts by vm.dockerHosts.collectAsStateWithLifecycle()
+    val remoteBrowsers by vm.remoteBrowsers.collectAsStateWithLifecycle()
     val serverTags by vm.serverTags.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
@@ -170,6 +172,7 @@ fun MonitorEditorScreen(
                 serverError = serverError,
                 notifications = notifications,
                 dockerHosts = dockerHosts,
+                remoteBrowsers = remoteBrowsers,
                 serverTags = serverTags,
                 monitors = monitors,
                 discoveryState = discoveryState,
@@ -196,6 +199,7 @@ private fun MonitorForm(
     serverError: String?,
     notifications: List<KumaNotification>,
     dockerHosts: List<KumaDockerHost>,
+    remoteBrowsers: List<KumaRemoteBrowser>,
     serverTags: List<KumaTag>,
     monitors: List<Monitor>,
     discoveryState: LocalServiceDiscoveryState,
@@ -425,6 +429,9 @@ private fun MonitorForm(
         }
         if (definition?.codec == MonitorEditorCodec.DOCKER) {
             DockerFields(draft = draft, hosts = dockerHosts, onDraftChange = onDraftChange)
+        }
+        if (definition?.codec == MonitorEditorCodec.REAL_BROWSER) {
+            RealBrowserFields(draft = draft, browsers = remoteBrowsers, onDraftChange = onDraftChange)
         }
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
@@ -1767,6 +1774,85 @@ private fun DockerFields(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RealBrowserFields(
+    draft: MonitorDraft,
+    browsers: List<KumaRemoteBrowser>,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    var browserMenuOpen by remember { mutableStateOf(false) }
+    val selectedBrowser = browsers.firstOrNull { it.id == draft.remoteBrowserId }
+    val maxDelay = draft.intervalSeconds.coerceAtLeast(0) * 500L
+    Text(stringResource(R.string.monitor_real_browser_title), style = MaterialTheme.typography.titleSmall)
+    if (browsers.isEmpty() && draft.remoteBrowserId == null) {
+        Text(
+            stringResource(R.string.monitor_real_browser_local_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        BooleanEditorRow(
+            checked = draft.remoteBrowserId != null,
+            label = stringResource(R.string.monitor_real_browser_use_remote),
+            onCheckedChange = { enabled ->
+                onDraftChange(
+                    draft.copy(
+                        remoteBrowserId = if (enabled) {
+                            selectedBrowser?.id ?: browsers.firstOrNull()?.id
+                        } else {
+                            null
+                        },
+                    ),
+                )
+            },
+        )
+    }
+    if (draft.remoteBrowserId != null) {
+        ExposedDropdownMenuBox(
+            expanded = browserMenuOpen,
+            onExpandedChange = { if (browsers.isNotEmpty()) browserMenuOpen = it },
+        ) {
+            OutlinedTextField(
+                value = selectedBrowser?.name ?: stringResource(
+                    R.string.monitor_real_browser_unavailable,
+                    draft.remoteBrowserId,
+                ),
+                onValueChange = {},
+                readOnly = true,
+                enabled = browsers.isNotEmpty(),
+                label = { Text(stringResource(R.string.monitor_real_browser_remote)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(browserMenuOpen) },
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+            )
+            ExposedDropdownMenu(expanded = browserMenuOpen, onDismissRequest = { browserMenuOpen = false }) {
+                browsers.forEach { browser ->
+                    DropdownMenuItem(
+                        text = { Text(browser.name) },
+                        onClick = {
+                            onDraftChange(draft.copy(remoteBrowserId = browser.id))
+                            browserMenuOpen = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+    OutlinedTextField(
+        value = draft.screenshotDelayMs.toString(),
+        onValueChange = { value ->
+            value.filter(Char::isDigit).take(9).toIntOrNull()?.let { delay ->
+                onDraftChange(draft.copy(screenshotDelayMs = delay))
+            }
+        },
+        label = { Text(stringResource(R.string.monitor_real_browser_screenshot_delay)) },
+        supportingText = { Text(stringResource(R.string.monitor_real_browser_screenshot_delay_help, maxDelay)) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 @Composable
 private fun BooleanEditorRow(checked: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
     Row(
@@ -2577,6 +2663,9 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.KAFKA_AWS_SECRET_REQUIRED -> R.string.monitor_error_kafka_secret_key
         MonitorDraftError.DOCKER_CONTAINER_REQUIRED -> R.string.monitor_error_docker_container
         MonitorDraftError.DOCKER_HOST_REQUIRED -> R.string.monitor_error_docker_host
+        MonitorDraftError.REAL_BROWSER_INVALID -> R.string.monitor_error_real_browser
+        MonitorDraftError.REAL_BROWSER_SCREENSHOT_DELAY_INVALID ->
+            R.string.monitor_error_real_browser_screenshot_delay
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

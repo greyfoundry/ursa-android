@@ -89,6 +89,8 @@ enum class MonitorEditorField {
     KAFKA_SASL_OPTIONS,
     DOCKER_CONTAINER,
     DOCKER_HOST,
+    REAL_BROWSER_REMOTE_BROWSER,
+    REAL_BROWSER_SCREENSHOT_DELAY,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -113,6 +115,7 @@ enum class MonitorEditorCodec {
     RABBITMQ,
     KAFKA,
     DOCKER,
+    REAL_BROWSER,
     SFTP,
 }
 
@@ -133,6 +136,7 @@ enum class MonitorEditorValidation {
     RABBITMQ,
     KAFKA,
     DOCKER,
+    REAL_BROWSER,
     SFTP,
 }
 
@@ -252,7 +256,20 @@ object MonitorEditorRegistry {
         ),
         definition("system-service", "System service"),
         definition("pm2", "PM2 process", verifiedMin = KumaVersion(2, 5, 0)),
-        definition("real-browser", "Browser engine", MonitorEndpointKind.URL),
+        definition(
+            "real-browser",
+            "Browser engine",
+            MonitorEndpointKind.URL,
+            createSupported = true,
+            codec = MonitorEditorCodec.REAL_BROWSER,
+            validation = MonitorEditorValidation.REAL_BROWSER,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(
+                MonitorEditorField.REAL_BROWSER_REMOTE_BROWSER,
+                MonitorEditorField.REAL_BROWSER_SCREENSHOT_DELAY,
+            ),
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition(
             "group",
             "Group",
@@ -909,6 +926,9 @@ object MonitorRoundTripGuard {
             }
             if (definition.codec == MonitorEditorCodec.DOCKER) {
                 addAll(setOf("docker_container", "docker_host"))
+            }
+            if (definition.codec == MonitorEditorCodec.REAL_BROWSER) {
+                addAll(setOf("remote_browser", "screenshot_delay"))
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

@@ -91,6 +91,7 @@ import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
@@ -343,6 +344,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
     val notifications: StateFlow<List<KumaNotification>> = repo.notifications
     val dockerHosts: StateFlow<List<KumaDockerHost>> = repo.dockerHosts
+    val remoteBrowsers: StateFlow<List<KumaRemoteBrowser>> = repo.remoteBrowsers
     private val _serverTags = MutableStateFlow<List<KumaTag>>(emptyList())
     val serverTags: StateFlow<List<KumaTag>> = _serverTags.asStateFlow()
     private val _maintenanceEditor = MutableStateFlow<MaintenanceEditorUiState>(MaintenanceEditorUiState.Idle)

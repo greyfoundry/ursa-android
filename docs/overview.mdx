@@ -84,7 +84,7 @@ and the module docs under `docs/modules/`.
   device-tested. See `docs/sessions/log.mdx`.
 - Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
   partial CP-031 advanced monitor-type creation boundary. Native keyword, JSON-query,
-  WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, and SFTP creation and editing are included; less common
+  WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser, and SFTP creation and editing are included; less common
   type-specific forms remain in Kuma. This includes
   fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
@@ -126,6 +126,8 @@ and the module docs under `docs/modules/`.
   timeout, and every 2.5.5 SASL mechanism with presence-only secret handling. Docker
   monitors expose a container name or ID and select an existing Kuma-managed host;
   daemon endpoints never leave the network adapter and host administration remains in Kuma.
+  Real Browser monitors expose the HTTP(S) target, optional existing remote-browser
+  selection, and bounded screenshot delay while discarding tokenized browser URLs.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;

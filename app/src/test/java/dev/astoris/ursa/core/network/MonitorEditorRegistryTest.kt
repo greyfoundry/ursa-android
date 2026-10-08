@@ -47,6 +47,7 @@ class MonitorEditorRegistryTest {
                 "rabbitmq",
                 "kafka-producer",
                 "docker",
+                "real-browser",
                 "postgres",
                 "mysql",
                 "sqlserver",
@@ -250,6 +251,7 @@ class MonitorEditorRegistryTest {
                         "rabbitmq",
                         "kafka-producer",
                         "docker",
+                        "real-browser",
                         "postgres",
                         "mongodb",
                         "redis",
@@ -339,6 +341,21 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.DOCKER_CONTAINER in docker.editableFields)
         assertTrue(MonitorEditorField.DOCKER_HOST in docker.editableFields)
         assertTrue(docker.sensitiveFields.isEmpty())
+    }
+
+    @Test
+    fun realBrowserDeclaresItsCompleteServerBoundContract() {
+        val browser = requireNotNull(MonitorEditorRegistry.find("real-browser"))
+
+        assertTrue(browser.createSupported)
+        assertEquals(MonitorEditorCodec.REAL_BROWSER, browser.codec)
+        assertEquals(MonitorEditorValidation.REAL_BROWSER, browser.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, browser.fidelity)
+        assertEquals(MonitorTransferEligibility.NOT_ELIGIBLE, browser.transferEligibility)
+        assertTrue(MonitorEditorField.ENDPOINT in browser.editableFields)
+        assertTrue(MonitorEditorField.REAL_BROWSER_REMOTE_BROWSER in browser.editableFields)
+        assertTrue(MonitorEditorField.REAL_BROWSER_SCREENSHOT_DELAY in browser.editableFields)
+        assertTrue(browser.sensitiveFields.isEmpty())
     }
 
     @Test

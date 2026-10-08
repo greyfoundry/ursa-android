@@ -90,7 +90,7 @@ here so the rest of the app sees clean domain models.
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
   NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, SNMPv1/v2c, RabbitMQ,
-  Kafka producer, Docker, and SFTP create flows.
+  Kafka producer, Docker, Real Browser, and SFTP create flows.
   Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
@@ -149,6 +149,12 @@ here so the rest of the app sees clean domain models.
   consumes only ID, name, and type from Kuma's live `dockerHostList`; daemon endpoints
   and user IDs are discarded before repository or UI state. Docker hosts remain
   Kuma-managed and Docker monitors remain server-bound rather than portable.
+  Real Browser maps the target URL, optional `remote_browser` ID, and
+  `screenshot_delay`. Its selector consumes only ID and name from
+  `remoteBrowserList`; remote WebSocket URLs can contain access tokens and are
+  discarded before repository or UI state. Screenshot delay is limited to half
+  the monitor interval, matching Kuma. Remote-browser administration stays in Kuma,
+  and these monitors remain server-bound.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
