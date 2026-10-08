@@ -84,7 +84,8 @@ and the module docs under `docs/modules/`.
   device-tested. See `docs/sessions/log.mdx`.
 - Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
   partial CP-031 advanced monitor-type creation boundary. Native keyword, JSON-query,
-  WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser, and SFTP creation and editing are included; less common
+  WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser,
+  Oracle Database, and SFTP creation and editing are included; less common
   type-specific forms remain in Kuma. This includes
   fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
@@ -115,8 +116,10 @@ and the module docs under `docs/modules/`.
   expression/comparison behavior, WebSocket handshakes/authentication, MQTT message
   checks, SMTP transport verification, NTP quality thresholds, subtype-aware
   Globalping Ping, DNS, and HTTP configuration, and native PostgreSQL,
-  MySQL/MariaDB, Microsoft SQL Server, MongoDB, and Redis configuration without
-  claiming future fields. gRPC keyword monitors additionally expose the target,
+  MySQL/MariaDB, Microsoft SQL Server, MongoDB, Redis, and Oracle Database
+  configuration without claiming future fields. Oracle exposes its service
+  connection string, username, presence-only password, and optional query while
+  preserving nested result conditions. gRPC keyword monitors additionally expose the target,
   inline protobuf, service and method, masked JSON-object body, TLS, and keyword
   match while preserving unused legacy metadata opaquely. SNMPv1/v2c monitors
   expose host/port, masked community, OID, bounded timeout, and JSONata comparison;

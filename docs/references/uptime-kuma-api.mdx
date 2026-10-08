@@ -228,15 +228,17 @@ response checks are mutually exclusive on save. Unknown subtypes, future enum
 values, unsupported authentication, and future header shapes remain opaque.
 
 Database monitors share `databaseConnectionString`. PostgreSQL, MySQL/MariaDB,
-Microsoft SQL Server, and MongoDB also use `databaseQuery`; a blank SQL query falls
-back to `SELECT 1`, while a blank MongoDB query runs `{ "ping": 1 }`. MongoDB passes
+Microsoft SQL Server, MongoDB, and Oracle Database also use `databaseQuery`; a blank
+query falls back to `SELECT 1` for the first three SQL drivers, `SELECT 1 FROM DUAL`
+for Oracle, or `{ "ping": 1 }` for MongoDB. MongoDB passes
 a parsed JSON object to the driver command and can evaluate `jsonPath` with JSONata
 before comparing its string result with `expectedValue`. MySQL can supply a separate
-`radiusPassword` override. Redis uses `ignoreTls` and has no query field. MySQL and
-SQL Server can also carry recursive result `conditions`; clients without the exact
+`radiusPassword` override. Oracle requires `basic_auth_user` and `basic_auth_pass`
+alongside a service string such as `host:1521/FREEPDB1`. Redis uses `ignoreTls` and
+has no query field. MySQL, SQL Server, and Oracle can also carry recursive result `conditions`; clients without the exact
 condition editor must preserve that array unchanged. Connection strings and the
-MySQL override can contain credentials and therefore must not be prefilled, logged,
-or copied into local monitor caches.
+MySQL override can contain credentials, while the Oracle password is explicitly
+sensitive; none may be prefilled, logged, or copied into local monitor caches.
 
 gRPC keyword monitors use `grpcUrl`, inline `grpcProtobuf`, `grpcServiceName`,
 `grpcMethod`, JSON-object string `grpcBody`, `grpcEnableTls`, `keyword`, and

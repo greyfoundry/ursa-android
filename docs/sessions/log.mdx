@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-08 - Native Oracle Database monitor editing
+
+**changed**: Promoted Oracle Database to the shared native database create/edit
+path. The form owns Kuma's service connection string, username, masked password,
+and optional query, with clear help for the `SELECT 1 FROM DUAL` default. Nested
+result conditions remain preserved and browser-managed.
+
+**security and compatibility**: Saved connection strings and passwords reduce to
+presence flags before UI state. Blank edits recover them only from the freshly
+fetched full monitor object; replacements stay masked, future fields remain opaque,
+and transfer requires secret re-entry.
+
+**verification**: Focused codec, validation, registry, and round-trip tests cover
+exact create fields, required credentials, saved-secret retention/replacement,
+future fields, and nested-condition preservation. Android 17/live Kuma 2.5.5 QA
+used the upstream `gvenzl/oracle-free:23-slim-faststart` fixture. URSA created the
+monitor, reached Up with Kuma's default query, reloaded masked credentials, changed
+only the query to `SELECT 2 FROM DUAL`, reached Up again, reloaded the exact query,
+and confirmed deletion. Direct database checks matched both payloads without
+printing the password; all monitor/heartbeat rows and the disposable container and
+network were removed. No crash or ANR occurred. The debug emulator did record
+repeated long main-thread frame stalls during navigation; this is tracked for the
+existing large-fleet/performance gate rather than attributed to Oracle.
+
 ### 2026-10-08 - Native Real Browser monitor editing
 
 **changed**: Added native Real Browser creation and editing for the HTTP(S) target,

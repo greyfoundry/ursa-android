@@ -63,6 +63,7 @@ enum class MonitorEditorField {
     GLOBALPING_HTTP_CACHE_BUST,
     DATABASE_CONNECTION_STRING,
     DATABASE_QUERY,
+    DATABASE_USERNAME,
     DATABASE_PASSWORD,
     DATABASE_IGNORE_TLS,
     DATABASE_JSON_QUERY_EXPRESSION,
@@ -643,7 +644,15 @@ object MonitorEditorRegistry {
             extraFields = setOf(MonitorEditorField.DATABASE_PASSWORD),
             sensitiveFields = setOf(MonitorEditorField.DATABASE_PASSWORD),
         ),
-        definition("oracledb", "Oracle Database"),
+        databaseDefinition(
+            "oracledb",
+            "Oracle Database",
+            extraFields = setOf(
+                MonitorEditorField.DATABASE_USERNAME,
+                MonitorEditorField.DATABASE_PASSWORD,
+            ),
+            sensitiveFields = setOf(MonitorEditorField.DATABASE_PASSWORD),
+        ),
         databaseDefinition("postgres", "PostgreSQL", fidelity = MonitorEditorFidelity.FULL_FIDELITY),
         definition("radius", "RADIUS"),
         databaseDefinition(
@@ -875,6 +884,10 @@ object MonitorRoundTripGuard {
                 add("databaseConnectionString")
                 if (type != "redis") add("databaseQuery")
                 if (type == "mysql") add("radiusPassword")
+                if (type == "oracledb") {
+                    add("basic_auth_user")
+                    add("basic_auth_pass")
+                }
                 if (type == "mongodb") {
                     add("jsonPath")
                     add("expectedValue")

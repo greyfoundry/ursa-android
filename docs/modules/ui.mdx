@@ -117,7 +117,7 @@ route stack while screens migrate incrementally.
   explicit SMTPS, plaintext, or required-STARTTLS selection, native NTP host/port
   plus stratum, time-offset, and root-dispersion thresholds, native subtype-aware
   Globalping Ping, DNS, and HTTP controls, native PostgreSQL, MySQL/MariaDB,
-  Microsoft SQL Server, MongoDB, and Redis controls, native gRPC keyword target,
+  Microsoft SQL Server, MongoDB, Redis, and Oracle Database controls, native gRPC keyword target,
   protobuf, call, body, TLS, and match controls, native SNMPv1/v2c query controls,
   native RabbitMQ node/credential controls, native Kafka producer and SASL controls,
   native Docker container and existing-host controls, native Real Browser engine and
@@ -133,9 +133,10 @@ route stack while screens migrate incrementally.
   offer it for this subtype.
   Database connection strings use one bounded masked field; PostgreSQL/MySQL/SQL
   Server expose optional SQL, MongoDB exposes a JSON command and JSONata result
-  check, and Redis exposes TLS-certificate-error handling. MySQL's separate
-  password override is also masked. Nested MySQL/SQL Server result conditions stay
-  unchanged and retain the browser editor escape.
+  check, Redis exposes TLS-certificate-error handling, and Oracle exposes username,
+  masked password, and optional SQL with an explicit `SELECT 1 FROM DUAL` default.
+  MySQL's separate password override is also masked. Nested MySQL/SQL Server/Oracle
+  result conditions stay unchanged and retain the browser editor escape.
   Saved gRPC request bodies are likewise never prefilled; the body must be a JSON
   object when created or replaced, while blank edits retain the saved value.
   SNMP community strings follow the same masked-retention rule. Existing SNMPv3 and

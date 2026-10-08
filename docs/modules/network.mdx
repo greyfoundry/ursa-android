@@ -129,9 +129,11 @@ here so the rest of the app sees clean domain models.
   Database monitors share one presence-only connection-string boundary. PostgreSQL,
   MySQL/MariaDB, and Microsoft SQL Server map optional SQL; MySQL also masks its
   separate password override. MongoDB maps an optional JSON-object command plus
-  JSONata/expected-value fields, and Redis maps its TLS-verification switch. Blank
-  saved secrets are recovered only from the freshly fetched full object. MySQL and
-  SQL Server nested result conditions remain opaque and unchanged.
+  JSONata/expected-value fields, and Redis maps its TLS-verification switch. Oracle
+  Database maps its service connection string, username, presence-only password,
+  and optional query; a blank query uses Kuma's `SELECT 1 FROM DUAL` check. Blank
+  saved secrets are recovered only from the freshly fetched full object. MySQL,
+  SQL Server, and Oracle nested result conditions remain opaque and unchanged.
   gRPC keyword monitors map the target, inline protobuf, service and method names,
   JSON-object request body, TLS switch, keyword, and inverse match. Saved request
   bodies reduce to a presence flag and are recovered only from the freshly fetched

@@ -1375,6 +1375,7 @@ private fun DatabaseFields(
                 "postgres" -> "postgres://user:password@host:5432/database"
                 "mysql" -> "mysql://user@host:3306/database"
                 "mongodb" -> "mongodb://user:password@host:27017/database"
+                "oracledb" -> "host:1521/FREEPDB1"
                 else -> "redis://user:password@host:6379"
             },
         ),
@@ -1392,6 +1393,21 @@ private fun DatabaseFields(
             stringResource(R.string.monitor_database_password_override_help),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (draft.type == "oracledb") {
+        OutlinedTextField(
+            value = draft.databaseUsername,
+            onValueChange = { onDraftChange(draft.copy(databaseUsername = it.take(256))) },
+            label = { Text(stringResource(R.string.monitor_database_username)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        SensitiveField(
+            value = draft.databasePassword,
+            onValueChange = { onDraftChange(draft.copy(databasePassword = it.take(2_048))) },
+            label = stringResource(R.string.monitor_database_password),
+            saved = draft.databaseHasSavedPassword,
         )
     }
     if (draft.type != "redis") {
@@ -1412,10 +1428,10 @@ private fun DatabaseFields(
             supportingText = {
                 Text(
                     stringResource(
-                        if (draft.type == "mongodb") {
-                            R.string.monitor_database_mongodb_command_help
-                        } else {
-                            R.string.monitor_database_query_help
+                        when (draft.type) {
+                            "mongodb" -> R.string.monitor_database_mongodb_command_help
+                            "oracledb" -> R.string.monitor_database_oracle_query_help
+                            else -> R.string.monitor_database_query_help
                         },
                     ),
                 )
@@ -1457,7 +1473,7 @@ private fun DatabaseFields(
             Text(stringResource(R.string.monitor_database_redis_ignore_tls))
         }
     }
-    if (draft.type == "mysql" || draft.type == "sqlserver") {
+    if (draft.type == "mysql" || draft.type == "sqlserver" || draft.type == "oracledb") {
         Text(
             stringResource(R.string.monitor_database_conditions_browser_only),
             style = MaterialTheme.typography.bodySmall,
@@ -2636,6 +2652,8 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
             R.string.monitor_error_globalping_http_json_value
         MonitorDraftError.DATABASE_CONNECTION_STRING_REQUIRED ->
             R.string.monitor_error_database_connection_string
+        MonitorDraftError.DATABASE_USERNAME_REQUIRED -> R.string.monitor_error_database_username
+        MonitorDraftError.DATABASE_PASSWORD_REQUIRED -> R.string.monitor_error_database_password
         MonitorDraftError.DATABASE_MONGODB_COMMAND_INVALID ->
             R.string.monitor_error_database_mongodb_command
         MonitorDraftError.GRPC_TARGET_REQUIRED -> R.string.monitor_error_grpc_target

@@ -1272,6 +1272,9 @@
     <string name="monitor_database_connection_example">Example: %1$s</string>
     <string name="monitor_database_query">Query (optional)</string>
     <string name="monitor_database_query_help">Leave blank to use Kuma’s SELECT 1 connectivity check.</string>
+    <string name="monitor_database_oracle_query_help">Leave blank to use Kuma’s SELECT 1 FROM DUAL connectivity check.</string>
+    <string name="monitor_database_username">Username</string>
+    <string name="monitor_database_password">Password</string>
     <string name="monitor_database_password_override">Password override (optional)</string>
     <string name="monitor_database_password_override_help">MySQL only. This replaces a password from the connection string; leave blank to keep a saved override.</string>
     <string name="monitor_database_mongodb_command">Command (optional JSON)</string>
@@ -1411,6 +1414,8 @@
     <string name="monitor_error_globalping_http_json_operator">Choose a supported JSON query condition.</string>
     <string name="monitor_error_globalping_http_json_value">Enter the expected JSON query value.</string>
     <string name="monitor_error_database_connection_string">Enter the complete database connection string.</string>
+    <string name="monitor_error_database_username">Enter the Oracle Database username.</string>
+    <string name="monitor_error_database_password">Enter the Oracle Database password.</string>
     <string name="monitor_error_database_mongodb_command">Enter a valid JSON MongoDB command, or leave it blank to use ping.</string>
     <string name="monitor_error_grpc_target">Enter the gRPC host and port.</string>
     <string name="monitor_error_grpc_protobuf">Enter the protocol buffer definition.</string>

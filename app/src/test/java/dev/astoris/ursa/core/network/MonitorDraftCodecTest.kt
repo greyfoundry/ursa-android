@@ -28,6 +28,7 @@ class MonitorDraftCodecTest {
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "redis" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "grpc-keyword" })
         assertTrue(MonitorTypeCatalog.creatable.any { it.key == "snmp" })
+        assertTrue(MonitorTypeCatalog.creatable.any { it.key == "oracledb" })
     }
 
     @Test
@@ -562,6 +563,54 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun oracleDatabasePayloadMasksAndRetainsCredentialsAndConditions() {
+        val created = MonitorDraft.create("oracledb").copy(
+            name = "Oracle",
+            databaseConnectionString = "oracle:1521/FREEPDB1",
+            databaseUsername = "uptimekuma",
+            databasePassword = "Oracle123",
+            databaseQuery = "SELECT 1 FROM DUAL",
+        )
+
+        assertNull(MonitorDraftCodec.validate(created))
+        val createdPayload = MonitorDraftCodec.newPayload(created)
+        assertEquals("oracle:1521/FREEPDB1", createdPayload["databaseConnectionString"]!!.jsonPrimitive.content)
+        assertEquals("uptimekuma", createdPayload["basic_auth_user"]!!.jsonPrimitive.content)
+        assertEquals("Oracle123", createdPayload["basic_auth_pass"]!!.jsonPrimitive.content)
+        assertEquals("SELECT 1 FROM DUAL", createdPayload["databaseQuery"]!!.jsonPrimitive.content)
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":63,"type":"oracledb","name":"Oracle","databaseConnectionString":"oracle:1521/FREEPDB1",
+                "basic_auth_user":"saved-user","basic_auth_pass":"saved-password","databaseQuery":"SELECT 1 FROM DUAL",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"conditions":[{"type":"expression","variable":"result","operator":"equals","value":"1","andOr":"and"}],
+                "futureOracle":{"pool":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertEquals("saved-user", loaded.databaseUsername)
+        assertTrue(loaded.databaseHasSavedPassword)
+        assertTrue(loaded.databasePassword.isEmpty())
+        assertNull(MonitorDraftCodec.validate(loaded))
+
+        val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(databaseQuery = "SELECT 2 FROM DUAL"))!!
+        assertEquals("saved-user", retained["basic_auth_user"]!!.jsonPrimitive.content)
+        assertEquals("saved-password", retained["basic_auth_pass"]!!.jsonPrimitive.content)
+        assertEquals("SELECT 2 FROM DUAL", retained["databaseQuery"]!!.jsonPrimitive.content)
+        assertEquals(raw["conditions"], retained["conditions"])
+        assertEquals(raw["futureOracle"], retained["futureOracle"])
+
+        val replaced = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(databaseUsername = "new-user", databasePassword = "new-password"),
+        )!!
+        assertEquals("new-user", replaced["basic_auth_user"]!!.jsonPrimitive.content)
+        assertEquals("new-password", replaced["basic_auth_pass"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun databaseValidationRequiresAConnectionAndValidMongoCommand() {
         val postgres = MonitorDraft.create("postgres").copy(name = "PostgreSQL")
         assertEquals(
@@ -582,6 +631,16 @@ class MonitorDraftCodecTest {
             MonitorDraftCodec.validate(mongodb.copy(databaseQuery = "[1, 2]")),
         )
         assertNull(MonitorDraftCodec.validate(mongodb.copy(databaseQuery = "")))
+
+        val oracle = MonitorDraft.create("oracledb").copy(
+            name = "Oracle",
+            databaseConnectionString = "oracle:1521/FREEPDB1",
+        )
+        assertEquals(MonitorDraftError.DATABASE_USERNAME_REQUIRED, MonitorDraftCodec.validate(oracle))
+        assertEquals(
+            MonitorDraftError.DATABASE_PASSWORD_REQUIRED,
+            MonitorDraftCodec.validate(oracle.copy(databaseUsername = "monitor")),
+        )
     }
 
     @Test

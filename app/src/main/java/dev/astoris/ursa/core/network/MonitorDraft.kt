@@ -305,6 +305,7 @@ data class MonitorDraft(
     val databaseConnectionString: String = "",
     val databaseHasSavedConnectionString: Boolean = false,
     val databaseQuery: String = "",
+    val databaseUsername: String = "",
     val databasePassword: String = "",
     val databaseHasSavedPassword: Boolean = false,
     val databaseIgnoreTls: Boolean = false,
@@ -461,6 +462,8 @@ enum class MonitorDraftError {
     GLOBALPING_HTTP_JSON_QUERY_OPERATOR_INVALID,
     GLOBALPING_HTTP_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     DATABASE_CONNECTION_STRING_REQUIRED,
+    DATABASE_USERNAME_REQUIRED,
+    DATABASE_PASSWORD_REQUIRED,
     DATABASE_MONGODB_COMMAND_INVALID,
     GRPC_TARGET_REQUIRED,
     GRPC_PROTOBUF_REQUIRED,
@@ -652,7 +655,12 @@ object MonitorDraftCodec {
             databaseHasSavedConnectionString = isDatabase &&
                 raw.string("databaseConnectionString")?.isNotEmpty() == true,
             databaseQuery = if (type in DATABASE_QUERY_TYPES) raw.string("databaseQuery").orEmpty() else "",
-            databaseHasSavedPassword = type == "mysql" && raw.string("radiusPassword")?.isNotEmpty() == true,
+            databaseUsername = if (type == "oracledb") raw.string("basic_auth_user").orEmpty() else "",
+            databaseHasSavedPassword = when (type) {
+                "mysql" -> raw.string("radiusPassword")?.isNotEmpty() == true
+                "oracledb" -> raw.string("basic_auth_pass")?.isNotEmpty() == true
+                else -> false
+            },
             databaseIgnoreTls = type == "redis" && raw.boolean("ignoreTls"),
             databaseJsonQueryExpression = if (type == "mongodb") raw.string("jsonPath") ?: "$" else "",
             databaseExpectedValue = if (type == "mongodb") raw.string("expectedValue").orEmpty() else "",
@@ -851,6 +859,16 @@ object MonitorDraftCodec {
         if (definition.validation == MonitorEditorValidation.DATABASE) {
             if (draft.databaseConnectionString.isBlank() && !draft.databaseHasSavedConnectionString) {
                 return MonitorDraftError.DATABASE_CONNECTION_STRING_REQUIRED
+            }
+            if (draft.type == "oracledb" && draft.databaseUsername.isBlank()) {
+                return MonitorDraftError.DATABASE_USERNAME_REQUIRED
+            }
+            if (
+                draft.type == "oracledb" &&
+                draft.databasePassword.isEmpty() &&
+                !draft.databaseHasSavedPassword
+            ) {
+                return MonitorDraftError.DATABASE_PASSWORD_REQUIRED
             }
             if (
                 draft.type == "mongodb" &&
@@ -1193,6 +1211,11 @@ object MonitorDraftCodec {
         if (draft.type == "mysql") {
             val password = draft.databasePassword.ifEmpty { existing?.string("radiusPassword").orEmpty() }
             values["radiusPassword"] = JsonPrimitive(password)
+        }
+        if (draft.type == "oracledb") {
+            val password = draft.databasePassword.ifEmpty { existing?.string("basic_auth_pass").orEmpty() }
+            values["basic_auth_user"] = JsonPrimitive(draft.databaseUsername.trim())
+            values["basic_auth_pass"] = JsonPrimitive(password)
         }
         if (draft.type == "mongodb") {
             values["jsonPath"] = JsonPrimitive(draft.databaseJsonQueryExpression.trim())
@@ -1721,8 +1744,8 @@ object MonitorDraftCodec {
 
     val JSON_QUERY_OPERATORS: Set<String> = setOf(">", ">=", "<", "<=", "!=", "==", "contains")
 
-    private val DATABASE_TYPES = setOf("postgres", "mysql", "sqlserver", "mongodb", "redis")
-    private val DATABASE_QUERY_TYPES = setOf("postgres", "mysql", "sqlserver", "mongodb")
+    private val DATABASE_TYPES = setOf("postgres", "mysql", "sqlserver", "mongodb", "oracledb", "redis")
+    private val DATABASE_QUERY_TYPES = setOf("postgres", "mysql", "sqlserver", "mongodb", "oracledb")
 
     private fun websocketAcceptedCodes(value: String): List<String>? {
         val parts = value.split(',').map(String::trim)

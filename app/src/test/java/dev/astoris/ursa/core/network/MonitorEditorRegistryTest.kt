@@ -48,6 +48,7 @@ class MonitorEditorRegistryTest {
                 "kafka-producer",
                 "docker",
                 "real-browser",
+                "oracledb",
                 "postgres",
                 "mysql",
                 "sqlserver",
@@ -263,7 +264,7 @@ class MonitorEditorRegistryTest {
 
     @Test
     fun databaseWaveDeclaresOneSharedSecretContractWithoutOverstatingConditions() {
-        val definitions = listOf("postgres", "mysql", "sqlserver", "mongodb", "redis")
+        val definitions = listOf("postgres", "mysql", "sqlserver", "mongodb", "oracledb", "redis")
             .map { requireNotNull(MonitorEditorRegistry.find(it)) }
 
         definitions.forEach { definition ->
@@ -278,6 +279,8 @@ class MonitorEditorRegistryTest {
         assertEquals(MonitorEditorFidelity.SAFE_COMMON_EDIT, MonitorEditorRegistry.find("sqlserver")!!.fidelity)
         assertEquals(MonitorEditorFidelity.FULL_FIDELITY, MonitorEditorRegistry.find("postgres")!!.fidelity)
         assertTrue(MonitorEditorField.DATABASE_PASSWORD in MonitorEditorRegistry.find("mysql")!!.sensitiveFields)
+        assertTrue(MonitorEditorField.DATABASE_USERNAME in MonitorEditorRegistry.find("oracledb")!!.editableFields)
+        assertTrue(MonitorEditorField.DATABASE_PASSWORD in MonitorEditorRegistry.find("oracledb")!!.sensitiveFields)
         assertTrue(MonitorEditorField.DATABASE_IGNORE_TLS in MonitorEditorRegistry.find("redis")!!.editableFields)
         assertTrue(MonitorEditorField.DATABASE_JSON_QUERY_EXPRESSION in MonitorEditorRegistry.find("mongodb")!!.editableFields)
     }
