@@ -92,6 +92,11 @@ enum class MonitorEditorField {
     DOCKER_HOST,
     REAL_BROWSER_REMOTE_BROWSER,
     REAL_BROWSER_SCREENSHOT_DELAY,
+    RADIUS_USERNAME,
+    RADIUS_PASSWORD,
+    RADIUS_SECRET,
+    RADIUS_CALLED_STATION_ID,
+    RADIUS_CALLING_STATION_ID,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -117,6 +122,7 @@ enum class MonitorEditorCodec {
     KAFKA,
     DOCKER,
     REAL_BROWSER,
+    RADIUS,
     SFTP,
 }
 
@@ -138,6 +144,7 @@ enum class MonitorEditorValidation {
     KAFKA,
     DOCKER,
     REAL_BROWSER,
+    RADIUS,
     SFTP,
 }
 
@@ -654,7 +661,29 @@ object MonitorEditorRegistry {
             sensitiveFields = setOf(MonitorEditorField.DATABASE_PASSWORD),
         ),
         databaseDefinition("postgres", "PostgreSQL", fidelity = MonitorEditorFidelity.FULL_FIDELITY),
-        definition("radius", "RADIUS"),
+        definition(
+            type = "radius",
+            label = "RADIUS",
+            endpointKind = MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            defaultPort = 1812,
+            codec = MonitorEditorCodec.RADIUS,
+            validation = MonitorEditorValidation.RADIUS,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(
+                MonitorEditorField.RADIUS_USERNAME,
+                MonitorEditorField.RADIUS_PASSWORD,
+                MonitorEditorField.RADIUS_SECRET,
+                MonitorEditorField.RADIUS_CALLED_STATION_ID,
+                MonitorEditorField.RADIUS_CALLING_STATION_ID,
+            ),
+            sensitiveFields = setOf(
+                MonitorEditorField.RADIUS_PASSWORD,
+                MonitorEditorField.RADIUS_SECRET,
+            ),
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         databaseDefinition(
             "redis",
             "Redis",
@@ -942,6 +971,17 @@ object MonitorRoundTripGuard {
             }
             if (definition.codec == MonitorEditorCodec.REAL_BROWSER) {
                 addAll(setOf("remote_browser", "screenshot_delay"))
+            }
+            if (definition.codec == MonitorEditorCodec.RADIUS) {
+                addAll(
+                    setOf(
+                        "radiusUsername",
+                        "radiusPassword",
+                        "radiusSecret",
+                        "radiusCalledStationId",
+                        "radiusCallingStationId",
+                    ),
+                )
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

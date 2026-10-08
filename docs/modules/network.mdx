@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-06
+last-updated: 2026-10-08
 owner: astoris
 status: stable
 ---
@@ -90,7 +90,7 @@ here so the rest of the app sees clean domain models.
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
   NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, SNMPv1/v2c, RabbitMQ,
-  Kafka producer, Docker, Real Browser, and SFTP create flows.
+  Kafka producer, Docker, Real Browser, RADIUS, and SFTP create flows.
   Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
@@ -157,6 +157,11 @@ here so the rest of the app sees clean domain models.
   discarded before repository or UI state. Screenshot delay is limited to half
   the monitor interval, matching Kuma. Remote-browser administration stays in Kuma,
   and these monitors remain server-bound.
+  RADIUS maps `hostname`, UDP `port`, `radiusUsername`, `radiusPassword`,
+  `radiusSecret`, `radiusCalledStationId`, and `radiusCallingStationId`. Password
+  and shared-secret values reduce to presence flags before UI state; blank edits
+  recover them only from the freshly fetched full object, while replacements and
+  future fields remain inside the guarded round trip.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

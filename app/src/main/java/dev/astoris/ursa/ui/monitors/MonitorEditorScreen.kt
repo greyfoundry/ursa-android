@@ -433,6 +433,9 @@ private fun MonitorForm(
         if (definition?.codec == MonitorEditorCodec.REAL_BROWSER) {
             RealBrowserFields(draft = draft, browsers = remoteBrowsers, onDraftChange = onDraftChange)
         }
+        if (definition?.codec == MonitorEditorCodec.RADIUS) {
+            RadiusFields(draft = draft, onDraftChange = onDraftChange)
+        }
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
         }
@@ -445,7 +448,7 @@ private fun MonitorForm(
         if (
             draft.isNew &&
             option?.endpointKind != MonitorEndpointKind.NONE &&
-            draft.type !in setOf("mqtt", "ntp", "smtp", "snmp", "sftp", "websocket-upgrade")
+            draft.type !in setOf("mqtt", "ntp", "radius", "smtp", "snmp", "sftp", "websocket-upgrade")
         ) {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
@@ -1870,6 +1873,52 @@ private fun RealBrowserFields(
 }
 
 @Composable
+private fun RadiusFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    Text(stringResource(R.string.monitor_radius_title), style = MaterialTheme.typography.titleSmall)
+    OutlinedTextField(
+        value = draft.radiusUsername,
+        onValueChange = { onDraftChange(draft.copy(radiusUsername = it.take(256))) },
+        label = { Text(stringResource(R.string.monitor_radius_username)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SensitiveField(
+        value = draft.radiusPassword,
+        onValueChange = { onDraftChange(draft.copy(radiusPassword = it.take(2_048))) },
+        label = stringResource(R.string.monitor_radius_password),
+        saved = draft.radiusHasSavedPassword,
+    )
+    SensitiveField(
+        value = draft.radiusSecret,
+        onValueChange = { onDraftChange(draft.copy(radiusSecret = it.take(2_048))) },
+        label = stringResource(R.string.monitor_radius_secret),
+        saved = draft.radiusHasSavedSecret,
+    )
+    Text(
+        stringResource(R.string.monitor_radius_secret_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    OutlinedTextField(
+        value = draft.radiusCalledStationId,
+        onValueChange = { onDraftChange(draft.copy(radiusCalledStationId = it.take(256))) },
+        label = { Text(stringResource(R.string.monitor_radius_called_station_id)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedTextField(
+        value = draft.radiusCallingStationId,
+        onValueChange = { onDraftChange(draft.copy(radiusCallingStationId = it.take(256))) },
+        label = { Text(stringResource(R.string.monitor_radius_calling_station_id)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
 private fun BooleanEditorRow(checked: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().toggleable(
@@ -2684,6 +2733,11 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.REAL_BROWSER_INVALID -> R.string.monitor_error_real_browser
         MonitorDraftError.REAL_BROWSER_SCREENSHOT_DELAY_INVALID ->
             R.string.monitor_error_real_browser_screenshot_delay
+        MonitorDraftError.RADIUS_USERNAME_REQUIRED -> R.string.monitor_error_radius_username
+        MonitorDraftError.RADIUS_PASSWORD_REQUIRED -> R.string.monitor_error_radius_password
+        MonitorDraftError.RADIUS_SECRET_REQUIRED -> R.string.monitor_error_radius_secret
+        MonitorDraftError.RADIUS_CALLED_STATION_ID_REQUIRED -> R.string.monitor_error_radius_called_station_id
+        MonitorDraftError.RADIUS_CALLING_STATION_ID_REQUIRED -> R.string.monitor_error_radius_calling_station_id
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-06
+last-updated: 2026-10-08
 owner: astoris
 status: stable
 source: verified from Uptime Kuma source and live 2.4.0 through 2.5.5 containers
@@ -295,6 +295,16 @@ HTTP 200-399. Its web form caps the delay at half the interval. URSA mirrors tho
 fields and that bound, leaves remote-browser administration in Kuma, and treats the
 server-bound selector as non-transferable. The remote connection lifecycle remains
 owned by Kuma, not the client editing the monitor.
+
+RADIUS monitors use `hostname`, `port` (default `1812`), `radiusUsername`,
+`radiusPassword`, `radiusSecret`, `radiusCalledStationId`, and
+`radiusCallingStationId`. Kuma 2.5.5 requires all five access-request identity and
+secret fields; `Access-Accept` and `Access-Challenge` are healthy, while
+`Access-Reject` fails the check. URSA keeps both returned secrets presence-only and
+recovers unchanged values solely from the fresh full object used for an edit.
+Current FreeRADIUS releases require an explicit legacy-client compatibility setting
+for Kuma 2.5.5 requests that omit the Message-Authenticator attribute; that server
+policy belongs to the RADIUS administrator, not URSA.
 
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array

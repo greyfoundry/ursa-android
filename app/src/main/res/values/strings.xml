@@ -1349,6 +1349,13 @@
     <string name="monitor_real_browser_unavailable">Unavailable browser #%1$d</string>
     <string name="monitor_real_browser_screenshot_delay">Screenshot delay (milliseconds)</string>
     <string name="monitor_real_browser_screenshot_delay_help">Wait before capture; maximum for this interval: %1$d ms.</string>
+    <string name="monitor_radius_title">RADIUS access request</string>
+    <string name="monitor_radius_username">Username</string>
+    <string name="monitor_radius_password">Password</string>
+    <string name="monitor_radius_secret">Shared secret</string>
+    <string name="monitor_radius_secret_help">Use the shared secret configured for this RADIUS client. Saved secrets stay hidden; leave either secret field blank to keep its current value.</string>
+    <string name="monitor_radius_called_station_id">Called-Station-ID</string>
+    <string name="monitor_radius_calling_station_id">Calling-Station-ID</string>
     <string name="action_show">Show</string>
     <string name="action_hide">Hide</string>
     <string name="monitor_discovery_title">Local service</string>
@@ -1444,6 +1451,11 @@
     <string name="monitor_error_docker_host">Choose a Docker host configured in Uptime Kuma.</string>
     <string name="monitor_error_real_browser">Choose a valid remote browser or use local Chromium.</string>
     <string name="monitor_error_real_browser_screenshot_delay">Screenshot delay must be between zero and half the monitor interval.</string>
+    <string name="monitor_error_radius_username">Enter the RADIUS username.</string>
+    <string name="monitor_error_radius_password">Enter the RADIUS password.</string>
+    <string name="monitor_error_radius_secret">Enter the RADIUS shared secret.</string>
+    <string name="monitor_error_radius_called_station_id">Enter the Called-Station-ID.</string>
+    <string name="monitor_error_radius_calling_station_id">Enter the Calling-Station-ID.</string>
     <string name="action_saving">Saving…</string>
     <string name="action_edit_monitor">Edit monitor</string>
     <string name="action_delete_monitor">Delete monitor</string>

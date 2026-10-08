@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-06
+last-updated: 2026-10-08
 owner: astoris
 status: stable
 ---
@@ -121,7 +121,8 @@ route stack while screens migrate incrementally.
   protobuf, call, body, TLS, and match controls, native SNMPv1/v2c query controls,
   native RabbitMQ node/credential controls, native Kafka producer and SASL controls,
   native Docker container and existing-host controls, native Real Browser engine and
-  screenshot-delay controls, native SFTP password/private-key setup, explicit active state,
+  screenshot-delay controls, native RADIUS access-request controls, native SFTP
+  password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
   server errors, and no raw JSON surface. Saved MQTT, database, and SFTP secrets
@@ -150,6 +151,9 @@ route stack while screens migrate incrementally.
   Real Browser can use Kuma-local Chromium or an existing named remote browser;
   remote WebSocket URLs never enter UI state. Its delay help follows the selected
   interval, and unavailable saved IDs remain visible rather than being replaced.
+  RADIUS requires username, password, shared secret, Called-Station-ID, and
+  Calling-Station-ID. Both saved secrets remain blank with saved-value notices and
+  are retained only when the user leaves them unchanged.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.

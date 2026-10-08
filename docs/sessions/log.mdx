@@ -9,6 +9,30 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-08 - Native RADIUS monitor editing
+
+**changed**: Added native RADIUS creation and editing for host/UDP port, username,
+password, shared secret, Called-Station-ID, and Calling-Station-ID. New monitors use
+Kuma's port 1812 default and require every access-request identity field.
+
+**security and compatibility**: Password and shared-secret values become presence
+flags before editable UI state. Blank edits recover each saved value only from the
+freshly fetched full monitor object; replacements remain masked, unknown fields stay
+opaque, and cross-server transfer requires secret re-entry.
+
+**verification**: Focused codec, validation, registry, and round-trip tests cover
+exact create fields, all required inputs, secret retention/replacement, and future
+fields. Android 17/live Kuma 2.5.5 QA used the upstream FreeRADIUS fixture. The
+current FreeRADIUS image required its documented legacy-client compatibility mode
+because Kuma omits Message-Authenticator; after that fixture-only adjustment, URSA
+created the monitor and received Access-Accept/Up at 4 ms. It edited only the
+Called-Station-ID with both secret inputs blank, direct length-only database checks
+confirmed both secrets were retained, and a second editor load kept both fields
+empty with saved-value notices. Confirmed deletion restored the five-monitor
+baseline. The disposable container and image were removed, and URSA logged no crash
+or ANR. The complete 198-task two-flavor phone/Wear unit, lint, and assemble gate
+passes.
+
 ### 2026-10-08 - Native Oracle Database monitor editing
 
 **changed**: Promoted Oracle Database to the shared native database create/edit

@@ -448,6 +448,100 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun radiusPayloadRoundTripsSecretsAndFutureFieldsWithoutExposingSavedValues() {
+        val draft = MonitorDraft.create("radius").copy(
+            name = "Office RADIUS",
+            endpoint = "172.17.0.2",
+            radiusUsername = "bob",
+            radiusPassword = "testpw",
+            radiusSecret = "testing123",
+            radiusCalledStationId = "kuma",
+            radiusCallingStationId = "ursa",
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+        assertEquals("172.17.0.2", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals(1812, payload["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals("bob", payload["radiusUsername"]!!.jsonPrimitive.content)
+        assertEquals("testpw", payload["radiusPassword"]!!.jsonPrimitive.content)
+        assertEquals("testing123", payload["radiusSecret"]!!.jsonPrimitive.content)
+        assertEquals("kuma", payload["radiusCalledStationId"]!!.jsonPrimitive.content)
+        assertEquals("ursa", payload["radiusCallingStationId"]!!.jsonPrimitive.content)
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":70,"type":"radius","name":"Office RADIUS","hostname":"172.17.0.2","port":1812,
+                "radiusUsername":"bob","radiusPassword":"testpw","radiusSecret":"testing123",
+                "radiusCalledStationId":"kuma","radiusCallingStationId":"ursa","interval":60,
+                "retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureRadius":{"dictionary":"custom"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+        assertEquals("bob", loaded.radiusUsername)
+        assertTrue(loaded.radiusHasSavedPassword)
+        assertTrue(loaded.radiusPassword.isEmpty())
+        assertTrue(loaded.radiusHasSavedSecret)
+        assertTrue(loaded.radiusSecret.isEmpty())
+        assertEquals("kuma", loaded.radiusCalledStationId)
+        assertEquals("ursa", loaded.radiusCallingStationId)
+        assertNull(MonitorDraftCodec.validate(loaded))
+
+        val retained = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(radiusCalledStationId = "kuma-edited", radiusCallingStationId = "ursa-edited"),
+        )!!
+        assertEquals("testpw", retained["radiusPassword"]!!.jsonPrimitive.content)
+        assertEquals("testing123", retained["radiusSecret"]!!.jsonPrimitive.content)
+        assertEquals("kuma-edited", retained["radiusCalledStationId"]!!.jsonPrimitive.content)
+        assertEquals("ursa-edited", retained["radiusCallingStationId"]!!.jsonPrimitive.content)
+        assertEquals(raw["futureRadius"], retained["futureRadius"])
+
+        val replaced = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(radiusPassword = "new-password", radiusSecret = "new-secret"),
+        )!!
+        assertEquals("new-password", replaced["radiusPassword"]!!.jsonPrimitive.content)
+        assertEquals("new-secret", replaced["radiusSecret"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun radiusValidationRequiresEveryAccessRequestField() {
+        val valid = MonitorDraft.create("radius").copy(
+            name = "Office RADIUS",
+            endpoint = "radius.internal",
+            radiusUsername = "bob",
+            radiusPassword = "testpw",
+            radiusSecret = "testing123",
+            radiusCalledStationId = "kuma",
+            radiusCallingStationId = "ursa",
+        )
+
+        assertNull(MonitorDraftCodec.validate(valid))
+        assertEquals(
+            MonitorDraftError.RADIUS_USERNAME_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(radiusUsername = "")),
+        )
+        assertEquals(
+            MonitorDraftError.RADIUS_PASSWORD_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(radiusPassword = "")),
+        )
+        assertEquals(
+            MonitorDraftError.RADIUS_SECRET_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(radiusSecret = "")),
+        )
+        assertEquals(
+            MonitorDraftError.RADIUS_CALLED_STATION_ID_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(radiusCalledStationId = "")),
+        )
+        assertEquals(
+            MonitorDraftError.RADIUS_CALLING_STATION_ID_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(radiusCallingStationId = "")),
+        )
+    }
+
+    @Test
     fun brokerValidationRejectsUnusableEndpointsAndMissingSecrets() {
         val rabbit = MonitorDraft.create("rabbitmq").copy(
             name = "Rabbit",

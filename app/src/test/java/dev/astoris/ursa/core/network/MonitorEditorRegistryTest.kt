@@ -48,6 +48,7 @@ class MonitorEditorRegistryTest {
                 "kafka-producer",
                 "docker",
                 "real-browser",
+                "radius",
                 "oracledb",
                 "postgres",
                 "mysql",
@@ -253,6 +254,7 @@ class MonitorEditorRegistryTest {
                         "kafka-producer",
                         "docker",
                         "real-browser",
+                        "radius",
                         "postgres",
                         "mongodb",
                         "redis",
@@ -359,6 +361,26 @@ class MonitorEditorRegistryTest {
         assertTrue(MonitorEditorField.REAL_BROWSER_REMOTE_BROWSER in browser.editableFields)
         assertTrue(MonitorEditorField.REAL_BROWSER_SCREENSHOT_DELAY in browser.editableFields)
         assertTrue(browser.sensitiveFields.isEmpty())
+    }
+
+    @Test
+    fun radiusDeclaresItsCompleteSecretAwareContract() {
+        val radius = requireNotNull(MonitorEditorRegistry.find("radius"))
+
+        assertTrue(radius.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, radius.endpointKind)
+        assertEquals(1812, radius.defaults.port)
+        assertEquals(MonitorEditorCodec.RADIUS, radius.codec)
+        assertEquals(MonitorEditorValidation.RADIUS, radius.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, radius.fidelity)
+        assertTrue(MonitorEditorField.RADIUS_USERNAME in radius.editableFields)
+        assertTrue(MonitorEditorField.RADIUS_CALLED_STATION_ID in radius.editableFields)
+        assertTrue(MonitorEditorField.RADIUS_CALLING_STATION_ID in radius.editableFields)
+        assertEquals(
+            setOf(MonitorEditorField.RADIUS_PASSWORD, MonitorEditorField.RADIUS_SECRET),
+            radius.sensitiveFields,
+        )
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, radius.transferEligibility)
     }
 
     @Test

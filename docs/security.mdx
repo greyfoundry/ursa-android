@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-05
+last-updated: 2026-10-08
 owner: astoris
 status: in-flux
 ---
@@ -155,6 +155,9 @@ authentication-method change clears credentials belonging to the old method.
 MQTT passwords also reduce to a saved-value flag. A blank field retains the fresh
 server value, a replacement remains masked, and a separate explicit control removes
 the saved password. The password never enters URSA's persistent storage or logs.
+RADIUS passwords and shared secrets use the same presence-only boundary. Blank edits
+recover each value only from the fresh full object used for that save; neither secret
+is copied into editable state, persistent storage, caches, or logs.
 SMTP editing is deliberately credential-free: it changes only hostname, explicit
 port, and the known transport-security mode. Null or future modes remain opaque,
 and unrelated expiry/TLS or future fields survive the guarded full-object round trip.

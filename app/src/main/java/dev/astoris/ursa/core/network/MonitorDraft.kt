@@ -351,6 +351,13 @@ data class MonitorDraft(
     val dockerHostId: Int? = null,
     val remoteBrowserId: Int? = null,
     val screenshotDelayMs: Int = 0,
+    val radiusUsername: String = "",
+    val radiusPassword: String = "",
+    val radiusHasSavedPassword: Boolean = false,
+    val radiusSecret: String = "",
+    val radiusHasSavedSecret: Boolean = false,
+    val radiusCalledStationId: String = "",
+    val radiusCallingStationId: String = "",
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -492,6 +499,11 @@ enum class MonitorDraftError {
     DOCKER_HOST_REQUIRED,
     REAL_BROWSER_INVALID,
     REAL_BROWSER_SCREENSHOT_DELAY_INVALID,
+    RADIUS_USERNAME_REQUIRED,
+    RADIUS_PASSWORD_REQUIRED,
+    RADIUS_SECRET_REQUIRED,
+    RADIUS_CALLED_STATION_ID_REQUIRED,
+    RADIUS_CALLING_STATION_ID_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -714,6 +726,11 @@ object MonitorDraftCodec {
             dockerHostId = if (type == "docker") raw.int("docker_host") else null,
             remoteBrowserId = if (type == "real-browser") raw.int("remote_browser") else null,
             screenshotDelayMs = if (type == "real-browser") raw.int("screenshot_delay") ?: 0 else 0,
+            radiusUsername = if (type == "radius") raw.string("radiusUsername").orEmpty() else "",
+            radiusHasSavedPassword = type == "radius" && raw.string("radiusPassword")?.isNotEmpty() == true,
+            radiusHasSavedSecret = type == "radius" && raw.string("radiusSecret")?.isNotEmpty() == true,
+            radiusCalledStationId = if (type == "radius") raw.string("radiusCalledStationId").orEmpty() else "",
+            radiusCallingStationId = if (type == "radius") raw.string("radiusCallingStationId").orEmpty() else "",
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -977,6 +994,17 @@ object MonitorDraftCodec {
                 return MonitorDraftError.REAL_BROWSER_SCREENSHOT_DELAY_INVALID
             }
         }
+        if (definition.validation == MonitorEditorValidation.RADIUS) {
+            if (draft.radiusUsername.isBlank()) return MonitorDraftError.RADIUS_USERNAME_REQUIRED
+            if (draft.radiusPassword.isEmpty() && !draft.radiusHasSavedPassword) {
+                return MonitorDraftError.RADIUS_PASSWORD_REQUIRED
+            }
+            if (draft.radiusSecret.isEmpty() && !draft.radiusHasSavedSecret) {
+                return MonitorDraftError.RADIUS_SECRET_REQUIRED
+            }
+            if (draft.radiusCalledStationId.isBlank()) return MonitorDraftError.RADIUS_CALLED_STATION_ID_REQUIRED
+            if (draft.radiusCallingStationId.isBlank()) return MonitorDraftError.RADIUS_CALLING_STATION_ID_REQUIRED
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -1112,6 +1140,7 @@ object MonitorDraftCodec {
         applyKafka(values, draft, raw)
         applyDocker(values, draft)
         applyRealBrowser(values, draft)
+        applyRadius(values, draft, raw)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -1173,6 +1202,7 @@ object MonitorDraftCodec {
         applyKafka(mutable, draft)
         applyDocker(mutable, draft)
         applyRealBrowser(mutable, draft)
+        applyRadius(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -1346,6 +1376,23 @@ object MonitorDraftCodec {
         if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.REAL_BROWSER) return
         values["remote_browser"] = draft.remoteBrowserId?.let(::JsonPrimitive) ?: JsonNull
         values["screenshot_delay"] = JsonPrimitive(draft.screenshotDelayMs)
+    }
+
+    private fun applyRadius(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.RADIUS) return
+        values["radiusUsername"] = JsonPrimitive(draft.radiusUsername.trim())
+        values["radiusPassword"] = JsonPrimitive(
+            draft.radiusPassword.ifEmpty { existing?.string("radiusPassword").orEmpty() },
+        )
+        values["radiusSecret"] = JsonPrimitive(
+            draft.radiusSecret.ifEmpty { existing?.string("radiusSecret").orEmpty() },
+        )
+        values["radiusCalledStationId"] = JsonPrimitive(draft.radiusCalledStationId.trim())
+        values["radiusCallingStationId"] = JsonPrimitive(draft.radiusCallingStationId.trim())
     }
 
     private fun applySftp(
