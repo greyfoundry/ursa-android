@@ -1356,6 +1356,15 @@
     <string name="monitor_radius_secret_help">Use the shared secret configured for this RADIUS client. Saved secrets stay hidden; leave either secret field blank to keep its current value.</string>
     <string name="monitor_radius_called_station_id">Called-Station-ID</string>
     <string name="monitor_radius_calling_station_id">Calling-Station-ID</string>
+    <string name="monitor_gamedig_title">Game server query</string>
+    <string name="monitor_gamedig_game">Game</string>
+    <string name="monitor_gamedig_unavailable_game">Unavailable game (%1$s)</string>
+    <string name="monitor_gamedig_no_games">The connected server did not provide its GameDig game list.</string>
+    <string name="monitor_gamedig_guess_port">Let GameDig try other ports</string>
+    <string name="monitor_gamedig_token">Query token (optional)</string>
+    <string name="monitor_gamedig_saved_token">A token is saved. Leave blank to keep it.</string>
+    <string name="monitor_gamedig_token_help">Only some games and hosted query services require a token.</string>
+    <string name="monitor_steam_api_key_help">Steam monitors use the Steam Web API key configured in Uptime Kuma.</string>
     <string name="action_show">Show</string>
     <string name="action_hide">Hide</string>
     <string name="monitor_discovery_title">Local service</string>
@@ -1456,6 +1465,7 @@
     <string name="monitor_error_radius_secret">Enter the RADIUS shared secret.</string>
     <string name="monitor_error_radius_called_station_id">Enter the Called-Station-ID.</string>
     <string name="monitor_error_radius_calling_station_id">Enter the Calling-Station-ID.</string>
+    <string name="monitor_error_gamedig_game">Choose a game.</string>
     <string name="action_saving">Saving…</string>
     <string name="action_edit_monitor">Edit monitor</string>
     <string name="action_delete_monitor">Delete monitor</string>

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-08
+last-updated: 2026-10-09
 owner: astoris
 status: in-flux
 ---
@@ -158,6 +158,10 @@ the saved password. The password never enters URSA's persistent storage or logs.
 RADIUS passwords and shared secrets use the same presence-only boundary. Blank edits
 recover each value only from the fresh full object used for that save; neither secret
 is copied into editable state, persistent storage, caches, or logs.
+GameDig query tokens use the same presence-only boundary. Kuma's dynamic game
+catalogue is reduced to a primary key and label; adapter options and extras are
+discarded before repository or UI state. Steam API keys remain entirely in Kuma's
+global server configuration and never enter URSA.
 SMTP editing is deliberately credential-free: it changes only hostname, explicit
 port, and the known transport-security mode. Null or future modes remain opaque,
 and unrelated expiry/TLS or future fields survive the guarded full-object round trip.

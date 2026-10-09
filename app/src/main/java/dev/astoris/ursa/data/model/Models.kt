@@ -117,6 +117,12 @@ data class KumaRemoteBrowser(
     val name: String,
 )
 
+/** Selection-safe GameDig metadata; adapter options and extras stay at the network boundary. */
+data class KumaGameType(
+    val key: String,
+    val label: String,
+)
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,

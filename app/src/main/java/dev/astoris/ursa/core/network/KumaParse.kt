@@ -4,6 +4,7 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaGameType
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
@@ -122,6 +123,21 @@ object KumaParse {
             ?: return@mapNotNull null
         KumaRemoteBrowser(id, name)
     }.sortedBy { it.name.lowercase() }
+
+    /** Exposes only the server-provided key and label needed by the monitor editor. */
+    fun gameTypes(arr: JsonArray): List<KumaGameType> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val key = (obj["keys"] as? JsonArray)
+            ?.firstOrNull()
+            ?.let { it as? JsonPrimitive }
+            ?.contentOrNull
+            ?.trim()
+            ?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val label = (obj["pretty"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        KumaGameType(key, label)
+    }.distinctBy(KumaGameType::key).sortedBy { it.label.lowercase() }
 
     /** `heartbeat` event (object, camelCase). */
     fun heartbeat(obj: JsonObject): Heartbeat? {

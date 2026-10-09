@@ -358,6 +358,10 @@ data class MonitorDraft(
     val radiusHasSavedSecret: Boolean = false,
     val radiusCalledStationId: String = "",
     val radiusCallingStationId: String = "",
+    val gameType: String = "",
+    val gameDigGivenPortOnly: Boolean = true,
+    val gameDigToken: String = "",
+    val gameDigHasSavedToken: Boolean = false,
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -504,6 +508,7 @@ enum class MonitorDraftError {
     RADIUS_SECRET_REQUIRED,
     RADIUS_CALLED_STATION_ID_REQUIRED,
     RADIUS_CALLING_STATION_ID_REQUIRED,
+    GAMEDIG_GAME_REQUIRED,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -731,6 +736,10 @@ object MonitorDraftCodec {
             radiusHasSavedSecret = type == "radius" && raw.string("radiusSecret")?.isNotEmpty() == true,
             radiusCalledStationId = if (type == "radius") raw.string("radiusCalledStationId").orEmpty() else "",
             radiusCallingStationId = if (type == "radius") raw.string("radiusCallingStationId").orEmpty() else "",
+            gameType = if (type == "gamedig") raw.string("game").orEmpty() else "",
+            gameDigGivenPortOnly = type != "gamedig" ||
+                (raw["gamedigGivenPortOnly"]?.jsonPrimitive?.booleanOrNull ?: true),
+            gameDigHasSavedToken = type == "gamedig" && raw.string("gamedigToken")?.isNotEmpty() == true,
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -1005,6 +1014,9 @@ object MonitorDraftCodec {
             if (draft.radiusCalledStationId.isBlank()) return MonitorDraftError.RADIUS_CALLED_STATION_ID_REQUIRED
             if (draft.radiusCallingStationId.isBlank()) return MonitorDraftError.RADIUS_CALLING_STATION_ID_REQUIRED
         }
+        if (definition.validation == MonitorEditorValidation.GAMEDIG && draft.gameType.isBlank()) {
+            return MonitorDraftError.GAMEDIG_GAME_REQUIRED
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -1141,6 +1153,7 @@ object MonitorDraftCodec {
         applyDocker(values, draft)
         applyRealBrowser(values, draft)
         applyRadius(values, draft, raw)
+        applyGameDig(values, draft, raw)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -1203,6 +1216,7 @@ object MonitorDraftCodec {
         applyDocker(mutable, draft)
         applyRealBrowser(mutable, draft)
         applyRadius(mutable, draft)
+        applyGameDig(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -1393,6 +1407,19 @@ object MonitorDraftCodec {
         )
         values["radiusCalledStationId"] = JsonPrimitive(draft.radiusCalledStationId.trim())
         values["radiusCallingStationId"] = JsonPrimitive(draft.radiusCallingStationId.trim())
+    }
+
+    private fun applyGameDig(
+        values: MutableMap<String, JsonElement>,
+        draft: MonitorDraft,
+        existing: JsonObject? = null,
+    ) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.GAMEDIG) return
+        values["game"] = JsonPrimitive(draft.gameType.trim())
+        values["gamedigGivenPortOnly"] = JsonPrimitive(draft.gameDigGivenPortOnly)
+        values["gamedigToken"] = JsonPrimitive(
+            draft.gameDigToken.ifEmpty { existing?.string("gamedigToken").orEmpty() },
+        )
     }
 
     private fun applySftp(

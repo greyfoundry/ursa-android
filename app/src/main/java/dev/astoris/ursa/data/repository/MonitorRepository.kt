@@ -35,6 +35,7 @@ import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
+import dev.astoris.ursa.data.model.KumaGameType
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -515,6 +516,7 @@ class MonitorRepository(
     }
     suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
     suspend fun serverTags(): List<KumaTag>? = activeClient.value?.serverTags()
+    suspend fun gameTypes(): List<KumaGameType>? = activeClient.value?.gameTypes()
     suspend fun maintenanceDraft(id: Int): MaintenanceDraft? = activeClient.value?.maintenanceDraft(id)
     suspend fun saveMaintenance(draft: MaintenanceDraft): MonitorMutationResult = guardedMutation(
         required = setOf(AccessCapability.MAINTENANCE_WRITE),

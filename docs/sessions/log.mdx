@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-08
+last-updated: 2026-10-09
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,33 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-09 - Native GameDig and Steam monitor editing
+
+**changed**: Added native GameDig and Steam creation/editing. GameDig owns host,
+port, the connected server's dynamic game selection, exact-port behaviour, and an
+optional masked query token. Steam owns host and port and explicitly leaves its
+Web API key in Kuma's global configuration.
+
+**security and compatibility**: `getGameList` rows are reduced to their primary
+key and display label; adapter options and extras never enter UI state. Saved
+GameDig tokens become presence flags, blank edits recover them only from a freshly
+fetched full monitor object, unknown fields remain opaque, and unavailable saved
+game keys stay visible. Steam never imports or persists the server-wide API key.
+
+**verification**: Focused parser, registry, validation, create, and guarded
+round-trip tests cover dynamic-list filtering, exact wire fields, future-field
+preservation, token masking/retention/replacement, and Steam's credential-free
+monitor contract. Android 17/live Kuma 2.5.5 QA created GameDig from Kuma's
+catalogue against a disposable Minecraft status fixture and reached Up with the
+fixture name and ping. The editor reloaded Minecraft, later reloaded a saved token
+as a blank field with a saved-value notice, and retained it across an unrelated
+edit; a length-only database check confirmed retention without printing it. Steam
+created and reloaded with the expected host/port and surfaced Kuma's exact
+`Steam API Key not found` result because the QA server has no global key. Both QA
+monitors, histories, the fixture container, and its image were removed; the healthy
+Kuma container remains. The complete 198-task two-flavor phone/Wear unit, lint,
+and assemble gate passes.
 
 ### 2026-10-08 - Native RADIUS monitor editing
 

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-08
+last-updated: 2026-10-09
 owner: astoris
 status: stable
 ---
@@ -121,7 +121,8 @@ route stack while screens migrate incrementally.
   protobuf, call, body, TLS, and match controls, native SNMPv1/v2c query controls,
   native RabbitMQ node/credential controls, native Kafka producer and SASL controls,
   native Docker container and existing-host controls, native Real Browser engine and
-  screenshot-delay controls, native RADIUS access-request controls, native SFTP
+  screenshot-delay controls, native RADIUS access-request controls, native GameDig
+  game/port/token controls, native Steam host/port controls, native SFTP
   password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
@@ -154,6 +155,10 @@ route stack while screens migrate incrementally.
   RADIUS requires username, password, shared secret, Called-Station-ID, and
   Calling-Station-ID. Both saved secrets remain blank with saved-value notices and
   are retained only when the user leaves them unchanged.
+  GameDig choices come from the connected Kuma server rather than a bundled stale
+  catalogue; unavailable saved keys remain visible, and saved query tokens stay
+  blank with a retention notice. Steam explains that its Web API key is configured
+  globally in Kuma and does not collect that credential in URSA.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.

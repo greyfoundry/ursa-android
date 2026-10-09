@@ -49,6 +49,8 @@ class MonitorEditorRegistryTest {
                 "docker",
                 "real-browser",
                 "radius",
+                "gamedig",
+                "steam",
                 "oracledb",
                 "postgres",
                 "mysql",
@@ -255,6 +257,8 @@ class MonitorEditorRegistryTest {
                         "docker",
                         "real-browser",
                         "radius",
+                        "gamedig",
+                        "steam",
                         "postgres",
                         "mongodb",
                         "redis",
@@ -381,6 +385,28 @@ class MonitorEditorRegistryTest {
             radius.sensitiveFields,
         )
         assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, radius.transferEligibility)
+    }
+
+    @Test
+    fun gameServerMonitorsDeclareTheirCompleteContracts() {
+        val gameDig = requireNotNull(MonitorEditorRegistry.find("gamedig"))
+        assertTrue(gameDig.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, gameDig.endpointKind)
+        assertEquals(MonitorEditorCodec.GAMEDIG, gameDig.codec)
+        assertEquals(MonitorEditorValidation.GAMEDIG, gameDig.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, gameDig.fidelity)
+        assertTrue(MonitorEditorField.GAMEDIG_GAME in gameDig.editableFields)
+        assertEquals(setOf(MonitorEditorField.GAMEDIG_TOKEN), gameDig.sensitiveFields)
+        assertEquals(MonitorTransferEligibility.REQUIRES_SECRET_REENTRY, gameDig.transferEligibility)
+
+        val steam = requireNotNull(MonitorEditorRegistry.find("steam"))
+        assertTrue(steam.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, steam.endpointKind)
+        assertEquals(MonitorEditorCodec.COMMON, steam.codec)
+        assertEquals(MonitorEditorValidation.ENDPOINT, steam.validation)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, steam.fidelity)
+        assertTrue(steam.sensitiveFields.isEmpty())
+        assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, steam.transferEligibility)
     }
 
     @Test

@@ -5,6 +5,7 @@ import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaGameType
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
@@ -301,6 +302,15 @@ class KumaClient(
         val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
             ?: return null
         return KumaParse.tagDefinitions(json)
+    }
+
+    suspend fun gameTypes(): List<KumaGameType>? {
+        val response = emitAck("getGameList") ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONArray("gameList") ?: return emptyList()
+        val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
+            ?: return null
+        return KumaParse.gameTypes(json)
     }
 
     /** Creates a supported monitor or safely patches typed fields on any registered type. */

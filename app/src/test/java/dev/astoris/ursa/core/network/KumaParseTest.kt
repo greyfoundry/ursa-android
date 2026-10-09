@@ -180,6 +180,27 @@ class KumaParseTest {
         assertFalse(rows.last().toString().contains("ws://"))
     }
 
+    @Test fun gameTypesExposeOnlyThePrimarySelectionKeyAndLabel() {
+        val rows = KumaParse.gameTypes(
+            Json.parseToJsonElement(
+                """[
+                    {"keys":["minecraft","mc"],"pretty":"Minecraft","options":{"token":"secret"},"extra":{"port":25565}},
+                    {"keys":["valheim"],"pretty":"Valheim"},
+                    {"keys":[],"pretty":"Invalid"},
+                    {"keys":["blank"],"pretty":"   "},
+                    {"keys":[{"unexpected":true}],"pretty":"Invalid key"},
+                    {"keys":["invalid-label"],"pretty":{"unexpected":true}}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("minecraft", rows.first().key)
+        assertEquals("Minecraft", rows.first().label)
+        assertFalse(rows.first().toString().contains("secret"))
+        assertFalse(rows.first().toString().contains("25565"))
+    }
+
     @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {
         val row = KumaParse.managedPushNotifications(
             Json.parseToJsonElement(

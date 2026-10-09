@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-08
+last-updated: 2026-10-09
 owner: astoris
 status: stable
 source: verified from Uptime Kuma source and live 2.4.0 through 2.5.5 containers
@@ -305,6 +305,21 @@ recovers unchanged values solely from the fresh full object used for an edit.
 Current FreeRADIUS releases require an explicit legacy-client compatibility setting
 for Kuma 2.5.5 requests that omit the Message-Authenticator attribute; that server
 policy belongs to the RADIUS administrator, not URSA.
+
+GameDig monitors use `hostname`, required `port`, required `game`, boolean
+`gamedigGivenPortOnly` (default `true`), and optional `gamedigToken`. The
+authenticated `getGameList` acknowledgement returns `{ ok, gameList }`; each row
+contains `keys`, `pretty`, `options`, and `extra`. URSA selects only `keys[0]` and
+`pretty`, preserving an unavailable saved key rather than silently replacing it.
+The monitor checker passes the token only when non-empty. A live Kuma 2.5.5 query
+against a Minecraft status fixture returned the fixture name, player counts, and
+ping through Kuma's bundled GameDig client.
+
+Steam monitors persist only `hostname` and `port`. Kuma resolves the host and calls
+Steam's `IGameServersService/GetServerList/v1/` with a globally configured
+`steamAPIKey`; that credential is server configuration, not a monitor field. When
+it is absent, the checker reports `Steam API Key not found`. URSA therefore exposes
+host and port plus that prerequisite, without asking for or transporting the key.
 
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array

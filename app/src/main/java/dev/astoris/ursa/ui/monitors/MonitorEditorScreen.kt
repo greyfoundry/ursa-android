@@ -82,6 +82,7 @@ import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaGameType
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
@@ -105,6 +106,7 @@ fun MonitorEditorScreen(
     val dockerHosts by vm.dockerHosts.collectAsStateWithLifecycle()
     val remoteBrowsers by vm.remoteBrowsers.collectAsStateWithLifecycle()
     val serverTags by vm.serverTags.collectAsStateWithLifecycle()
+    val gameTypes by vm.gameTypes.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
@@ -174,6 +176,7 @@ fun MonitorEditorScreen(
                 dockerHosts = dockerHosts,
                 remoteBrowsers = remoteBrowsers,
                 serverTags = serverTags,
+                gameTypes = gameTypes,
                 monitors = monitors,
                 discoveryState = discoveryState,
                 onDiscover = vm::discoverLocalService,
@@ -201,6 +204,7 @@ private fun MonitorForm(
     dockerHosts: List<KumaDockerHost>,
     remoteBrowsers: List<KumaRemoteBrowser>,
     serverTags: List<KumaTag>,
+    gameTypes: List<KumaGameType>,
     monitors: List<Monitor>,
     discoveryState: LocalServiceDiscoveryState,
     onDiscover: (LocalServiceProtocol) -> Unit,
@@ -436,6 +440,16 @@ private fun MonitorForm(
         if (definition?.codec == MonitorEditorCodec.RADIUS) {
             RadiusFields(draft = draft, onDraftChange = onDraftChange)
         }
+        if (definition?.codec == MonitorEditorCodec.GAMEDIG) {
+            GameDigFields(draft = draft, gameTypes = gameTypes, onDraftChange = onDraftChange)
+        }
+        if (draft.type == "steam") {
+            Text(
+                stringResource(R.string.monitor_steam_api_key_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (definition?.codec == MonitorEditorCodec.MQTT) {
             MqttFields(draft = draft, onDraftChange = onDraftChange)
         }
@@ -448,7 +462,9 @@ private fun MonitorForm(
         if (
             draft.isNew &&
             option?.endpointKind != MonitorEndpointKind.NONE &&
-            draft.type !in setOf("mqtt", "ntp", "radius", "smtp", "snmp", "sftp", "websocket-upgrade")
+            draft.type !in setOf(
+                "gamedig", "mqtt", "ntp", "radius", "smtp", "snmp", "sftp", "steam", "websocket-upgrade",
+            )
         ) {
             Text(stringResource(R.string.monitor_discovery_title), style = MaterialTheme.typography.titleSmall)
             Text(
@@ -1918,6 +1934,69 @@ private fun RadiusFields(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GameDigFields(
+    draft: MonitorDraft,
+    gameTypes: List<KumaGameType>,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    var gameMenuOpen by remember { mutableStateOf(false) }
+    val selectedGame = gameTypes.firstOrNull { it.key == draft.gameType }
+    Text(stringResource(R.string.monitor_gamedig_title), style = MaterialTheme.typography.titleSmall)
+    ExposedDropdownMenuBox(
+        expanded = gameMenuOpen,
+        onExpandedChange = { if (gameTypes.isNotEmpty()) gameMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = selectedGame?.label ?: draft.gameType.takeIf(String::isNotBlank)?.let {
+                stringResource(R.string.monitor_gamedig_unavailable_game, it)
+            }.orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            enabled = gameTypes.isNotEmpty(),
+            label = { Text(stringResource(R.string.monitor_gamedig_game)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(gameMenuOpen) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = gameMenuOpen, onDismissRequest = { gameMenuOpen = false }) {
+            gameTypes.forEach { game ->
+                DropdownMenuItem(
+                    text = { Text(game.label) },
+                    onClick = {
+                        onDraftChange(draft.copy(gameType = game.key))
+                        gameMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    if (gameTypes.isEmpty()) {
+        Text(
+            stringResource(R.string.monitor_gamedig_no_games),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    BooleanEditorRow(
+        checked = !draft.gameDigGivenPortOnly,
+        label = stringResource(R.string.monitor_gamedig_guess_port),
+        onCheckedChange = { onDraftChange(draft.copy(gameDigGivenPortOnly = !it)) },
+    )
+    SensitiveField(
+        value = draft.gameDigToken,
+        onValueChange = { onDraftChange(draft.copy(gameDigToken = it.take(2_048))) },
+        label = stringResource(R.string.monitor_gamedig_token),
+        saved = draft.gameDigHasSavedToken,
+        savedMessage = stringResource(R.string.monitor_gamedig_saved_token),
+    )
+    Text(
+        stringResource(R.string.monitor_gamedig_token_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
 @Composable
 private fun BooleanEditorRow(checked: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
     Row(
@@ -2738,6 +2817,7 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.RADIUS_SECRET_REQUIRED -> R.string.monitor_error_radius_secret
         MonitorDraftError.RADIUS_CALLED_STATION_ID_REQUIRED -> R.string.monitor_error_radius_called_station_id
         MonitorDraftError.RADIUS_CALLING_STATION_ID_REQUIRED -> R.string.monitor_error_radius_calling_station_id
+        MonitorDraftError.GAMEDIG_GAME_REQUIRED -> R.string.monitor_error_gamedig_game
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

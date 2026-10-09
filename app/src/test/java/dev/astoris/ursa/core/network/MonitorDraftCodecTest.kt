@@ -542,6 +542,88 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun gameDigPayloadRoundTripsTokenAndFutureFieldsWithoutExposingSavedValue() {
+        val draft = MonitorDraft.create("gamedig").copy(
+            name = "Minecraft",
+            endpoint = "game.internal",
+            port = 25565,
+            gameType = "minecraft",
+            gameDigGivenPortOnly = false,
+            gameDigToken = "query-secret",
+        )
+
+        val payload = MonitorDraftCodec.newPayload(draft)
+        assertEquals("game.internal", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals(25565, payload["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals("minecraft", payload["game"]!!.jsonPrimitive.content)
+        assertFalse(payload["gamedigGivenPortOnly"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals("query-secret", payload["gamedigToken"]!!.jsonPrimitive.content)
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":71,"type":"gamedig","name":"Minecraft","hostname":"game.internal","port":25565,
+                "game":"minecraft","gamedigGivenPortOnly":false,"gamedigToken":"query-secret",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureGameOption":{"mode":"strict"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+        assertEquals("minecraft", loaded.gameType)
+        assertFalse(loaded.gameDigGivenPortOnly)
+        assertTrue(loaded.gameDigHasSavedToken)
+        assertTrue(loaded.gameDigToken.isEmpty())
+
+        val retained = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(gameDigGivenPortOnly = true))!!
+        assertEquals("query-secret", retained["gamedigToken"]!!.jsonPrimitive.content)
+        assertTrue(retained["gamedigGivenPortOnly"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals(raw["futureGameOption"], retained["futureGameOption"])
+
+        val replaced = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(gameDigToken = "replacement"))!!
+        assertEquals("replacement", replaced["gamedigToken"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun gameDigRequiresASelectedServerProvidedGame() {
+        val valid = MonitorDraft.create("gamedig").copy(
+            name = "Minecraft",
+            endpoint = "game.internal",
+            port = 25565,
+            gameType = "minecraft",
+        )
+
+        assertNull(MonitorDraftCodec.validate(valid))
+        assertEquals(
+            MonitorDraftError.GAMEDIG_GAME_REQUIRED,
+            MonitorDraftCodec.validate(valid.copy(gameType = "")),
+        )
+    }
+
+    @Test
+    fun steamUsesOnlyItsPerMonitorHostAndPortAndPreservesFutureFields() {
+        val created = MonitorDraft.create("steam").copy(
+            name = "Steam server",
+            endpoint = "steam.internal",
+            port = 27015,
+        )
+        assertNull(MonitorDraftCodec.validate(created))
+        val payload = MonitorDraftCodec.newPayload(created)
+        assertEquals("steam.internal", payload["hostname"]!!.jsonPrimitive.content)
+        assertEquals(27015, payload["port"]!!.jsonPrimitive.content.toInt())
+
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":72,"type":"steam","name":"Steam server","hostname":"steam.internal","port":27015,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureSteamOption":true
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+        val updated = MonitorDraftCodec.safeExistingPayload(raw, loaded.copy(port = 27016))!!
+        assertEquals(27016, updated["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals(raw["futureSteamOption"], updated["futureSteamOption"])
+    }
+
+    @Test
     fun brokerValidationRejectsUnusableEndpointsAndMissingSecrets() {
         val rabbit = MonitorDraft.create("rabbitmq").copy(
             name = "Rabbit",

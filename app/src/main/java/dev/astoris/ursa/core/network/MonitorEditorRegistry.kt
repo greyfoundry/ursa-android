@@ -97,6 +97,9 @@ enum class MonitorEditorField {
     RADIUS_SECRET,
     RADIUS_CALLED_STATION_ID,
     RADIUS_CALLING_STATION_ID,
+    GAMEDIG_GAME,
+    GAMEDIG_GIVEN_PORT_ONLY,
+    GAMEDIG_TOKEN,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -123,6 +126,7 @@ enum class MonitorEditorCodec {
     DOCKER,
     REAL_BROWSER,
     RADIUS,
+    GAMEDIG,
     SFTP,
 }
 
@@ -145,6 +149,7 @@ enum class MonitorEditorValidation {
     DOCKER,
     REAL_BROWSER,
     RADIUS,
+    GAMEDIG,
     SFTP,
 }
 
@@ -691,8 +696,32 @@ object MonitorEditorRegistry {
             extraFields = setOf(MonitorEditorField.DATABASE_IGNORE_TLS),
             fidelity = MonitorEditorFidelity.FULL_FIDELITY,
         ),
-        definition("gamedig", "GameDig"),
-        definition("steam", "Steam game server"),
+        definition(
+            type = "gamedig",
+            label = "GameDig",
+            endpointKind = MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            codec = MonitorEditorCodec.GAMEDIG,
+            validation = MonitorEditorValidation.GAMEDIG,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(
+                MonitorEditorField.GAMEDIG_GAME,
+                MonitorEditorField.GAMEDIG_GIVEN_PORT_ONLY,
+                MonitorEditorField.GAMEDIG_TOKEN,
+            ),
+            sensitiveFields = setOf(MonitorEditorField.GAMEDIG_TOKEN),
+            transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
+        definition(
+            type = "steam",
+            label = "Steam game server",
+            endpointKind = MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
     )
 
     private val byType = all.associateBy(MonitorEditorDefinition::type)
@@ -982,6 +1011,9 @@ object MonitorRoundTripGuard {
                         "radiusCallingStationId",
                     ),
                 )
+            }
+            if (definition.codec == MonitorEditorCodec.GAMEDIG) {
+                addAll(setOf("game", "gamedigGivenPortOnly", "gamedigToken"))
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

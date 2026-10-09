@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-08
+last-updated: 2026-10-09
 owner: astoris
 status: stable
 ---
@@ -60,7 +60,8 @@ here so the rest of the app sees clean domain models.
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
-  notification relation reads/updates, `testManagedPushNotification`, monitor
+  notification relation reads/updates, `testManagedPushNotification`, the
+  server-provided GameDig game catalogue, monitor
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
   active-state changes, authenticated public-incident history plus
@@ -90,7 +91,7 @@ here so the rest of the app sees clean domain models.
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
   NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, SNMPv1/v2c, RabbitMQ,
-  Kafka producer, Docker, Real Browser, RADIUS, and SFTP create flows.
+  Kafka producer, Docker, Real Browser, RADIUS, GameDig, Steam, and SFTP create flows.
   Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
@@ -162,6 +163,13 @@ here so the rest of the app sees clean domain models.
   and shared-secret values reduce to presence flags before UI state; blank edits
   recover them only from the freshly fetched full object, while replacements and
   future fields remain inside the guarded round trip.
+  GameDig maps `hostname`, `port`, `game`, `gamedigGivenPortOnly`, and optional
+  `gamedigToken`. Its authenticated `getGameList` catalogue is reduced to the
+  primary key and display label before UI state; adapter options and extras are
+  discarded. Saved tokens become presence flags and blank edits recover the value
+  only from the freshly fetched full object. Steam owns only `hostname` and `port`;
+  the Steam Web API key remains global Kuma server configuration and is never
+  copied into a monitor draft.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

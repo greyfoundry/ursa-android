@@ -91,6 +91,7 @@ import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaGameType
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
@@ -118,6 +119,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -347,6 +349,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val remoteBrowsers: StateFlow<List<KumaRemoteBrowser>> = repo.remoteBrowsers
     private val _serverTags = MutableStateFlow<List<KumaTag>>(emptyList())
     val serverTags: StateFlow<List<KumaTag>> = _serverTags.asStateFlow()
+    private val _gameTypes = MutableStateFlow<List<KumaGameType>>(emptyList())
+    val gameTypes: StateFlow<List<KumaGameType>> = _gameTypes.asStateFlow()
     private val _maintenanceEditor = MutableStateFlow<MaintenanceEditorUiState>(MaintenanceEditorUiState.Idle)
     val maintenanceEditor: StateFlow<MaintenanceEditorUiState> = _maintenanceEditor.asStateFlow()
 
@@ -852,17 +856,26 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun createMonitor() {
         _monitorEditor.value = MonitorEditorUiState.Loading
         viewModelScope.launch {
-            _serverTags.value = repo.serverTags().orEmpty()
+            val tags = async { repo.serverTags().orEmpty() }
+            val games = async { repo.gameTypes().orEmpty() }
+            _serverTags.value = tags.await()
             _monitorEditor.value = MonitorEditorUiState.Ready(repo.newMonitorDraft())
+            _gameTypes.value = games.await()
         }
     }
 
     fun editMonitor(id: Int) {
         _monitorEditor.value = MonitorEditorUiState.Loading
         viewModelScope.launch {
-            _serverTags.value = repo.serverTags().orEmpty()
-            _monitorEditor.value = repo.monitorDraft(id)?.let(MonitorEditorUiState::Ready)
+            val tags = async { repo.serverTags().orEmpty() }
+            val draft = repo.monitorDraft(id)
+            val games = draft?.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
                 ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
+            _gameTypes.value = games?.await().orEmpty()
         }
     }
 
@@ -882,6 +895,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         localServiceDiscovery.stop()
         _monitorEditor.value = MonitorEditorUiState.Idle
         _serverTags.value = emptyList()
+        _gameTypes.value = emptyList()
     }
 
     fun discoverLocalService(protocol: LocalServiceProtocol) = localServiceDiscovery.start(protocol)
