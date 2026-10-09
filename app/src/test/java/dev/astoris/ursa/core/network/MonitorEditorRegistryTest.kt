@@ -53,6 +53,8 @@ class MonitorEditorRegistryTest {
                 "steam",
                 "system-service",
                 "pm2",
+                "tailscale-ping",
+                "sip-options",
                 "oracledb",
                 "postgres",
                 "mysql",
@@ -263,6 +265,8 @@ class MonitorEditorRegistryTest {
                         "steam",
                         "system-service",
                         "pm2",
+                        "tailscale-ping",
+                        "sip-options",
                         "postgres",
                         "mongodb",
                         "redis",
@@ -427,6 +431,29 @@ class MonitorEditorRegistryTest {
             assertTrue(definition.sensitiveFields.isEmpty())
             assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, definition.transferEligibility)
         }
+    }
+
+    @Test
+    fun hostInstalledMonitorsDeclareCompleteContractsAndHideCreationInContainers() {
+        val hostKuma = KumaCapabilities.evaluate("2.5.5").copy(isContainer = false)
+        val containerKuma = hostKuma.copy(isContainer = true)
+
+        listOf("tailscale-ping", "sip-options").forEach { type ->
+            val definition = requireNotNull(MonitorEditorRegistry.find(type))
+            assertTrue(definition.createSupported)
+            assertEquals(KumaVersion(2, 5, 0), definition.verifiedMin)
+            assertEquals(MonitorEditorValidation.HOST, definition.validation)
+            assertEquals(MonitorEditorFidelity.FULL_FIDELITY, definition.fidelity)
+            assertTrue(definition.requiresHostInstall)
+            assertTrue(definition.sensitiveFields.isEmpty())
+            assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, definition.transferEligibility)
+            assertTrue(MonitorEditorRegistry.createVerified(type, hostKuma))
+            assertFalse(MonitorEditorRegistry.createVerified(type, containerKuma))
+            assertFalse(MonitorEditorRegistry.createVerified(type, KumaCapabilities.evaluate("2.5.5")))
+            assertTrue(MonitorEditorRegistry.writeVerified(type, containerKuma))
+        }
+        assertEquals(MonitorEndpointKind.HOST, MonitorEditorRegistry.find("tailscale-ping")!!.endpointKind)
+        assertEquals(MonitorEndpointKind.HOST_PORT, MonitorEditorRegistry.find("sip-options")!!.endpointKind)
     }
 
     @Test

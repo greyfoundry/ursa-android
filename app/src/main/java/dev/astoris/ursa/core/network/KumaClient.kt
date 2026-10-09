@@ -153,8 +153,10 @@ class KumaClient(
         s.on(Socket.EVENT_DISCONNECT) { _ -> _state.value = ConnectionState.Disconnected }
 
         s.on("info") { args ->
-            args.jsonAt(0)?.let(KumaParse::serverVersion)?.let { version ->
-                _compatibility.value = KumaCapabilities.evaluate(version)
+            args.jsonAt(0)?.let { info ->
+                _compatibility.value = KumaCapabilities.evaluate(KumaParse.serverVersion(info)).copy(
+                    isContainer = KumaParse.serverIsContainer(info),
+                )
             }
         }
 

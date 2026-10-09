@@ -330,6 +330,15 @@ on Linux or queries the internal service name on Windows. Its accepted name is
 limited to letters, numbers, dot, underscore, hyphen, and `@`; PM2 names may contain
 spaces but not ASCII control characters.
 
+Tailscale Ping and SIP OPTIONS were added in Kuma 2.5.0 and are offered by Kuma's
+editor only when `info.isContainer` is false. Tailscale Ping persists `hostname`
+and executes `tailscale ping --c 1 <hostname>` with a timeout equal to 80 percent
+of the monitor interval; a `pong from ... in <N>ms` line produces an Up heartbeat
+with ping `N`. SIP OPTIONS persists `hostname` and required `port`, then executes
+`sipsak -s sip:<hostname>:<port> --from sip:sipsak@<hostname> -v` with a
+three-second timeout; a line containing `200 OK` is healthy. Both tools run on the
+Kuma host, not the Android device, and neither monitor contains credentials.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from
@@ -356,8 +365,8 @@ Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgemen
 is therefore an unknown outcome: refresh incident history before allowing another
 create instead of automatically replaying it.
 
-Kuma 2.5.0 adds `ntp`, `pm2`, and `system-service` monitor types plus the authenticated
-`getPM2ProcessList` event. Those additions do not change URSA's read,
+Kuma 2.5.0 adds `ntp`, `pm2`, `system-service`, `tailscale-ping`, and `sip-options`
+monitor types plus the authenticated `getPM2ProcessList` event. Those additions do not change URSA's read,
 heartbeat-history, certificate, pause, or resume contracts.
 
 Kuma 2.5.1 adds seven outbound notification providers: SMS Gateway, ClickUp,

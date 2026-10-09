@@ -82,11 +82,10 @@ and the module docs under `docs/modules/`.
 - Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.
-- Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
-  partial CP-031 advanced monitor-type creation boundary. Native keyword, JSON-query,
+- Competitor-parity items CP-001 through CP-046 are complete. Native keyword, JSON-query,
   WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser,
-  Oracle Database, RADIUS, GameDig, Steam, PM2, system-service, and SFTP creation and editing are included; less common
-  type-specific forms remain in Kuma. This includes
+  Oracle Database, RADIUS, GameDig, Steam, PM2, system-service, Tailscale Ping,
+  SIP OPTIONS, and SFTP creation and editing are included. This includes
   fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
   favourite-monitor live-heartbeat panel, encrypted local incident notes, and a
@@ -139,6 +138,8 @@ and the module docs under `docs/modules/`.
   PM2 monitors use Kuma's live local-process picker with manual fallback, while
   system-service monitors accept the platform's internal service name. Both remain
   credential-free and available only on verified Kuma 2.5.x schemas.
+  Tailscale Ping and SIP OPTIONS expose only host and required port fields, remain
+  credential-free, and follow Kuma's non-container host-tool requirement.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;

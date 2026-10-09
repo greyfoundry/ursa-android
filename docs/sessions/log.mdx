@@ -9,6 +9,26 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-09 - Native Tailscale Ping and SIP OPTIONS editing
+
+**changed**: Completed the 34-type Kuma 2.5.5 editor catalogue with native
+Tailscale Ping host and SIP OPTIONS host/required-port creation and editing. Both
+flows validate hostnames/IPs, remain credential-free, preserve future fields, and
+show the exact server-side CLI prerequisite.
+
+**compatibility and verification**: Both types are gated to the verified Kuma
+2.5.0 schema floor. Creation requires strict `info.isContainer == false` metadata,
+matching Kuma's own editor without guessing about an unknown environment, while existing monitor
+edits remain safe. Focused dual-flavor parser, capability, registry, validation,
+payload, and round-trip tests pass. Android 17 QA first verified both types were
+absent across the complete type list on the normal Docker server. A disposable
+Kuma 2.5.5 server reporting a non-container install then exposed both types;
+Tailscale reached Up at 12 ms through a deterministic CLI fixture and SIP reached
+Up through a `200 OK` fixture. Exact database rows and both editor reloads matched.
+Both monitors, histories, saved QA connection, and the disposable container were
+removed afterward. The complete 198-task two-flavor phone/Wear unit, lint, and
+assemble gate passes.
+
 ### 2026-10-09 - Native PM2 and system-service monitor editing
 
 **changed**: Added native creation/editing for Kuma 2.5.x PM2 and system-service

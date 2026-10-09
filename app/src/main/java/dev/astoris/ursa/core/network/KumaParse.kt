@@ -37,6 +37,9 @@ object KumaParse {
     fun serverVersion(obj: JsonObject): String? =
         (obj["version"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
 
+    fun serverIsContainer(obj: JsonObject): Boolean? =
+        (obj["isContainer"] as? JsonPrimitive)?.takeUnless(JsonPrimitive::isString)?.booleanOrNull
+
     /** Kuma serializes some positional Socket.IO IDs as JSON strings. */
     fun positionalInt(value: Any?): Int? = when (value) {
         is Number -> value.toInt()

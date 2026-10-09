@@ -1365,6 +1365,8 @@
     <string name="monitor_gamedig_saved_token">A token is saved. Leave blank to keep it.</string>
     <string name="monitor_gamedig_token_help">Only some games and hosted query services require a token.</string>
     <string name="monitor_steam_api_key_help">Steam monitors use the Steam Web API key configured in Uptime Kuma.</string>
+    <string name="monitor_tailscale_ping_host_requirement">Requires a non-container Uptime Kuma installation with the Tailscale CLI installed on that server.</string>
+    <string name="monitor_sip_options_host_requirement">Requires a non-container Uptime Kuma installation with sipsak installed on that server.</string>
     <string name="monitor_system_service_title">System service</string>
     <string name="monitor_system_service_name">Internal service name</string>
     <string name="monitor_system_service_help">Use the systemd unit name on Linux or internal service name on Windows, without spaces.</string>
@@ -1402,6 +1404,7 @@
     <string name="monitor_error_name">Enter a monitor name.</string>
     <string name="monitor_error_type">This monitor type cannot be created here yet.</string>
     <string name="monitor_error_endpoint">Enter the monitor address.</string>
+    <string name="monitor_error_host">Enter a valid hostname or IP address without a URL scheme.</string>
     <string name="monitor_error_url">Enter a valid HTTP or HTTPS URL.</string>
     <string name="monitor_error_port">Enter a port from 1 to 65535.</string>
     <string name="monitor_error_interval">Intervals must be at least one second.</string>

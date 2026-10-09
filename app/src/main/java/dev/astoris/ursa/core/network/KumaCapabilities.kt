@@ -47,13 +47,15 @@ data class KumaCompatibility(
     val version: KumaVersion?,
     val tier: KumaCompatibilityTier,
     val features: Set<KumaFeature>,
+    val isContainer: Boolean? = null,
 ) {
     val writesVerified: Boolean get() = tier == KumaCompatibilityTier.VERIFIED
 
     fun supports(feature: KumaFeature): Boolean = feature in features
 
     fun supportsMonitorSchema(type: String): Boolean = when (type) {
-        "ntp", "pm2", "system-service" -> supports(KumaFeature.NTP_PM2_SCHEMA)
+        "ntp", "pm2", "system-service", "tailscale-ping", "sip-options" ->
+            supports(KumaFeature.NTP_PM2_SCHEMA)
         "sftp" -> supports(KumaFeature.SFTP_SCHEMA)
         else -> true
     }

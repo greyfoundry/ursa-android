@@ -59,6 +59,8 @@ class KumaCapabilitiesTest {
         assertTrue(result.supports(KumaFeature.PUBLIC_INCIDENT_WRITE))
         assertFalse(result.supports(KumaFeature.NTP_PM2_SCHEMA))
         assertFalse(result.supportsMonitorSchema("system-service"))
+        assertFalse(result.supportsMonitorSchema("tailscale-ping"))
+        assertFalse(result.supportsMonitorSchema("sip-options"))
         assertFalse(result.supports(KumaFeature.SFTP_SCHEMA))
         assertFalse(result.supportsMonitorSchema("sftp"))
         assertTrue(result.supportsMonitorSchema("http"))
@@ -72,6 +74,8 @@ class KumaCapabilitiesTest {
 
         assertTrue(v250.supports(KumaFeature.NTP_PM2_SCHEMA))
         assertTrue(v250.supportsMonitorSchema("system-service"))
+        assertTrue(v250.supportsMonitorSchema("tailscale-ping"))
+        assertTrue(v250.supportsMonitorSchema("sip-options"))
         assertFalse(v250.supports(KumaFeature.SFTP_SCHEMA))
         assertFalse(v253.supports(KumaFeature.SFTP_SCHEMA))
         assertTrue(v254.supports(KumaFeature.SFTP_SCHEMA))
@@ -81,6 +85,10 @@ class KumaCapabilitiesTest {
         assertFalse(MonitorTypeCatalog.creatableFor(v253).any { it.key == "sftp" })
         assertTrue(MonitorTypeCatalog.creatableFor(v250).any { it.key == "system-service" })
         assertTrue(MonitorTypeCatalog.creatableFor(v250).any { it.key == "pm2" })
+        assertTrue(MonitorTypeCatalog.creatableFor(v250.copy(isContainer = false)).any { it.key == "tailscale-ping" })
+        assertTrue(MonitorTypeCatalog.creatableFor(v250.copy(isContainer = false)).any { it.key == "sip-options" })
+        assertFalse(MonitorTypeCatalog.creatableFor(v250.copy(isContainer = true)).any { it.key == "tailscale-ping" })
+        assertFalse(MonitorTypeCatalog.creatableFor(v250.copy(isContainer = true)).any { it.key == "sip-options" })
         assertTrue(MonitorTypeCatalog.creatableFor(v254).any { it.key == "sftp" })
     }
 

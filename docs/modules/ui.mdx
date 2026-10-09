@@ -123,7 +123,8 @@ route stack while screens migrate incrementally.
   native Docker container and existing-host controls, native Real Browser engine and
   screenshot-delay controls, native RADIUS access-request controls, native GameDig
   game/port/token controls, native Steam host/port controls, native PM2 picker and
-  system-service name controls, native SFTP
+  system-service name controls, native Tailscale host and SIP host/port controls,
+  native SFTP
   password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
@@ -163,6 +164,9 @@ route stack while screens migrate incrementally.
   PM2 loads Kuma's local process catalogue on demand, retains unavailable saved
   names, and falls back to manual stable-name entry. System-service explains the
   Linux systemd/Windows internal-name contract and rejects spaces or shell syntax.
+  Tailscale Ping and SIP OPTIONS explain their server-side CLI prerequisites and
+  are absent from creation on containerized Kuma installations; existing monitors
+  can still be opened and safely edited.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.

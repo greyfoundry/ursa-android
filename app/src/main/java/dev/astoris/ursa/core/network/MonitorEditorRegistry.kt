@@ -135,6 +135,7 @@ enum class MonitorEditorCodec {
 enum class MonitorEditorValidation {
     COMMON,
     ENDPOINT,
+    HOST,
     PUSH,
     KEYWORD,
     JSON_QUERY,
@@ -209,6 +210,7 @@ data class MonitorEditorDefinition(
     val fidelity: MonitorEditorFidelity,
     val transferEligibility: MonitorTransferEligibility,
     val help: MonitorEditorHelp,
+    val requiresHostInstall: Boolean = false,
     val browserFallback: Boolean = true,
 ) {
     fun writeVerifiedFor(compatibility: KumaCompatibility): Boolean {
@@ -218,6 +220,11 @@ data class MonitorEditorDefinition(
             version <= verifiedMax &&
             compatibility.supportsMonitorSchema(type)
     }
+
+    fun createVerifiedFor(compatibility: KumaCompatibility): Boolean =
+        createSupported &&
+            writeVerifiedFor(compatibility) &&
+            (!requiresHostInstall || compatibility.isContainer == false)
 }
 
 /**
@@ -505,7 +512,18 @@ object MonitorEditorRegistry {
             transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
             help = MonitorEditorHelp.FULL_NATIVE,
         ),
-        definition("sip-options", "SIP options ping"),
+        definition(
+            "sip-options",
+            "SIP options ping",
+            MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            verifiedMin = KumaVersion(2, 5, 0),
+            validation = MonitorEditorValidation.HOST,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+            help = MonitorEditorHelp.FULL_NATIVE,
+            requiresHostInstall = true,
+        ),
         definition(
             "smtp",
             "SMTP",
@@ -588,7 +606,18 @@ object MonitorEditorRegistry {
             transferEligibility = MonitorTransferEligibility.REQUIRES_SECRET_REENTRY,
             help = MonitorEditorHelp.FULL_NATIVE,
         ),
-        definition("tailscale-ping", "Tailscale ping"),
+        definition(
+            "tailscale-ping",
+            "Tailscale ping",
+            MonitorEndpointKind.HOST,
+            createSupported = true,
+            verifiedMin = KumaVersion(2, 5, 0),
+            validation = MonitorEditorValidation.HOST,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+            help = MonitorEditorHelp.FULL_NATIVE,
+            requiresHostInstall = true,
+        ),
         definition(
             "websocket-upgrade",
             "WebSocket upgrade",
@@ -758,7 +787,10 @@ object MonitorEditorRegistry {
     fun find(type: String): MonitorEditorDefinition? = byType[type]
 
     fun creatableFor(compatibility: KumaCompatibility): List<MonitorEditorDefinition> =
-        all.filter { it.createSupported && it.writeVerifiedFor(compatibility) }
+        all.filter { it.createVerifiedFor(compatibility) }
+
+    fun createVerified(type: String, compatibility: KumaCompatibility): Boolean =
+        find(type)?.createVerifiedFor(compatibility) == true
 
     fun writeVerified(type: String, compatibility: KumaCompatibility): Boolean =
         find(type)?.writeVerifiedFor(compatibility) == true
@@ -807,6 +839,7 @@ object MonitorEditorRegistry {
         dependencies: List<MonitorEditorFieldDependency> = emptyList(),
         transferEligibility: MonitorTransferEligibility = MonitorTransferEligibility.NOT_ELIGIBLE,
         help: MonitorEditorHelp = MonitorEditorHelp.COMMON_FIELDS_ONLY,
+        requiresHostInstall: Boolean = false,
     ): MonitorEditorDefinition {
         val endpointFields = when (endpointKind) {
             MonitorEndpointKind.NONE -> emptySet()
@@ -834,6 +867,7 @@ object MonitorEditorRegistry {
             fidelity = fidelity,
             transferEligibility = transferEligibility,
             help = help,
+            requiresHostInstall = requiresHostInstall,
         )
     }
 }

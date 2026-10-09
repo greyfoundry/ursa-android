@@ -133,7 +133,11 @@ fun MonitorEditorScreen(
         vm.consumeLocalServiceSelection()
     }
     val saving = state is MonitorEditorUiState.Saving
-    val canSave = MonitorEditorRegistry.writeVerified(draft.type, compatibility) &&
+    val canSave = (if (draft.isNew) {
+        MonitorEditorRegistry.createVerified(draft.type, compatibility)
+    } else {
+        MonitorEditorRegistry.writeVerified(draft.type, compatibility)
+    }) &&
         activeConnection.allows(
             if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
         )
@@ -461,6 +465,19 @@ private fun MonitorForm(
         if (draft.type == "steam") {
             Text(
                 stringResource(R.string.monitor_steam_api_key_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (draft.type == "tailscale-ping" || draft.type == "sip-options") {
+            Text(
+                stringResource(
+                    if (draft.type == "tailscale-ping") {
+                        R.string.monitor_tailscale_ping_host_requirement
+                    } else {
+                        R.string.monitor_sip_options_host_requirement
+                    },
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -2802,6 +2819,7 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.NAME_REQUIRED -> R.string.monitor_error_name
         MonitorDraftError.TYPE_UNAVAILABLE -> R.string.monitor_error_type
         MonitorDraftError.ENDPOINT_REQUIRED -> R.string.monitor_error_endpoint
+        MonitorDraftError.HOST_INVALID -> R.string.monitor_error_host
         MonitorDraftError.INVALID_URL -> R.string.monitor_error_url
         MonitorDraftError.PORT_REQUIRED -> R.string.monitor_error_port
         MonitorDraftError.INVALID_INTERVAL -> R.string.monitor_error_interval

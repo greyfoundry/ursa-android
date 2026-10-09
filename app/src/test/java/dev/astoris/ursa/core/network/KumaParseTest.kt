@@ -28,6 +28,13 @@ class KumaParseTest {
         assertNull(KumaParse.serverVersion(obj("""{"version":{"major":2}}""")))
     }
 
+    @Test fun info_extracts_container_environment_without_guessing() {
+        assertEquals(true, KumaParse.serverIsContainer(obj("""{"isContainer":true}""")))
+        assertEquals(false, KumaParse.serverIsContainer(obj("""{"isContainer":false}""")))
+        assertNull(KumaParse.serverIsContainer(obj("""{}""")))
+        assertNull(KumaParse.serverIsContainer(obj("""{"isContainer":"true"}""")))
+    }
+
     @Test fun monitor_parses_core_fields() {
         val m = KumaParse.monitor(
             obj("""{"id":2,"name":"down-test","url":"http://127.0.0.1:9","type":"http","active":true,"parent":7,"weight":42,"tags":[{"tag_id":3,"monitor_id":2,"name":"prod","color":"#e74c3c","value":"eu"}]}""")

@@ -671,6 +671,40 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun hostInstalledMonitorsRoundTripTheirCompleteWireFields() {
+        val tailscale = MonitorDraft.create("tailscale-ping").copy(
+            name = "Tailnet peer",
+            endpoint = "service.tailnet.ts.net",
+        )
+        val tailscalePayload = MonitorDraftCodec.newPayload(tailscale)
+        assertEquals("service.tailnet.ts.net", tailscalePayload["hostname"]!!.jsonPrimitive.content)
+        assertNull(MonitorDraftCodec.validate(tailscale))
+        assertEquals(
+            MonitorDraftError.HOST_INVALID,
+            MonitorDraftCodec.validate(tailscale.copy(endpoint = "https://service.tailnet.ts.net")),
+        )
+
+        val rawSip = Json.parseToJsonElement(
+            """{
+                "id":74,"type":"sip-options","name":"PBX","hostname":"pbx.internal","port":5060,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureSipOption":{"kept":true}
+            }""",
+        ).jsonObject
+        val sip = MonitorDraftCodec.from(rawSip)!!
+        assertEquals("pbx.internal", sip.endpoint)
+        assertEquals(5060, sip.port)
+        assertNull(MonitorDraftCodec.validate(sip))
+        val updated = MonitorDraftCodec.safeExistingPayload(rawSip, sip.copy(port = 5061))!!
+        assertEquals(5061, updated["port"]!!.jsonPrimitive.content.toInt())
+        assertEquals(rawSip["futureSipOption"], updated["futureSipOption"])
+        assertEquals(
+            MonitorDraftError.PORT_REQUIRED,
+            MonitorDraftCodec.validate(sip.copy(port = null)),
+        )
+    }
+
+    @Test
     fun brokerValidationRejectsUnusableEndpointsAndMissingSecrets() {
         val rabbit = MonitorDraft.create("rabbitmq").copy(
             name = "Rabbit",

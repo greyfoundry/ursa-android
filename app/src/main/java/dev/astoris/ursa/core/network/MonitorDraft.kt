@@ -423,6 +423,7 @@ enum class MonitorDraftError {
     NAME_REQUIRED,
     TYPE_UNAVAILABLE,
     ENDPOINT_REQUIRED,
+    HOST_INVALID,
     INVALID_URL,
     PORT_REQUIRED,
     INVALID_INTERVAL,
@@ -784,6 +785,9 @@ object MonitorDraftCodec {
         }
         if (definition.endpointKind == MonitorEndpointKind.HOST_PORT && draft.port !in 1..65535) {
             return MonitorDraftError.PORT_REQUIRED
+        }
+        if (definition.validation == MonitorEditorValidation.HOST && !isValidHostOrIp(draft.endpoint)) {
+            return MonitorDraftError.HOST_INVALID
         }
         if (definition.validation == MonitorEditorValidation.MQTT && draft.mqttFieldsEditable) {
             if (!isValidMqttEndpoint(draft.endpoint)) return MonitorDraftError.MQTT_ENDPOINT_INVALID

@@ -92,7 +92,7 @@ here so the rest of the app sees clean domain models.
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
   NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, SNMPv1/v2c, RabbitMQ,
   Kafka producer, Docker, Real Browser, RADIUS, GameDig, Steam, PM2, system-service,
-  and SFTP create flows.
+  Tailscale Ping, SIP OPTIONS, and SFTP create flows.
   Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
@@ -175,6 +175,12 @@ here so the rest of the app sees clean domain models.
   authenticated process list is reduced to ID, name, and status for selection;
   manual entry remains available when the local probe cannot run. System-service
   applies Kuma's internal-name character policy before sending a write.
+  Tailscale Ping maps only `hostname`; SIP OPTIONS maps `hostname` and required
+  `port`. Both validate hostnames/IPs, remain credential-free, and require Kuma
+  2.5.0 or newer. Kuma's `info.isContainer` value hides their create flows when
+  the connected server is containerized or its environment is unknown, matching
+  Kuma's own host-tool boundary;
+  editing an existing monitor remains available without discarding its fields.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
@@ -182,7 +188,8 @@ here so the rest of the app sees clean domain models.
 - `MonitorEditorRegistry` - gates create/edit on both the global write-verified
   Kuma range and the type-specific schema floor. `MonitorRoundTripGuard` permits
   only registry-declared wire fields to change; a mismatched type or changed
-  unrelated field blocks the save before `editMonitor` is emitted.
+  unrelated field blocks the save before `editMonitor` is emitted. Host-tool
+  monitor creation additionally respects the server-reported container environment.
 - `KumaParse.notifications` returns only provider ID, name, type, and default
   status. The double-encoded provider configuration is parsed only far enough to
   identify its type and is then discarded.
@@ -256,7 +263,8 @@ here so the rest of the app sees clean domain models.
   write. This prevents common types from bypassing the global verified-version
   boundary while still preserving the released catalogue API for callers.
 - Kuma's first unauthenticated `info` event intentionally omits the version. The
-  authenticated event updates the compatibility flow. Kuma 2.5.1 reports 2.5.0
+  authenticated event updates the compatibility flow with the version and strict
+  Boolean `isContainer` value. Kuma 2.5.1 reports 2.5.0
   and 2.5.2 reports 2.5.1; schema gates use that honest wire value. SFTP is hidden
   and rejected below its verified 2.5.4 threshold, while common legacy monitor
   types preserve their released behavior.
