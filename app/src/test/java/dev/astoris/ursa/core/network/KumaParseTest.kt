@@ -201,6 +201,25 @@ class KumaParseTest {
         assertFalse(rows.first().toString().contains("25565"))
     }
 
+    @Test fun pm2ProcessesExposeOnlyStableSelectionMetadata() {
+        val rows = KumaParse.pm2Processes(
+            Json.parseToJsonElement(
+                """[
+                    {"id":"7","name":"api","status":"online","environment":{"secret":"hidden"}},
+                    {"id":8,"name":"worker","status":"stopped"},
+                    {"id":"","name":"invalid","status":"online"},
+                    {"id":"9","name":{"unexpected":true},"status":"online"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("api", rows.first().name)
+        assertEquals("7", rows.first().id)
+        assertEquals("online", rows.first().status)
+        assertFalse(rows.first().toString().contains("secret"))
+    }
+
     @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {
         val row = KumaParse.managedPushNotifications(
             Json.parseToJsonElement(

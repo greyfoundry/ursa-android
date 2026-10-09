@@ -123,6 +123,13 @@ data class KumaGameType(
     val label: String,
 )
 
+/** Selection-safe PM2 metadata returned by Kuma's local process probe. */
+data class KumaPm2Process(
+    val id: String,
+    val name: String,
+    val status: String,
+)
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,

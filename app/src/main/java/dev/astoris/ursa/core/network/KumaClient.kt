@@ -6,6 +6,7 @@ import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
@@ -311,6 +312,15 @@ class KumaClient(
         val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
             ?: return null
         return KumaParse.gameTypes(json)
+    }
+
+    suspend fun pm2Processes(): List<KumaPm2Process>? {
+        val response = emitAck("getPM2ProcessList") ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONArray("processList") ?: return emptyList()
+        val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
+            ?: return null
+        return KumaParse.pm2Processes(json)
     }
 
     /** Creates a supported monitor or safely patches typed fields on any registered type. */

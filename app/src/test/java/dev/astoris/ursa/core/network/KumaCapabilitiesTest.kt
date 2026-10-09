@@ -58,6 +58,7 @@ class KumaCapabilitiesTest {
         assertTrue(result.supports(KumaFeature.MANAGED_PUSH_WRITE))
         assertTrue(result.supports(KumaFeature.PUBLIC_INCIDENT_WRITE))
         assertFalse(result.supports(KumaFeature.NTP_PM2_SCHEMA))
+        assertFalse(result.supportsMonitorSchema("system-service"))
         assertFalse(result.supports(KumaFeature.SFTP_SCHEMA))
         assertFalse(result.supportsMonitorSchema("sftp"))
         assertTrue(result.supportsMonitorSchema("http"))
@@ -70,6 +71,7 @@ class KumaCapabilitiesTest {
         val v255 = KumaCapabilities.evaluate("2.5.5")
 
         assertTrue(v250.supports(KumaFeature.NTP_PM2_SCHEMA))
+        assertTrue(v250.supportsMonitorSchema("system-service"))
         assertFalse(v250.supports(KumaFeature.SFTP_SCHEMA))
         assertFalse(v253.supports(KumaFeature.SFTP_SCHEMA))
         assertTrue(v254.supports(KumaFeature.SFTP_SCHEMA))
@@ -77,6 +79,8 @@ class KumaCapabilitiesTest {
         assertTrue(v255.supports(KumaFeature.SFTP_SCHEMA))
         assertTrue(v255.writesVerified)
         assertFalse(MonitorTypeCatalog.creatableFor(v253).any { it.key == "sftp" })
+        assertTrue(MonitorTypeCatalog.creatableFor(v250).any { it.key == "system-service" })
+        assertTrue(MonitorTypeCatalog.creatableFor(v250).any { it.key == "pm2" })
         assertTrue(MonitorTypeCatalog.creatableFor(v254).any { it.key == "sftp" })
     }
 

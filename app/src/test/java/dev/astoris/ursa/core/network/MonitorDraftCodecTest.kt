@@ -624,6 +624,53 @@ class MonitorDraftCodecTest {
     }
 
     @Test
+    fun localProcessMonitorsRoundTripTheSharedWireFieldAndPreserveFutureFields() {
+        val service = MonitorDraft.create("system-service").copy(
+            name = "Web service",
+            systemServiceName = "nginx.service",
+        )
+        val servicePayload = MonitorDraftCodec.newPayload(service)
+        assertEquals("nginx.service", servicePayload["system_service_name"]!!.jsonPrimitive.content)
+        assertNull(MonitorDraftCodec.validate(service))
+        assertEquals(
+            MonitorDraftError.SYSTEM_SERVICE_NAME_INVALID,
+            MonitorDraftCodec.validate(service.copy(systemServiceName = "display name")),
+        )
+
+        val rawPm2 = Json.parseToJsonElement(
+            """{
+                "id":73,"type":"pm2","name":"API","system_service_name":"api worker",
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureProcessOption":{"kept":true}
+            }""",
+        ).jsonObject
+        val pm2 = MonitorDraftCodec.from(rawPm2)!!
+        assertEquals("api worker", pm2.systemServiceName)
+        assertNull(MonitorDraftCodec.validate(pm2))
+        val updated = MonitorDraftCodec.safeExistingPayload(rawPm2, pm2.copy(systemServiceName = "api"))!!
+        assertEquals("api", updated["system_service_name"]!!.jsonPrimitive.content)
+        assertEquals(rawPm2["futureProcessOption"], updated["futureProcessOption"])
+    }
+
+    @Test
+    fun localProcessValidationRequiresNamesAndRejectsControlCharacters() {
+        assertEquals(
+            MonitorDraftError.SYSTEM_SERVICE_NAME_REQUIRED,
+            MonitorDraftCodec.validate(MonitorDraft.create("system-service").copy(name = "Service")),
+        )
+        assertEquals(
+            MonitorDraftError.PM2_PROCESS_NAME_REQUIRED,
+            MonitorDraftCodec.validate(MonitorDraft.create("pm2").copy(name = "PM2")),
+        )
+        assertEquals(
+            MonitorDraftError.PM2_PROCESS_NAME_INVALID,
+            MonitorDraftCodec.validate(
+                MonitorDraft.create("pm2").copy(name = "PM2", systemServiceName = "api\nworker"),
+            ),
+        )
+    }
+
+    @Test
     fun brokerValidationRejectsUnusableEndpointsAndMissingSecrets() {
         val rabbit = MonitorDraft.create("rabbitmq").copy(
             name = "Rabbit",

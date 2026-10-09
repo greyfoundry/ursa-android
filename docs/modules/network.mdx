@@ -61,7 +61,7 @@ here so the rest of the app sees clean domain models.
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
   notification relation reads/updates, `testManagedPushNotification`, the
-  server-provided GameDig game catalogue, monitor
+  server-provided GameDig game catalogue and PM2 process list, monitor
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
   active-state changes, authenticated public-incident history plus
@@ -91,7 +91,8 @@ here so the rest of the app sees clean domain models.
   patches a newly fetched full object without removing unknown fields, and builds
   typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
   NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, SNMPv1/v2c, RabbitMQ,
-  Kafka producer, Docker, Real Browser, RADIUS, GameDig, Steam, and SFTP create flows.
+  Kafka producer, Docker, Real Browser, RADIUS, GameDig, Steam, PM2, system-service,
+  and SFTP create flows.
   Keyword monitors map
   Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
   preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
@@ -170,6 +171,10 @@ here so the rest of the app sees clean domain models.
   only from the freshly fetched full object. Steam owns only `hostname` and `port`;
   the Steam Web API key remains global Kuma server configuration and is never
   copied into a monitor draft.
+  PM2 and system-service share Kuma's `system_service_name` wire field. PM2's
+  authenticated process list is reduced to ID, name, and status for selection;
+  manual entry remains available when the local probe cannot run. System-service
+  applies Kuma's internal-name character policy before sending a write.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

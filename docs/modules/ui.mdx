@@ -122,7 +122,8 @@ route stack while screens migrate incrementally.
   native RabbitMQ node/credential controls, native Kafka producer and SASL controls,
   native Docker container and existing-host controls, native Real Browser engine and
   screenshot-delay controls, native RADIUS access-request controls, native GameDig
-  game/port/token controls, native Steam host/port controls, native SFTP
+  game/port/token controls, native Steam host/port controls, native PM2 picker and
+  system-service name controls, native SFTP
   password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
@@ -159,6 +160,9 @@ route stack while screens migrate incrementally.
   catalogue; unavailable saved keys remain visible, and saved query tokens stay
   blank with a retention notice. Steam explains that its Web API key is configured
   globally in Kuma and does not collect that credential in URSA.
+  PM2 loads Kuma's local process catalogue on demand, retains unavailable saved
+  names, and falls back to manual stable-name entry. System-service explains the
+  Linux systemd/Windows internal-name contract and rejects spaces or shell syntax.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.

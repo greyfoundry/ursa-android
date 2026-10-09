@@ -86,7 +86,9 @@ ledger even when part of their data contract already exists.
 
 - **URSA delivery:** Native Steam host/port editing does not move Kuma's global API
   key onto the phone. The broader GameDig editor uses Kuma's live game catalogue
-  and optional masked query-token retention.
+  and optional masked query-token retention. Native PM2 uses Kuma's live local
+  process list with manual fallback, and system-service validates the internal
+  platform service name without collecting credentials.
 - **Platform caveat:** the Android listing describes a smaller feature set and
   user reports mention missing 2FA and unreliable multi-server use. Features are
   therefore not assumed to be Android-identical without direct evidence.

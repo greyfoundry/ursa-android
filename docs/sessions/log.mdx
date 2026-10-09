@@ -9,6 +9,22 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-09 - Native PM2 and system-service monitor editing
+
+**changed**: Added native creation/editing for Kuma 2.5.x PM2 and system-service
+monitors. Both round-trip the shared `system_service_name` field. PM2 adds an
+authenticated, refreshable process picker with manual fallback and preserves an
+unavailable saved name; system-service validates Kuma's safe internal-name syntax.
+
+**compatibility and verification**: Both types are gated behind the verified
+2.5.0 schema boundary and remain credential-free. Focused dual-flavor capability,
+parser, registry, validation, payload, and round-trip tests pass. Android 17/live
+Kuma 2.5.5 QA used disposable local `pm2` and `systemctl` command fixtures: the
+picker selected `ursa-qa (#7) - online`, PM2 reached Up, `ursa-qa.service` reached
+Up, and both editors reloaded their exact stable names. Both monitors, histories,
+and command fixtures were removed, restoring the five-monitor baseline. The
+complete 198-task two-flavor phone/Wear unit, lint, and assemble gate passes.
+
 ### 2026-10-09 - Native GameDig and Steam monitor editing
 
 **changed**: Added native GameDig and Steam creation/editing. GameDig owns host,

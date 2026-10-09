@@ -5,6 +5,7 @@ import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
@@ -138,6 +139,17 @@ object KumaParse {
             ?: return@mapNotNull null
         KumaGameType(key, label)
     }.distinctBy(KumaGameType::key).sortedBy { it.label.lowercase() }
+
+    fun pm2Processes(arr: JsonArray): List<KumaPm2Process> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val id = (obj["id"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val name = (obj["name"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val status = (obj["status"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: "unknown"
+        KumaPm2Process(id, name, status)
+    }.distinctBy(KumaPm2Process::name).sortedBy { it.name.lowercase() }
 
     /** `heartbeat` event (object, camelCase). */
     fun heartbeat(obj: JsonObject): Heartbeat? {

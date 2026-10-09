@@ -53,7 +53,7 @@ data class KumaCompatibility(
     fun supports(feature: KumaFeature): Boolean = feature in features
 
     fun supportsMonitorSchema(type: String): Boolean = when (type) {
-        "ntp", "pm2" -> supports(KumaFeature.NTP_PM2_SCHEMA)
+        "ntp", "pm2", "system-service" -> supports(KumaFeature.NTP_PM2_SCHEMA)
         "sftp" -> supports(KumaFeature.SFTP_SCHEMA)
         else -> true
     }

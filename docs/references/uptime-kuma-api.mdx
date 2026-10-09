@@ -135,7 +135,7 @@ lifecycle. At the 2.4.0 floor it also exercises monitor
 create/get/round-trip edit/pause/resume/delete, maintenance
 create/assign/pause/resume/delete, and Webhook notification create/delete.
 
-| Image tag | OCI index digest | Reported `info.version` | NTP/PM2 | SFTP | Incident writes |
+| Image tag | OCI index digest | Reported `info.version` | NTP/PM2/system-service | SFTP | Incident writes |
 |---|---|---|---|---|---|
 | 2.4.0 | `sha256:91e963bfda569ba115206e843febb446f473ab525add4e08b2b9e3beffa16985` | 2.4.0 | no | no | yes |
 | 2.5.0 | `sha256:a8610b3b4c38077922ba51b036691e06887d7cefd91fe620fd3d6d23d03dc240` | 2.5.0 | yes | no | yes |
@@ -146,7 +146,7 @@ create/assign/pause/resume/delete, and Webhook notification create/delete.
 | 2.5.5 | `sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe` | 2.5.5 | yes | yes | yes |
 
 Kuma 2.5.1 and 2.5.2 publish the previous release number over the socket. Their
-feature boundaries are unchanged by that ambiguity: both advertise NTP/PM2 and
+feature boundaries are unchanged by that ambiguity: both advertise NTP/PM2/system-service and
 neither advertises SFTP. `KumaCapabilities` therefore evaluates the reported
 stable version, not an invented tag. Missing, malformed, prerelease, older, and
 newer versions retain safe reads but are not advertised as write-verified. Known
@@ -321,6 +321,15 @@ Steam's `IGameServersService/GetServerList/v1/` with a globally configured
 it is absent, the checker reports `Steam API Key not found`. URSA therefore exposes
 host and port plus that prerequisite, without asking for or transporting the key.
 
+PM2 and system-service monitors persist one trimmed `system_service_name`. Kuma
+2.5.0 introduced both schemas and the authenticated `getPM2ProcessList`
+acknowledgement, which returns `{ ok, processList }` rows containing stable string
+`id`, `name`, and normalized `status`. PM2 saves the stable name because numeric
+IDs may change; only `online` is healthy. System-service runs `systemctl is-active`
+on Linux or queries the internal service name on Windows. Its accepted name is
+limited to letters, numbers, dot, underscore, hyphen, and `@`; PM2 names may contain
+spaces but not ASCII control characters.
+
 WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
 `wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
 `accepted_statuscodes`. Kuma 2.5.5 offers every individual close code from
@@ -347,7 +356,7 @@ Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgemen
 is therefore an unknown outcome: refresh incident history before allowing another
 create instead of automatically replaying it.
 
-Kuma 2.5.0 adds `ntp` and `pm2` monitor types plus the authenticated
+Kuma 2.5.0 adds `ntp`, `pm2`, and `system-service` monitor types plus the authenticated
 `getPM2ProcessList` event. Those additions do not change URSA's read,
 heartbeat-history, certificate, pause, or resume contracts.
 

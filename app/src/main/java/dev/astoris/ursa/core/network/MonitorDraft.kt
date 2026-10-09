@@ -362,6 +362,7 @@ data class MonitorDraft(
     val gameDigGivenPortOnly: Boolean = true,
     val gameDigToken: String = "",
     val gameDigHasSavedToken: Boolean = false,
+    val systemServiceName: String = "",
     val sftpAuthMethod: SftpAuthMethod = SftpAuthMethod.PASSWORD,
     val sftpUsername: String = "",
     val sftpPassword: String = "",
@@ -509,6 +510,10 @@ enum class MonitorDraftError {
     RADIUS_CALLED_STATION_ID_REQUIRED,
     RADIUS_CALLING_STATION_ID_REQUIRED,
     GAMEDIG_GAME_REQUIRED,
+    SYSTEM_SERVICE_NAME_REQUIRED,
+    SYSTEM_SERVICE_NAME_INVALID,
+    PM2_PROCESS_NAME_REQUIRED,
+    PM2_PROCESS_NAME_INVALID,
     SFTP_USERNAME_REQUIRED,
     SFTP_PASSWORD_REQUIRED,
     SFTP_PRIVATE_KEY_REQUIRED,
@@ -740,6 +745,11 @@ object MonitorDraftCodec {
             gameDigGivenPortOnly = type != "gamedig" ||
                 (raw["gamedigGivenPortOnly"]?.jsonPrimitive?.booleanOrNull ?: true),
             gameDigHasSavedToken = type == "gamedig" && raw.string("gamedigToken")?.isNotEmpty() == true,
+            systemServiceName = if (type == "system-service" || type == "pm2") {
+                raw.string("system_service_name").orEmpty()
+            } else {
+                ""
+            },
             sftpAuthMethod = SftpAuthMethod.fromWire(raw.string("sshAuthMethod")),
             sftpUsername = raw.string("sshUsername").orEmpty(),
             sftpPath = raw.string("sftpPath").orEmpty(),
@@ -1017,6 +1027,22 @@ object MonitorDraftCodec {
         if (definition.validation == MonitorEditorValidation.GAMEDIG && draft.gameType.isBlank()) {
             return MonitorDraftError.GAMEDIG_GAME_REQUIRED
         }
+        if (definition.validation == MonitorEditorValidation.LOCAL_PROCESS) {
+            val target = draft.systemServiceName.trim()
+            if (target.isEmpty()) {
+                return if (draft.type == "pm2") {
+                    MonitorDraftError.PM2_PROCESS_NAME_REQUIRED
+                } else {
+                    MonitorDraftError.SYSTEM_SERVICE_NAME_REQUIRED
+                }
+            }
+            if (draft.type == "system-service" && !SYSTEM_SERVICE_NAME.matches(target)) {
+                return MonitorDraftError.SYSTEM_SERVICE_NAME_INVALID
+            }
+            if (draft.type == "pm2" && target.any { it.code in 0..31 || it.code == 127 }) {
+                return MonitorDraftError.PM2_PROCESS_NAME_INVALID
+            }
+        }
         if (definition.validation == MonitorEditorValidation.SFTP) {
             if (draft.sftpUsername.trim().isEmpty()) return MonitorDraftError.SFTP_USERNAME_REQUIRED
             when (draft.sftpAuthMethod) {
@@ -1154,6 +1180,7 @@ object MonitorDraftCodec {
         applyRealBrowser(values, draft)
         applyRadius(values, draft, raw)
         applyGameDig(values, draft, raw)
+        applyLocalProcess(values, draft)
         applySftp(values, draft, raw)
         return JsonObject(values)
     }
@@ -1217,6 +1244,7 @@ object MonitorDraftCodec {
         applyRealBrowser(mutable, draft)
         applyRadius(mutable, draft)
         applyGameDig(mutable, draft)
+        applyLocalProcess(mutable, draft)
         applySftp(mutable, draft)
         return JsonObject(mutable)
     }
@@ -1420,6 +1448,11 @@ object MonitorDraftCodec {
         values["gamedigToken"] = JsonPrimitive(
             draft.gameDigToken.ifEmpty { existing?.string("gamedigToken").orEmpty() },
         )
+    }
+
+    private fun applyLocalProcess(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        if (MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.LOCAL_PROCESS) return
+        values["system_service_name"] = JsonPrimitive(draft.systemServiceName.trim())
     }
 
     private fun applySftp(
@@ -1872,6 +1905,7 @@ object MonitorDraftCodec {
 
     private val SNMP_OID = Regex("^([0-2])((\\.0)|(\\.[1-9][0-9]*))*$")
     private val HTTP_STATUS_RANGE = Regex("^(\\d{3})-(\\d{3})$")
+    private val SYSTEM_SERVICE_NAME = Regex("^[A-Za-z0-9._@-]+$")
 
     private fun isValidMqttEndpoint(value: String): Boolean {
         val endpoint = value.trim()

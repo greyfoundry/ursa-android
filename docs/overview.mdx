@@ -85,7 +85,7 @@ and the module docs under `docs/modules/`.
 - Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
   partial CP-031 advanced monitor-type creation boundary. Native keyword, JSON-query,
   WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser,
-  Oracle Database, RADIUS, GameDig, Steam, and SFTP creation and editing are included; less common
+  Oracle Database, RADIUS, GameDig, Steam, PM2, system-service, and SFTP creation and editing are included; less common
   type-specific forms remain in Kuma. This includes
   fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
@@ -136,6 +136,9 @@ and the module docs under `docs/modules/`.
   GameDig monitors select a server-provided game and support exact-port behaviour
   plus an optional masked query token. Steam exposes host/port while keeping its
   Web API key in Kuma's global server configuration.
+  PM2 monitors use Kuma's live local-process picker with manual fallback, while
+  system-service monitors accept the platform's internal service name. Both remain
+  credential-free and available only on verified Kuma 2.5.x schemas.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;

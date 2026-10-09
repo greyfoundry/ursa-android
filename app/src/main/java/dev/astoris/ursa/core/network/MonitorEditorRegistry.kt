@@ -100,6 +100,7 @@ enum class MonitorEditorField {
     GAMEDIG_GAME,
     GAMEDIG_GIVEN_PORT_ONLY,
     GAMEDIG_TOKEN,
+    SYSTEM_SERVICE_NAME,
     SFTP_AUTH_METHOD,
     SFTP_USERNAME,
     SFTP_PASSWORD,
@@ -127,6 +128,7 @@ enum class MonitorEditorCodec {
     REAL_BROWSER,
     RADIUS,
     GAMEDIG,
+    LOCAL_PROCESS,
     SFTP,
 }
 
@@ -150,6 +152,7 @@ enum class MonitorEditorValidation {
     REAL_BROWSER,
     RADIUS,
     GAMEDIG,
+    LOCAL_PROCESS,
     SFTP,
 }
 
@@ -267,8 +270,30 @@ object MonitorEditorRegistry {
             extraFields = setOf(MonitorEditorField.DOCKER_CONTAINER, MonitorEditorField.DOCKER_HOST),
             help = MonitorEditorHelp.FULL_NATIVE,
         ),
-        definition("system-service", "System service"),
-        definition("pm2", "PM2 process", verifiedMin = KumaVersion(2, 5, 0)),
+        definition(
+            type = "system-service",
+            label = "System service",
+            createSupported = true,
+            verifiedMin = KumaVersion(2, 5, 0),
+            codec = MonitorEditorCodec.LOCAL_PROCESS,
+            validation = MonitorEditorValidation.LOCAL_PROCESS,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(MonitorEditorField.SYSTEM_SERVICE_NAME),
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
+        definition(
+            type = "pm2",
+            label = "PM2 process",
+            createSupported = true,
+            verifiedMin = KumaVersion(2, 5, 0),
+            codec = MonitorEditorCodec.LOCAL_PROCESS,
+            validation = MonitorEditorValidation.LOCAL_PROCESS,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(MonitorEditorField.SYSTEM_SERVICE_NAME),
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition(
             "real-browser",
             "Browser engine",
@@ -1014,6 +1039,9 @@ object MonitorRoundTripGuard {
             }
             if (definition.codec == MonitorEditorCodec.GAMEDIG) {
                 addAll(setOf("game", "gamedigGivenPortOnly", "gamedigToken"))
+            }
+            if (definition.codec == MonitorEditorCodec.LOCAL_PROCESS) {
+                add("system_service_name")
             }
         }
         return (before.keys + after.keys).all { key -> key in mutable || before[key] == after[key] }

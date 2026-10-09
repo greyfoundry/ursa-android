@@ -92,6 +92,7 @@ import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
@@ -119,6 +120,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -351,6 +353,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val serverTags: StateFlow<List<KumaTag>> = _serverTags.asStateFlow()
     private val _gameTypes = MutableStateFlow<List<KumaGameType>>(emptyList())
     val gameTypes: StateFlow<List<KumaGameType>> = _gameTypes.asStateFlow()
+    private val _pm2Processes = MutableStateFlow<List<KumaPm2Process>>(emptyList())
+    val pm2Processes: StateFlow<List<KumaPm2Process>> = _pm2Processes.asStateFlow()
+    private var pm2ProcessJob: Job? = null
     private val _maintenanceEditor = MutableStateFlow<MaintenanceEditorUiState>(MaintenanceEditorUiState.Idle)
     val maintenanceEditor: StateFlow<MaintenanceEditorUiState> = _maintenanceEditor.asStateFlow()
 
@@ -876,6 +881,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
                 ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
             _gameTypes.value = games?.await().orEmpty()
+            if (draft?.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun refreshPm2Processes() {
+        pm2ProcessJob?.cancel()
+        _pm2Processes.value = emptyList()
+        pm2ProcessJob = viewModelScope.launch {
+            _pm2Processes.value = repo.pm2Processes().orEmpty()
         }
     }
 
@@ -896,6 +910,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _monitorEditor.value = MonitorEditorUiState.Idle
         _serverTags.value = emptyList()
         _gameTypes.value = emptyList()
+        pm2ProcessJob?.cancel()
+        pm2ProcessJob = null
+        _pm2Processes.value = emptyList()
     }
 
     fun discoverLocalService(protocol: LocalServiceProtocol) = localServiceDiscovery.start(protocol)

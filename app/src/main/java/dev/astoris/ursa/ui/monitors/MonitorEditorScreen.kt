@@ -83,6 +83,7 @@ import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.KumaNotification
 import dev.astoris.ursa.data.model.KumaDockerHost
 import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
 import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
@@ -107,6 +108,7 @@ fun MonitorEditorScreen(
     val remoteBrowsers by vm.remoteBrowsers.collectAsStateWithLifecycle()
     val serverTags by vm.serverTags.collectAsStateWithLifecycle()
     val gameTypes by vm.gameTypes.collectAsStateWithLifecycle()
+    val pm2Processes by vm.pm2Processes.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
@@ -177,9 +179,11 @@ fun MonitorEditorScreen(
                 remoteBrowsers = remoteBrowsers,
                 serverTags = serverTags,
                 gameTypes = gameTypes,
+                pm2Processes = pm2Processes,
                 monitors = monitors,
                 discoveryState = discoveryState,
                 onDiscover = vm::discoverLocalService,
+                onRefreshPm2Processes = vm::refreshPm2Processes,
                 onSelectService = vm::selectLocalService,
                 onStopDiscovery = vm::stopLocalServiceDiscovery,
                 onCancel = vm::closeMonitorEditor,
@@ -205,9 +209,11 @@ private fun MonitorForm(
     remoteBrowsers: List<KumaRemoteBrowser>,
     serverTags: List<KumaTag>,
     gameTypes: List<KumaGameType>,
+    pm2Processes: List<KumaPm2Process>,
     monitors: List<Monitor>,
     discoveryState: LocalServiceDiscoveryState,
     onDiscover: (LocalServiceProtocol) -> Unit,
+    onRefreshPm2Processes: () -> Unit,
     onSelectService: (String) -> Unit,
     onStopDiscovery: () -> Unit,
     onCancel: () -> Unit,
@@ -277,6 +283,7 @@ private fun MonitorForm(
                                         tagAssignments = draft.tagAssignments,
                                     ),
                                 )
+                                if (next.key == "pm2") onRefreshPm2Processes()
                                 typeMenuOpen = false
                             },
                         )
@@ -442,6 +449,14 @@ private fun MonitorForm(
         }
         if (definition?.codec == MonitorEditorCodec.GAMEDIG) {
             GameDigFields(draft = draft, gameTypes = gameTypes, onDraftChange = onDraftChange)
+        }
+        if (definition?.codec == MonitorEditorCodec.LOCAL_PROCESS) {
+            LocalProcessFields(
+                draft = draft,
+                processes = pm2Processes,
+                onRefresh = onRefreshPm2Processes,
+                onDraftChange = onDraftChange,
+            )
         }
         if (draft.type == "steam") {
             Text(
@@ -1997,6 +2012,73 @@ private fun GameDigFields(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LocalProcessFields(
+    draft: MonitorDraft,
+    processes: List<KumaPm2Process>,
+    onRefresh: () -> Unit,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    if (draft.type == "system-service") {
+        Text(stringResource(R.string.monitor_system_service_title), style = MaterialTheme.typography.titleSmall)
+        OutlinedTextField(
+            value = draft.systemServiceName,
+            onValueChange = { onDraftChange(draft.copy(systemServiceName = it)) },
+            label = { Text(stringResource(R.string.monitor_system_service_name)) },
+            supportingText = { Text(stringResource(R.string.monitor_system_service_help)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        return
+    }
+
+    var processMenuOpen by remember { mutableStateOf(false) }
+    val selected = processes.firstOrNull { it.name == draft.systemServiceName || it.id == draft.systemServiceName }
+    Text(stringResource(R.string.monitor_pm2_title), style = MaterialTheme.typography.titleSmall)
+    if (processes.isEmpty()) {
+        OutlinedTextField(
+            value = draft.systemServiceName,
+            onValueChange = { onDraftChange(draft.copy(systemServiceName = it)) },
+            label = { Text(stringResource(R.string.monitor_pm2_process_name)) },
+            supportingText = { Text(stringResource(R.string.monitor_pm2_manual_help)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        ExposedDropdownMenuBox(expanded = processMenuOpen, onExpandedChange = { processMenuOpen = it }) {
+            OutlinedTextField(
+                value = selected?.let { "${it.name} (#${it.id}) - ${it.status}" }
+                    ?: draft.systemServiceName.takeIf(String::isNotBlank)?.let {
+                        stringResource(R.string.monitor_pm2_unavailable_process, it)
+                    }.orEmpty(),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(R.string.monitor_pm2_process_name)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(processMenuOpen) },
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+            )
+            ExposedDropdownMenu(expanded = processMenuOpen, onDismissRequest = { processMenuOpen = false }) {
+                processes.forEach { process ->
+                    DropdownMenuItem(
+                        text = { Text("${process.name} (#${process.id}) - ${process.status}") },
+                        onClick = {
+                            onDraftChange(draft.copy(systemServiceName = process.name))
+                            processMenuOpen = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+    OutlinedButton(onClick = onRefresh) { Text(stringResource(R.string.widget_refresh)) }
+    Text(
+        stringResource(R.string.monitor_pm2_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
 @Composable
 private fun BooleanEditorRow(checked: Boolean, label: String, onCheckedChange: (Boolean) -> Unit) {
     Row(
@@ -2818,6 +2900,10 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
         MonitorDraftError.RADIUS_CALLED_STATION_ID_REQUIRED -> R.string.monitor_error_radius_called_station_id
         MonitorDraftError.RADIUS_CALLING_STATION_ID_REQUIRED -> R.string.monitor_error_radius_calling_station_id
         MonitorDraftError.GAMEDIG_GAME_REQUIRED -> R.string.monitor_error_gamedig_game
+        MonitorDraftError.SYSTEM_SERVICE_NAME_REQUIRED -> R.string.monitor_error_system_service_name
+        MonitorDraftError.SYSTEM_SERVICE_NAME_INVALID -> R.string.monitor_error_system_service_name_invalid
+        MonitorDraftError.PM2_PROCESS_NAME_REQUIRED -> R.string.monitor_error_pm2_process_name
+        MonitorDraftError.PM2_PROCESS_NAME_INVALID -> R.string.monitor_error_pm2_process_name_invalid
         MonitorDraftError.SFTP_USERNAME_REQUIRED -> R.string.monitor_error_sftp_username
         MonitorDraftError.SFTP_PASSWORD_REQUIRED -> R.string.monitor_error_sftp_password
         MonitorDraftError.SFTP_PRIVATE_KEY_REQUIRED -> R.string.monitor_error_sftp_private_key

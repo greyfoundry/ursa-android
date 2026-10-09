@@ -51,6 +51,8 @@ class MonitorEditorRegistryTest {
                 "radius",
                 "gamedig",
                 "steam",
+                "system-service",
+                "pm2",
                 "oracledb",
                 "postgres",
                 "mysql",
@@ -259,6 +261,8 @@ class MonitorEditorRegistryTest {
                         "radius",
                         "gamedig",
                         "steam",
+                        "system-service",
+                        "pm2",
                         "postgres",
                         "mongodb",
                         "redis",
@@ -407,6 +411,22 @@ class MonitorEditorRegistryTest {
         assertEquals(MonitorEditorFidelity.FULL_FIDELITY, steam.fidelity)
         assertTrue(steam.sensitiveFields.isEmpty())
         assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, steam.transferEligibility)
+    }
+
+    @Test
+    fun localProcessMonitorsDeclareTheirCompleteCredentialFreeContracts() {
+        listOf("system-service", "pm2").forEach { type ->
+            val definition = requireNotNull(MonitorEditorRegistry.find(type))
+            assertTrue(definition.createSupported)
+            assertEquals(KumaVersion(2, 5, 0), definition.verifiedMin)
+            assertEquals(MonitorEndpointKind.NONE, definition.endpointKind)
+            assertEquals(MonitorEditorCodec.LOCAL_PROCESS, definition.codec)
+            assertEquals(MonitorEditorValidation.LOCAL_PROCESS, definition.validation)
+            assertEquals(MonitorEditorFidelity.FULL_FIDELITY, definition.fidelity)
+            assertTrue(MonitorEditorField.SYSTEM_SERVICE_NAME in definition.editableFields)
+            assertTrue(definition.sensitiveFields.isEmpty())
+            assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, definition.transferEligibility)
+        }
     }
 
     @Test
