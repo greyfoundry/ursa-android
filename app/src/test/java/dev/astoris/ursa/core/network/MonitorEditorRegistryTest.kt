@@ -73,8 +73,8 @@ class MonitorEditorRegistryTest {
         val v240 = KumaCapabilities.evaluate("2.4.0")
         val v253 = KumaCapabilities.evaluate("2.5.3")
         val v255 = KumaCapabilities.evaluate("2.5.5")
-        val newer = KumaCapabilities.evaluate("2.5.6")
-        val prerelease = KumaCapabilities.evaluate("2.5.5-beta.1")
+        val newer = KumaCapabilities.evaluate("2.5.7")
+        val prerelease = KumaCapabilities.evaluate("2.5.6-beta.1")
 
         assertTrue(MonitorEditorRegistry.writeVerified("http", v240))
         assertTrue(MonitorEditorRegistry.writeVerified("keyword", v240))
