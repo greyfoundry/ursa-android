@@ -15,7 +15,8 @@ $images = @(
     [pscustomobject]@{ Version = "2.5.2"; ReportedVersion = "2.5.1"; Digest = "sha256:68ef1413af569e3e480ae4a04edf5a884255a78736241e0bf7e2b2980ac1327c" },
     [pscustomobject]@{ Version = "2.5.3"; ReportedVersion = "2.5.3"; Digest = "sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c" },
     [pscustomobject]@{ Version = "2.5.4"; ReportedVersion = "2.5.4"; Digest = "sha256:917318f9d7be5257f43ba412c766a473be336eb451d70744f3b482d0c3997c0e" },
-    [pscustomobject]@{ Version = "2.5.5"; ReportedVersion = "2.5.5"; Digest = "sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe" }
+    [pscustomobject]@{ Version = "2.5.5"; ReportedVersion = "2.5.5"; Digest = "sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe" },
+    [pscustomobject]@{ Version = "2.5.6"; ReportedVersion = "2.5.6"; Digest = "sha256:9912da7d7d9b6ddc0c2d904beb84d24689c1ed9c33b81419eb9008663a92a329" }
 )
 
 $recordSeparator = [char]0x1e
@@ -124,7 +125,7 @@ function Wait-KumaHealthy {
     throw "$Container did not become healthy"
 }
 
-function Invoke-FloorWriteProbe {
+function Invoke-CoreWriteProbe {
     $monitor = [ordered]@{
         type = "manual"; name = "URSA compatibility probe"; description = "Temporary matrix check"
         parent = $null; url = ""; method = "GET"; interval = 60; retryInterval = 60
@@ -272,8 +273,8 @@ foreach ($image in $images) {
             $incidentWrites = "passed"
         }
         $writes = "not-run"
-        if ($image.Version -eq "2.4.0" -and -not $SkipWriteProbe) {
-            Invoke-FloorWriteProbe
+        if (($image.Version -eq "2.4.0" -or $image.Version -eq "2.5.6") -and -not $SkipWriteProbe) {
+            Invoke-CoreWriteProbe
             $writes = "passed"
         }
         $results += [pscustomobject]@{
@@ -282,7 +283,7 @@ foreach ($image in $images) {
             InfoVersion = $info.version
             NtpPm2 = ($typeNames -contains "ntp" -and $typeNames -contains "pm2")
             Sftp = $typeNames -contains "sftp"
-            FloorWrites = $writes
+            CoreWrites = $writes
             IncidentWrites = $incidentWrites
         }
     } finally {

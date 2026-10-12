@@ -103,11 +103,11 @@ and the module docs under `docs/modules/`.
   Scoped app deep links, compact rows, connection guidance, a manual update check, advanced
   filters with saved views, and actionable typed connection failures are complete.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
-- A live-tested Kuma capability matrix pins the stable 2.4.0-2.5.5 contract and
+- A live-tested Kuma capability matrix pins the stable 2.4.0-2.5.6 contract and
   version-gates SFTP and authenticated public-incident writes; see
   `docs/references/uptime-kuma-api.mdx`.
 - Native monitor editing now resolves through one registry that declares each
-  known 2.5.5 type's verified range, editable and sensitive fields, defaults,
+  known 2.5.6 type's verified range, editable and sensitive fields, defaults,
   validation/codec profile, conditional dependencies, fidelity, transfer policy,
   help mode, and browser fallback. Existing edits fetch a fresh full object and
   pass a runtime guard that rejects type drift or any unrelated-field change.
@@ -122,10 +122,10 @@ and the module docs under `docs/modules/`.
   inline protobuf, service and method, masked JSON-object body, TLS, and keyword
   match while preserving unused legacy metadata opaquely. SNMPv1/v2c monitors
   expose host/port, masked community, OID, bounded timeout, and JSONata comparison;
-  SNMPv3 stays opaque because Kuma 2.5.5 cannot round-trip its username. RabbitMQ
+  SNMPv3 stays opaque because Kuma 2.5.6 cannot round-trip its username. RabbitMQ
   monitors expose management-node failover, masked credentials, and timeout;
   Kafka producer monitors expose brokers, topic/message, TLS, auto-topic creation,
-  timeout, and every 2.5.5 SASL mechanism with presence-only secret handling. Docker
+  timeout, and every 2.5.6 SASL mechanism with presence-only secret handling. Docker
   monitors expose a container name or ID and select an existing Kuma-managed host;
   daemon endpoints never leave the network adapter and host administration remains in Kuma.
   Real Browser monitors expose the HTTP(S) target, optional existing remote-browser

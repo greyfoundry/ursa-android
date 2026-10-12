@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-09
+last-updated: 2026-10-12
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,20 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-12 - Uptime Kuma 2.5.6 compatibility
+
+**changed**: Extended the stable write-verified Kuma range through 2.5.6 and
+added its digest-pinned official image to the reproducible compatibility probe.
+
+**verification**: Reviewed the complete 2.5.5-to-2.5.6 source delta and the
+official update wiki. The sole runtime API change fixes the unauthenticated
+average-response badge calculation; authenticated socket events and monitor,
+notification, maintenance, and incident contracts are unchanged. The disposable
+2.5.6 image reported the expected version and monitor types, and passed monitor
+create/get/edit/pause/resume/delete, maintenance create/assign/state/delete,
+Webhook notification create/delete, and the complete public-incident lifecycle.
+The probe removed its temporary container and volume.
 
 ### 2026-10-12 - Safe monitor cloning and encrypted presets
 

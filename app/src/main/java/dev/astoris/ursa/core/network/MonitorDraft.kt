@@ -29,7 +29,7 @@ data class MonitorTypeOption(
     val defaultPort: Int? = null,
 )
 
-/** Uptime Kuma 2.5.5's monitor-type catalogue. */
+/** Uptime Kuma 2.5.6's monitor-type catalogue. */
 object MonitorTypeCatalog {
     val all: List<MonitorTypeOption> = MonitorEditorRegistry.all.map { definition ->
         MonitorTypeOption(

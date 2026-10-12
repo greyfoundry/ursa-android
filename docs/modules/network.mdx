@@ -18,7 +18,7 @@ here so the rest of the app sees clean domain models.
   connection per server; auth, event wiring, pause/resume, heartbeat history,
   and server chart/important-transition queries.
 - `.../core/network/KumaCapabilities.kt` - strict stable-version parsing and the
-  live-tested 2.4.0-2.5.5 read/write and type-schema capability matrix.
+  live-tested 2.4.0-2.5.6 read/write and type-schema capability matrix.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
 - `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
@@ -30,12 +30,12 @@ here so the rest of the app sees clean domain models.
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
 - `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
   confirmed external-browser dashboard and monitor links.
-- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.5 type catalogue,
+- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.6 type catalogue,
   typed common-field validation, safe patching, create defaults, clone/preset
   sanitization, and exact push heartbeat URL construction from a cryptographically
   generated token.
 - `.../core/network/MonitorEditorRegistry.kt` - single metadata source for every
-  known 2.5.5 monitor type: verified range, native fields, sensitive fields,
+  known 2.5.6 monitor type: verified range, native fields, sensitive fields,
   defaults, validation/codec profile, field conditions/dependencies, fidelity,
   transfer eligibility, help mode, browser fallback, and the unrelated-field
   round-trip guard.
@@ -123,7 +123,7 @@ here so the rest of the app sees clean domain models.
   NTP maps host/UDP port and the stratum, absolute-offset, and root-dispersion
   thresholds. New drafts match Kuma's port 123, five-minute interval, 48-second
   timeout, and 5/1000/500 threshold defaults; existing null values remain null.
-  Globalping maps all three Kuma 2.5.5 subtypes through one editor contract. Ping
+  Globalping maps all three Kuma 2.5.6 subtypes through one editor contract. Ping
   owns target, location, IP family, ICMP/TCP, conditional port, and packet count.
   DNS owns host, optional resolver, port, record type, optional match expression,
   and UDP/TCP. HTTP owns URL, optional resolver, protocol/method, accepted statuses,
@@ -144,7 +144,7 @@ here so the rest of the app sees clean domain models.
   SNMPv1/v2c maps host/port, community, numeric OID, request timeout, and the shared
   JSONata comparison contract. Community strings become presence flags and blank
   edits recover the fresh server value. SNMPv3 and unknown versions remain opaque
-  because Kuma 2.5.5 does not persist or return the v3 username through this API.
+  because Kuma 2.5.6 does not persist or return the v3 username through this API.
   RabbitMQ maps the ordered management-node URL list, username, presence-only
   password, and bounded request timeout. Kafka maps brokers, topic/message, TLS,
   auto-topic creation, connection timeout, and `None`, PLAIN, SCRAM-SHA-256,
@@ -227,7 +227,7 @@ here so the rest of the app sees clean domain models.
 ## gotchas
 
 - Positional events (`heartbeatList`, `avgPing`, `uptime`, `certInfo`) are read from
-  `args[]` directly. Kuma 2.5.3 through 2.5.5 serialize their monitor IDs as
+  `args[]` directly. Kuma 2.5.3 through 2.5.6 serialize their monitor IDs as
   strings, normalized by `KumaParse.positionalInt`; object events go through
   `jsonAt()` → kotlinx → `KumaParse`.
 - `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case - two
