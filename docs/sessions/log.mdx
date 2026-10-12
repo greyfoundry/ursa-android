@@ -9,6 +9,28 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-12 - Safe monitor cloning and encrypted presets
+
+**changed**: Added monitor cloning from the detail overflow and credential-free
+monitor presets under Browse/Manage. Clones and restored presets are new inactive
+drafts and must be reviewed before save. Presets can be created from eligible
+editors, reopened through the existing editor, and removed with confirmation.
+
+**security and compatibility**: One shared sanitizer removes the source monitor
+ID/history, notification providers, parent/group and tag assignments,
+server-managed Docker/remote-browser targets, and all editable credentials or
+saved-secret flags. The encrypted preset store is capped at 50 canonical records;
+secret-bearing, server-bound, malformed, or type-mismatched payloads fail closed.
+Existing monitor persistence and Kuma data are unchanged.
+
+**verification**: Focused sanitizer and preset-codec tests cover identity,
+assignment, selector and secret removal, canonical round trips, tampering,
+deduplication, and bounds. Android 17/Kuma 2.5.5 QA covered clone, review notice,
+inactive and unassigned restore, encrypted save, Browse discovery, reuse, confirmed
+deletion, and empty-state recovery without creating a server monitor. Android had
+no crash or ANR. The complete 198-task two-flavor phone/Wear unit, lint, and
+assemble gate passes.
+
 ### 2026-10-09 - Native Tailscale Ping and SIP OPTIONS editing
 
 **changed**: Completed the 34-type Kuma 2.5.5 editor catalogue with native

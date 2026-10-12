@@ -225,6 +225,11 @@ data class MonitorEditorDefinition(
         createSupported &&
             writeVerifiedFor(compatibility) &&
             (!requiresHostInstall || compatibility.isContainer == false)
+
+    fun supportsCredentialFreePreset(): Boolean = createSupported &&
+        sensitiveFields.isEmpty() &&
+        (transferEligibility == MonitorTransferEligibility.CREDENTIAL_FREE ||
+            fidelity == MonitorEditorFidelity.SAFE_COMMON_EDIT)
 }
 
 /**

@@ -93,13 +93,13 @@ and the module docs under `docs/modules/`.
   registered UnifiedPush endpoint, separate local/end-to-end push tests, and
   metadata-only diagnostics, per-monitor mute/down/recovery/all-transition modes,
   and critical/standard/silent Android delivery channels. Monitor CRUD now includes
-  bulk state changes, notification assignment, groups/tags, maintenance, and
+  bulk state changes, safe monitor cloning, encrypted credential-free presets,
+  notification assignment, groups/tags, maintenance, and
   privacy-preserving local-service discovery and detailed encrypted configurable
   widgets. Expanded screens now use a monitor list-detail layout, Settings
   offers an opt-in always-on fleet glance display with explicit power and burn-in
   guidance, and the separate Wear OS app now provides an attention-first dashboard,
   monitor details, complications, and optionally paired private actions. Other
-  advanced monitor-type-specific create fields remain the open CP-031 boundary.
   Scoped app deep links, compact rows, connection guidance, a manual update check, advanced
   filters with saved views, and actionable typed connection failures are complete.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
@@ -140,6 +140,11 @@ and the module docs under `docs/modules/`.
   credential-free and available only on verified Kuma 2.5.x schemas.
   Tailscale Ping and SIP OPTIONS expose only host and required port fields, remain
   credential-free, and follow Kuma's non-container host-tool requirement.
+  Existing monitors can also be cloned into a new inactive draft. The clone drops
+  its ID/history, notification/group/tag assignments, server-managed selector IDs,
+  and all credential values or saved-value flags before review. Credential-free
+  drafts can be saved as one of 50 encrypted local presets and reopened from
+  Browse without copying a server session or creating a monitor automatically.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;
@@ -157,7 +162,7 @@ and the module docs under `docs/modules/`.
   monitor navigation. Browse is now the fourth primary destination and gives
   named Operations, Insights/reports, and Manage sections to maintenance,
   status pages, notifications, certificate/domain/event/fleet/live tools,
-  monitor views, servers, and device settings. Released Settings and
+  monitor views, encrypted monitor presets, servers, and device settings. Released Settings and
   Notifications route names and deep links remain restorable. Browse also
   searches permitted local metadata across monitors, groups, tags, observed
   incidents, maintenance, status pages, servers, saved views, and tools without

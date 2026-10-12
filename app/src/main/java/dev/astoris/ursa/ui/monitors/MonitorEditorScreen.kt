@@ -15,6 +15,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -122,6 +125,10 @@ fun MonitorEditorScreen(
     var draft by remember(stateDraft?.id, stateDraft?.type) {
         mutableStateOf(stateDraft ?: MonitorDraft.create())
     }
+    var presetDialogOpen by remember { mutableStateOf(false) }
+    var presetTitle by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(discoveryState) {
         val selected = (discoveryState as? LocalServiceDiscoveryState.Selected)?.address ?: return@LaunchedEffect
         draft = when (MonitorTypeCatalog.find(draft.type)?.endpointKind) {
@@ -146,6 +153,7 @@ fun MonitorEditorScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -192,9 +200,54 @@ fun MonitorEditorScreen(
                 onStopDiscovery = vm::stopLocalServiceDiscovery,
                 onCancel = vm::closeMonitorEditor,
                 onSave = { vm.saveMonitor(draft) },
+                onSavePreset = if (MonitorEditorRegistry.find(draft.type)?.supportsCredentialFreePreset() == true) {
+                    {
+                        presetTitle = draft.name
+                        presetDialogOpen = true
+                    }
+                } else {
+                    null
+                },
                 modifier = Modifier.padding(padding),
             )
         }
+    }
+    if (presetDialogOpen) {
+        val savedMessage = stringResource(R.string.monitor_preset_saved)
+        val failedMessage = stringResource(R.string.monitor_preset_save_failed)
+        AlertDialog(
+            onDismissRequest = { presetDialogOpen = false },
+            title = { Text(stringResource(R.string.monitor_preset_save_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.monitor_preset_save_description))
+                    OutlinedTextField(
+                        value = presetTitle,
+                        onValueChange = { presetTitle = it.take(80) },
+                        label = { Text(stringResource(R.string.monitor_preset_name_label)) },
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = presetTitle.isNotBlank(),
+                    onClick = {
+                        vm.saveMonitorPreset(draft, presetTitle) { saved ->
+                            scope.launch {
+                                snackbarHostState.showSnackbar(if (saved) savedMessage else failedMessage)
+                            }
+                        }
+                        presetDialogOpen = false
+                    },
+                ) { Text(stringResource(R.string.action_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { presetDialogOpen = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -222,6 +275,7 @@ private fun MonitorForm(
     onStopDiscovery: () -> Unit,
     onCancel: () -> Unit,
     onSave: () -> Unit,
+    onSavePreset: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val option = MonitorTypeCatalog.find(draft.type)
@@ -235,6 +289,13 @@ private fun MonitorForm(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         AccessProfileNotice(accessConnection)
+        if (draft.transferReview) {
+            Text(
+                stringResource(R.string.monitor_transfer_review),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         serverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (!MonitorEditorRegistry.writeVerified(draft.type, compatibility)) {
             Text(
@@ -285,6 +346,7 @@ private fun MonitorForm(
                                         notificationIds = draft.notificationIds,
                                         parentId = draft.parentId,
                                         tagAssignments = draft.tagAssignments,
+                                        transferReview = draft.transferReview,
                                     ),
                                 )
                                 if (next.key == "pm2") onRefreshPm2Processes()
@@ -697,6 +759,16 @@ private fun MonitorForm(
             }
         }
         validation?.let { Text(validationMessage(it), color = MaterialTheme.colorScheme.error) }
+        onSavePreset?.let { savePreset ->
+            OutlinedButton(onClick = savePreset, enabled = !saving && draft.name.isNotBlank()) {
+                Text(stringResource(R.string.monitor_preset_save_action))
+            }
+            Text(
+                stringResource(R.string.monitor_preset_credential_free_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = onCancel, enabled = !saving) { Text(stringResource(R.string.action_cancel)) }
             Button(onClick = onSave, enabled = canSave && !saving && validation == null) {

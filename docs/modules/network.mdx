@@ -31,8 +31,9 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
   confirmed external-browser dashboard and monitor links.
 - `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.5 type catalogue,
-  typed common-field validation, safe patching, create defaults, and exact push
-  heartbeat URL construction from a cryptographically generated token.
+  typed common-field validation, safe patching, create defaults, clone/preset
+  sanitization, and exact push heartbeat URL construction from a cryptographically
+  generated token.
 - `.../core/network/MonitorEditorRegistry.kt` - single metadata source for every
   known 2.5.5 monitor type: verified range, native fields, sensitive fields,
   defaults, validation/codec profile, field conditions/dependencies, fidelity,
@@ -181,6 +182,11 @@ here so the rest of the app sees clean domain models.
   the connected server is containerized or its environment is unknown, matching
   Kuma's own host-tool boundary;
   editing an existing monitor remains available without discarding its fields.
+  `MonitorDraftTransfer` creates a new inactive draft without the source ID,
+  history, server notification/group/tag assignments, server-managed selector IDs,
+  or any credential value/presence flag. Credential-free preset eligibility is
+  limited to registry-declared credential-free types and bounded safe-common
+  drafts; secret-bearing and server-bound full-fidelity types fail closed.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored

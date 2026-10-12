@@ -14,6 +14,7 @@ import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.network.LocalServiceDiscovery
 import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraft
+import dev.astoris.ursa.core.network.MonitorDraftTransfer
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
 import dev.astoris.ursa.core.network.IncidentMutationOutcome
@@ -65,6 +66,9 @@ import dev.astoris.ursa.core.storage.LocalEventKind
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorPreferenceStore
+import dev.astoris.ursa.core.storage.MonitorPreset
+import dev.astoris.ursa.core.storage.MonitorPresetCodec
+import dev.astoris.ursa.core.storage.MonitorPresetStore
 import dev.astoris.ursa.core.storage.ResponseAlertStore
 import dev.astoris.ursa.core.storage.StatusPageStore
 import dev.astoris.ursa.core.work.CertExpiryWorker
@@ -264,6 +268,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val store = ConnectionStore(app)
     private val cacheStore = MonitorCacheStore(app)
     private val monitorPreferenceStore = MonitorPreferenceStore(app)
+    private val monitorPresetStore = MonitorPresetStore(app)
     private val certExpiryStore = CertExpiryStore(app)
     private val eventLogStore = EventLogStore(app)
     private val incidentNoteStore = IncidentNoteStore(app)
@@ -290,6 +295,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
     private val _savedViews = MutableStateFlow<List<SavedMonitorView>>(emptyList())
     val savedViews: StateFlow<List<SavedMonitorView>> = _savedViews.asStateFlow()
+    val monitorPresets: StateFlow<List<MonitorPreset>> =
+        monitorPresetStore.presets.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val _monitorFilterRequest = MutableStateFlow<MonitorViewFilter?>(null)
     val monitorFilterRequest: StateFlow<MonitorViewFilter?> = _monitorFilterRequest.asStateFlow()
     val connections: StateFlow<List<ServerConnection>> =
@@ -883,6 +890,55 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _gameTypes.value = games?.await().orEmpty()
             if (draft?.type == "pm2") refreshPm2Processes()
         }
+    }
+
+    fun cloneMonitor(id: Int) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val tags = async { repo.serverTags().orEmpty() }
+            val source = repo.monitorDraft(id)
+            val draft = source?.let {
+                MonitorDraftTransfer.clone(
+                    it,
+                    getApplication<Application>().getString(dev.astoris.ursa.R.string.monitor_clone_name, it.name),
+                )
+            }
+            val games = draft?.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
+                ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
+            _gameTypes.value = games?.await().orEmpty()
+            if (draft?.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun createMonitorFromPreset(id: String) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val preset = monitorPresetStore.presets.first().firstOrNull { it.id == id }
+            val draft = preset?.let(MonitorPresetCodec::draft)
+            val tags = async { repo.serverTags().orEmpty() }
+            val games = draft?.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
+                ?: MonitorEditorUiState.Error(null, "Monitor preset is unavailable")
+            _gameTypes.value = games?.await().orEmpty()
+            if (draft?.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun saveMonitorPreset(draft: MonitorDraft, title: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            onResult(monitorPresetStore.save(UUID.randomUUID().toString(), title, draft))
+        }
+    }
+
+    fun deleteMonitorPreset(id: String) {
+        viewModelScope.launch { monitorPresetStore.remove(id) }
     }
 
     fun refreshPm2Processes() {

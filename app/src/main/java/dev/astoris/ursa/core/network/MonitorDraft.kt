@@ -222,6 +222,7 @@ data class MonitorHeaderDraft(
 
 data class MonitorDraft(
     val id: Int? = null,
+    val transferReview: Boolean = false,
     val type: String = "http",
     val name: String = "",
     val description: String = "",
@@ -419,6 +420,81 @@ data class MonitorDraft(
     }
 }
 
+/** Removes monitor identity, server assignments, and credentials before creating a new monitor. */
+object MonitorDraftTransfer {
+    fun clone(draft: MonitorDraft, name: String): MonitorDraft = sanitized(draft).copy(name = name)
+
+    fun preset(draft: MonitorDraft): MonitorDraft? = draft.takeIf {
+        MonitorEditorRegistry.find(it.type)?.supportsCredentialFreePreset() == true
+    }?.let(::sanitized)
+
+    private fun sanitized(draft: MonitorDraft): MonitorDraft = draft.copy(
+        id = null,
+        transferReview = true,
+        active = false,
+        notificationIds = emptySet(),
+        parentId = null,
+        tagAssignments = emptyList(),
+        pushToken = if (draft.type == "push") MonitorDraft.newPushToken() else "",
+        websocketHeaders = draft.websocketHeaders.map { header ->
+            header.copy(value = "", originalName = null, hasSavedValue = false)
+        },
+        websocketBasicPassword = "",
+        websocketHasSavedBasicPassword = false,
+        websocketBearerToken = "",
+        websocketHasSavedBearerToken = false,
+        websocketOAuthClientSecret = "",
+        websocketHasSavedOAuthClientSecret = false,
+        websocketTlsCertificate = "",
+        websocketTlsPrivateKey = "",
+        websocketTlsCaCertificate = "",
+        websocketHasSavedTlsCertificate = false,
+        websocketHasSavedTlsPrivateKey = false,
+        websocketHasSavedTlsCaCertificate = false,
+        websocketClearSavedTlsCaCertificate = false,
+        mqttPassword = "",
+        mqttHasSavedPassword = false,
+        mqttClearSavedPassword = false,
+        databaseConnectionString = "",
+        databaseHasSavedConnectionString = false,
+        databasePassword = "",
+        databaseHasSavedPassword = false,
+        grpcBody = if (draft.type == "grpc-keyword") "{}" else "",
+        grpcHasSavedBody = false,
+        snmpCommunity = "",
+        snmpHasSavedCommunity = false,
+        rabbitmqPassword = "",
+        rabbitmqHasSavedPassword = false,
+        kafkaUsername = "",
+        kafkaPassword = "",
+        kafkaHasSavedPassword = false,
+        kafkaAuthorizationIdentity = "",
+        kafkaAccessKeyId = "",
+        kafkaSecretAccessKey = "",
+        kafkaHasSavedSecretAccessKey = false,
+        kafkaSessionToken = "",
+        kafkaHasSavedSessionToken = false,
+        kafkaClearSavedSessionToken = false,
+        dockerContainer = "",
+        dockerHostId = null,
+        remoteBrowserId = null,
+        radiusPassword = "",
+        radiusHasSavedPassword = false,
+        radiusSecret = "",
+        radiusHasSavedSecret = false,
+        gameDigToken = "",
+        gameDigHasSavedToken = false,
+        systemServiceName = "",
+        sftpPassword = "",
+        sftpPrivateKey = "",
+        sftpPassphrase = "",
+        sftpHasSavedPassword = false,
+        sftpHasSavedPrivateKey = false,
+        sftpHasSavedPassphrase = false,
+        sftpClearSavedPassphrase = false,
+    )
+}
+
 enum class MonitorDraftError {
     NAME_REQUIRED,
     TYPE_UNAVAILABLE,
@@ -521,6 +597,10 @@ enum class MonitorDraftError {
 }
 
 object MonitorDraftCodec {
+    fun fromNewPayload(raw: JsonObject): MonitorDraft? = from(
+        JsonObject(raw + ("id" to JsonPrimitive(1))),
+    )?.copy(id = null)
+
     fun from(raw: JsonObject): MonitorDraft? {
         val id = raw.int("id")?.takeIf { it > 0 } ?: return null
         val type = raw.string("type") ?: return null

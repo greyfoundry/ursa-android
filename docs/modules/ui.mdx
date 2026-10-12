@@ -49,7 +49,8 @@ route stack while screens migrate incrementally.
 - `.../ui/browse/BrowseScreen.kt` - sectioned catalogue for existing secondary
   operations, insights/reports, and management surfaces. It reuses maintenance,
   status-page, notification, certificate, domain, event, aggregate, live-panel,
-  monitor-view, connection, and settings flows instead of duplicating them.
+  monitor-view, encrypted monitor-preset, connection, and settings flows instead
+  of duplicating them.
   `BrowseSearch.kt` ranks a bounded local metadata index over monitor/group/tag,
   observed-incident, maintenance, saved-page, server, saved-view, and tool names.
   Results identify resource type and server and route through existing owners;
@@ -105,6 +106,9 @@ route stack while screens migrate incrementally.
   editor, and retains the confirmed browser escape. Its tab row scrolls for large
   text. The adaptive scaffold shows it alone in compact windows and beside the
   retained inventory when two panes fit.
+- `.../ui/monitors/MonitorPresetsScreen.kt` - local encrypted credential-free
+  monitor templates under Browse/Manage. Presets can be reopened as inactive new
+  drafts or deleted with confirmation; creation remains access- and version-gated.
 - `.../ui/monitors/KioskScreen.kt` - opt-in fleet glance display with a bounded
   attention-first list, status counts, cached-data age, and a visible exit action.
   It keeps the screen awake only while composed and does not enter Android lock-task
@@ -170,6 +174,9 @@ route stack while screens migrate incrementally.
   MQTT also offers deliberate saved-password removal. Registry-backed
   help distinguishes a full native codec from safe common-field editing, while
   unsupported versions remain read-only and retain the browser fallback.
+  The editor also saves eligible credential-free drafts as encrypted presets.
+  Cloned and restored drafts show a review notice and start inactive with server
+  assignments and sensitive values removed.
 - `.../ui/monitors/MaintenanceScreen.kt` - native maintenance list and typed editor
   for all six Kuma strategies, explicit resolved/configured timezone fields,
   affected monitors, pause/resume, and confirmed deletion.

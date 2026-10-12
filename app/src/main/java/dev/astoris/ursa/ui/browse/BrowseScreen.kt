@@ -54,6 +54,7 @@ import dev.astoris.ursa.ui.monitors.FleetAggregateDashboard
 import dev.astoris.ursa.ui.monitors.GlobalEventLog
 import dev.astoris.ursa.ui.monitors.MaintenanceScreen
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
+import dev.astoris.ursa.ui.monitors.MonitorPresetsScreen
 import dev.astoris.ursa.ui.monitors.PinnedLivePanel
 import dev.astoris.ursa.ui.monitors.SavedMonitorView
 import dev.astoris.ursa.ui.monitors.fleetIncidents
@@ -69,6 +70,7 @@ internal enum class BrowseTool {
     EVENTS,
     FLEET,
     LIVE,
+    PRESETS,
     SETTINGS,
 }
 
@@ -167,6 +169,13 @@ fun BrowseScreen(
             stringResource(R.string.browse_monitors_title),
             stringResource(R.string.browse_monitors_desc),
             BrowseSearchAction.Monitors,
+        ),
+        BrowseCatalogEntry(
+            BrowseSection.MANAGE,
+            "monitor-presets",
+            stringResource(R.string.monitor_presets_title),
+            stringResource(R.string.browse_monitor_presets_desc),
+            BrowseSearchAction.Tool(BrowseTool.PRESETS),
         ),
         BrowseCatalogEntry(
             BrowseSection.MANAGE,
@@ -296,6 +305,7 @@ fun BrowseScreen(
                     onUnpin = vm::toggleFavorite,
                     modifier = Modifier.fillMaxSize(),
                 )
+                BrowseTool.PRESETS -> MonitorPresetsScreen(vm, close, Modifier.fillMaxSize())
             }
         }
     }

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-07-03
+last-updated: 2026-10-09
 owner: astoris
 status: stable
 source: Context7 /websites/developer_android (datastore + datastore-tink)
@@ -7,8 +7,8 @@ source: Context7 /websites/developer_android (datastore + datastore-tink)
 
 ## what this is
 
-How URSA stores per-server credentials (server URL, username, and the JWT after
-login) encrypted at rest. `EncryptedSharedPreferences` is deprecated (as of
+How URSA stores per-server credentials and other private local records encrypted
+at rest. `EncryptedSharedPreferences` is deprecated (as of
 security-crypto 1.1.0, July 2025). The current approach is **Jetpack DataStore**
 for persistence + **Tink** for encryption, with the master key in the Android
 Keystore. The cleanest path is the official `androidx.datastore:datastore-tink`
@@ -63,4 +63,6 @@ val dataStore = dataStore(
   swapping). Losing/rotating the keyset makes existing data unreadable - treat
   keyset loss as "user must re-login," not a crash.
 - For simple key-value use, Preferences DataStore + a Tink `Aead` wrapper works
-  too, but the typed/Proto + `AeadSerializer` path above is the supported one.
+  too. URSA uses that existing pattern for its encrypted stores, including bounded
+  credential-free monitor presets; each store validates and canonicalizes decoded
+  records before exposing them.

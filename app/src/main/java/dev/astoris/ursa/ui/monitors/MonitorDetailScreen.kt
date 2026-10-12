@@ -67,6 +67,7 @@ import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ServerWebLink
+import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.CertInfo
@@ -105,6 +106,7 @@ fun MonitorDetailScreen(
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
     val connectionState by vm.state.collectAsStateWithLifecycle()
+    val compatibility by vm.kumaCompatibility.collectAsStateWithLifecycle()
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
     val lastUpdated by vm.lastUpdated.collectAsStateWithLifecycle()
     val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
@@ -116,6 +118,8 @@ fun MonitorDetailScreen(
     }
     val canChangeState = activeConnection.allows(AccessCapability.MONITOR_STATE)
     val canEdit = activeConnection.allows(AccessCapability.MONITOR_EDIT)
+    val canClone = activeConnection.allows(AccessCapability.MONITOR_CREATE) &&
+        MonitorEditorRegistry.createVerified(monitor.type, compatibility)
     val canDelete = activeConnection.allows(AccessCapability.MONITOR_DELETE)
     val context = LocalContext.current
     val activity = LocalActivity.current as? FragmentActivity
@@ -191,6 +195,14 @@ fun MonitorDetailScreen(
                                 onClick = {
                                     moreOpen = false
                                     vm.editMonitor(monitor.id)
+                                },
+                            )
+                            DropdownMenuItem(
+                                enabled = canClone,
+                                text = { Text(stringResource(R.string.action_clone_monitor)) },
+                                onClick = {
+                                    moreOpen = false
+                                    vm.cloneMonitor(monitor.id)
                                 },
                             )
                             DropdownMenuItem(
