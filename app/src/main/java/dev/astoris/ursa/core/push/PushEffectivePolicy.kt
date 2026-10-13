@@ -30,6 +30,7 @@ enum class PushDownDelivery {
     DEVICE_BLOCKED,
     MODE_BLOCKED,
     DEPENDENCY_SUPPRESSED,
+    GROUP_THRESHOLD_SUPPRESSED,
     DELAYED,
     SNOOZED,
     IMMEDIATE,
@@ -46,6 +47,7 @@ data class PushEffectivePolicy(
     val scheduledAtMillis: Long?,
     val dependencyParentIds: Set<Int>,
     val dependencySuppression: PushDependencySuppression?,
+    val groupAlertEvaluation: PushGroupAlertEvaluation?,
     val recoveryWillNotify: Boolean,
     val maintenanceWillNotify: Boolean,
 )
@@ -60,8 +62,9 @@ object PushEffectivePolicyResolver {
         notificationsAllowed: Boolean,
         snoozedUntilMillis: Long?,
         dependencyGraph: PushDependencyGraph = PushDependencyGraph(),
+        groupAlertRules: PushGroupAlertRules = PushGroupAlertRules(),
         monitorId: Int? = null,
-        dependencyStatuses: Map<Int, Int?> = emptyMap(),
+        monitorStatuses: Map<Int, Int?> = emptyMap(),
         nowMillis: Long = System.currentTimeMillis(),
         zoneId: ZoneId = ZoneId.systemDefault(),
     ): PushEffectivePolicy {
@@ -76,7 +79,10 @@ object PushEffectivePolicyResolver {
         val safeDependencies = PushDependencyPolicy.validated(dependencyGraph.parentsByMonitor)
             ?: PushDependencyGraph()
         val dependencySuppression = monitorId?.let {
-            PushDependencyPolicy.suppression(safeDependencies, it, dependencyStatuses)
+            PushDependencyPolicy.suppression(safeDependencies, it, monitorStatuses)
+        }
+        val groupAlertEvaluation = monitorId?.let {
+            PushGroupAlertPolicy.evaluate(groupAlertRules, it, monitorStatuses)
         }
         val downDelivery = when {
             !setupCurrent -> PushDownDelivery.SETUP_REQUIRED
@@ -84,6 +90,7 @@ object PushEffectivePolicyResolver {
             !notificationsAllowed -> PushDownDelivery.DEVICE_BLOCKED
             !PushAlertPolicy.shouldNotify(mode.value, 0) -> PushDownDelivery.MODE_BLOCKED
             dependencySuppression != null -> PushDownDelivery.DEPENDENCY_SUPPRESSED
+            groupAlertEvaluation?.suppressed == true -> PushDownDelivery.GROUP_THRESHOLD_SUPPRESSED
             decision is PushAlertDecision.WaitUntil &&
                 snoozedUntilMillis != null && decision.atMillis == snoozedUntilMillis -> PushDownDelivery.SNOOZED
             decision is PushAlertDecision.WaitUntil -> PushDownDelivery.DELAYED
@@ -101,6 +108,7 @@ object PushEffectivePolicyResolver {
                 ?.takeIf { downDelivery == PushDownDelivery.DELAYED || downDelivery == PushDownDelivery.SNOOZED },
             dependencyParentIds = monitorId?.let(safeDependencies::parentsOf).orEmpty(),
             dependencySuppression = dependencySuppression,
+            groupAlertEvaluation = groupAlertEvaluation,
             recoveryWillNotify = eligible &&
                 PushAlertPolicy.shouldNotify(mode.value, 1) &&
                 PushEventPolicy.shouldNotify(1, eventPreferences),

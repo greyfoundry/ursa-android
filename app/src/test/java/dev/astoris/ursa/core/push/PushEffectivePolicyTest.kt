@@ -100,7 +100,7 @@ class PushEffectivePolicyTest {
             snoozedUntilMillis = null,
             dependencyGraph = PushDependencyGraph(mapOf(42 to setOf(7))),
             monitorId = 42,
-            dependencyStatuses = mapOf(7 to 0),
+            monitorStatuses = mapOf(7 to 0),
             nowMillis = NOW,
             zoneId = ZoneOffset.UTC,
         )
@@ -108,6 +108,31 @@ class PushEffectivePolicyTest {
         assertEquals(PushDownDelivery.DEPENDENCY_SUPPRESSED, policy.downDelivery)
         assertEquals(7, policy.dependencySuppression?.parentId)
         assertEquals(setOf(7), policy.dependencyParentIds)
+        assertNull(policy.scheduledAtMillis)
+    }
+
+    @Test
+    fun groupThresholdSuppressesAfterDependenciesAndBeforeDelay() {
+        val policy = PushEffectivePolicyResolver.resolve(
+            layers = emptyList(),
+            quietHours = quietOff,
+            eventPreferences = events,
+            setupCurrent = true,
+            providerAssigned = true,
+            notificationsAllowed = true,
+            snoozedUntilMillis = null,
+            groupAlertRules = PushGroupAlertRules(
+                mapOf(10 to PushGroupAlertRule(10, setOf(41, 42, 43), requiredDown = 2)),
+            ),
+            monitorId = 42,
+            monitorStatuses = mapOf(41 to 1, 42 to 0, 43 to null),
+            nowMillis = NOW,
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(PushDownDelivery.GROUP_THRESHOLD_SUPPRESSED, policy.downDelivery)
+        assertEquals(10, policy.groupAlertEvaluation?.groupId)
+        assertEquals(1, policy.groupAlertEvaluation?.downCount)
         assertNull(policy.scheduledAtMillis)
     }
 

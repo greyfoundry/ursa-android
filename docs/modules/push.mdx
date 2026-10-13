@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-29
+last-updated: 2026-10-13
 owner: astoris
 status: stable
 ---
@@ -36,6 +36,9 @@ connection: push works while the app is closed.
   hours, and snooze timing.
 - `.../core/push/PushDependencyStore.kt` - encrypted, versioned per-server
   dependency graph with bounded multi-parent rules and cycle-safe evaluation.
+- `.../core/push/PushGroupAlertStore.kt` - encrypted, versioned per-server
+  N-of-M rules over the current managed children of a Kuma group, with bounded
+  validation and delivery-time evaluation.
 - `.../core/push/ManagedPushScopeStore.kt` - encrypted, versioned binding from a
   managed provider's random server scope to the exact saved connection and a
   bounded lightweight monitor directory, plus the pure unknown-provider/monitor
@@ -142,6 +145,13 @@ connection: push works while the app is closed.
   appended to encrypted local history. Delayed and repeated alerts re-check the
   graph at delivery time. Unknown and legacy payloads never use dependency rules,
   preserving the released immediate-delivery behavior.
+- Group thresholds are a separate opt-in device policy, not a Kuma feature. A
+  rule snapshots the current managed-push children of one Kuma group and requires
+  2..M of them to be last received as Down before a child Down alert is delivered.
+  Recovery and maintenance remain unchanged. Rules reconcile to current group and
+  provider membership when setup is refreshed, corrupt or stale rules fail open,
+  and delayed/repeated work rechecks the threshold before delivery. The policy
+  explanation and encrypted event history show the bounded group/count evidence.
 - Locally bound managed alerts share a stable group derived from a hash of the
   random server scope. The first alert posts immediately without a summary. A
   second active alert adds one Android inbox summary with at most five sanitized,

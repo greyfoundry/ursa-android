@@ -124,6 +124,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val stormCorrelationEnabled by vm.pushStormCorrelationEnabled.collectAsStateWithLifecycle()
     val dependencyGraph by vm.pushDependencyGraph.collectAsStateWithLifecycle()
     val dependencyStatuses by vm.pushDependencyStatuses.collectAsStateWithLifecycle()
+    val groupAlertRules by vm.pushGroupAlertRules.collectAsStateWithLifecycle()
     val quietHours by vm.pushQuietHours.collectAsStateWithLifecycle()
     val eventPreferences by vm.pushEventPreferences.collectAsStateWithLifecycle()
     val overallStatusEnabled by vm.overallStatusEnabled.collectAsStateWithLifecycle()
@@ -138,6 +139,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var severityMonitorId by remember { mutableStateOf<Int?>(null) }
     var timingMonitorId by remember { mutableStateOf<Int?>(null) }
     var dependencyMonitorId by remember { mutableStateOf<Int?>(null) }
+    var groupAlertGroupId by remember { mutableStateOf<Int?>(null) }
     var policyMonitorId by remember { mutableStateOf<Int?>(null) }
     var diagnosticNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
@@ -768,6 +770,63 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             }
                             HorizontalDivider()
                             Text(
+                                stringResource(R.string.push_group_alerts_title),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                stringResource(R.string.push_group_alerts_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            val managedMembersByGroup = monitors.asSequence()
+                                .filter { it.type != "group" && it.id in setup.selectedMonitorIds }
+                                .mapNotNull { child -> child.parentId?.let { it to child.id } }
+                                .groupBy({ it.first }, { it.second })
+                            val managedGroups = monitors.filter {
+                                it.type == "group" && managedMembersByGroup[it.id].orEmpty().size >= 2
+                            }
+                            if (!setup.configurationCurrent) {
+                                Text(
+                                    stringResource(R.string.push_alert_modes_update_needed),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else if (managedGroups.isEmpty()) {
+                                Text(
+                                    stringResource(R.string.push_group_alerts_empty),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                managedGroups.forEach { group ->
+                                    val memberCount = managedMembersByGroup[group.id].orEmpty().size
+                                    val rule = groupAlertRules.byGroupId[group.id]
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(group.name)
+                                            Text(
+                                                if (rule == null) stringResource(R.string.push_group_alert_off)
+                                                else stringResource(
+                                                    R.string.push_group_alert_summary,
+                                                    rule.requiredDown,
+                                                    memberCount,
+                                                ),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        TextButton(onClick = { groupAlertGroupId = group.id }) {
+                                            Text(stringResource(R.string.action_configure))
+                                        }
+                                    }
+                                }
+                            }
+                            HorizontalDivider()
+                            Text(
                                 stringResource(R.string.push_alert_modes_title),
                                 style = MaterialTheme.typography.titleSmall,
                             )
@@ -1077,6 +1136,28 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             onDismiss = { dependencyMonitorId = null },
         )
     }
+    val groupAlertGroup = groupAlertGroupId?.let { id -> monitors.firstOrNull { it.id == id && it.type == "group" } }
+    if (groupAlertGroup != null) {
+        val ready = kumaSetup as? KumaPushSetupUiState.Ready
+        val members = monitors.filter {
+            it.type != "group" && it.parentId == groupAlertGroup.id &&
+                it.id in ready?.selectedMonitorIds.orEmpty()
+        }
+        PushGroupAlertDialog(
+            groupName = groupAlertGroup.name,
+            memberCount = members.size,
+            initialRequiredDown = groupAlertRules.byGroupId[groupAlertGroup.id]?.requiredDown,
+            onSave = { requiredDown ->
+                if (vm.setPushGroupAlert(groupAlertGroup.id, requiredDown)) {
+                    groupAlertGroupId = null
+                    true
+                } else {
+                    false
+                }
+            },
+            onDismiss = { groupAlertGroupId = null },
+        )
+    }
     val policyMonitor = policyMonitorId?.let { id -> monitors.firstOrNull { it.id == id } }
     if (policyMonitor != null) {
         val mode = alertModes[policyMonitor.id] ?: PushAlertMode.ALL_TRANSITIONS
@@ -1100,8 +1181,9 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             notificationsAllowed = granted && NotificationManagerCompat.from(context).areNotificationsEnabled(),
             snoozedUntilMillis = snoozes[policyMonitor.id],
             dependencyGraph = dependencyGraph,
+            groupAlertRules = groupAlertRules,
             monitorId = policyMonitor.id,
-            dependencyStatuses = dependencyStatuses,
+            monitorStatuses = dependencyStatuses,
         )
         PushEffectivePolicyDialog(
             monitorName = policyMonitor.name,
@@ -1205,6 +1287,10 @@ private fun PushEffectivePolicyDialog(
                     policy.dependencySummary(monitorNames),
                 )
                 DiagnosticRow(
+                    stringResource(R.string.push_policy_group_threshold),
+                    policy.groupAlertSummary(monitorNames),
+                )
+                DiagnosticRow(
                     stringResource(R.string.push_policy_grouping),
                     stringResource(
                         if (stormCorrelationEnabled) R.string.push_policy_grouping_correlation
@@ -1220,6 +1306,78 @@ private fun PushEffectivePolicyDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
+        },
+    )
+}
+
+@Composable
+private fun PushGroupAlertDialog(
+    groupName: String,
+    memberCount: Int,
+    initialRequiredDown: Int?,
+    onSave: (Int?) -> Boolean,
+    onDismiss: () -> Unit,
+) {
+    var enabled by remember(groupName, initialRequiredDown) { mutableStateOf(initialRequiredDown != null) }
+    var requiredDown by remember(groupName, initialRequiredDown, memberCount) {
+        mutableStateOf((initialRequiredDown ?: 2).coerceIn(2, memberCount.coerceAtLeast(2)))
+    }
+    var saveRejected by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.push_group_alert_dialog_title, groupName)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.push_group_alert_dialog_desc, memberCount))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = enabled,
+                            role = Role.Checkbox,
+                            onValueChange = {
+                                enabled = it
+                                saveRejected = false
+                            },
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = enabled, onCheckedChange = null)
+                    Text(stringResource(R.string.push_group_alert_enable))
+                }
+                if (enabled) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        TextButton(
+                            enabled = requiredDown > 2,
+                            onClick = { requiredDown--; saveRejected = false },
+                        ) { Text("−") }
+                        Text(stringResource(R.string.push_group_alert_summary, requiredDown, memberCount))
+                        TextButton(
+                            enabled = requiredDown < memberCount,
+                            onClick = { requiredDown++; saveRejected = false },
+                        ) { Text("+") }
+                    }
+                }
+                if (saveRejected) {
+                    Text(
+                        stringResource(R.string.push_group_alert_save_error),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = memberCount >= 2,
+                onClick = { saveRejected = !onSave(requiredDown.takeIf { enabled }) },
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -1477,6 +1635,15 @@ private fun PushEffectivePolicy.downSummary(monitorNames: Map<Int, String>): Str
         dependencySuppression?.parentId?.let(monitorNames::get)
             ?: stringResource(R.string.push_dependency_unknown_parent),
     )
+    PushDownDelivery.GROUP_THRESHOLD_SUPPRESSED -> groupAlertEvaluation?.let { evaluation ->
+        stringResource(
+            R.string.push_policy_down_group_threshold_suppressed,
+            evaluation.downCount,
+            evaluation.memberCount,
+            monitorNames[evaluation.groupId] ?: stringResource(R.string.push_dependency_unknown_parent),
+            evaluation.requiredDown,
+        )
+    } ?: stringResource(R.string.push_policy_down_immediate)
     PushDownDelivery.DELAYED -> stringResource(
         R.string.push_policy_down_delayed,
         scheduledAtMillis.diagnosticTimeOrNever(),
@@ -1501,6 +1668,18 @@ private fun PushEffectivePolicy.dependencySummary(monitorNames: Map<Int, String>
     )
     else -> stringResource(R.string.push_policy_dependencies_default)
 }
+
+@Composable
+private fun PushEffectivePolicy.groupAlertSummary(monitorNames: Map<Int, String>): String =
+    groupAlertEvaluation?.let { evaluation ->
+        stringResource(
+            R.string.push_policy_group_threshold_value,
+            monitorNames[evaluation.groupId] ?: stringResource(R.string.push_dependency_unknown_parent),
+            evaluation.requiredDown,
+            evaluation.memberCount,
+            evaluation.downCount,
+        )
+    } ?: stringResource(R.string.push_group_alert_off)
 
 private val Int?.dependencyStatusLabelRes: Int
     get() = when (this) {

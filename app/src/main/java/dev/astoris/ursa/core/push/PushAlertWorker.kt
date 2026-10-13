@@ -39,6 +39,21 @@ class PushAlertWorker(context: Context, params: WorkerParameters) : CoroutineWor
             )
             return Result.success()
         }
+        val groupEvaluation = scope?.let {
+            PushGroupAlertStore(applicationContext).evaluation(alert.serverId, alert.monitorId)
+        }
+        if (scope != null && groupEvaluation?.suppressed == true) {
+            store.removeActive(alert.serverId, alert.monitorId)
+            recordPushGroupAlertSuppression(
+                applicationContext,
+                scope,
+                alert.monitorId,
+                alert.monitorName,
+                groupEvaluation,
+                alert.id,
+            )
+            return Result.success()
+        }
         val deliverySeverity = PushQuietHoursPolicy.effectiveSeverity(
             alert.severity,
             PushQuietHoursStore(applicationContext).load(),

@@ -84,6 +84,30 @@ data class BulkMonitorUpdateResult(
     val failedIds: Set<Int>,
 )
 
+data class MonitorGroupPlan(
+    val name: String,
+    val childIds: Set<Int>,
+) {
+    companion object {
+        fun create(name: String, childIds: Set<Int>): MonitorGroupPlan? {
+            val normalizedName = name.trim()
+            if (normalizedName.isEmpty() || childIds.size > MAX_CHILDREN || childIds.any { it <= 0 }) return null
+            return MonitorGroupPlan(normalizedName, childIds.toSortedSet())
+        }
+
+        private const val MAX_CHILDREN = 1_000
+    }
+}
+
+data class MonitorGroupMutationResult(
+    val groupId: Int? = null,
+    val succeededIds: Set<Int> = emptySet(),
+    val failedIds: Set<Int> = emptySet(),
+    val message: String? = null,
+) {
+    val groupCreated: Boolean get() = groupId != null
+}
+
 /**
  * Single source of truth for the UI. Owns the active [KumaClient], bridges it to the
  * persisted [ConnectionStore], and exposes monitors/state as StateFlows that follow
@@ -514,6 +538,69 @@ class MonitorRepository(
             if (ok) succeeded += id else failed += id
         }
         BulkMonitorUpdateResult(succeeded, failed)
+    }
+
+    suspend fun createMonitorGroup(name: String, childIds: Set<Int>): MonitorGroupMutationResult {
+        val plan = MonitorGroupPlan.create(name, childIds)
+            ?: return MonitorGroupMutationResult(failedIds = childIds, message = "Enter a group name and valid children")
+        val unavailable = MonitorGroupMutationResult(failedIds = plan.childIds, message = "Server unavailable")
+        val denied = MonitorGroupMutationResult(
+            failedIds = plan.childIds,
+            message = "Action not allowed for this connection",
+        )
+        val required = if (plan.childIds.isEmpty()) {
+            setOf(AccessCapability.MONITOR_CREATE)
+        } else {
+            setOf(
+                AccessCapability.MONITOR_CREATE,
+                AccessCapability.MONITOR_EDIT,
+                AccessCapability.BULK_WRITE,
+            )
+        }
+        return guardedMutation(required, unavailable, denied) { client ->
+            val created = client.saveMonitor(MonitorDraft.create("group").copy(name = plan.name))
+            val groupId = created.monitorId?.takeIf { created.ok && it > 0 }
+                ?: return@guardedMutation unavailable.copy(message = created.message ?: "Group could not be created")
+            assignMonitorsToGroup(client, groupId, plan.childIds)
+        }
+    }
+
+    suspend fun assignMonitorsToGroup(groupId: Int, childIds: Set<Int>): MonitorGroupMutationResult {
+        val plan = MonitorGroupPlan.create("existing", childIds)
+            ?: return MonitorGroupMutationResult(groupId, failedIds = childIds, message = "Invalid child selection")
+        val unavailable = MonitorGroupMutationResult(groupId, failedIds = plan.childIds, message = "Server unavailable")
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_EDIT, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable.copy(message = "Action not allowed for this connection"),
+        ) { client ->
+            if (groupId <= 0) unavailable.copy(message = "Group is unavailable")
+            else assignMonitorsToGroup(client, groupId, plan.childIds)
+        }
+    }
+
+    private suspend fun assignMonitorsToGroup(
+        client: KumaClient,
+        groupId: Int,
+        childIds: Set<Int>,
+    ): MonitorGroupMutationResult {
+        val succeeded = linkedSetOf<Int>()
+        val failed = linkedSetOf<Int>()
+        childIds.forEach { id ->
+            val draft = client.monitorDraft(id)
+            when {
+                draft == null || draft.type == "group" || id == groupId -> failed += id
+                draft.parentId == groupId -> succeeded += id
+                client.saveMonitor(draft.copy(parentId = groupId)).ok -> succeeded += id
+                else -> failed += id
+            }
+        }
+        return MonitorGroupMutationResult(
+            groupId = groupId,
+            succeededIds = succeeded,
+            failedIds = failed,
+            message = "Some monitors could not be moved".takeIf { failed.isNotEmpty() },
+        )
     }
     suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
     suspend fun serverTags(): List<KumaTag>? = activeClient.value?.serverTags()

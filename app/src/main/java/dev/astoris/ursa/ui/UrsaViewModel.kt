@@ -42,6 +42,9 @@ import dev.astoris.ursa.core.push.PushEventPreferencesStore
 import dev.astoris.ursa.core.push.PushDependencyGraph
 import dev.astoris.ursa.core.push.PushDependencyPolicy
 import dev.astoris.ursa.core.push.PushDependencyStore
+import dev.astoris.ursa.core.push.PushGroupAlertPolicy
+import dev.astoris.ursa.core.push.PushGroupAlertRules
+import dev.astoris.ursa.core.push.PushGroupAlertStore
 import dev.astoris.ursa.core.push.PushTransitionStore
 import dev.astoris.ursa.core.push.OverallStatusService
 import dev.astoris.ursa.core.push.OverallStatusStore
@@ -111,6 +114,7 @@ import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.model.StatusIncidentView
 import dev.astoris.ursa.data.repository.MonitorRepository
 import dev.astoris.ursa.data.repository.BulkMonitorUpdateResult
+import dev.astoris.ursa.data.repository.MonitorGroupMutationResult
 import dev.astoris.ursa.data.repository.FleetRepository
 import dev.astoris.ursa.data.repository.mergeActiveFleetSnapshot
 import org.unifiedpush.android.connector.UnifiedPush
@@ -389,6 +393,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val kumaPushTestSending: StateFlow<Boolean> = _kumaPushTestSending.asStateFlow()
     private val pushAlertModeStore = PushAlertModeStore(app)
     private val pushDependencyStore = PushDependencyStore(app)
+    private val pushGroupAlertStore = PushGroupAlertStore(app)
     private val pushTransitionStore = PushTransitionStore(app)
     private val _pushAlertModes = MutableStateFlow<Map<Int, PushAlertMode>>(emptyMap())
     val pushAlertModes: StateFlow<Map<Int, PushAlertMode>> = _pushAlertModes.asStateFlow()
@@ -404,6 +409,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val pushDependencyGraph: StateFlow<PushDependencyGraph> = _pushDependencyGraph.asStateFlow()
     private val _pushDependencyStatuses = MutableStateFlow<Map<Int, Int?>>(emptyMap())
     val pushDependencyStatuses: StateFlow<Map<Int, Int?>> = _pushDependencyStatuses.asStateFlow()
+    private val _pushGroupAlertRules = MutableStateFlow(PushGroupAlertRules())
+    val pushGroupAlertRules: StateFlow<PushGroupAlertRules> = _pushGroupAlertRules.asStateFlow()
     private val pushQuietHoursStore = PushQuietHoursStore(app)
     private val _pushQuietHours = MutableStateFlow(pushQuietHoursStore.load())
     val pushQuietHours: StateFlow<PushQuietHours> = _pushQuietHours.asStateFlow()
@@ -831,6 +838,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     scope.monitors.forEach { PushAlertWorker.cancel(getApplication(), scope.serverId, it.id) }
                     pushAlertModeStore.clearServer(scope.serverId)
                     pushDependencyStore.clearServer(scope.serverId)
+                    pushGroupAlertStore.clearServer(scope.serverId)
                     pushTransitionStore.clearServer(scope.serverId)
                 }
             }
@@ -865,15 +873,31 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         onResult(result)
     }
 
-    fun createMonitor() {
+    fun createMonitor(parentId: Int? = null) {
         _monitorEditor.value = MonitorEditorUiState.Loading
         viewModelScope.launch {
             val tags = async { repo.serverTags().orEmpty() }
             val games = async { repo.gameTypes().orEmpty() }
             _serverTags.value = tags.await()
-            _monitorEditor.value = MonitorEditorUiState.Ready(repo.newMonitorDraft())
+            _monitorEditor.value = MonitorEditorUiState.Ready(repo.newMonitorDraft().copy(parentId = parentId))
             _gameTypes.value = games.await()
         }
+    }
+
+    fun createMonitorGroup(
+        name: String,
+        childIds: Set<Int>,
+        onResult: (MonitorGroupMutationResult) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.createMonitorGroup(name, childIds))
+    }
+
+    fun retryMonitorGroupAssignments(
+        groupId: Int,
+        childIds: Set<Int>,
+        onResult: (MonitorGroupMutationResult) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.assignMonitorsToGroup(groupId, childIds))
     }
 
     fun editMonitor(id: Int) {
@@ -1382,6 +1406,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _pushSnoozes.value = emptyMap()
         _pushDependencyGraph.value = PushDependencyGraph()
         _pushDependencyStatuses.value = emptyMap()
+        _pushGroupAlertRules.value = PushGroupAlertRules()
     }
 
     fun testLocalPushNotification() {
@@ -1422,6 +1447,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushStormCorrelationEnabled.value = false
             _pushDependencyGraph.value = PushDependencyGraph()
             _pushDependencyStatuses.value = emptyMap()
+            _pushGroupAlertRules.value = PushGroupAlertRules()
             return
         }
         val deliveryUrl = KumaWebhook.deliveryUrl(endpoint, pushDistributor.value) ?: run {
@@ -1433,6 +1459,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushStormCorrelationEnabled.value = false
             _pushDependencyGraph.value = PushDependencyGraph()
             _pushDependencyStatuses.value = emptyMap()
+            _pushGroupAlertRules.value = PushGroupAlertRules()
             return
         }
         viewModelScope.launch {
@@ -1448,6 +1475,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _pushStormCorrelationEnabled.value = false
                 _pushDependencyGraph.value = PushDependencyGraph()
                 _pushDependencyStatuses.value = emptyMap()
+                _pushGroupAlertRules.value = PushGroupAlertRules()
                 return@launch
             }
             val notification = snapshot.notification
@@ -1473,6 +1501,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSnoozes.value = pushAlertModeStore.snoozes(serverId, ids)
             _pushStormCorrelationEnabled.value = pushAlertModeStore.stormCorrelationEnabled(serverId)
             loadPushDependencies(serverId, selectedIds)
+            loadPushGroupAlerts(serverId, selectedIds)
         }
     }
 
@@ -1516,6 +1545,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushSnoozes.value = pushAlertModeStore.snoozes(result.serverId, ids)
             _pushStormCorrelationEnabled.value = pushAlertModeStore.stormCorrelationEnabled(result.serverId)
             loadPushDependencies(result.serverId, effectiveSelectedIds)
+            loadPushGroupAlerts(result.serverId, effectiveSelectedIds)
         }
     }
 
@@ -1528,6 +1558,21 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         if (serverId != null && safeGraph != loaded) pushDependencyStore.save(serverId, safeGraph, validIds)
         _pushDependencyGraph.value = safeGraph
         _pushDependencyStatuses.value = pushTransitionStore.statuses(serverId, validIds)
+    }
+
+    private fun loadPushGroupAlerts(serverId: String?, validIds: Set<Int>) {
+        val loaded = pushGroupAlertStore.load(serverId)
+        val safe = PushGroupAlertPolicy.reconciled(loaded, managedGroupMembers(validIds))
+        if (serverId != null && safe != loaded) pushGroupAlertStore.save(serverId, safe)
+        _pushGroupAlertRules.value = safe
+    }
+
+    private fun managedGroupMembers(validIds: Set<Int>): Map<Int, Set<Int>> {
+        val groupIds = monitors.value.filter { it.type == "group" }.mapTo(mutableSetOf(), Monitor::id)
+        return monitors.value.asSequence()
+            .filter { it.id in validIds && it.type != "group" && it.parentId?.let(groupIds::contains) == true }
+            .groupBy { requireNotNull(it.parentId) }
+            .mapValues { (_, children) -> children.mapTo(sortedSetOf(), Monitor::id) }
     }
 
     fun refreshPushDependencyStatuses() {
@@ -1545,6 +1590,22 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             ?: return false
         if (!pushDependencyStore.save(serverId, updated, validIds)) return false
         _pushDependencyGraph.value = updated
+        return true
+    }
+
+    fun setPushGroupAlert(groupId: Int, requiredDown: Int?): Boolean {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return false
+        if (!setup.configurationCurrent) return false
+        val serverId = setup.serverId ?: return false
+        val memberIds = managedGroupMembers(setup.selectedMonitorIds)[groupId].orEmpty()
+        val updated = PushGroupAlertPolicy.updated(
+            _pushGroupAlertRules.value,
+            groupId,
+            memberIds,
+            requiredDown,
+        ) ?: return false
+        if (!pushGroupAlertStore.save(serverId, updated)) return false
+        _pushGroupAlertRules.value = updated
         return true
     }
 
@@ -1624,6 +1685,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 pushAlertModeStore.clearServer(serverId)
                 pushDependencyStore.clearServer(serverId)
+                pushGroupAlertStore.clearServer(serverId)
                 managedPushScopeStore.remove(serverId)
                 pushTransitionStore.clearServer(serverId)
                 _pushAlertModes.value = emptyMap()
@@ -1633,6 +1695,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _pushStormCorrelationEnabled.value = false
                 _pushDependencyGraph.value = PushDependencyGraph()
                 _pushDependencyStatuses.value = emptyMap()
+                _pushGroupAlertRules.value = PushGroupAlertRules()
                 refreshKumaPushSetup()
             }
             else _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.DELETE_FAILED)

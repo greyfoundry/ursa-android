@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-09
+last-updated: 2026-10-13
 owner: astoris
 status: stable
 ---
@@ -49,7 +49,7 @@ route stack while screens migrate incrementally.
 - `.../ui/browse/BrowseScreen.kt` - sectioned catalogue for existing secondary
   operations, insights/reports, and management surfaces. It reuses maintenance,
   status-page, notification, certificate, domain, event, aggregate, live-panel,
-  monitor-view, encrypted monitor-preset, connection, and settings flows instead
+  monitor-view, encrypted monitor-preset, group-wizard, connection, and settings flows instead
   of duplicating them.
   `BrowseSearch.kt` ranks a bounded local metadata index over monitor/group/tag,
   observed-incident, maintenance, saved-page, server, saved-view, and tool names.
@@ -109,6 +109,10 @@ route stack while screens migrate incrementally.
 - `.../ui/monitors/MonitorPresetsScreen.kt` - local encrypted credential-free
   monitor templates under Browse/Manage. Presets can be reopened as inactive new
   drafts or deleted with confirmation; creation remains access- and version-gated.
+- `.../ui/monitors/MonitorGroupWizardScreen.kt` - access-gated Kuma group creation
+  with existing-child selection, an exact preview, sequential assignment, named
+  partial failures, retry of failed assignments only, and a continuation into the
+  existing monitor editor with the new group preselected.
 - `.../ui/monitors/KioskScreen.kt` - opt-in fleet glance display with a bounded
   attention-first list, status counts, cached-data age, and a visible exit action.
   It keeps the screen awake only while composed and does not enter Android lock-task
@@ -209,7 +213,7 @@ route stack while screens migrate incrementally.
   to their validated server or page.
 - Notifications exposes a per-monitor explanation of the effective alert mode,
   severity, timing, quiet hours, snooze, recovery/maintenance behavior, assignment,
-  dependency state, and current Android delivery blockers. Assigned managed
+  dependency state, optional group N-of-M threshold, and current Android delivery blockers. Assigned managed
   monitors can select multiple local parents in a cycle-safe editor; the current
   last-received status and exact suppressing parent remain visible. Per-monitor
   actions use compact wrapping rows rather than a tall trailing column. The editor

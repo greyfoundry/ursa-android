@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-09
+last-updated: 2026-10-13
 owner: astoris
 status: in-flux
 ---
@@ -310,6 +310,12 @@ Because Kuma's Webhook payload has no origin authentication, anyone who obtains
 both the delivery endpoint and the managed random scope could forge local status
 and influence opt-in suppression. Scope binding prevents endpoint-only or legacy
 messages from doing so; push input never authorizes a remote server mutation.
+Local group-threshold rules use the same encrypted scope and retain only a Kuma
+group ID, bounded managed child IDs, and the required Down count. They reconcile
+against the current authenticated group/provider membership whenever managed setup
+is refreshed. Invalid, overlapping, stale, or unreadable rules fail open rather
+than suppressing an alert. They never contain names, URLs, endpoints, credentials,
+headers, or notification content.
 Delayed/repeating rendered alerts can contain infrastructure
 detail, so
 they are encrypted with the same Keystore-backed Tink AEAD as other private local

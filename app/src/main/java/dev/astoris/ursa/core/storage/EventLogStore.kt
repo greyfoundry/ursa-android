@@ -88,6 +88,7 @@ object LocalEventCodec {
         "EVENT_PREFERENCE",
         "DUPLICATE",
         "DEPENDENCY",
+        "GROUP_THRESHOLD",
         "NOTIFICATION_PERMISSION",
         "APP_NOTIFICATIONS_DISABLED",
         "CHANNEL_DISABLED",

@@ -222,6 +222,20 @@ class UrsaPushService : PushService() {
                 }
                 return
             }
+            val groupEvaluation = PushGroupAlertStore(this).evaluation(serverId, monitorId, transitionStore)
+            if (groupEvaluation?.suppressed == true) {
+                timelineScope.launch {
+                    recordPushGroupAlertSuppression(
+                        this@UrsaPushService,
+                        boundScope,
+                        monitorId,
+                        enriched.monitorName,
+                        groupEvaluation,
+                        alertId,
+                    )
+                }
+                return
+            }
         }
         val quietSeverity = if (deliveryTest) configuredSeverity else PushQuietHoursPolicy.effectiveSeverity(
             configuredSeverity,

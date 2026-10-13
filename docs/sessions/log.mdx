@@ -9,6 +9,32 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-13 - Group wizard and local N-of-M alert thresholds
+
+**changed**: Added an access- and version-gated group wizard under Browse/Manage.
+It creates one Kuma group, optionally moves reviewed existing monitors into it
+sequentially, reports named partial failures, retries only failed assignments, and
+can continue into the existing monitor editor with the new group preselected.
+Added an opt-in local N-of-M policy for managed UnifiedPush children of a Kuma
+group. It gates only child Down alerts on this device; Kuma behavior, recovery,
+and maintenance events remain unchanged.
+
+**security and compatibility**: Threshold rules are versioned, bounded, encrypted
+under the existing random server scope, and contain only group/member IDs and the
+required count. Invalid, corrupt, overlapping, or stale rules fail open and rules
+reconcile to current authenticated group/provider membership. Delayed and repeated
+alerts recheck the threshold before delivery. Group mutations reuse the existing
+central access-policy and full-object monitor-save boundaries.
+
+**verification**: Focused policy, codec, event-log, plan, and effective-policy
+tests pass. Android 17/live Kuma 2.5.5 QA covered exact preview, creation, two child
+assignments, editor continuation with the group preselected, threshold setup,
+process-death persistence, rule removal, child restoration, and safe group deletion.
+The server returned to its original five-monitor baseline. Android logged no URSA
+crash or ANR; Kuma logged only the expected TLS fixture failures and temporary group
+state. The complete 198-task two-flavor phone/Wear unit, lint, and assemble gate
+passes.
+
 ### 2026-10-12 - Uptime Kuma 2.5.6 compatibility
 
 **changed**: Extended the stable write-verified Kuma range through 2.5.6 and

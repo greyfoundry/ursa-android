@@ -36,6 +36,23 @@ class EventLogStoreTest {
     }
 
     @Test
+    fun groupThresholdSuppressionReasonSurvivesNormalization() {
+        val now = 2_000_000_000_000L
+        val event = LocalEvent(
+            id = "group-threshold",
+            monitorName = "API",
+            kind = LocalEventKind.PUSH_SUPPRESSED,
+            atMillis = now,
+            alertDecision = LocalAlertDecision(outcome = "SUPPRESSED", reason = "GROUP_THRESHOLD"),
+        )
+
+        assertEquals(
+            "GROUP_THRESHOLD",
+            LocalEventCodec.normalized(listOf(event), now).single().alertDecision?.reason,
+        )
+    }
+
+    @Test
     fun normalizationBoundsAlertDecisionAndRejectsInvalidOpaqueId() {
         val now = 2_000_000_000_000L
         val event = LocalEvent(

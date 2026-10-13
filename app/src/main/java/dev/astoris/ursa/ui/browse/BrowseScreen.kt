@@ -52,6 +52,7 @@ import dev.astoris.ursa.ui.monitors.CertificateDashboard
 import dev.astoris.ursa.ui.monitors.DomainDashboard
 import dev.astoris.ursa.ui.monitors.FleetAggregateDashboard
 import dev.astoris.ursa.ui.monitors.GlobalEventLog
+import dev.astoris.ursa.ui.monitors.MonitorGroupWizardScreen
 import dev.astoris.ursa.ui.monitors.MaintenanceScreen
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import dev.astoris.ursa.ui.monitors.MonitorPresetsScreen
@@ -71,6 +72,7 @@ internal enum class BrowseTool {
     FLEET,
     LIVE,
     PRESETS,
+    GROUPS,
     SETTINGS,
 }
 
@@ -176,6 +178,13 @@ fun BrowseScreen(
             stringResource(R.string.monitor_presets_title),
             stringResource(R.string.browse_monitor_presets_desc),
             BrowseSearchAction.Tool(BrowseTool.PRESETS),
+        ),
+        BrowseCatalogEntry(
+            BrowseSection.MANAGE,
+            "monitor-groups",
+            stringResource(R.string.monitor_group_wizard_title),
+            stringResource(R.string.browse_monitor_groups_desc),
+            BrowseSearchAction.Tool(BrowseTool.GROUPS),
         ),
         BrowseCatalogEntry(
             BrowseSection.MANAGE,
@@ -306,6 +315,7 @@ fun BrowseScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
                 BrowseTool.PRESETS -> MonitorPresetsScreen(vm, close, Modifier.fillMaxSize())
+                BrowseTool.GROUPS -> MonitorGroupWizardScreen(vm, close, Modifier.fillMaxSize())
             }
         }
     }
