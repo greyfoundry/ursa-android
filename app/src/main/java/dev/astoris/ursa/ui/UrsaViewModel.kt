@@ -118,6 +118,9 @@ import dev.astoris.ursa.data.repository.BulkMonitorEdit
 import dev.astoris.ursa.data.repository.BulkMonitorEditPreview
 import dev.astoris.ursa.data.repository.BulkMonitorEditResult
 import dev.astoris.ursa.data.repository.MonitorGroupMutationResult
+import dev.astoris.ursa.data.repository.MonitorImportApplyResult
+import dev.astoris.ursa.core.network.MonitorImportPreview
+import dev.astoris.ursa.core.network.MonitorImportRow
 import dev.astoris.ursa.data.repository.FleetRepository
 import dev.astoris.ursa.data.repository.mergeActiveFleetSnapshot
 import org.unifiedpush.android.connector.UnifiedPush
@@ -154,6 +157,11 @@ sealed interface ConnectionTestUiState {
     data object NeedsTwoFactor : ConnectionTestUiState
     data class Error(val message: String) : ConnectionTestUiState
 }
+
+data class MonitorImportUiState(
+    val preview: MonitorImportPreview? = null,
+    val result: MonitorImportApplyResult? = null,
+)
 
 data class FleetHomeUiState(
     val snapshot: FleetSnapshot? = null,
@@ -351,6 +359,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private val _monitorEditor = MutableStateFlow<MonitorEditorUiState>(MonitorEditorUiState.Idle)
     val monitorEditor: StateFlow<MonitorEditorUiState> = _monitorEditor.asStateFlow()
+    private val _monitorImport = MutableStateFlow(MonitorImportUiState())
+    val monitorImport: StateFlow<MonitorImportUiState> = _monitorImport.asStateFlow()
     val localServiceDiscoveryState = localServiceDiscovery.state
 
     private val _beats = MutableStateFlow<List<Heartbeat>>(emptyList())
@@ -971,6 +981,37 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _gameTypes.value = games?.await().orEmpty()
             if (draft?.type == "pm2") refreshPm2Processes()
         }
+    }
+
+    fun reviewImportedMonitor(draft: MonitorDraft) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val tags = async { repo.serverTags().orEmpty() }
+            val games = draft.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = MonitorEditorUiState.Ready(draft)
+            _gameTypes.value = games?.await().orEmpty()
+            if (draft.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun importMonitors(
+        rows: List<MonitorImportRow>,
+        onResult: (MonitorImportApplyResult) -> Unit,
+    ) = viewModelScope.launch {
+        val result = repo.importMonitors(rows)
+        _monitorImport.value = _monitorImport.value.copy(result = result)
+        onResult(result)
+    }
+
+    fun setMonitorImportPreview(preview: MonitorImportPreview?) {
+        _monitorImport.value = MonitorImportUiState(preview = preview)
+    }
+
+    fun clearMonitorImport() {
+        _monitorImport.value = MonitorImportUiState()
     }
 
     fun saveMonitorPreset(draft: MonitorDraft, title: String, onResult: (Boolean) -> Unit = {}) {

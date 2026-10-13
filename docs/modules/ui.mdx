@@ -49,7 +49,8 @@ route stack while screens migrate incrementally.
 - `.../ui/browse/BrowseScreen.kt` - sectioned catalogue for existing secondary
   operations, insights/reports, and management surfaces. It reuses maintenance,
   status-page, notification, certificate, domain, event, aggregate, live-panel,
-  monitor-view, encrypted monitor-preset, group-wizard, connection, and settings flows instead
+  monitor-view, encrypted monitor-preset, group-wizard, validated monitor-import,
+  connection, and settings flows instead
   of duplicating them.
   `BrowseSearch.kt` ranks a bounded local metadata index over monitor/group/tag,
   observed-incident, maintenance, saved-page, server, saved-view, and tool names.
@@ -115,6 +116,11 @@ route stack while screens migrate incrementally.
   with existing-child selection, an exact preview, sequential assignment, named
   partial failures, retry of failed assignments only, and a continuation into the
   existing monitor editor with the new group preselected.
+- `.../ui/monitors/MonitorImportScreen.kt` - access-gated CSV/tab-delimited dry run
+  under Browse/Manage. It shows ready, review-required, duplicate, unsupported, and
+  invalid rows before any write; only safe rows are created automatically. Review
+  rows reuse the existing editor and retain the current dry run when returning.
+  Partial results require reloading the source so duplicate detection is fresh.
 - `.../ui/monitors/KioskScreen.kt` - opt-in fleet glance display with a bounded
   attention-first list, status counts, cached-data age, and a visible exit action.
   It keeps the screen awake only while composed and does not enter Android lock-task

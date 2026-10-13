@@ -9,6 +9,29 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-13 - Validated monitor import
+
+**changed**: Added an access-gated CSV/tab-delimited monitor-import dry run under
+Browse/Manage. The bounded parser accepts only documented non-secret common fields,
+checks the connected server's create-verified editor registry, and classifies every
+row as ready, review required, duplicate, unsupported, or invalid. Ready rows are
+created sequentially as inactive and unassigned monitors; credential-bearing or
+incomplete specialist rows open the existing editor for explicit completion.
+
+**safety and recovery**: Documents are capped at 512 KiB, 500 rows, and bounded
+fields. Strict quoting, numeric parsing, a fixed header allowlist, required-name
+validation, and a second automatic-create guard fail closed. Dry-run state survives
+an editor round trip. Partial results are per source line and require reloading the
+file, which reruns duplicate detection before a retry.
+
+**verification**: Focused parser and automatic-create boundary tests pass. Android
+17/live Kuma 2.5.5 QA covered file selection, duplicate/invalid/review classification,
+credential editor handoff, dry-run restoration, one inactive safe create, process-
+death persistence, duplicate detection on re-import, and confirmed deletion back
+to the five-monitor baseline. Android logged no URSA crash or ANR; Kuma logged only
+the expected TLS fixture failures and the temporary monitor lifecycle. The complete
+198-task two-flavor phone/Wear unit, lint, and assemble gate passes.
+
 ### 2026-10-13 - Previewed common-field bulk editing
 
 **changed**: Extended the existing filter-scoped monitor selection flow with bulk

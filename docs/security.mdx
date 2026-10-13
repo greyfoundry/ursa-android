@@ -42,6 +42,10 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
   is parsed strictly against a live-tested capability matrix. Missing, malformed,
   prerelease, older, and newer values do not gain version-specific write schemas;
   SFTP writes require the verified 2.5.4-2.5.6 contract.
+- **Treat imported documents as untrusted input.** Monitor CSV/TXT import is
+  size/row/field bounded, uses a strict parser and header allowlist, rejects secret
+  and assignment columns, validates through the current server's editor registry,
+  and creates only inactive credential-free rows after an explicit dry run.
 
 ## MASVS coverage
 
@@ -62,7 +66,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 37 |
 | CODE-2 enforced updates | n/a | F-Droid/GitHub distribution; informational check only |
 | CODE-3 no vulnerable deps | met | pinned versions, Dependabot updates and alerts |
-| CODE-4 input validation | met | tolerant parsing isolated in `KumaParse` |
+| CODE-4 input validation | met | tolerant server parsing in `KumaParse`; strict bounded monitor-document parsing in `MonitorImport` |
 | RESILIENCE-1..4 | out of scope | deliberate - see below |
 | PRIVACY-1..4 | met | no collection, no third-party endpoints |
 

@@ -12,6 +12,9 @@ import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
+import dev.astoris.ursa.core.network.MonitorImportRow
+import dev.astoris.ursa.core.network.MonitorImportStatus
+import dev.astoris.ursa.core.network.safeAutomaticDraftOrNull
 import dev.astoris.ursa.core.network.PublicIncident
 import dev.astoris.ursa.core.network.PublicIncidentDraft
 import dev.astoris.ursa.core.network.PublicIncidentHistory
@@ -82,6 +85,11 @@ data class ManagedPushSaveResult(
 data class BulkMonitorUpdateResult(
     val succeededIds: Set<Int>,
     val failedIds: Set<Int>,
+)
+
+data class MonitorImportApplyResult(
+    val succeededLines: Set<Int>,
+    val failedLines: Set<Int>,
 )
 
 data class MonitorGroupPlan(
@@ -587,6 +595,33 @@ class MonitorRepository(
                 }
             }
             BulkMonitorEditResult(succeeded, failed)
+        }
+    }
+
+    /** Creates only dry-run-approved, credential-free rows and reports each source line. */
+    suspend fun importMonitors(rows: List<MonitorImportRow>): MonitorImportApplyResult {
+        val candidates = rows
+            .filter { it.status == MonitorImportStatus.READY && it.draft != null }
+            .distinctBy(MonitorImportRow::lineNumber)
+            .sortedBy(MonitorImportRow::lineNumber)
+        val lines = candidates.mapTo(linkedSetOf(), MonitorImportRow::lineNumber)
+        val unavailable = MonitorImportApplyResult(emptySet(), lines)
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_CREATE, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable,
+        ) { client ->
+            val succeeded = linkedSetOf<Int>()
+            val failed = linkedSetOf<Int>()
+            candidates.forEach { row ->
+                val draft = row.safeAutomaticDraftOrNull()
+                if (draft != null && client.saveMonitor(draft).ok) {
+                    succeeded += row.lineNumber
+                } else {
+                    failed += row.lineNumber
+                }
+            }
+            MonitorImportApplyResult(succeeded, failed)
         }
     }
 

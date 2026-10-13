@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-09
+last-updated: 2026-10-13
 owner: astoris
 status: stable
 ---
@@ -39,6 +39,10 @@ here so the rest of the app sees clean domain models.
   defaults, validation/codec profile, field conditions/dependencies, fidelity,
   transfer eligibility, help mode, browser fallback, and the unrelated-field
   round-trip guard.
+- `.../core/network/MonitorImport.kt` - bounded CSV/tab-delimited parser and dry-run
+  classifier. It accepts only the documented non-secret common fields, validates
+  against the live compatibility/editor registry, and keeps every draft inactive
+  and unassigned.
 - `.../core/network/PublicIncident.kt` - app-owned authenticated public-incident
   identity, supported styles, validation, acknowledgement outcomes, and wire mapping.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
@@ -66,6 +70,7 @@ here so the rest of the app sees clean domain models.
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
   active-state changes, previewed common-field bulk edits with per-item drift guards,
+  sequential dry-run-approved monitor imports with per-line results,
   authenticated public-incident history plus
   create/edit/unpin/resolve/delete,
   and `disconnect()`.
@@ -304,6 +309,16 @@ here so the rest of the app sees clean domain models.
   matches is a successful retry; an item whose previewed values drifted is left
   untouched and reported as failed. Only check interval, retry interval, and retry
   count are eligible; state, assignments, secrets, and type-specific fields stay out.
+- Monitor import accepts at most 512 KiB and 500 parsed rows. Its header allowlist
+  excludes credentials and server assignments; values and numeric fields are
+  bounded, quoting is strict, and NUL/malformed documents fail closed. Every row is
+  checked against the current server's create-verified registry. Credential-bearing
+  or type-incomplete rows open the existing editor for explicit entry, while only
+  validated credential-free rows can be created automatically. Automatic creates
+  are inactive, unassigned, sequential, access-gated, and reported per source line.
+  Duplicate identity is conservatively type, name, and endpoint because the summary
+  model does not expose every type's port; reload after a partial result performs a
+  fresh server duplicate check before another attempt.
 - Authenticated public-incident writes use the same boundary with
   `STATUS_INCIDENT_WRITE`, require the target's server to remain active, and are
   version-gated to the live-tested matrix. A missing or incomplete acknowledgement

@@ -53,6 +53,7 @@ import dev.astoris.ursa.ui.monitors.DomainDashboard
 import dev.astoris.ursa.ui.monitors.FleetAggregateDashboard
 import dev.astoris.ursa.ui.monitors.GlobalEventLog
 import dev.astoris.ursa.ui.monitors.MonitorGroupWizardScreen
+import dev.astoris.ursa.ui.monitors.MonitorImportScreen
 import dev.astoris.ursa.ui.monitors.MaintenanceScreen
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import dev.astoris.ursa.ui.monitors.MonitorPresetsScreen
@@ -73,6 +74,7 @@ internal enum class BrowseTool {
     LIVE,
     PRESETS,
     GROUPS,
+    IMPORT,
     SETTINGS,
 }
 
@@ -185,6 +187,13 @@ fun BrowseScreen(
             stringResource(R.string.monitor_group_wizard_title),
             stringResource(R.string.browse_monitor_groups_desc),
             BrowseSearchAction.Tool(BrowseTool.GROUPS),
+        ),
+        BrowseCatalogEntry(
+            BrowseSection.MANAGE,
+            "monitor-import",
+            stringResource(R.string.monitor_import_title),
+            stringResource(R.string.browse_monitor_import_desc),
+            BrowseSearchAction.Tool(BrowseTool.IMPORT),
         ),
         BrowseCatalogEntry(
             BrowseSection.MANAGE,
@@ -316,6 +325,7 @@ fun BrowseScreen(
                 )
                 BrowseTool.PRESETS -> MonitorPresetsScreen(vm, close, Modifier.fillMaxSize())
                 BrowseTool.GROUPS -> MonitorGroupWizardScreen(vm, close, Modifier.fillMaxSize())
+                BrowseTool.IMPORT -> MonitorImportScreen(vm, close, Modifier.fillMaxSize())
             }
         }
     }
