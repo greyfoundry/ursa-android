@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-12
+last-updated: 2026-10-13
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,26 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-13 - Previewed common-field bulk editing
+
+**changed**: Extended the existing filter-scoped monitor selection flow with bulk
+editing for check interval, retry interval, and retries-before-down. URSA reads
+each selected monitor before showing a named, exact before/after preview and saves
+each item sequentially. Type-specific fields, state, descriptions, groups, tags,
+notifications, and secrets remain excluded.
+
+**safety and recovery**: Apply re-reads each monitor. A target already at the
+previewed result succeeds without another write; a target whose previewed common
+values changed is left untouched and reported as failed. Unreadable preview items
+are never submitted, and failed IDs remain selected for a fresh preview/retry.
+Repository access checks require both monitor-edit and bulk-write capabilities.
+
+**verification**: Focused validation/diff/drift/retry tests and the complete
+198-task two-flavor phone/Wear unit, lint, and assemble gate pass. Android 17 with
+live Kuma 2.5.5 confirmed a 20-to-61-second exact
+preview, server save, process-relaunch persistence, a 61-to-20 restoration preview,
+and restoration to the five-monitor fixture baseline without an URSA crash or ANR.
 
 ### 2026-10-13 - Group wizard and local N-of-M alert thresholds
 

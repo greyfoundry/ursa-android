@@ -65,7 +65,8 @@ here so the rest of the app sees clean domain models.
   server-provided GameDig game catalogue and PM2 process list, monitor
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
-  active-state changes, authenticated public-incident history plus
+  active-state changes, previewed common-field bulk edits with per-item drift guards,
+  authenticated public-incident history plus
   create/edit/unpin/resolve/delete,
   and `disconnect()`.
   Flows: `state`, `compatibility`,
@@ -298,6 +299,11 @@ here so the rest of the app sees clean domain models.
   Account bootstrap/login is classified separately because it occurs before a
   saved connection policy exists. Access profiles are a client-side safety guard,
   not server-side authorization; the Kuma session token remains authoritative.
+- Bulk common-field editing reads every selected monitor before preview, then
+  re-reads each item immediately before its sequential save. An item that already
+  matches is a successful retry; an item whose previewed values drifted is left
+  untouched and reported as failed. Only check interval, retry interval, and retry
+  count are eligible; state, assignments, secrets, and type-specific fields stay out.
 - Authenticated public-incident writes use the same boundary with
   `STATUS_INCIDENT_WRITE`, require the target's server to remain active, and are
   version-gated to the live-tested matrix. A missing or incomplete acknowledgement

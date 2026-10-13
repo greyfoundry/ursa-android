@@ -1585,6 +1585,28 @@
     <string name="maintenance_error_days">Choose at least one day of the month.</string>
     <string name="maintenance_error_times">Use 24-hour times in HH:mm format.</string>
     <string name="bulk_manage_monitors">Manage monitors</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_preview">Preview</string>
+    <plurals name="bulk_edit_title">
+        <item quantity="one">Edit %1$d monitor</item>
+        <item quantity="other">Edit %1$d monitors</item>
+    </plurals>
+    <string name="bulk_edit_scope_help">Choose only the common fields to replace. Type-specific settings, secrets, notifications, tags, groups, and monitor state stay unchanged.</string>
+    <string name="bulk_edit_invalid">Use at least 1 second for intervals and 0-100 retries.</string>
+    <string name="bulk_edit_preview_title">Review exact changes</string>
+    <string name="bulk_edit_preview_help">Each monitor is rechecked before saving. If its current values changed after this preview, URSA leaves it untouched and reports a failure.</string>
+    <string name="bulk_edit_check_interval">Check interval</string>
+    <string name="bulk_edit_retry_interval">Retry interval</string>
+    <string name="bulk_edit_change_seconds">%1$s: %2$d s → %3$d s</string>
+    <string name="bulk_edit_change_number">%1$s: %2$d → %3$d</string>
+    <plurals name="bulk_edit_unchanged">
+        <item quantity="one">%1$d monitor already has these values and needs no update.</item>
+        <item quantity="other">%1$d monitors already have these values and need no update.</item>
+    </plurals>
+    <plurals name="bulk_edit_preview_failed">
+        <item quantity="one">%1$d monitor could not be read and will not be changed.</item>
+        <item quantity="other">%1$d monitors could not be read and will not be changed.</item>
+    </plurals>
     <string name="action_sort_server">Sort: server order</string>
     <plurals name="bulk_monitors_selected">
         <item quantity="one">%1$d selected</item>

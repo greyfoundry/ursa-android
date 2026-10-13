@@ -540,6 +540,56 @@ class MonitorRepository(
         BulkMonitorUpdateResult(succeeded, failed)
     }
 
+    /** Reads every target before presenting an exact, server-current bulk edit preview. */
+    suspend fun previewBulkEdit(ids: Set<Int>, edit: BulkMonitorEdit): BulkMonitorEditPreview {
+        val targetIds = ids.filterTo(sortedSetOf()) { it > 0 }
+        val unavailable = BulkMonitorEditPreview(edit, emptyList(), emptySet(), targetIds)
+        if (!edit.isValid) return unavailable
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_EDIT, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable,
+        ) { client ->
+            val rows = mutableListOf<BulkMonitorEditRow>()
+            val unchanged = linkedSetOf<Int>()
+            val failed = linkedSetOf<Int>()
+            targetIds.forEach { id ->
+                val draft = client.monitorDraft(id)
+                when {
+                    draft == null -> failed += id
+                    else -> draft.previewBulkEdit(edit)?.let(rows::add) ?: unchanged.add(id)
+                }
+            }
+            BulkMonitorEditPreview(edit, rows, unchanged, failed)
+        }
+    }
+
+    /** Rechecks each previewed item so retries are safe and stale previews cannot overwrite newer values. */
+    suspend fun applyBulkEdit(preview: BulkMonitorEditPreview): BulkMonitorEditResult {
+        val targetIds = preview.rows.mapTo(linkedSetOf()) { it.monitorId }
+        val unavailable = BulkMonitorEditResult(emptySet(), targetIds)
+        if (!preview.edit.isValid) return unavailable
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_EDIT, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable,
+        ) { client ->
+            val succeeded = linkedSetOf<Int>()
+            val failed = linkedSetOf<Int>()
+            preview.rows.forEach { row ->
+                val current = client.monitorDraft(row.monitorId)
+                when {
+                    current == null -> failed += row.monitorId
+                    current.matchesBulkEdit(row.after) -> succeeded += row.monitorId
+                    !current.matchesBulkEdit(row.before) -> failed += row.monitorId
+                    client.saveMonitor(current.applyBulkEdit(row.after)).ok -> succeeded += row.monitorId
+                    else -> failed += row.monitorId
+                }
+            }
+            BulkMonitorEditResult(succeeded, failed)
+        }
+    }
+
     suspend fun createMonitorGroup(name: String, childIds: Set<Int>): MonitorGroupMutationResult {
         val plan = MonitorGroupPlan.create(name, childIds)
             ?: return MonitorGroupMutationResult(failedIds = childIds, message = "Enter a group name and valid children")

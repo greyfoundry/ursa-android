@@ -114,6 +114,9 @@ import dev.astoris.ursa.data.model.StatusPageView
 import dev.astoris.ursa.data.model.StatusIncidentView
 import dev.astoris.ursa.data.repository.MonitorRepository
 import dev.astoris.ursa.data.repository.BulkMonitorUpdateResult
+import dev.astoris.ursa.data.repository.BulkMonitorEdit
+import dev.astoris.ursa.data.repository.BulkMonitorEditPreview
+import dev.astoris.ursa.data.repository.BulkMonitorEditResult
 import dev.astoris.ursa.data.repository.MonitorGroupMutationResult
 import dev.astoris.ursa.data.repository.FleetRepository
 import dev.astoris.ursa.data.repository.mergeActiveFleetSnapshot
@@ -871,6 +874,21 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         val eventKind = if (active) LocalEventKind.RESUMED else LocalEventKind.PAUSED
         result.succeededIds.forEach { recordMonitorAction(it, eventKind) }
         onResult(result)
+    }
+
+    fun previewBulkMonitorEdit(
+        ids: Set<Int>,
+        edit: BulkMonitorEdit,
+        onResult: (BulkMonitorEditPreview) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.previewBulkEdit(ids, edit))
+    }
+
+    fun applyBulkMonitorEdit(
+        preview: BulkMonitorEditPreview,
+        onResult: (BulkMonitorEditResult) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.applyBulkEdit(preview))
     }
 
     fun createMonitor(parentId: Int? = null) {

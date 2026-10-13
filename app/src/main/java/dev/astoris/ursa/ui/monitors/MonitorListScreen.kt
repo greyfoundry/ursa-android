@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -74,6 +75,7 @@ import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
 import dev.astoris.ursa.ui.actionRes
 import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.data.repository.BulkMonitorEditPreview
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,6 +96,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val activeConnection = connections.firstOrNull { it.url == activeUrl }
     val canCreate = activeConnection.allows(AccessCapability.MONITOR_CREATE)
     val canBulk = activeConnection.allows(AccessCapability.BULK_WRITE)
+    val canBulkEdit = activeConnection.allows(AccessCapability.MONITOR_EDIT, AccessCapability.BULK_WRITE)
 
     var query by remember { mutableStateOf("") }
     var viewFilter by remember { mutableStateOf(MonitorViewFilter(activity = ActivityFilter.ACTIVE)) }
@@ -105,6 +108,8 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     var bulkMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var pendingBulkAction by remember { mutableStateOf<BulkMonitorAction?>(null) }
+    var bulkEditOpen by remember { mutableStateOf(false) }
+    var bulkEditPreview by remember { mutableStateOf<BulkMonitorEditPreview?>(null) }
     var bulkInFlight by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -141,11 +146,15 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             vm.consumeMonitorFilterRequest()
         }
     }
-    LaunchedEffect(canBulk) {
+    LaunchedEffect(canBulk, canBulkEdit) {
         if (!canBulk) {
             bulkMode = false
             selectedIds = emptySet()
             pendingBulkAction = null
+        }
+        if (!canBulkEdit) {
+            bulkEditOpen = false
+            bulkEditPreview = null
         }
     }
     Scaffold(
@@ -376,10 +385,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             if (bulkMode) {
                 val shownIds = shown.mapTo(mutableSetOf()) { it.monitor.id }
                 val allShownSelected = shownIds.isNotEmpty() && shownIds.all { it in selectedIds }
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     TextButton(
                         onClick = {
@@ -393,6 +402,10 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             ),
                         )
                     }
+                    TextButton(
+                        onClick = { bulkEditOpen = true; bulkEditPreview = null },
+                        enabled = canBulkEdit && selectedIds.isNotEmpty() && !bulkInFlight,
+                    ) { Text(stringResource(R.string.action_edit)) }
                     TextButton(
                         onClick = { pendingBulkAction = BulkMonitorAction.PAUSE },
                         enabled = canBulk && pausePlan.targetIds.isNotEmpty() && !bulkInFlight,
@@ -516,6 +529,52 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     enabled = !bulkInFlight,
                 ) { Text(stringResource(R.string.action_cancel)) }
             },
+        )
+    }
+
+    if (bulkEditOpen) {
+        BulkMonitorEditDialog(
+            selectedCount = selectedIds.size,
+            preview = bulkEditPreview,
+            inFlight = bulkInFlight,
+            onPreview = { edit ->
+                bulkInFlight = true
+                vm.previewBulkMonitorEdit(selectedIds, edit) { preview ->
+                    bulkInFlight = false
+                    bulkEditPreview = preview
+                }
+            },
+            onApply = { preview ->
+                bulkInFlight = true
+                vm.applyBulkMonitorEdit(preview) { result ->
+                    bulkInFlight = false
+                    bulkEditOpen = false
+                    bulkEditPreview = null
+                    val failedIds = preview.failedIds + result.failedIds
+                    selectedIds = failedIds
+                    if (failedIds.isEmpty()) bulkMode = false
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = if (failedIds.isEmpty()) {
+                                resources.getQuantityString(
+                                    R.plurals.bulk_monitors_updated,
+                                    result.succeededIds.size,
+                                    result.succeededIds.size,
+                                )
+                            } else {
+                                resources.getQuantityString(
+                                    R.plurals.bulk_monitors_partial,
+                                    failedIds.size,
+                                    result.succeededIds.size,
+                                    failedIds.size,
+                                )
+                            },
+                        )
+                    }
+                }
+            },
+            onBack = { bulkEditPreview = null },
+            onDismiss = { bulkEditOpen = false; bulkEditPreview = null },
         )
     }
 
