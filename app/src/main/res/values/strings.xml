@@ -63,6 +63,7 @@
     <string name="browse_domains_desc">Group HTTP monitors by host and TLS coverage</string>
     <string name="browse_events_desc">Filter observed state changes and device actions</string>
     <string name="browse_fleet_desc">Compare 30-day uptime and latency across active monitors</string>
+    <string name="browse_inventory_export_desc">Save credential-free monitor metadata as CSV or accessible HTML</string>
     <string name="browse_live_desc">Watch favourite monitors and recent checks</string>
     <string name="browse_monitors_title">Monitor views</string>
     <string name="browse_monitors_desc">Tags, filters, saved views, and bulk actions</string>
@@ -1559,6 +1560,23 @@
     <string name="monitor_import_columns">Columns: type, name, endpoint, port, description, interval, retry_interval, resend_interval, max_retries. Type and name are required.</string>
     <string name="monitor_import_choose">Choose CSV or TXT</string>
     <string name="monitor_import_access_denied">This connection must allow monitor creation and bulk actions.</string>
+    <string name="inventory_export_title">Inventory export</string>
+    <string name="inventory_export_description">Save a deterministic snapshot of the active server\'s monitor inventory. This is a report, not a restorable connection backup.</string>
+    <string name="inventory_export_excludes">Includes names, types, state, status, groups, tag names, and summary telemetry. Excludes server and monitor addresses, tag values, headers, notification assignments, tokens, passwords, and every protocol credential.</string>
+    <string name="inventory_export_csv">Save CSV</string>
+    <string name="inventory_export_html">Save accessible HTML</string>
+    <string name="inventory_export_failed">Could not write the inventory file.</string>
+    <string name="inventory_export_saved_truncated">Saved %1$d monitors; the source exceeded the %2$d-row safety limit.</string>
+    <string name="inventory_export_no_server_title">No active server</string>
+    <string name="inventory_export_no_server_message">Connect to a saved server before exporting its inventory.</string>
+    <plurals name="inventory_export_monitor_count">
+        <item quantity="one">%d monitor ready to export</item>
+        <item quantity="other">%d monitors ready to export</item>
+    </plurals>
+    <plurals name="inventory_export_saved">
+        <item quantity="one">Saved %d monitor</item>
+        <item quantity="other">Saved %d monitors</item>
+    </plurals>
     <string name="monitor_import_invalid_title">File could not be dry-run</string>
     <string name="monitor_import_invalid_message">Check the header, quoting, row count, field lengths, and numeric values, then choose the file again.</string>
     <string name="monitor_import_summary">%1$d rows: %2$d ready, %3$d review required</string>

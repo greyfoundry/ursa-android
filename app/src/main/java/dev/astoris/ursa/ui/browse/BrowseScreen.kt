@@ -54,6 +54,7 @@ import dev.astoris.ursa.ui.monitors.FleetAggregateDashboard
 import dev.astoris.ursa.ui.monitors.GlobalEventLog
 import dev.astoris.ursa.ui.monitors.MonitorGroupWizardScreen
 import dev.astoris.ursa.ui.monitors.MonitorImportScreen
+import dev.astoris.ursa.ui.monitors.MonitorInventoryExportScreen
 import dev.astoris.ursa.ui.monitors.MaintenanceScreen
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import dev.astoris.ursa.ui.monitors.MonitorPresetsScreen
@@ -71,6 +72,7 @@ internal enum class BrowseTool {
     DOMAINS,
     EVENTS,
     FLEET,
+    INVENTORY_EXPORT,
     LIVE,
     PRESETS,
     GROUPS,
@@ -159,6 +161,13 @@ fun BrowseScreen(
             stringResource(R.string.fleet_aggregate_title),
             stringResource(R.string.browse_fleet_desc),
             BrowseSearchAction.Tool(BrowseTool.FLEET),
+        ),
+        BrowseCatalogEntry(
+            BrowseSection.INSIGHTS,
+            "inventory-export",
+            stringResource(R.string.inventory_export_title),
+            stringResource(R.string.browse_inventory_export_desc),
+            BrowseSearchAction.Tool(BrowseTool.INVENTORY_EXPORT),
         ),
         BrowseCatalogEntry(
             BrowseSection.INSIGHTS,
@@ -313,6 +322,9 @@ fun BrowseScreen(
                 )
                 BrowseTool.FLEET -> FleetAggregateDashboard(
                     monitors, vm::fleetChartData, close, openMonitor, Modifier.fillMaxSize(),
+                )
+                BrowseTool.INVENTORY_EXPORT -> MonitorInventoryExportScreen(
+                    vm, close, Modifier.fillMaxSize(),
                 )
                 BrowseTool.LIVE -> PinnedLivePanel(
                     monitors = monitors,

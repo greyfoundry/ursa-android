@@ -9,6 +9,27 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-14 - Credential-free monitor inventory export
+
+**changed**: Added Inventory export under Browse/Insights. The active server can be
+saved through Android's document provider as deterministic CSV or accessible,
+script-free HTML. Both carry captured UTC time, source count/truncation, server
+display name plus one-way scope, and monitor identity/type/state/status/hierarchy,
+tag names, and summary telemetry.
+
+**safety**: Reports are capped at 10,000 rows, sort by server-local monitor ID, and
+never receive connection or monitor addresses, tag values, headers, notification
+assignments, tokens, passwords, or protocol credentials. CSV neutralizes formula
+prefixes and quotes every cell; HTML escapes untrusted values and uses a caption and
+scoped column headers. This report path is separate from encrypted connection backup.
+
+**verification**: Focused deterministic-order, field-exclusion, formula-injection,
+HTML-escaping/accessibility, and row-boundary tests pass. Android 17 QA saved both
+formats for the live five-monitor Kuma server through DocumentsUI, then verified
+their content and forbidden-field scans. URSA logged no crash or ANR; Kuma showed
+only authenticated reads and the intentional TLS-fixture failures. The complete
+198-task two-flavor phone/Wear test, lint, and assemble gate passes.
+
 ### 2026-10-14 - Exact custom heartbeat-history ranges
 
 **changed**: Added a native date/time custom-range picker beside the existing

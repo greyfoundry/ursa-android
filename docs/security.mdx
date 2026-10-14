@@ -50,6 +50,11 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
   lookback or span. Kuma rows are parsed as UTC, filtered to the exact requested
   interval, deduplicated, and capped at 10,000 displayed/exportable rows with
   truncation and observed coverage kept explicit.
+- **Keep inventory reports credential-free.** The bounded exporter receives only
+  the monitor summary model and a display name plus one-way server scope. It omits
+  connection and monitor addresses, tag values, headers, assignments, tokens, and
+  protocol credentials; formula-safe CSV and escaped script-free HTML treat all
+  included names and tag labels as untrusted text.
 
 ## MASVS coverage
 

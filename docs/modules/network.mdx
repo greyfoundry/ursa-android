@@ -46,6 +46,9 @@ here so the rest of the app sees clean domain models.
   classifier. It accepts only the documented non-secret common fields, validates
   against the live compatibility/editor registry, and keeps every draft inactive
   and unassigned.
+- `.../core/network/MonitorInventoryExport.kt` - deterministic bounded CSV and
+  accessible script-free HTML serialization of credential-free active-server
+  inventory metadata, with spreadsheet-formula and HTML escaping.
 - `.../core/network/PublicIncident.kt` - app-owned authenticated public-incident
   identity, supported styles, validation, acknowledgement outcomes, and wire mapping.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
@@ -333,6 +336,13 @@ here so the rest of the app sees clean domain models.
   Duplicate identity is conservatively type, name, and endpoint because the summary
   model does not expose every type's port; reload after a partial result performs a
   fresh server duplicate check before another attempt.
+- Inventory export sorts at most 10,000 rows by server-local monitor ID and carries
+  the captured UTC time, source count, truncation flag, server display name, and a
+  one-way server scope. It includes monitor identity/type/state/status/hierarchy,
+  tag names, and summary telemetry. Connection/monitor addresses, tag values,
+  headers, notification assignments, tokens, and protocol credentials have no
+  export path. CSV cells neutralize spreadsheet formula prefixes; HTML escapes all
+  untrusted metadata and contains no scripts or external assets.
 - Authenticated public-incident writes use the same boundary with
   `STATUS_INCIDENT_WRITE`, require the target's server to remain active, and are
   version-gated to the live-tested matrix. A missing or incomplete acknowledgement
