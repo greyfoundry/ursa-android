@@ -24,8 +24,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/config_hint"
-            android:inputType="textUri"
+            android:inputType="textUri|textNoSuggestions"
             android:autofillHints="url"
+            android:imeOptions="actionDone|flagNoExtractUi"
             android:importantForAutofill="no"
             android:singleLine="true" />
 

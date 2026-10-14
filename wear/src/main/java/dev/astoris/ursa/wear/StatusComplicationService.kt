@@ -28,13 +28,22 @@ class StatusComplicationService : SuspendingComplicationDataSourceService() {
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
         val url = WearPrefs.statusUrl(this) ?: return NoDataComplicationData()
-        val snapshot = StatusPoll.fetchSnapshot(url) ?: return NoDataComplicationData()
-        return dataFor(request.complicationType, snapshot)
+        val fetched = StatusPoll.fetchSnapshot(url)
+        if (fetched != null) WearSnapshotMemory.latest = fetched
+        val snapshot = fetched ?: WearSnapshotMemory.latest ?: return NoDataComplicationData()
+        return dataFor(request.complicationType, snapshot, offline = fetched == null)
     }
 
-    private fun dataFor(type: ComplicationType, snapshot: WearSnapshot): ComplicationData {
+    private fun dataFor(
+        type: ComplicationType,
+        snapshot: WearSnapshot,
+        offline: Boolean = false,
+    ): ComplicationData {
         val short = WearDisplay.complicationText(snapshot)
-        val description = PlainComplicationText.Builder("URSA status: ${WearDisplay.fleetSummary(snapshot)}").build()
+        val source = WearDisplay.sourceSummary(snapshot, cached = offline, offline = offline)
+        val description = PlainComplicationText.Builder(
+            "URSA status: ${WearDisplay.fleetSummary(snapshot)}. $source",
+        ).build()
         val tapAction = PendingIntent.getActivity(
             this,
             0,
@@ -47,7 +56,12 @@ class StatusComplicationService : SuspendingComplicationDataSourceService() {
                 contentDescription = description,
             ).setTapAction(tapAction).build()
             ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
-                text = PlainComplicationText.Builder(WearDisplay.fleetSummary(snapshot)).build(),
+                text = PlainComplicationText.Builder(
+                    buildString {
+                        if (offline) append("Offline · ")
+                        append(WearDisplay.fleetSummary(snapshot))
+                    },
+                ).build(),
                 contentDescription = description,
             ).setTitle(PlainComplicationText.Builder(snapshot.title).build())
                 .setTapAction(tapAction)

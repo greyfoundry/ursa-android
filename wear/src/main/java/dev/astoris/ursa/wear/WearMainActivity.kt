@@ -32,14 +32,14 @@ class WearMainActivity : Activity() {
             return
         }
         val cached = WearSnapshotMemory.latest
-        if (cached == null) renderMessage("Loading status…") else renderSnapshot(cached)
+        if (cached == null) renderMessage("Loading status…") else renderSnapshot(cached, cached = true)
         val request = ++generation
         Thread {
             val snapshot = runBlocking { StatusPoll.fetchSnapshot(statusUrl) }
             runOnUiThread {
                 if (request != generation || isFinishing || isDestroyed) return@runOnUiThread
                 if (snapshot == null) {
-                    if (cached == null) renderError()
+                    if (cached == null) renderError() else renderSnapshot(cached, cached = true, offline = true)
                 } else {
                     WearSnapshotMemory.latest = snapshot
                     val requestedId = requestedMonitorId()
@@ -75,7 +75,11 @@ class WearMainActivity : Activity() {
         root.addView(WearUi.button(this, "Settings") { openSettings() })
     }
 
-    private fun renderSnapshot(snapshot: WearSnapshot) {
+    private fun renderSnapshot(
+        snapshot: WearSnapshot,
+        cached: Boolean = false,
+        offline: Boolean = false,
+    ) {
         val root = WearUi.root(this)
         root.addView(WearUi.title(this, snapshot.title))
         val summaryColor = when {
@@ -84,6 +88,7 @@ class WearMainActivity : Activity() {
             else -> WearUi.PRIMARY
         }
         root.addView(WearUi.body(this, WearDisplay.fleetSummary(snapshot), summaryColor))
+        root.addView(WearUi.body(this, WearDisplay.sourceSummary(snapshot, cached, offline)))
         root.addView(WearUi.button(this, "Refresh") { load() })
         snapshot.attentionFirst().take(MAX_MONITORS).forEach { monitor ->
             val card = WearUi.card(this).apply {

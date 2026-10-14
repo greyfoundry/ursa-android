@@ -32,6 +32,7 @@ data class WearMonitor(
 data class WearSnapshot(
     val title: String,
     val monitors: List<WearMonitor>,
+    val capturedAtMillis: Long = System.currentTimeMillis(),
 ) {
     val up: Int get() = monitors.count { it.status == WearMonitorStatus.UP }
     val down: Int get() = monitors.count { it.status == WearMonitorStatus.DOWN }
@@ -114,7 +115,11 @@ data class WearActionConfig(
 object WearStatusParser {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    fun parse(configBody: String, heartbeatBody: String): WearSnapshot {
+    fun parse(
+        configBody: String,
+        heartbeatBody: String,
+        capturedAtMillis: Long = System.currentTimeMillis(),
+    ): WearSnapshot {
         val configRoot = parseObject(configBody)
         val heartbeatRoot = parseObject(heartbeatBody)
         val beats = heartbeatRoot["heartbeatList"] as? JsonObject ?: JsonObject(emptyMap())
@@ -144,7 +149,11 @@ object WearStatusParser {
             }
         }
         val title = (configRoot["config"] as? JsonObject)?.string("title") ?: "URSA"
-        return WearSnapshot(title = title, monitors = monitors.values.toList())
+        return WearSnapshot(
+            title = title,
+            monitors = monitors.values.toList(),
+            capturedAtMillis = capturedAtMillis,
+        )
     }
 
     private fun parseObject(body: String): JsonObject = runCatching {
@@ -214,6 +223,35 @@ object WearDisplay {
         WearMonitorStatus.MAINTENANCE -> "Maintenance"
         WearMonitorStatus.UNKNOWN -> "Unknown"
     }
+
+    fun sourceSummary(
+        snapshot: WearSnapshot,
+        cached: Boolean,
+        offline: Boolean,
+        nowMillis: Long = System.currentTimeMillis(),
+    ): String = buildList {
+        add("Public page")
+        if (offline) add("Offline")
+        if (cached) add("Cached")
+        add(freshness(snapshot, nowMillis))
+    }.joinToString(" · ")
+
+    fun freshness(snapshot: WearSnapshot, nowMillis: Long = System.currentTimeMillis()): String {
+        val ageMillis = (nowMillis - snapshot.capturedAtMillis).coerceAtLeast(0L)
+        val age = when {
+            ageMillis < MINUTE_MILLIS -> "now"
+            ageMillis < HOUR_MILLIS -> "${ageMillis / MINUTE_MILLIS}m ago"
+            ageMillis < DAY_MILLIS -> "${ageMillis / HOUR_MILLIS}h ago"
+            else -> "${ageMillis / DAY_MILLIS}d ago"
+        }
+        return if (ageMillis >= STALE_AFTER_MILLIS) "Stale · updated $age" else "Updated $age"
+    }
+
+    const val STALE_AFTER_MILLIS = 5 * 60_000L
+
+    private const val MINUTE_MILLIS = 60_000L
+    private const val HOUR_MILLIS = 60 * MINUTE_MILLIS
+    private const val DAY_MILLIS = 24 * HOUR_MILLIS
 }
 
 private fun safeHttpUri(value: String): URI? {

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-23
+last-updated: 2026-10-14
 owner: astoris
 status: stable
 ---
@@ -37,8 +37,13 @@ password or session token on the watch.
   required for this mode.
 - Monitor rows are attention-first and capped at 100. Detail routes accept only a
   positive monitor ID that is present on the configured public page.
-- SHORT_TEXT and LONG_TEXT complications expose only fleet state. They and the tile
-  open the watch app; neither embeds credentials.
+- Dashboard and detail label the public-page source, capture age, cached state,
+  five-minute staleness, and an offline refresh. A failed refresh keeps an available
+  in-process snapshot visible instead of replacing it with a false unavailable state.
+- SHORT_TEXT and LONG_TEXT complications expose only fleet state. Their accessible
+  description carries source/freshness, long text labels an offline fallback, and
+  the tile shows attention state plus live/cached freshness. They open the watch app;
+  none embeds credentials.
 - Private actions use the active saved phone session. Pairing carries the normalized
   server URL, bounded token, display name, at most eight validated access headers,
   and a versioned set of client-side action capabilities. Header values reject CR/LF

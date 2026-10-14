@@ -35,8 +35,17 @@ class StatusTileService : TileService() {
         // cache if refresh frequency ever grows.
         val future = SettableFuture.create<TileBuilders.Tile>()
         Thread {
-            val snapshot = runBlocking { StatusPoll.fetchSnapshot(url) }
-            future.set(tileOf(centered(snapshotLayout(snapshot), WearMainActivity::class.java)))
+            val fetched = runBlocking { StatusPoll.fetchSnapshot(url) }
+            if (fetched != null) WearSnapshotMemory.latest = fetched
+            val snapshot = fetched ?: WearSnapshotMemory.latest
+            future.set(
+                tileOf(
+                    centered(
+                        snapshotLayout(snapshot, offline = fetched == null && snapshot != null),
+                        WearMainActivity::class.java,
+                    ),
+                ),
+            )
         }.start()
         return future
     }
@@ -48,7 +57,10 @@ class StatusTileService : TileService() {
             ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION).build(),
         )
 
-    private fun snapshotLayout(snapshot: WearSnapshot?): LayoutElementBuilders.LayoutElement {
+    private fun snapshotLayout(
+        snapshot: WearSnapshot?,
+        offline: Boolean,
+    ): LayoutElementBuilders.LayoutElement {
         if (snapshot == null) return messageLayout("No data")
         val headlineText = WearDisplay.complicationText(snapshot)
         val headlineColor = when {
@@ -64,7 +76,11 @@ class StatusTileService : TileService() {
                     .build(),
             )
             .addContent(
-                Text.Builder(this, "${snapshot.up}/${snapshot.monitors.size} up")
+                Text.Builder(
+                    this,
+                    if (offline) "Offline · ${WearDisplay.freshness(snapshot)}"
+                    else WearDisplay.freshness(snapshot),
+                )
                     .setTypography(Typography.TYPOGRAPHY_CAPTION1)
                     .setColor(ColorBuilders.argb(SUBTLE))
                     .build(),

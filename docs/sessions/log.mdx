@@ -9,6 +9,31 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-14 - Wear attention source and freshness
+
+**changed**: Wear public-page snapshots now carry capture time. Dashboard and monitor
+detail state the public source, live/cached state, five-minute staleness, and offline
+fallback explicitly. Attention ordering remains down, pending, maintenance, unknown,
+then up. Tile and complication requests refresh the shared snapshot, retain an
+available in-process fallback, and disclose offline/freshness without exposing a URL
+or paired credential.
+
+**correctness and access**: A failed detail refresh no longer replaces a valid
+cached monitor with “unavailable.” Allowed pause/resume controls identify their
+private paired-phone source; absent and access-profile-denied sessions retain their
+existing distinct explanations and the encrypted capability gate remains unchanged.
+The status-page URL field now disables suggestions and extracted-editor mode so a
+watch keyboard cannot autocorrect an address into ordinary words.
+
+**verification**: Deterministic tests cover parser capture time plus recent, cached,
+offline, and stale copy. The complete 198-task two-flavor phone/Wear test, lint, and
+assemble gate passes, and both tile/complication providers remain registered.
+Android 16 Wear/live Kuma 2.5.5 QA verified a five-monitor attention-first dashboard,
+down-monitor detail, public source/freshness, unpaired action guidance, and cached
+dashboard/detail survival while Kuma was stopped. The temporary public group and
+joins were removed, the original empty status page was restored, and Kuma returned
+healthy.
+
 ### 2026-10-14 - Native attention widgets and tile
 
 **changed**: Exact-size widgets now put active down and pending checks first and

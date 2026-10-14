@@ -32,17 +32,29 @@ class WearMonitorDetailActivity : Activity() {
             renderMissing()
             return
         }
-        WearSnapshotMemory.latest?.monitors?.firstOrNull { it.id == monitorId }?.let(::render)
-            ?: renderLoading()
+        val cachedSnapshot = WearSnapshotMemory.latest
+        val cachedMonitor = cachedSnapshot?.monitors?.firstOrNull { it.id == monitorId }
+        if (cachedSnapshot != null && cachedMonitor != null) {
+            render(cachedMonitor, cachedSnapshot, cached = true)
+        } else {
+            renderLoading()
+        }
         val statusUrl = WearPrefs.statusUrl(this) ?: return renderMissing()
         val request = ++generation
         Thread {
             val snapshot = runBlocking { StatusPoll.fetchSnapshot(statusUrl) }
             runOnUiThread {
                 if (request != generation || isFinishing || isDestroyed) return@runOnUiThread
-                if (snapshot != null) WearSnapshotMemory.latest = snapshot
-                snapshot?.monitors?.firstOrNull { it.id == monitorId }?.let(::render)
-                    ?: renderMissing()
+                if (snapshot != null) {
+                    WearSnapshotMemory.latest = snapshot
+                    snapshot.monitors.firstOrNull { it.id == monitorId }
+                        ?.let { render(it, snapshot) }
+                        ?: renderMissing()
+                } else if (cachedSnapshot != null && cachedMonitor != null) {
+                    render(cachedMonitor, cachedSnapshot, cached = true, offline = true)
+                } else {
+                    renderMissing()
+                }
             }
         }.start()
     }
@@ -60,7 +72,12 @@ class WearMonitorDetailActivity : Activity() {
         root.addView(WearUi.button(this, "Back") { finish() })
     }
 
-    private fun render(monitor: WearMonitor) {
+    private fun render(
+        monitor: WearMonitor,
+        snapshot: WearSnapshot,
+        cached: Boolean = false,
+        offline: Boolean = false,
+    ) {
         val root = WearUi.root(this)
         root.addView(WearUi.title(this, monitor.name))
         root.addView(
@@ -71,6 +88,7 @@ class WearMonitorDetailActivity : Activity() {
             ),
         )
         root.addView(WearUi.label(this, WearDisplay.metrics(monitor)))
+        root.addView(WearUi.body(this, WearDisplay.sourceSummary(snapshot, cached, offline)))
         monitor.group?.let {
             root.addView(WearUi.spacer(this, 6))
             root.addView(WearUi.body(this, "Group · $it"))
@@ -82,6 +100,7 @@ class WearMonitorDetailActivity : Activity() {
         val actionConfig = WearPrefs.actionConfig(this)
         if (actionConfig?.allows(WearMonitorAction.PAUSE) == true) {
             root.addView(WearUi.spacer(this, 8))
+            root.addView(WearUi.body(this, "Private actions · paired phone session"))
             root.addView(WearUi.button(this, getString(R.string.action_pause)) {
                 confirmAction(monitor, WearMonitorAction.PAUSE)
             })

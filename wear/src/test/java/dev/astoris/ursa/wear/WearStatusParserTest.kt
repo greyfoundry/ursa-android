@@ -24,9 +24,10 @@ class WearStatusParserTest {
 
     @Test
     fun publicPayloadProducesLatencyUptimeGroupsAndTags() {
-        val snapshot = WearStatusParser.parse(CONFIG_JSON, HEARTBEAT_JSON)
+        val snapshot = WearStatusParser.parse(CONFIG_JSON, HEARTBEAT_JSON, capturedAtMillis = 123L)
 
         assertEquals("Home lab", snapshot.title)
+        assertEquals(123L, snapshot.capturedAtMillis)
         assertEquals(2, snapshot.monitors.size)
         assertEquals(1, snapshot.up)
         assertEquals(1, snapshot.down)
@@ -89,6 +90,23 @@ class WearStatusParserTest {
         assertEquals("1 down", WearDisplay.complicationText(snapshot))
         assertEquals("42 ms · 99.9%", WearDisplay.metrics(api))
         assertEquals("No monitors", WearDisplay.complicationText(WearSnapshot("Empty", emptyList())))
+    }
+
+    @Test
+    fun freshnessAndSourceExposeCachedOfflineAndStaleState() {
+        val snapshot = WearSnapshot("Fleet", emptyList(), capturedAtMillis = 1_000_000L)
+
+        assertEquals("Updated now", WearDisplay.freshness(snapshot, 1_030_000L))
+        assertEquals("Updated 4m ago", WearDisplay.freshness(snapshot, 1_299_999L))
+        assertEquals("Stale · updated 5m ago", WearDisplay.freshness(snapshot, 1_300_000L))
+        assertEquals(
+            "Public page · Cached · Updated now",
+            WearDisplay.sourceSummary(snapshot, cached = true, offline = false, nowMillis = 1_030_000L),
+        )
+        assertEquals(
+            "Public page · Offline · Cached · Stale · updated 5m ago",
+            WearDisplay.sourceSummary(snapshot, cached = true, offline = true, nowMillis = 1_300_000L),
+        )
     }
 
     private companion object {
