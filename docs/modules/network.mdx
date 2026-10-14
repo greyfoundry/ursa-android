@@ -192,7 +192,10 @@ here so the rest of the app sees clean domain models.
   history, server notification/group/tag assignments, server-managed selector IDs,
   or any credential value/presence flag. Credential-free preset eligibility is
   limited to registry-declared credential-free types and bounded safe-common
-  drafts; secret-bearing and server-bound full-fidelity types fail closed.
+  drafts; secret-bearing and server-bound full-fidelity types fail closed. Portable
+  copies reuse the sanitizer after both saved sessions authenticate. Exact
+  destination tag-name and notification-name/type matches are restored only when
+  unique; ambiguous or missing assignments stay empty for explicit review.
   Push creation generates one 32-character alphanumeric token in the draft and sends
   that same token to Kuma, so the masked copy/share URL shown before save is exact.
   Existing push tokens are loaded only for the in-memory editor and are never stored
@@ -288,6 +291,9 @@ here so the rest of the app sees clean domain models.
   and actions are not silently stranded in Socket.IO's pre-connect queue.
 - `monitorListReady` is separate from the monitor map so an authenticated server
   with zero monitors is a valid completed snapshot rather than a refresh timeout.
+  The active repository uses that same readiness signal instead of treating an
+  empty live list as a cache miss, so deleting the last monitor replaces and
+  persists an older non-empty cache.
   Fleet refresh retains cached data beside a typed failure, labels successful
   results as freshly refreshed rather than live, updates the encrypted cache, and
   never replaces the active client.

@@ -105,6 +105,7 @@ fun MonitorDetailScreen(
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val connections by vm.connections.collectAsStateWithLifecycle()
     val connectionState by vm.state.collectAsStateWithLifecycle()
     val compatibility by vm.kumaCompatibility.collectAsStateWithLifecycle()
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
@@ -120,6 +121,9 @@ fun MonitorDetailScreen(
     val canEdit = activeConnection.allows(AccessCapability.MONITOR_EDIT)
     val canClone = activeConnection.allows(AccessCapability.MONITOR_CREATE) &&
         MonitorEditorRegistry.createVerified(monitor.type, compatibility)
+    val portableDestinations = remember(activeUrl, connections) {
+        connections.filter { it.url != activeUrl }
+    }
     val canDelete = activeConnection.allows(AccessCapability.MONITOR_DELETE)
     val context = LocalContext.current
     val activity = LocalActivity.current as? FragmentActivity
@@ -131,6 +135,7 @@ fun MonitorDetailScreen(
     var actionInFlight by remember(monitor.id) { mutableStateOf(false) }
     var moreOpen by remember(monitor.id) { mutableStateOf(false) }
     var confirmBrowserOpen by remember(monitor.id) { mutableStateOf(false) }
+    var copyDialogOpen by remember(monitor.id) { mutableStateOf(false) }
     var confirmDelete by remember(monitor.id) { mutableStateOf(false) }
     var deleteChildren by remember(monitor.id) { mutableStateOf(false) }
     var section by rememberSaveable(monitor.id) { mutableStateOf(MonitorWorkspaceSection.OVERVIEW) }
@@ -203,6 +208,14 @@ fun MonitorDetailScreen(
                                 onClick = {
                                     moreOpen = false
                                     vm.cloneMonitor(monitor.id)
+                                },
+                            )
+                            DropdownMenuItem(
+                                enabled = portableDestinations.isNotEmpty(),
+                                text = { Text(stringResource(R.string.action_copy_to_server)) },
+                                onClick = {
+                                    moreOpen = false
+                                    copyDialogOpen = true
                                 },
                             )
                             DropdownMenuItem(
@@ -326,6 +339,46 @@ fun MonitorDetailScreen(
             },
             dismissButton = {
                 Button(onClick = { confirmBrowserOpen = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (copyDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { copyDialogOpen = false },
+            title = { Text(stringResource(R.string.monitor_portable_copy_title)) },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(stringResource(R.string.monitor_portable_copy_description))
+                    portableDestinations.forEach { destination ->
+                        OutlinedButton(
+                            enabled = destination.allows(AccessCapability.MONITOR_CREATE),
+                            onClick = {
+                                copyDialogOpen = false
+                                vm.copyMonitorToServer(monitor.id, destination)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text(destination.displayName)
+                                Text(
+                                    destination.url,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                Button(onClick = { copyDialogOpen = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             },

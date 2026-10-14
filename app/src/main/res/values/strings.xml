@@ -1499,7 +1499,14 @@
     <string name="action_edit_monitor">Edit monitor</string>
     <string name="action_clone_monitor">Clone monitor</string>
     <string name="monitor_clone_name">Copy of %1$s</string>
-    <string name="monitor_transfer_review">Review credentials, server assignments, and the active state before saving. Sensitive values were not copied.</string>
+    <string name="monitor_transfer_review">Review credentials, tags, notification providers, server assignments, and the active state before saving. Sensitive values were not copied; exact tag and provider matches may be preselected.</string>
+    <string name="action_copy_to_server">Copy to another server</string>
+    <string name="monitor_portable_copy_title">Copy monitor to server</string>
+    <string name="monitor_portable_copy_description">Choose a saved destination. URSA will switch servers and open an inactive, sanitized draft for review. Credentials and server-specific IDs are never copied.</string>
+    <string name="monitor_portable_copy_failed">This monitor could not be prepared for a safe server copy.</string>
+    <string name="monitor_portable_copy_destination_failed">The destination could not be authenticated. The original server is active again.</string>
+    <string name="monitor_portable_copy_metadata_failed">Destination tags or notification providers could not be loaded. The original server is active again.</string>
+    <string name="monitor_portable_copy_unsupported">This monitor type is not write-verified on the destination. Use its Uptime Kuma dashboard instead.</string>
     <string name="monitor_preset_save_action">Save as preset</string>
     <string name="monitor_preset_save_title">Save monitor preset</string>
     <string name="monitor_preset_save_description">Presets are stored encrypted on this device and exclude server assignments.</string>

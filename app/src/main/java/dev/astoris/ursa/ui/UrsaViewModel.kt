@@ -6,15 +6,18 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.astoris.ursa.R
 import dev.astoris.ursa.core.access.AccessDecision
 import dev.astoris.ursa.core.access.AccessPolicy
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
+import dev.astoris.ursa.core.network.KumaCompatibilityTier
 import dev.astoris.ursa.core.network.LocalServiceDiscovery
 import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MonitorDraftTransfer
+import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
 import dev.astoris.ursa.core.network.IncidentMutationOutcome
@@ -963,6 +966,78 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
             _gameTypes.value = games?.await().orEmpty()
             if (draft?.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun copyMonitorToServer(id: Int, destination: ServerConnection) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val sourceConnection = activeConnection.value
+            val allowed = AccessPolicy.evaluate(
+                destination,
+                AccessCapability.MONITOR_CREATE,
+            ) is AccessDecision.Allowed
+            if (sourceConnection == null || sourceConnection.url == destination.url || !allowed) {
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_failed),
+                )
+                return@launch
+            }
+
+            val sourceNotifications = async { repo.notificationSnapshot() }
+            val source = repo.monitorDraft(id)
+            val notificationRows = sourceNotifications.await()
+            if (source == null || notificationRows == null) {
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_failed),
+                )
+                return@launch
+            }
+
+            if (!repo.switchTo(destination)) {
+                repo.switchTo(sourceConnection)
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_destination_failed),
+                )
+                return@launch
+            }
+
+            val destinationNotifications = async { repo.notificationSnapshot() }
+            val destinationTags = async { repo.serverTags() }
+            val compatibility = withTimeoutOrNull(5_000L) {
+                repo.compatibility.first { it.tier != KumaCompatibilityTier.AWAITING_VERSION }
+            } ?: repo.compatibility.value
+            val notifications = destinationNotifications.await()
+            val tags = destinationTags.await()
+            if (notifications == null || tags == null) {
+                repo.switchTo(sourceConnection)
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_metadata_failed),
+                )
+                return@launch
+            }
+
+            val draft = MonitorDraftTransfer.portable(source, notificationRows, notifications, tags)
+            val games = draft.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _selectedId.value = null
+            _beats.value = emptyList()
+            _serverTags.value = tags
+            _gameTypes.value = games?.await().orEmpty()
+            _monitorEditor.value = if (MonitorEditorRegistry.createVerified(draft.type, compatibility)) {
+                MonitorEditorUiState.Ready(draft)
+            } else {
+                MonitorEditorUiState.Error(
+                    draft,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_unsupported),
+                )
+            }
+            if (draft.type == "pm2") refreshPm2Processes()
         }
     }
 

@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Intent
 import android.os.PersistableBundle
 import androidx.activity.compose.BackHandler
+import androidx.core.net.toUri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -74,6 +75,7 @@ import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.network.MonitorEndpointKind
 import dev.astoris.ursa.core.network.MonitorHeaderDraft
 import dev.astoris.ursa.core.network.MonitorTypeCatalog
+import dev.astoris.ursa.core.network.ServerWebLink
 import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.KafkaSaslMechanism
 import dev.astoris.ursa.core.network.MqttCheckType
@@ -115,6 +117,7 @@ fun MonitorEditorScreen(
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val discoveryState by vm.localServiceDiscoveryState.collectAsStateWithLifecycle()
     val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val compatibility by vm.kumaCompatibility.collectAsStateWithLifecycle()
     val stateDraft = when (val current = state) {
         is MonitorEditorUiState.Ready -> current.draft
@@ -122,13 +125,16 @@ fun MonitorEditorScreen(
         is MonitorEditorUiState.Error -> current.draft
         else -> null
     }
-    var draft by remember(stateDraft?.id, stateDraft?.type) {
+    var draft by remember(stateDraft) {
         mutableStateOf(stateDraft ?: MonitorDraft.create())
     }
     var presetDialogOpen by remember { mutableStateOf(false) }
+    var confirmBrowserOpen by remember { mutableStateOf(false) }
     var presetTitle by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val browserChooserTitle = stringResource(R.string.open_in_kuma_chooser)
     LaunchedEffect(discoveryState) {
         val selected = (discoveryState as? LocalServiceDiscoveryState.Selected)?.address ?: return@LaunchedEffect
         draft = when (MonitorTypeCatalog.find(draft.type)?.endpointKind) {
@@ -140,14 +146,20 @@ fun MonitorEditorScreen(
         vm.consumeLocalServiceSelection()
     }
     val saving = state is MonitorEditorUiState.Saving
-    val canSave = (if (draft.isNew) {
+    val nativeSaveVerified = if (draft.isNew) {
         MonitorEditorRegistry.createVerified(draft.type, compatibility)
     } else {
         MonitorEditorRegistry.writeVerified(draft.type, compatibility)
-    }) &&
+    }
+    val canSave = nativeSaveVerified &&
         activeConnection.allows(
             if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
         )
+    val browserUrl = remember(activeUrl, draft.id) {
+        activeUrl?.let { url ->
+            draft.id?.let { ServerWebLink.monitor(url, it) } ?: ServerWebLink.dashboard(url)
+        }
+    }
     val serverError = (state as? MonitorEditorUiState.Error)?.message
     BackHandler(enabled = handleSystemBack && !saving) { vm.closeMonitorEditor() }
 
@@ -200,6 +212,7 @@ fun MonitorEditorScreen(
                 onStopDiscovery = vm::stopLocalServiceDiscovery,
                 onCancel = vm::closeMonitorEditor,
                 onSave = { vm.saveMonitor(draft) },
+                onOpenInKuma = browserUrl?.let { { confirmBrowserOpen = true } },
                 onSavePreset = if (MonitorEditorRegistry.find(draft.type)?.supportsCredentialFreePreset() == true) {
                     {
                         presetTitle = draft.name
@@ -211,6 +224,33 @@ fun MonitorEditorScreen(
                 modifier = Modifier.padding(padding),
             )
         }
+    }
+    if (confirmBrowserOpen && browserUrl != null) {
+        AlertDialog(
+            onDismissRequest = { confirmBrowserOpen = false },
+            title = { Text(stringResource(R.string.open_in_kuma_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.open_in_kuma_message))
+                    Text(browserUrl, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmBrowserOpen = false
+                        val view = Intent(Intent.ACTION_VIEW, browserUrl.toUri())
+                            .addCategory(Intent.CATEGORY_BROWSABLE)
+                        context.startActivity(Intent.createChooser(view, browserChooserTitle))
+                    },
+                ) { Text(stringResource(R.string.action_open_browser)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmBrowserOpen = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
     if (presetDialogOpen) {
         val savedMessage = stringResource(R.string.monitor_preset_saved)
@@ -275,6 +315,7 @@ private fun MonitorForm(
     onStopDiscovery: () -> Unit,
     onCancel: () -> Unit,
     onSave: () -> Unit,
+    onOpenInKuma: (() -> Unit)?,
     onSavePreset: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -297,11 +338,21 @@ private fun MonitorForm(
             )
         }
         serverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (!MonitorEditorRegistry.writeVerified(draft.type, compatibility)) {
+        val nativeSaveVerified = if (draft.isNew) {
+            MonitorEditorRegistry.createVerified(draft.type, compatibility)
+        } else {
+            MonitorEditorRegistry.writeVerified(draft.type, compatibility)
+        }
+        if (!nativeSaveVerified) {
             Text(
                 stringResource(R.string.monitor_type_not_write_verified),
                 color = MaterialTheme.colorScheme.error,
             )
+            onOpenInKuma?.let { open ->
+                OutlinedButton(onClick = open) {
+                    Text(stringResource(R.string.action_open_in_kuma))
+                }
+            }
         }
         OutlinedTextField(
             value = draft.name,

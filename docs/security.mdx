@@ -173,6 +173,11 @@ GameDig query tokens use the same presence-only boundary. Kuma's dynamic game
 catalogue is reduced to a primary key and label; adapter options and extras are
 discarded before repository or UI state. Steam API keys remain entirely in Kuma's
 global server configuration and never enter URSA.
+Cross-server monitor copies remain in memory and reuse the clone sanitizer before
+the destination editor opens. Identity, parent groups, server selector IDs, active
+state, credentials, and saved-secret flags never cross servers. Notification IDs
+and tag IDs are never reused directly; URSA may preselect only a unique destination
+name/type match, and the user reviews the inactive draft before any create request.
 SMTP editing is deliberately credential-free: it changes only hostname, explicit
 port, and the known transport-security mode. Null or future modes remain opaque,
 and unrelated expiry/TLS or future fields survive the guarded full-object round trip.

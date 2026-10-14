@@ -116,6 +116,15 @@ data class MonitorGroupMutationResult(
     val groupCreated: Boolean get() = groupId != null
 }
 
+internal fun displayedMonitors(
+    live: List<Monitor>,
+    cached: List<Monitor>,
+    liveListReady: Boolean,
+): List<Monitor> = if (liveListReady) live else cached
+
+internal fun isShowingMonitorCache(cached: List<Monitor>, liveListReady: Boolean): Boolean =
+    !liveListReady && cached.isNotEmpty()
+
 /**
  * Single source of truth for the UI. Owns the active [KumaClient], bridges it to the
  * persisted [ConnectionStore], and exposes monitors/state as StateFlows that follow
@@ -145,14 +154,17 @@ class MonitorRepository(
         .flatMapLatest { client -> client?.monitors ?: flowOf(emptyMap()) }
         .map { map -> map.values.sortedBy { it.name.lowercase() } }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
+    private val liveMonitorListReady: StateFlow<Boolean> = activeClient
+        .flatMapLatest { client -> client?.monitorListReady ?: flowOf(false) }
+        .stateIn(scope, SharingStarted.Eagerly, false)
 
     // Last-known list loaded from the encrypted cache for the active server.
     private val cachedMonitors = MutableStateFlow<List<Monitor>>(emptyList())
     private val lastUpdatedMs = MutableStateFlow<Long?>(null)
 
-    /** What the UI shows: live data when available, otherwise the cached snapshot. */
+    /** What the UI shows: cached data until the server has delivered even an empty live list. */
     val monitors: StateFlow<List<Monitor>> =
-        combine(liveMonitors, cachedMonitors) { live, cached -> live.ifEmpty { cached } }
+        combine(liveMonitors, cachedMonitors, liveMonitorListReady, ::displayedMonitors)
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** When the currently shown list came from the cache, its capture time (epoch ms). */
@@ -160,7 +172,7 @@ class MonitorRepository(
 
     /** True while showing cached data because live monitors have not arrived yet. */
     val showingCache: StateFlow<Boolean> =
-        combine(liveMonitors, cachedMonitors) { live, cached -> live.isEmpty() && cached.isNotEmpty() }
+        combine(cachedMonitors, liveMonitorListReady, ::isShowingMonitorCache)
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val remoteState = activeClient
@@ -220,9 +232,9 @@ class MonitorRepository(
         // Persist every live update as the new snapshot for the active server, and
         // promote it into the cache flow so it survives the next reconnect.
         scope.launch {
-            liveMonitors.collect { live ->
+            combine(liveMonitors, liveMonitorListReady, ::Pair).collect { (live, ready) ->
                 val url = activeUrlValue
-                if (live.isNotEmpty() && url != null) {
+                if (ready && url != null) {
                     val now = System.currentTimeMillis()
                     cache.save(
                         url,
@@ -476,7 +488,7 @@ class MonitorRepository(
     suspend fun switchTo(
         conn: ServerConnection,
         onConnectionStarted: () -> Unit = {},
-    ) {
+    ): Boolean {
         if (!ConnectionTransportPolicy.allows(conn)) {
             activeClient.value?.disconnect()
             activeClient.value = null
@@ -485,12 +497,13 @@ class MonitorRepository(
             _localConnectionFailure.value = ConnectionFailureReason.CLEARTEXT_BLOCKED
             store.setActive(conn.url)
             onConnectionStarted()
-            return
+            return false
         }
         val client = connectFresh(conn.url, conn.insecure, conn.headers)
         onConnectionStarted()
-        conn.jwt?.let { client.loginByToken(it) }
+        val authenticated = conn.jwt?.let { client.loginByToken(it) } == true
         store.setActive(conn.url)
+        return authenticated
     }
 
     suspend fun renameServer(url: String, alias: String?) = store.rename(url, alias)
@@ -691,6 +704,14 @@ class MonitorRepository(
     suspend fun serverTags(): List<KumaTag>? = activeClient.value?.serverTags()
     suspend fun gameTypes(): List<KumaGameType>? = activeClient.value?.gameTypes()
     suspend fun pm2Processes(): List<KumaPm2Process>? = activeClient.value?.pm2Processes()
+
+    suspend fun notificationSnapshot(): List<KumaNotification>? {
+        val client = activeClient.value ?: return null
+        val ready = withTimeoutOrNull(NOTIFICATION_LIST_TIMEOUT_MS) {
+            client.notificationListReady.first { it }
+        } == true
+        return client.notifications.value.takeIf { ready }
+    }
     suspend fun maintenanceDraft(id: Int): MaintenanceDraft? = activeClient.value?.maintenanceDraft(id)
     suspend fun saveMaintenance(draft: MaintenanceDraft): MonitorMutationResult = guardedMutation(
         required = setOf(AccessCapability.MAINTENANCE_WRITE),

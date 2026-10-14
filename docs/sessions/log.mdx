@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-13
+last-updated: 2026-10-14
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,28 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-14 - Portable cross-server monitor copy
+
+**changed**: Added a monitor-detail destination picker that authenticates another
+saved server and opens the existing editor with an inactive sanitized draft. Safe
+common and type-specific fields remain intact. Destination tags and notification
+providers are preselected only for unique case-insensitive name/type matches;
+credentials, parent groups, server selector IDs, and source IDs never cross servers.
+Unsupported destination schemas remain read-only and expose the confirmed Kuma
+dashboard escape.
+
+**correctness**: Fixed active-server cache selection to use Kuma's existing
+`monitorListReady` signal. A valid empty live list now replaces and persists an
+older non-empty cache instead of leaving a deleted final monitor visible.
+
+**verification**: Focused sanitizer/mapping and empty-live-list regression tests
+pass. Android 17/live Kuma 2.5.5 QA copied the existing Healthy TLS monitor into a
+second authenticated saved server, verified the exact name/URL/20-second intervals
+after process death, confirmed the draft stayed inactive and unassigned, deleted
+the copy, and verified the destination returned to a true zero-monitor live state.
+Both Kuma logs showed the expected login/add/get/delete lifecycle, Android logged
+no URSA crash or ANR, and the disposable server/connection were removed.
 
 ### 2026-10-13 - Validated monitor import
 

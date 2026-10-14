@@ -16,6 +16,8 @@ import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.URI
 import java.security.SecureRandom
+import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.MonitorTagAssignment
 import dev.astoris.ursa.data.model.RequestHeader
 
@@ -424,6 +426,38 @@ data class MonitorDraft(
 object MonitorDraftTransfer {
     fun clone(draft: MonitorDraft, name: String): MonitorDraft = sanitized(draft).copy(name = name)
 
+    fun portable(
+        draft: MonitorDraft,
+        sourceNotifications: List<KumaNotification>,
+        destinationNotifications: List<KumaNotification>,
+        destinationTags: List<KumaTag>,
+    ): MonitorDraft {
+        val wantedNotifications = sourceNotifications
+            .filter { it.id in draft.notificationIds }
+            .mapTo(linkedSetOf()) { it.matchKey() }
+        val notificationsByKey = destinationNotifications.groupBy { it.matchKey() }
+            .mapNotNull { (key, matches) -> matches.singleOrNull()?.let { key to it } }
+            .toMap()
+        val tagsByName = destinationTags.groupBy { it.name.matchKey() }
+            .mapNotNull { (key, matches) -> matches.singleOrNull()?.let { key to it } }
+            .toMap()
+        return sanitized(draft).copy(
+            notificationIds = wantedNotifications.mapNotNullTo(linkedSetOf()) {
+                notificationsByKey[it]?.id
+            },
+            tagAssignments = draft.tagAssignments.mapNotNull { source ->
+                tagsByName[source.name.matchKey()]?.let { destination ->
+                    source.copy(
+                        tagId = destination.id,
+                        monitorId = 0,
+                        name = destination.name,
+                        color = destination.color,
+                    )
+                }
+            }.distinctBy { it.tagId to it.value },
+        )
+    }
+
     fun preset(draft: MonitorDraft): MonitorDraft? = draft.takeIf {
         MonitorEditorRegistry.find(it.type)?.supportsCredentialFreePreset() == true
     }?.let(::sanitized)
@@ -493,6 +527,11 @@ object MonitorDraftTransfer {
         sftpHasSavedPassphrase = false,
         sftpClearSavedPassphrase = false,
     )
+
+    private fun KumaNotification.matchKey(): Pair<String, String> =
+        name.matchKey() to type.matchKey()
+
+    private fun String.matchKey(): String = trim().lowercase()
 }
 
 enum class MonitorDraftError {

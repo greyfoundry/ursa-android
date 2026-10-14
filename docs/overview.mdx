@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-13
+last-updated: 2026-10-14
 owner: astoris
 status: stable
 ---
@@ -97,7 +97,8 @@ and the module docs under `docs/modules/`.
   bulk state changes, previewed drift-safe bulk edits of low-risk common fields,
   safe monitor cloning, encrypted credential-free presets, bounded validated
   CSV/tab-delimited import with dry-run duplicate detection and no imported secrets,
-  a previewed and resumable group wizard, notification assignment, groups/tags, maintenance, and
+  portable sanitized copies between saved servers, a previewed and resumable group
+  wizard, notification assignment, groups/tags, maintenance, and
   privacy-preserving local-service discovery and detailed encrypted configurable
   widgets. Expanded screens now use a monitor list-detail layout, Settings
   offers an opt-in always-on fleet glance display with explicit power and burn-in
@@ -148,6 +149,10 @@ and the module docs under `docs/modules/`.
   and all credential values or saved-value flags before review. Credential-free
   drafts can be saved as one of 50 encrypted local presets and reopened from
   Browse without copying a server session or creating a monitor automatically.
+  A monitor can also be copied to another saved server through the same sanitizer.
+  The destination must authenticate and allow monitor creation; only unambiguous
+  tag-name and notification-name/type matches are preselected, while credentials,
+  parent groups, server selector IDs, and active state always require review.
 - The phone shell now uses stable Navigation 3 with serializable, non-secret route
   keys and process-restorable navigation intent. Material 3 Adaptive switches the
   top-level bar/rail and monitor one-/two-pane layout from live window constraints;
