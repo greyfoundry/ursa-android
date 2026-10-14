@@ -271,6 +271,9 @@ class MonitorRepository(
     suspend fun beats(id: Int, hours: Int = 24): List<Heartbeat> =
         activeClient.value?.getBeats(id, hours) ?: emptyList()
 
+    suspend fun heartbeatHistory(id: Int, hours: Int): List<Heartbeat>? =
+        activeClient.value?.getBeatsOrNull(id, hours)
+
     /** One bounded account-wide page of durable transitions for the incident center. */
     suspend fun importantBeats(): List<Heartbeat>? = activeClient.value?.getImportantBeats()
 

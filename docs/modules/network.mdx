@@ -17,6 +17,9 @@ here so the rest of the app sees clean domain models.
 - `app/src/main/java/dev/astoris/ursa/core/network/KumaClient.kt` - one Socket.IO
   connection per server; auth, event wiring, pause/resume, heartbeat history,
   and server chart/important-transition queries.
+- `.../core/network/HeartbeatHistory.kt` - validates exact history intervals,
+  converts Kuma's UTC heartbeat timestamps, filters/deduplicates the requested
+  range, and reports bounded rows plus actual observed coverage.
 - `.../core/network/KumaCapabilities.kt` - strict stable-version parsing and the
   live-tested 2.4.0-2.5.6 read/write and type-schema capability matrix.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
@@ -241,6 +244,11 @@ here so the rest of the app sees clean domain models.
   `jsonAt()` → kotlinx → `KumaParse`.
 - `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case - two
   parse paths (`heartbeat` vs `beatRow`). Covered by `KumaParseTest`.
+- Kuma 2.5.6 `getMonitorBeats` accepts only a rolling hour count, not start/end
+  cursors or pagination. Exact custom ranges therefore request the smallest whole
+  hour window covering their start, filter locally in UTC, and fail closed beyond
+  a 30-day lookback/span. Results keep the newest 10,000 matching rows and expose
+  truncation and observed coverage instead of implying complete retention.
 - `getMonitorChartData` returns Kuma-computed buckets with `up`, `down`,
   `avgPing`, and epoch-second `timestamp`. Thirty days uses a 720-hour request.
   Fleet loading is user-triggered, limited to four concurrent acknowledgements,

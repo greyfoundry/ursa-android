@@ -548,11 +548,16 @@ class KumaClient(
     ) = IncidentMutationResult(IncidentMutationOutcome.INDETERMINATE, message = message)
 
     /** Recent heartbeat history for the detail view. Rows are snake_case (see KumaParse). */
-    suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> {
-        val res = emitAck("getMonitorBeats", id, hours) ?: return emptyList()
-        if (!res.optBoolean("ok")) return emptyList()
-        val data = res.optJSONArray("data") ?: return emptyList()
-        val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull() ?: return emptyList()
+    suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> =
+        getBeatsOrNull(id, hours).orEmpty()
+
+    /** Nullable variant used when callers must distinguish a failed request from no retained rows. */
+    suspend fun getBeatsOrNull(id: Int, hours: Int = 24): List<Heartbeat>? {
+        if (id <= 0 || hours !in 1..HeartbeatHistoryRange.MAX_LOOKBACK_HOURS) return null
+        val res = emitAck("getMonitorBeats", id, hours) ?: return null
+        if (!res.optBoolean("ok")) return null
+        val data = res.optJSONArray("data") ?: return null
+        val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull() ?: return null
         return KumaParse.beatRows(arr)
     }
 

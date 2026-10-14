@@ -97,7 +97,9 @@ and the module docs under `docs/modules/`.
   bulk state changes, previewed drift-safe bulk edits of low-risk common fields,
   safe monitor cloning, encrypted credential-free presets, bounded validated
   CSV/tab-delimited import with dry-run duplicate detection and no imported secrets,
-  portable sanitized copies between saved servers, a previewed and resumable group
+  portable sanitized copies between saved servers, exact custom heartbeat-history
+  ranges from the last 30 days with explicit observed coverage and bounded results,
+  a previewed and resumable group
   wizard, notification assignment, groups/tags, maintenance, and
   privacy-preserving local-service discovery and detailed encrypted configurable
   widgets. Expanded screens now use a monitor list-detail layout, Settings
@@ -164,6 +166,9 @@ and the module docs under `docs/modules/`.
   Overview/History/Configuration workspace without changing the adaptive
   list-detail or mutation boundaries. Derived inventory work is memoized away
   from unrelated heartbeat-history updates, parent-name queries are linear, and
+  History keeps the existing quick windows while allowing an exact device-local
+  start/end interval. Kuma UTC rows are filtered to that interval, deduplicated,
+  capped at 10,000 displayed rows, and labelled with their actual observed coverage.
   deterministic 1,000-monitor tests protect stable server ordering. Incidents is now a first-class adaptive
   destination with explicit Kuma-history and encrypted device-alert-group sources,
   reliability windows, encrypted local notes, redacted sharing, and direct

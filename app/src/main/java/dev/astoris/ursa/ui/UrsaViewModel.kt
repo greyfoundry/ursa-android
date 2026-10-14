@@ -12,6 +12,8 @@ import dev.astoris.ursa.core.access.AccessPolicy
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
+import dev.astoris.ursa.core.network.HeartbeatHistoryRange
+import dev.astoris.ursa.core.network.HeartbeatHistoryResult
 import dev.astoris.ursa.core.network.KumaCompatibilityTier
 import dev.astoris.ursa.core.network.LocalServiceDiscovery
 import dev.astoris.ursa.core.network.LocalServiceProtocol
@@ -31,6 +33,7 @@ import dev.astoris.ursa.core.network.StatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddressError
 import dev.astoris.ursa.core.network.StatusPageAddressResult
 import dev.astoris.ursa.core.network.StatusPageClient
+import dev.astoris.ursa.core.network.filterHeartbeatHistory
 import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.PushDeliveryTest
 import dev.astoris.ursa.core.push.PushAlertMode
@@ -165,6 +168,13 @@ data class MonitorImportUiState(
     val preview: MonitorImportPreview? = null,
     val result: MonitorImportApplyResult? = null,
 )
+
+sealed interface MonitorHistoryUiState {
+    data object Idle : MonitorHistoryUiState
+    data object Loading : MonitorHistoryUiState
+    data class Ready(val result: HeartbeatHistoryResult) : MonitorHistoryUiState
+    data object Error : MonitorHistoryUiState
+}
 
 data class FleetHomeUiState(
     val snapshot: FleetSnapshot? = null,
@@ -368,8 +378,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _beats = MutableStateFlow<List<Heartbeat>>(emptyList())
     val beats: StateFlow<List<Heartbeat>> = _beats.asStateFlow()
-    private val _beatRange = MutableStateFlow(HeartbeatRange.DAY)
-    val beatRange: StateFlow<HeartbeatRange> = _beatRange.asStateFlow()
+    private val _beatRange = MutableStateFlow<HeartbeatRange?>(HeartbeatRange.DAY)
+    val beatRange: StateFlow<HeartbeatRange?> = _beatRange.asStateFlow()
+    private val _customBeatRange = MutableStateFlow<HeartbeatHistoryRange?>(null)
+    val customBeatRange: StateFlow<HeartbeatHistoryRange?> = _customBeatRange.asStateFlow()
+    private val _monitorHistory = MutableStateFlow<MonitorHistoryUiState>(MonitorHistoryUiState.Idle)
+    val monitorHistory: StateFlow<MonitorHistoryUiState> = _monitorHistory.asStateFlow()
+    private var heartbeatHistoryJob: Job? = null
 
     val certs: StateFlow<Map<Int, CertInfo>> = repo.certs
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
@@ -1298,6 +1313,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         refetchBeats()
     }
 
+    fun setCustomBeatRange(range: HeartbeatHistoryRange) {
+        if (range.validationError(System.currentTimeMillis()) != null) return
+        _customBeatRange.value = range
+        _beatRange.value = null
+        refetchBeats()
+    }
+
     /** On-demand 30-day server aggregates for the fleet summary; never polled in the background. */
     suspend fun fleetChartData(monitorIds: List<Int>): Map<Int, List<MonitorChartPoint>?> =
         repo.chartData(monitorIds, FLEET_SUMMARY_HOURS)
@@ -1306,22 +1328,47 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun refetchBeats() {
         val id = _selectedId.value ?: return
-        viewModelScope.launch { _beats.value = repo.beats(id, _beatRange.value.hours) }
+        heartbeatHistoryJob?.cancel()
+        heartbeatHistoryJob = viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val range = _beatRange.value?.let { HeartbeatHistoryRange.recent(it.hours, now) }
+                ?: _customBeatRange.value
+                ?: HeartbeatHistoryRange.recent(HeartbeatRange.DAY.hours, now)
+            if (range.validationError(now) != null) {
+                _beats.value = emptyList()
+                _monitorHistory.value = MonitorHistoryUiState.Error
+                return@launch
+            }
+            _monitorHistory.value = MonitorHistoryUiState.Loading
+            val rows = repo.heartbeatHistory(id, range.requiredLookbackHours(now))
+            if (rows == null) {
+                _beats.value = emptyList()
+                _monitorHistory.value = MonitorHistoryUiState.Error
+                return@launch
+            }
+            val result = filterHeartbeatHistory(rows, range)
+            _beats.value = result.beats
+            _monitorHistory.value = MonitorHistoryUiState.Ready(result)
+        }
     }
 
     fun back() {
+        heartbeatHistoryJob?.cancel()
         _selectedId.value = null
         _beats.value = emptyList()
+        _monitorHistory.value = MonitorHistoryUiState.Idle
     }
 
     fun resetLogin() { _login.value = LoginUiState.Idle }
 
     fun logout() {
+        heartbeatHistoryJob?.cancel()
         repo.disconnect()
         _hasSession.value = false
         _kioskMode.value = false
         _selectedId.value = null
         _beats.value = emptyList()
+        _monitorHistory.value = MonitorHistoryUiState.Idle
         _login.value = LoginUiState.Idle
     }
 

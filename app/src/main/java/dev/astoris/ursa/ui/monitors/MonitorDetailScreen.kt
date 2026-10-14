@@ -1,5 +1,8 @@
 package dev.astoris.ursa.ui.monitors
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.text.format.DateUtils
 import androidx.activity.compose.BackHandler
@@ -31,6 +34,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
@@ -66,6 +70,8 @@ import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.HeartbeatHistoryRange
+import dev.astoris.ursa.core.network.HeartbeatHistoryRangeError
 import dev.astoris.ursa.core.network.ServerWebLink
 import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.data.model.Heartbeat
@@ -76,6 +82,7 @@ import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.StatusUi
+import dev.astoris.ursa.ui.MonitorHistoryUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.ui.components.FreshnessIndicator
@@ -86,6 +93,9 @@ import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.ui.theme.KumaGreen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +111,8 @@ fun MonitorDetailScreen(
     val certs by vm.certs.collectAsStateWithLifecycle()
     val cert = certs[monitor.id]
     val beatRange by vm.beatRange.collectAsStateWithLifecycle()
+    val customBeatRange by vm.customBeatRange.collectAsStateWithLifecycle()
+    val monitorHistory by vm.monitorHistory.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
@@ -291,8 +303,11 @@ fun MonitorDetailScreen(
                 MonitorWorkspaceSection.HISTORY -> MonitorHistorySection(
                     beats = beats,
                     selectedRange = beatRange,
+                    customRange = customBeatRange,
+                    historyState = monitorHistory,
                     cert = cert,
                     onRangeSelected = vm::setBeatRange,
+                    onCustomRangeSelected = vm::setCustomBeatRange,
                     modifier = Modifier.weight(1f),
                 )
                 MonitorWorkspaceSection.CONFIGURATION -> MonitorConfigurationSection(
@@ -593,11 +608,25 @@ private fun MonitorOverviewSection(
 @Composable
 private fun MonitorHistorySection(
     beats: List<Heartbeat>,
-    selectedRange: HeartbeatRange,
+    selectedRange: HeartbeatRange?,
+    customRange: HeartbeatHistoryRange?,
+    historyState: MonitorHistoryUiState,
     cert: CertInfo?,
     onRangeSelected: (HeartbeatRange) -> Unit,
+    onCustomRangeSelected: (HeartbeatHistoryRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val now = remember { System.currentTimeMillis() }
+    var customDialogOpen by rememberSaveable { mutableStateOf(false) }
+    var customStartMillis by rememberSaveable(customRange?.startMillis) {
+        mutableStateOf(customRange?.startMillis ?: now - DateUtils.DAY_IN_MILLIS)
+    }
+    var customEndMillis by rememberSaveable(customRange?.endMillis) {
+        mutableStateOf(customRange?.endMillis ?: now)
+    }
+    val pendingRange = HeartbeatHistoryRange(customStartMillis, customEndMillis)
+    val rangeError = pendingRange.validationError(System.currentTimeMillis())
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -617,6 +646,55 @@ private fun MonitorHistorySection(
                         selectedLabelColor = KumaGreen,
                     ),
                 )
+            }
+            FilterChip(
+                selected = selectedRange == null,
+                onClick = {
+                    customStartMillis = customRange?.startMillis ?: now - DateUtils.DAY_IN_MILLIS
+                    customEndMillis = customRange?.endMillis ?: now
+                    customDialogOpen = true
+                },
+                label = { Text(stringResource(R.string.history_custom_range)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = KumaGreen.copy(alpha = 0.16f),
+                    selectedLabelColor = KumaGreen,
+                ),
+            )
+        }
+        when (historyState) {
+            MonitorHistoryUiState.Idle -> Unit
+            MonitorHistoryUiState.Loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            MonitorHistoryUiState.Error -> Text(
+                stringResource(R.string.history_load_failed),
+                color = MaterialTheme.colorScheme.error,
+            )
+            is MonitorHistoryUiState.Ready -> {
+                val result = historyState.result
+                val observedStart = result.observedStartMillis
+                val observedEnd = result.observedEndMillis
+                if (observedStart == null || observedEnd == null) {
+                    Text(
+                        stringResource(R.string.history_no_retained_rows),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        stringResource(
+                            R.string.history_observed_coverage,
+                            formatHistoryDateTime(context, observedStart),
+                            formatHistoryDateTime(context, observedEnd),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (result.truncated) {
+                    Text(
+                        stringResource(R.string.history_result_truncated, result.beats.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
         ResponseTimeChart(beats)
@@ -641,6 +719,111 @@ private fun MonitorHistorySection(
             }
         }
     }
+    if (customDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { customDialogOpen = false },
+            title = { Text(stringResource(R.string.history_custom_range_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.history_custom_range_description))
+                    OutlinedButton(
+                        onClick = {
+                            showHistoryDateTimePicker(context, customStartMillis) {
+                                customStartMillis = it
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.history_custom_start,
+                                formatHistoryDateTime(context, customStartMillis),
+                            ),
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            showHistoryDateTimePicker(context, customEndMillis) {
+                                customEndMillis = it
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.history_custom_end,
+                                formatHistoryDateTime(context, customEndMillis),
+                            ),
+                        )
+                    }
+                    rangeError?.let { error ->
+                        Text(
+                            stringResource(error.stringResource()),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = rangeError == null,
+                    onClick = {
+                        customDialogOpen = false
+                        onCustomRangeSelected(pendingRange)
+                    },
+                ) { Text(stringResource(R.string.action_apply)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { customDialogOpen = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+}
+
+private fun HeartbeatHistoryRangeError.stringResource(): Int = when (this) {
+    HeartbeatHistoryRangeError.EMPTY -> R.string.history_range_empty
+    HeartbeatHistoryRangeError.FUTURE -> R.string.history_range_future
+    HeartbeatHistoryRangeError.SPAN_TOO_LARGE -> R.string.history_range_span_too_large
+    HeartbeatHistoryRangeError.LOOKBACK_TOO_LARGE -> R.string.history_range_lookback_too_large
+}
+
+private fun formatHistoryDateTime(context: Context, millis: Long): String = DateUtils.formatDateTime(
+    context,
+    millis,
+    DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH,
+)
+
+private fun showHistoryDateTimePicker(
+    context: Context,
+    initialMillis: Long,
+    onPicked: (Long) -> Unit,
+) {
+    val zone = ZoneId.systemDefault()
+    val initial = Instant.ofEpochMilli(initialMillis).atZone(zone)
+    DatePickerDialog(
+        context,
+        { _, year, month, day ->
+            TimePickerDialog(
+                context,
+                { _, hour, minute ->
+                    onPicked(
+                        LocalDateTime.of(year, month + 1, day, hour, minute)
+                            .atZone(zone)
+                            .toInstant()
+                            .toEpochMilli(),
+                    )
+                },
+                initial.hour,
+                initial.minute,
+                android.text.format.DateFormat.is24HourFormat(context),
+            ).show()
+        },
+        initial.year,
+        initial.monthValue - 1,
+        initial.dayOfMonth,
+    ).show()
 }
 
 @Composable

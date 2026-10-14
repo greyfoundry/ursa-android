@@ -9,6 +9,25 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-14 - Exact custom heartbeat-history ranges
+
+**changed**: Added a native date/time custom-range picker beside the existing
+6-hour, 24-hour, 7-day, and 30-day monitor-history windows. The detail workspace
+now distinguishes loading, request failure, no retained rows, observed coverage,
+and truncated results.
+
+**contract**: Kuma 2.5.6 exposes raw beats only as hours back from now. URSA caps
+custom lookback and span at 30 days, requests the smallest covering whole-hour
+window, parses Kuma timestamps as UTC, filters to the exact chosen interval,
+deduplicates rows, and retains at most the newest 10,000 matches. It never presents
+that bounded result as complete retention when truncation or a coverage gap exists.
+
+**verification**: Focused range validation/filtering/deduplication/truncation tests
+and the complete 198-task two-flavor phone/Wear unit, lint, and assemble gate pass.
+Android 17/live Kuma 2.5.5 QA opened both native
+date and time pickers, applied a custom interval, observed retained coverage, then
+returned to the 24-hour quick range without an app crash or ANR.
+
 ### 2026-10-14 - Portable cross-server monitor copy
 
 **changed**: Added a monitor-detail destination picker that authenticates another

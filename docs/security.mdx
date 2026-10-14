@@ -46,6 +46,10 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
   size/row/field bounded, uses a strict parser and header allowlist, rejects secret
   and assignment columns, validates through the current server's editor registry,
   and creates only inactive credential-free rows after an explicit dry run.
+- **Bound raw history retrieval.** Custom heartbeat ranges cannot exceed a 30-day
+  lookback or span. Kuma rows are parsed as UTC, filtered to the exact requested
+  interval, deduplicated, and capped at 10,000 displayed/exportable rows with
+  truncation and observed coverage kept explicit.
 
 ## MASVS coverage
 
@@ -66,7 +70,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 37 |
 | CODE-2 enforced updates | n/a | F-Droid/GitHub distribution; informational check only |
 | CODE-3 no vulnerable deps | met | pinned versions, Dependabot updates and alerts |
-| CODE-4 input validation | met | tolerant server parsing in `KumaParse`; strict bounded monitor-document parsing in `MonitorImport` |
+| CODE-4 input validation | met | tolerant server parsing in `KumaParse`; strict bounded monitor-document parsing in `MonitorImport`; bounded exact heartbeat ranges |
 | RESILIENCE-1..4 | out of scope | deliberate - see below |
 | PRIVACY-1..4 | met | no collection, no third-party endpoints |
 

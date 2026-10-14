@@ -57,7 +57,9 @@ and non-empty `name`; the URL is discarded at the network boundary.
 **client → server events (with ack callback)**
 - `getMonitorBeats(id, periodHours)` → `{ ok, data: HeartbeatRow[] }`
   rows are **snake_case**: `{ id, monitor_id, status, msg, time, ping, duration,
-  down_count, end_time, retries }`
+  down_count, end_time, retries }`. In verified 2.5.6 source, `periodHours` is used
+  directly as a SQL hour offset; this event has no start/end cursor, row limit, or
+  pagination argument. Returned `time` values are UTC SQL datetimes.
 - `getMonitorChartData(id, periodHours)` → `{ ok, data: [{ up, down, avgPing,
   minPing, maxPing, timestamp }] }` (⚠ NOT `ping/pingMin/pingMax`)
 - `monitorImportantHeartbeatListPaged(null, offset, count)` →
