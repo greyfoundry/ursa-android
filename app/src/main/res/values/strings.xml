@@ -510,6 +510,15 @@
     <string name="history_no_retained_rows">Kuma returned no retained heartbeats in this interval.</string>
     <string name="history_observed_coverage">Observed data: %1$s to %2$s</string>
     <string name="history_result_truncated">Showing the newest %d rows. Earlier rows in this interval were omitted.</string>
+    <string name="history_export_description">Export this exact requested range as streamed CSV or accessible HTML. Includes identity, UTC coverage, state, and latency; excludes addresses, messages, credentials, headers, and notification data.</string>
+    <string name="history_export_csv">Save history CSV</string>
+    <string name="history_export_html">Save history HTML</string>
+    <string name="history_export_failed">Could not write the history file.</string>
+    <string name="history_export_saved_truncated">Saved %1$d heartbeat rows; the result reached the %2$d-row safety limit.</string>
+    <plurals name="history_export_saved">
+        <item quantity="one">Saved %d heartbeat row.</item>
+        <item quantity="other">Saved %d heartbeat rows.</item>
+    </plurals>
     <string name="history_range_empty">End must be after start.</string>
     <string name="history_range_future">The range cannot end in the future.</string>
     <string name="history_range_span_too_large">A custom interval can span at most 30 days.</string>

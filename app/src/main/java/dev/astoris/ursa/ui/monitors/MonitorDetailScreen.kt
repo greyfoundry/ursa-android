@@ -4,9 +4,12 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.text.format.DateUtils
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +58,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,8 +74,12 @@ import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.HeartbeatHistoryExport
+import dev.astoris.ursa.core.network.HeartbeatHistoryExportData
+import dev.astoris.ursa.core.network.HeartbeatHistoryExportFormat
 import dev.astoris.ursa.core.network.HeartbeatHistoryRange
 import dev.astoris.ursa.core.network.HeartbeatHistoryRangeError
+import dev.astoris.ursa.core.network.HeartbeatHistoryResult
 import dev.astoris.ursa.core.network.ServerWebLink
 import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.data.model.Heartbeat
@@ -81,6 +89,7 @@ import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.AccessProfileNotice
+import dev.astoris.ursa.ui.AppDeepLink
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.MonitorHistoryUiState
 import dev.astoris.ursa.ui.UrsaViewModel
@@ -93,6 +102,8 @@ import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.ui.theme.KumaGreen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -301,6 +312,9 @@ fun MonitorDetailScreen(
                     modifier = Modifier.weight(1f),
                 )
                 MonitorWorkspaceSection.HISTORY -> MonitorHistorySection(
+                    monitor = monitor,
+                    serverName = activeConnection?.displayName ?: stringResource(R.string.app_name),
+                    serverScope = activeConnection?.let { AppDeepLink.serverScope(it.url) }.orEmpty(),
                     beats = beats,
                     selectedRange = beatRange,
                     customRange = customBeatRange,
@@ -607,6 +621,9 @@ private fun MonitorOverviewSection(
 
 @Composable
 private fun MonitorHistorySection(
+    monitor: Monitor,
+    serverName: String,
+    serverScope: String,
     beats: List<Heartbeat>,
     selectedRange: HeartbeatRange?,
     customRange: HeartbeatHistoryRange?,
@@ -617,6 +634,8 @@ private fun MonitorHistorySection(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
+    val scope = rememberCoroutineScope()
     val now = remember { System.currentTimeMillis() }
     var customDialogOpen by rememberSaveable { mutableStateOf(false) }
     var customStartMillis by rememberSaveable(customRange?.startMillis) {
@@ -624,6 +643,66 @@ private fun MonitorHistorySection(
     }
     var customEndMillis by rememberSaveable(customRange?.endMillis) {
         mutableStateOf(customRange?.endMillis ?: now)
+    }
+    var pendingExport by remember { mutableStateOf<PendingHeartbeatHistoryExport?>(null) }
+    var exportMessage by remember { mutableStateOf<String?>(null) }
+
+    fun writeHistoryExport(uri: Uri?) {
+        val pending = pendingExport
+        pendingExport = null
+        if (uri == null || pending == null) return
+        scope.launch {
+            val summary = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                        HeartbeatHistoryExport.write(writer, pending.format, pending.data)
+                    } ?: error("No output stream")
+                }.getOrNull()
+            }
+            exportMessage = when {
+                summary == null -> resources.getString(R.string.history_export_failed)
+                summary.truncated -> resources.getString(
+                    R.string.history_export_saved_truncated,
+                    summary.rowCount,
+                    HeartbeatHistoryRange.MAX_RESULT_ROWS,
+                )
+                else -> resources.getQuantityString(
+                    R.plurals.history_export_saved,
+                    summary.rowCount,
+                    summary.rowCount,
+                )
+            }
+        }
+    }
+
+    val csvExport = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(HeartbeatHistoryExportFormat.CSV.mimeType),
+        ::writeHistoryExport,
+    )
+    val htmlExport = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(HeartbeatHistoryExportFormat.HTML.mimeType),
+        ::writeHistoryExport,
+    )
+
+    fun startHistoryExport(format: HeartbeatHistoryExportFormat, history: HeartbeatHistoryResult) {
+        val capturedAt = System.currentTimeMillis()
+        pendingExport = PendingHeartbeatHistoryExport(
+            format = format,
+            data = HeartbeatHistoryExportData(
+                serverName = serverName,
+                serverScope = serverScope,
+                monitorId = monitor.id,
+                monitorName = monitor.name,
+                capturedAtMillis = capturedAt,
+                history = history,
+            ),
+        )
+        exportMessage = null
+        val fileName = HeartbeatHistoryExport.fileName(format, monitor.id, capturedAt)
+        when (format) {
+            HeartbeatHistoryExportFormat.CSV -> csvExport.launch(fileName)
+            HeartbeatHistoryExportFormat.HTML -> htmlExport.launch(fileName)
+        }
     }
     val pendingRange = HeartbeatHistoryRange(customStartMillis, customEndMillis)
     val rangeError = pendingRange.validationError(System.currentTimeMillis())
@@ -693,6 +772,30 @@ private fun MonitorHistorySection(
                         stringResource(R.string.history_result_truncated, result.beats.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Text(
+                    stringResource(R.string.history_export_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            startHistoryExport(HeartbeatHistoryExportFormat.CSV, result)
+                        },
+                    ) { Text(stringResource(R.string.history_export_csv)) }
+                    OutlinedButton(
+                        onClick = {
+                            startHistoryExport(HeartbeatHistoryExportFormat.HTML, result)
+                        },
+                    ) { Text(stringResource(R.string.history_export_html)) }
+                }
+                exportMessage?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -781,6 +884,11 @@ private fun MonitorHistorySection(
         )
     }
 }
+
+private data class PendingHeartbeatHistoryExport(
+    val format: HeartbeatHistoryExportFormat,
+    val data: HeartbeatHistoryExportData,
+)
 
 private fun HeartbeatHistoryRangeError.stringResource(): Int = when (this) {
     HeartbeatHistoryRangeError.EMPTY -> R.string.history_range_empty

@@ -9,6 +9,27 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-14 - Streamed heartbeat-history export
+
+**changed**: A ready monitor History result can now be saved through Android's
+document provider as formula-safe CSV or accessible, script-free HTML. Export uses
+the exact filtered DT-01 result and states the requested and observed UTC intervals,
+capture time, timezone, truncation, excluded malformed-row count, server scope,
+monitor identity, state, and latency.
+
+**safety**: The exporter writes rows directly to the selected document rather than
+building another whole-file copy in memory. It never receives server or monitor
+addresses, heartbeat messages, credentials, custom headers, notification data, or
+secrets. All cells are quoted, formula prefixes are neutralized, and HTML escapes
+untrusted server text with a caption and scoped column headers.
+
+**verification**: Focused exporter tests and F-Droid assembly pass. Android 17 QA
+exported 751 live Kuma rows to both formats, confirmed exact metadata, accessible
+HTML structure, and a clean forbidden-field scan, then removed both temporary
+documents. URSA logged no crash or ANR; Kuma showed only the intentional TLS-fixture
+failures. The complete 198-task two-flavor phone/Wear test, lint, and assemble gate
+passes.
+
 ### 2026-10-14 - Credential-free monitor inventory export
 
 **changed**: Added Inventory export under Browse/Insights. The active server can be

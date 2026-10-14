@@ -20,6 +20,9 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/HeartbeatHistory.kt` - validates exact history intervals,
   converts Kuma's UTC heartbeat timestamps, filters/deduplicates the requested
   range, and reports bounded rows plus actual observed coverage.
+- `.../core/network/HeartbeatHistoryExport.kt` - streams the active monitor's
+  already-bounded history result as formula-safe CSV or escaped, accessible HTML
+  without retaining another whole-file copy in memory.
 - `.../core/network/KumaCapabilities.kt` - strict stable-version parsing and the
   live-tested 2.4.0-2.5.6 read/write and type-schema capability matrix.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
@@ -252,6 +255,10 @@ here so the rest of the app sees clean domain models.
   hour window covering their start, filter locally in UTC, and fail closed beyond
   a 30-day lookback/span. Results keep the newest 10,000 matching rows and expose
   truncation and observed coverage instead of implying complete retention.
+- History export consumes that exact filtered result rather than issuing another
+  request. It carries requested and observed UTC intervals, server scope, monitor
+  identity, state, latency, and boundary metadata, but never addresses, heartbeat
+  messages, credentials, headers, notification data, or secrets.
 - `getMonitorChartData` returns Kuma-computed buckets with `up`, `down`,
   `avgPing`, and epoch-second `timestamp`. Thirty days uses a 720-hour request.
   Fleet loading is user-triggered, limited to four concurrent acknowledgements,
