@@ -9,6 +9,35 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-14 - Native attention widgets and tile
+
+**changed**: Exact-size widgets now put active down and pending checks first and
+show an urgent count plus explicit fresh/stale age. A manual private refresh waits
+briefly for Kuma's latest active-monitor heartbeats before caching, so the initial
+placeholder monitor list cannot overwrite known states. The Quick Settings tile
+now summarizes the existing encrypted fleet cache as urgent, offline, stale,
+maintenance, clear, locked, or unavailable without opening a socket.
+
+**navigation and compatibility**: Urgent tile taps use a new one-way scoped
+`ursa://attention/` route, activate only an exact saved connection, and open the
+existing active attention filter. Cold-start routing runs after Navigation restores
+its saved stack. Released unconfigured widget instances keep their active-server
+fallback, existing shortcut IDs and URI shapes are unchanged, and older serialized
+widget snapshots decode through additive defaults.
+
+**privacy and platform**: Enabling app lock commits the privacy state before any
+render, immediately replaces every existing widget with a redacted placeholder,
+and withholds tile counts and destinations. Unlock restores the Glance render.
+Widgets retain system-scheduled/manual refresh only; the tile is cache-only, so no
+new polling or persistent fleet connections were added.
+
+**verification**: Focused deep-link, attention-ordering, heartbeat-merge, lock
+redaction, and fleet-tile state tests plus F-Droid assembly pass. Android 17/live
+Kuma 2.5.5 QA verified a retained released widget, manual refresh, two-check urgent
+ordering, immediate lock redaction/restoration, cold attention launch, and tile
+navigation to the two-of-five active attention result. The temporary device PIN
+was removed after QA.
+
 ### 2026-10-14 - Coverage-aware SLA reports
 
 **changed**: Monitor History now derives a time-weighted SLA only from bounded,

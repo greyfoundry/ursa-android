@@ -236,8 +236,11 @@ route stack while screens migrate incrementally.
   `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, QS tile, and
   exact-size Glance widgets. Widgets choose up to six rows from a private server
   or saved public page, retain encrypted per-instance configuration/snapshots,
-  show status/latency/uptime/recent checks, refresh on demand, and deep-link back
-  to their validated server or page.
+  put active down/pending checks first, show an urgent count and freshness beside
+  status/latency/uptime/recent checks, refresh on demand, and deep-link back to
+  their validated server or page. The tile reads the existing encrypted fleet
+  cache without opening sockets, distinguishes urgent/offline/stale/maintenance,
+  and opens the affected server's guarded attention filter.
 - Notifications exposes a per-monitor explanation of the effective alert mode,
   severity, timing, quiet hours, snooze, recovery/maintenance behavior, assignment,
   dependency state, optional group N-of-M threshold, and current Android delivery blockers. Assigned managed
@@ -348,6 +351,9 @@ route stack while screens migrate incrementally.
   Private widgets reuse the encrypted monitor cache; neither widget store duplicates
   JWTs or access-header values. Refresh resolves the matching saved connection only
   in memory, and widget deep links accept only saved exact server/page identifiers.
+  App lock redacts widgets and the tile before reading their private data. Changing
+  the lock setting updates existing widgets immediately; released unconfigured
+  widget instances retain their legacy active-server fallback rather than breaking.
 - Portable backups merge servers by normalized URL. Payload v2 includes connection
   access profiles, custom capability selections, and cleartext policy alongside access headers,
   favorites, dynamic-colour choice, and slow-alert preferences; session JWTs

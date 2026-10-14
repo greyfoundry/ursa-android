@@ -16,6 +16,7 @@ class AppDeepLinkTest {
         assertTrue("server URL must not be embedded", !route.contains("kuma.example.com"))
         assertEquals(AppRoute.Monitor(scope, 42), AppDeepLink.parse(route))
         assertEquals(AppRoute.Connection(scope), AppDeepLink.parse(AppDeepLink.connection("https://kuma.example.com/base")))
+        assertEquals(AppRoute.Attention(scope), AppDeepLink.parse(AppDeepLink.attention("https://kuma.example.com/base")))
         assertEquals(AppRoute.Incident(scope, 42), AppDeepLink.parse(AppDeepLink.incident("https://kuma.example.com/base", 42)))
     }
 

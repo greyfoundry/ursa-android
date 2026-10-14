@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-04
+last-updated: 2026-10-14
 owner: astoris
 status: complete
 ---
@@ -17,8 +17,10 @@ tab cannot provide while URSA remains a direct client with no hosted backend.
 3. Explicit immutable notification actions and non-exported action receivers.
 4. Local certificate-expiry reminders from encrypted cached certificate metadata.
 5. Exact-size Glance widgets with encrypted per-instance private/public sources,
-   selected rows, manual refresh, freshness, and strict scoped deep links.
-6. Quick Settings fleet-status tile.
+   attention-first selected rows, urgent/freshness summaries, manual refresh,
+   lock redaction, and strict scoped deep links.
+6. Quick Settings fleet-status tile backed by the encrypted fleet cache with
+   urgent/offline/stale/maintenance states and a guarded attention deep link.
 7. Launcher shortcuts and validated in-app routes.
 8. Extracted UI string resources ready for community translations.
 9. Optional always-on glance display with power/burn-in disclosure and visible exit.
@@ -40,8 +42,9 @@ tab cannot provide while URSA remains a direct client with no hosted backend.
 
 ## verification
 
-Logic, parser, security, widget-data, and Wear tests cover bounded inputs and route
-validation. Android 17 phone QA covers list/detail, widgets, tile, shortcuts, deep
-links, and glance mode. Android 16 Wear QA covers setup, live public dashboard/detail,
+Logic, parser, security, widget-data, tile-data, and Wear tests cover bounded inputs
+and route validation. Android 17 phone QA covers list/detail, widgets including a
+retained released instance, lock redaction/restoration, tile, shortcuts, deep links,
+and glance mode. Android 16 Wear QA covers setup, live public dashboard/detail,
 tile/complication registration, encrypted private session storage, and actions. A
 real paired-watch Data Layer transfer remains the only hardware-specific caveat.

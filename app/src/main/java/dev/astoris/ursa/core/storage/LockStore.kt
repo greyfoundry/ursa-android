@@ -31,7 +31,7 @@ object LockStore {
     }
 
     fun setEnabled(context: Context, enabled: Boolean) {
-        prefs(context).edit { putBoolean(KEY_ENABLED, enabled) }
+        prefs(context).edit(commit = true) { putBoolean(KEY_ENABLED, enabled) }
         _enabled.value = enabled
     }
 

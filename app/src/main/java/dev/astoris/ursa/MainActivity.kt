@@ -7,6 +7,7 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,11 +35,13 @@ class MainActivity : FragmentActivity() {
             )
         }
         enableEdgeToEdge()
-        handleRoute(intent)
+        val launchIntent = intent
         setContent {
             val dynamicColor by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
             UrsaTheme(dynamicColor = dynamicColor) {
                 UrsaApp(vm)
+                // Apply cold-start routes after Navigation has restored its saved stack.
+                LaunchedEffect(launchIntent) { handleRoute(launchIntent) }
             }
         }
     }

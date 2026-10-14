@@ -1,9 +1,13 @@
 package dev.astoris.ursa.ui
 
 import android.app.Application
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.widget.RemoteViews
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.astoris.ursa.R
@@ -95,6 +99,7 @@ import dev.astoris.ursa.ui.monitors.SavedMonitorView
 import dev.astoris.ursa.ui.monitors.ActivityFilter
 import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
+import dev.astoris.ursa.ui.widget.MonitorWidgetReceiver
 import dev.astoris.ursa.data.model.AccessProfile
 import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.CleartextPolicy
@@ -731,23 +736,27 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openFleetServerMonitors(serverUrl: String, attentionOnly: Boolean = false) {
         viewModelScope.launch {
-            if (!activateFleetServer(serverUrl)) return@launch
-            _selectedId.value = null
-            _beats.value = emptyList()
-            _monitorFilterRequest.value = if (attentionOnly) {
-                MonitorViewFilter(
-                    statuses = setOf(
-                        MonitorStatus.DOWN,
-                        MonitorStatus.PENDING,
-                        MonitorStatus.MAINTENANCE,
-                    ),
-                    activity = ActivityFilter.ACTIVE,
-                )
-            } else {
-                null
-            }
-            _tab.value = MainTab.MONITORS
+            openServerMonitors(serverUrl, attentionOnly)
         }
+    }
+
+    private suspend fun openServerMonitors(serverUrl: String, attentionOnly: Boolean) {
+        if (!activateFleetServer(serverUrl)) return
+        _selectedId.value = null
+        _beats.value = emptyList()
+        _monitorFilterRequest.value = if (attentionOnly) {
+            MonitorViewFilter(
+                statuses = setOf(
+                    MonitorStatus.DOWN,
+                    MonitorStatus.PENDING,
+                    MonitorStatus.MAINTENANCE,
+                ),
+                activity = ActivityFilter.ACTIVE,
+            )
+        } else {
+            null
+        }
+        _tab.value = MainTab.MONITORS
     }
 
     fun openFleetServerIncidents(serverUrl: String) {
@@ -760,9 +769,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun activateFleetServer(serverUrl: String): Boolean {
-        val connection = connections.value.firstOrNull { it.url == serverUrl } ?: return false
+        val connection = store.snapshot().firstOrNull { it.url == serverUrl } ?: return false
         return try {
-            if (activeUrl.value != serverUrl) {
+            if (repo.activeUrl.first() != serverUrl) {
                 repo.switchTo(connection)
                 OverallStatusService.refreshIfEnabled(getApplication())
             }
@@ -1249,8 +1258,17 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             AppRoute.Settings -> enterSettings()
             is AppRoute.StatusPage -> openStatusPageDeepLink(route.pageId)
             is AppRoute.Connection -> openScopedConnection(route.serverScope)
+            is AppRoute.Attention -> openAttentionDeepLink(route.serverScope)
             is AppRoute.Monitor -> openMonitorDeepLink(route.serverScope, route.monitorId)
             is AppRoute.Incident -> openIncidentDeepLink(route.serverScope, route.monitorId)
+        }
+    }
+
+    private fun openAttentionDeepLink(serverScope: String) {
+        viewModelScope.launch {
+            startupReady.first { it }
+            val connection = connectionForScope(serverScope) ?: return@launch
+            openServerMonitors(connection.url, attentionOnly = true)
         }
     }
 
@@ -1943,6 +1961,19 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun setLockEnabled(enabled: Boolean) {
         LockStore.setEnabled(getApplication(), enabled)
         if (!enabled) _locked.value = false
+        val app = getApplication<Application>()
+        val manager = AppWidgetManager.getInstance(app)
+        val ids = manager.getAppWidgetIds(ComponentName(app, MonitorWidgetReceiver::class.java))
+        if (enabled && ids.isNotEmpty()) {
+            manager.updateAppWidget(ids, RemoteViews(app.packageName, R.layout.widget_locked))
+        }
+        if (ids.isNotEmpty()) {
+            app.sendBroadcast(
+                Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                    .setComponent(ComponentName(app, MonitorWidgetReceiver::class.java))
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids),
+            )
+        }
     }
 
     fun setDestructiveStepUpEnabled(enabled: Boolean) {

@@ -3,8 +3,39 @@
     <string name="widget_refresh">Refresh</string>
     <string name="widget_no_data">No cached data yet. Tap to open URSA.</string>
     <string name="widget_updated">Updated %1$s ago</string>
+    <string name="widget_stale">Stale: updated %1$s ago</string>
+    <string name="widget_locked">Unlock URSA to show monitor details.</string>
+    <string name="widget_no_urgent">No urgent checks</string>
+    <plurals name="widget_urgent">
+        <item quantity="one">%1$d check needs attention</item>
+        <item quantity="other">%1$d checks need attention</item>
+    </plurals>
     <string name="widget_uptime_24h">24-hour uptime</string>
     <string name="widget_recent_checks">Recent checks</string>
+    <string name="tile_label">URSA status</string>
+    <string name="tile_locked">Unlock URSA for fleet status</string>
+    <string name="tile_no_data">No cached fleet data</string>
+    <string name="tile_clear">All active checks up</string>
+    <plurals name="tile_urgent">
+        <item quantity="one">%1$d urgent check</item>
+        <item quantity="other">%1$d urgent checks</item>
+    </plurals>
+    <plurals name="tile_affected_servers">
+        <item quantity="one">%1$d server</item>
+        <item quantity="other">%1$d servers</item>
+    </plurals>
+    <plurals name="tile_offline">
+        <item quantity="one">%1$d server unavailable</item>
+        <item quantity="other">%1$d servers unavailable</item>
+    </plurals>
+    <plurals name="tile_stale">
+        <item quantity="one">%1$d server has stale data</item>
+        <item quantity="other">%1$d servers have stale data</item>
+    </plurals>
+    <plurals name="tile_maintenance">
+        <item quantity="one">%1$d check in maintenance</item>
+        <item quantity="other">%1$d checks in maintenance</item>
+    </plurals>
     <string name="widget_config_title">Set up URSA widget</string>
     <string name="widget_config_source">Data source</string>
     <string name="widget_config_private">Private server</string>

@@ -14,7 +14,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 object WidgetRefresher {
     suspend fun refresh(context: Context, appWidgetId: Int): Boolean {
-        val config = WidgetStore(context).loadConfig(appWidgetId) ?: return false
+        val config = WidgetStore(context).loadConfig(appWidgetId) ?: ConnectionStore(context)
+            .activeUrl.first()
+            ?.let { WidgetConfig(WidgetSource.PRIVATE_SERVER, it) }
+            ?: return false
         return when (config.source) {
             WidgetSource.PRIVATE_SERVER -> refreshPrivate(context, config)
             WidgetSource.PUBLIC_PAGE -> refreshPublic(context, config)
@@ -32,7 +35,15 @@ object WidgetRefresher {
             if (!client.loginByToken(token)) return false
             val monitors = withTimeoutOrNull(20_000L) {
                 client.monitorListReady.first { it }
-                client.monitors.value.values.toList()
+                val listed = client.monitors.value.values.toList()
+                val activeIds = listed.filter { it.active }.mapTo(mutableSetOf()) { it.id }
+                withTimeoutOrNull(5_000L) {
+                    client.beatHistory.first { history -> history.keys.containsAll(activeIds) }
+                }
+                WidgetData.mergeLatestHeartbeats(
+                    monitors = client.monitors.value.values.toList(),
+                    history = client.beatHistory.value,
+                )
             } ?: return false
             MonitorCacheStore(context).save(
                 connection.url,

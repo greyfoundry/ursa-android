@@ -14,6 +14,8 @@ sealed interface AppRoute : NavKey {
     @Serializable
     data class Connection(val serverScope: String) : AppRoute
     @Serializable
+    data class Attention(val serverScope: String) : AppRoute
+    @Serializable
     data class Monitor(val serverScope: String, val monitorId: Int) : AppRoute
     @Serializable
     data class Incident(val serverScope: String, val monitorId: Int) : AppRoute
@@ -31,6 +33,7 @@ object AppDeepLink {
         .take(16)
 
     fun connection(serverUrl: String) = "ursa://connection/${serverScope(serverUrl)}"
+    fun attention(serverUrl: String) = "ursa://attention/${serverScope(serverUrl)}"
     fun monitor(serverUrl: String, monitorId: Int) = "ursa://monitor/${serverScope(serverUrl)}/$monitorId"
     fun incident(serverUrl: String, monitorId: Int) = "ursa://incident/${serverScope(serverUrl)}/$monitorId"
 
@@ -43,6 +46,7 @@ object AppDeepLink {
             "push" -> AppRoute.Push.takeIf { parts.isEmpty() }
             "settings" -> AppRoute.Settings.takeIf { parts.isEmpty() }
             "connection" -> parts.singleOrNull()?.takeIf(scopePattern::matches)?.let(AppRoute::Connection)
+            "attention" -> parts.singleOrNull()?.takeIf(scopePattern::matches)?.let(AppRoute::Attention)
             "status-page" -> parts.singleOrNull()
                 ?.takeIf { it.length in 1..100 && Regex("^[A-Za-z0-9_-]+$").matches(it) }
                 ?.let(AppRoute::StatusPage)
