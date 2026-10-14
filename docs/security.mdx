@@ -60,6 +60,11 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
   UTC range/coverage, server scope, monitor identity, state, and latency, while
   excluding addresses, heartbeat messages, credentials, headers, notification
   data, and secrets. CSV neutralizes formula prefixes and HTML escapes server text.
+- **Never promote missing retention to uptime.** SLA reports infer a conservative
+  cadence only when at least two usable UTC samples exist, cap state carry-forward,
+  list leading/trailing/internal missing periods, and exclude missing, maintenance,
+  and pending time from `up / (up + down)`. Address-like server labels are replaced
+  by a short one-way server scope across inventory, history, and SLA exports.
 
 ## MASVS coverage
 

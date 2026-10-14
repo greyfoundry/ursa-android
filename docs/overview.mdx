@@ -100,7 +100,8 @@ and the module docs under `docs/modules/`.
   portable sanitized copies between saved servers, exact custom heartbeat-history
   ranges from the last 30 days with explicit observed coverage and bounded results,
   streamed per-monitor heartbeat-history export as formula-safe CSV or accessible
-  HTML with requested and observed UTC intervals,
+  HTML with requested and observed UTC intervals, plus coverage-aware SLA summaries
+  and reports that exclude maintenance, pending, and missing time from uptime,
   credential-free active-server inventory export as deterministic CSV or accessible
   HTML, a previewed and resumable group
   wizard, notification assignment, groups/tags, maintenance, and
@@ -174,6 +175,8 @@ and the module docs under `docs/modules/`.
   capped at 10,000 displayed rows, and labelled with their actual observed coverage.
   The exact displayed result can be exported through Android's document provider
   without a second network request or an additional whole-file in-memory copy.
+  SLA reports estimate cadence from retained rows, list every detected missing
+  interval, and return unavailable when coverage is insufficient.
   deterministic 1,000-monitor tests protect stable server ordering. Incidents is now a first-class adaptive
   destination with explicit Kuma-history and encrypted device-alert-group sources,
   reliability windows, encrypted local notes, redacted sharing, and direct

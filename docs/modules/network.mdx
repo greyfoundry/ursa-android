@@ -23,6 +23,11 @@ here so the rest of the app sees clean domain models.
 - `.../core/network/HeartbeatHistoryExport.kt` - streams the active monitor's
   already-bounded history result as formula-safe CSV or escaped, accessible HTML
   without retaining another whole-file copy in memory.
+- `.../core/network/HeartbeatSlaReport.kt` - derives a conservative time-weighted
+  SLA from retained UTC rows, identifies missing intervals, and streams coverage-
+  explicit CSV or accessible HTML reports.
+- `.../core/network/ExportSafety.kt` - retains friendly server labels but replaces
+  URL/IP/host-like labels with a short one-way server scope in exported documents.
 - `.../core/network/KumaCapabilities.kt` - strict stable-version parsing and the
   live-tested 2.4.0-2.5.6 read/write and type-schema capability matrix.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
@@ -259,6 +264,13 @@ here so the rest of the app sees clean domain models.
   request. It carries requested and observed UTC intervals, server scope, monitor
   identity, state, latency, and boundary metadata, but never addresses, heartbeat
   messages, credentials, headers, notification data, or secrets.
+- SLA reporting estimates the nominal cadence from retained rows and carries a
+  state only to the next timely heartbeat, or one cadence when a gap is larger.
+  Leading, trailing, and internal gaps remain missing; maintenance and pending are
+  observed but excluded; SLA is `up / (up + down)`. Fewer than two usable samples
+  produce unavailable SLA rather than an inferred value. Every report states the
+  requested/observed UTC interval, coverage, missing periods, source truncation,
+  timezone, and calculation method.
 - `getMonitorChartData` returns Kuma-computed buckets with `up`, `down`,
   `avgPing`, and epoch-second `timestamp`. Thirty days uses a 720-hour request.
   Fleet loading is user-triggered, limited to four concurrent acknowledgements,

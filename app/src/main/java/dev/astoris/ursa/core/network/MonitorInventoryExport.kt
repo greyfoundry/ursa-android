@@ -37,11 +37,12 @@ object MonitorInventoryExport {
         val rows = monitors.sortedBy(Monitor::id).take(MAX_ROWS)
         val truncated = monitors.size > rows.size
         val capturedAt = Instant.ofEpochMilli(capturedAtMillis).toString()
+        val safeServerName = credentialFreeServerLabel(serverName, serverScope)
         val namesById = monitors.associate { it.id to it.name }
         val content = when (format) {
             MonitorInventoryExportFormat.CSV -> csv(
                 rows,
-                serverName,
+                safeServerName,
                 serverScope,
                 capturedAt,
                 monitors.size,
@@ -50,7 +51,7 @@ object MonitorInventoryExport {
             )
             MonitorInventoryExportFormat.HTML -> html(
                 rows,
-                serverName,
+                safeServerName,
                 serverScope,
                 capturedAt,
                 monitors.size,

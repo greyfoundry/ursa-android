@@ -519,6 +519,15 @@
         <item quantity="one">Saved %d heartbeat row.</item>
         <item quantity="other">Saved %d heartbeat rows.</item>
     </plurals>
+    <string name="sla_report_summary">Coverage-aware SLA: %1$.3f%%; observed coverage %2$.1f%%</string>
+    <string name="sla_report_unavailable">Coverage-aware SLA unavailable: at least two retained heartbeat samples are required.</string>
+    <string name="sla_report_exclusions">Excluded from SLA: %1$s maintenance; %2$s pending; %3$s missing</string>
+    <string name="sla_report_method">Time-weighted observed intervals. Maintenance and pending are excluded, and missing periods never count as uptime.</string>
+    <string name="sla_report_csv">Save SLA CSV</string>
+    <string name="sla_report_html">Save SLA HTML</string>
+    <string name="sla_report_failed">Could not write the SLA report.</string>
+    <string name="sla_report_saved_unavailable">Saved the SLA report with uptime unavailable because coverage was insufficient.</string>
+    <string name="sla_report_saved">Saved the SLA report: %1$.3f%% SLA with %2$.1f%% observed coverage.</string>
     <string name="history_range_empty">End must be after start.</string>
     <string name="history_range_future">The range cannot end in the future.</string>
     <string name="history_range_span_too_large">A custom interval can span at most 30 days.</string>

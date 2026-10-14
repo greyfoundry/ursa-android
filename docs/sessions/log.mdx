@@ -9,6 +9,36 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-14 - Coverage-aware SLA reports
+
+**changed**: Monitor History now derives a time-weighted SLA only from bounded,
+retained UTC heartbeats. It estimates nominal cadence from adjacent samples, carries
+a state to the next timely sample or one cadence, and exposes SLA plus observed
+coverage. CSV and accessible HTML reports state requested/observed intervals,
+timezone, cadence, source truncation, calculation method, category durations, and
+every detected missing interval.
+
+**correctness**: SLA is `up / (up + down)`. Maintenance and pending remain observed
+but excluded; leading, trailing, and large internal gaps remain missing and never
+become uptime. Fewer than two usable samples returns unavailable. Deterministic
+fixtures cover range-boundary outages, internal gaps, maintenance/pending, inadequate
+coverage, and UTC calculation across a daylight-saving transition.
+
+**safety**: Inventory, raw-history, and SLA exports now share a strict identity
+boundary: friendly server labels remain, while URL/IP/host-like labels fall back to
+a short one-way server scope. Reports contain no addresses, heartbeat messages,
+credentials, headers, notification data, or secrets; CSV neutralizes formulas and
+streams one row per missing interval, and HTML escapes untrusted text.
+
+**verification**: Focused report and cross-export safety tests plus F-Droid assembly
+pass. Android 17/live Kuma QA displayed 100.000% SLA with only 18.7% coverage after
+the overnight host gap, proving missing time was not promoted to uptime. CSV and
+HTML saved through DocumentsUI with complete coverage/method disclosures; the final
+hardened CSV used the scoped server pseudonym and passed address/secret scans. URSA
+logged no crash or ANR, Kuma showed only the intentional TLS-fixture failures, and
+all temporary reports were removed. The complete 198-task two-flavor phone/Wear
+test, lint, and assemble gate passes.
+
 ### 2026-10-14 - Streamed heartbeat-history export
 
 **changed**: A ready monitor History result can now be saved through Android's

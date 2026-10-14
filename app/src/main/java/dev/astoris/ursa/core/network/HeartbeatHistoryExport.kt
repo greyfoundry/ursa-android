@@ -87,8 +87,9 @@ object HeartbeatHistoryExport {
 
     private fun metadata(data: HeartbeatHistoryExportData): List<Pair<String, String>> {
         val history = data.history
+        val serverLabel = credentialFreeServerLabel(data.serverName, data.serverScope)
         return listOf(
-            "Server" to data.serverName,
+            "Server" to serverLabel,
             "Server scope" to data.serverScope,
             "Monitor ID" to data.monitorId.toString(),
             "Monitor" to data.monitorName,
@@ -106,8 +107,9 @@ object HeartbeatHistoryExport {
 
     private fun values(data: HeartbeatHistoryExportData, beat: Heartbeat): List<String> {
         val history = data.history
+        val serverLabel = credentialFreeServerLabel(data.serverName, data.serverScope)
         return listOf(
-            data.serverName,
+            serverLabel,
             data.serverScope,
             data.monitorId.toString(),
             data.monitorName,

@@ -80,6 +80,8 @@ import dev.astoris.ursa.core.network.HeartbeatHistoryExportFormat
 import dev.astoris.ursa.core.network.HeartbeatHistoryRange
 import dev.astoris.ursa.core.network.HeartbeatHistoryRangeError
 import dev.astoris.ursa.core.network.HeartbeatHistoryResult
+import dev.astoris.ursa.core.network.HeartbeatSlaReport
+import dev.astoris.ursa.core.network.HeartbeatSlaReportData
 import dev.astoris.ursa.core.network.ServerWebLink
 import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.data.model.Heartbeat
@@ -645,6 +647,7 @@ private fun MonitorHistorySection(
         mutableStateOf(customRange?.endMillis ?: now)
     }
     var pendingExport by remember { mutableStateOf<PendingHeartbeatHistoryExport?>(null) }
+    var pendingSlaReport by remember { mutableStateOf<PendingHeartbeatSlaReport?>(null) }
     var exportMessage by remember { mutableStateOf<String?>(null) }
 
     fun writeHistoryExport(uri: Uri?) {
@@ -684,6 +687,40 @@ private fun MonitorHistorySection(
         ::writeHistoryExport,
     )
 
+    fun writeSlaReport(uri: Uri?) {
+        val pending = pendingSlaReport
+        pendingSlaReport = null
+        if (uri == null || pending == null) return
+        scope.launch {
+            val summary = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                        HeartbeatSlaReport.write(writer, pending.format, pending.data)
+                    } ?: error("No output stream")
+                }.getOrNull()
+            }
+            val uptime = summary?.uptimeFraction
+            exportMessage = when {
+                summary == null -> resources.getString(R.string.sla_report_failed)
+                uptime == null -> resources.getString(R.string.sla_report_saved_unavailable)
+                else -> resources.getString(
+                    R.string.sla_report_saved,
+                    uptime * 100.0,
+                    summary.coverageFraction * 100.0,
+                )
+            }
+        }
+    }
+
+    val slaCsvExport = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(HeartbeatHistoryExportFormat.CSV.mimeType),
+        ::writeSlaReport,
+    )
+    val slaHtmlExport = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(HeartbeatHistoryExportFormat.HTML.mimeType),
+        ::writeSlaReport,
+    )
+
     fun startHistoryExport(format: HeartbeatHistoryExportFormat, history: HeartbeatHistoryResult) {
         val capturedAt = System.currentTimeMillis()
         pendingExport = PendingHeartbeatHistoryExport(
@@ -702,6 +739,27 @@ private fun MonitorHistorySection(
         when (format) {
             HeartbeatHistoryExportFormat.CSV -> csvExport.launch(fileName)
             HeartbeatHistoryExportFormat.HTML -> htmlExport.launch(fileName)
+        }
+    }
+
+    fun startSlaReport(format: HeartbeatHistoryExportFormat, history: HeartbeatHistoryResult) {
+        val capturedAt = System.currentTimeMillis()
+        pendingSlaReport = PendingHeartbeatSlaReport(
+            format = format,
+            data = HeartbeatSlaReportData(
+                serverName = serverName,
+                serverScope = serverScope,
+                monitorId = monitor.id,
+                monitorName = monitor.name,
+                capturedAtMillis = capturedAt,
+                history = history,
+            ),
+        )
+        exportMessage = null
+        val fileName = HeartbeatSlaReport.fileName(format, monitor.id, capturedAt)
+        when (format) {
+            HeartbeatHistoryExportFormat.CSV -> slaCsvExport.launch(fileName)
+            HeartbeatHistoryExportFormat.HTML -> slaHtmlExport.launch(fileName)
         }
     }
     val pendingRange = HeartbeatHistoryRange(customStartMillis, customEndMillis)
@@ -790,6 +848,43 @@ private fun MonitorHistorySection(
                             startHistoryExport(HeartbeatHistoryExportFormat.HTML, result)
                         },
                     ) { Text(stringResource(R.string.history_export_html)) }
+                }
+                val sla = remember(result) { HeartbeatSlaReport.calculate(result) }
+                val uptime = sla.uptimeFraction
+                Text(
+                    if (uptime == null) {
+                        stringResource(R.string.sla_report_unavailable)
+                    } else {
+                        stringResource(
+                            R.string.sla_report_summary,
+                            uptime * 100.0,
+                            sla.coverageFraction * 100.0,
+                        )
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    stringResource(
+                        R.string.sla_report_exclusions,
+                        compactDuration(sla.maintenanceMillis),
+                        compactDuration(sla.pendingMillis),
+                        compactDuration(sla.missingMillis),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.sla_report_method),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { startSlaReport(HeartbeatHistoryExportFormat.CSV, result) },
+                    ) { Text(stringResource(R.string.sla_report_csv)) }
+                    OutlinedButton(
+                        onClick = { startSlaReport(HeartbeatHistoryExportFormat.HTML, result) },
+                    ) { Text(stringResource(R.string.sla_report_html)) }
                 }
                 exportMessage?.let {
                     Text(
@@ -888,6 +983,11 @@ private fun MonitorHistorySection(
 private data class PendingHeartbeatHistoryExport(
     val format: HeartbeatHistoryExportFormat,
     val data: HeartbeatHistoryExportData,
+)
+
+private data class PendingHeartbeatSlaReport(
+    val format: HeartbeatHistoryExportFormat,
+    val data: HeartbeatSlaReportData,
 )
 
 private fun HeartbeatHistoryRangeError.stringResource(): Int = when (this) {
