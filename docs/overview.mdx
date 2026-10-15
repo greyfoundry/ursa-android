@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-14
+last-updated: 2026-10-15
 owner: astoris
 status: stable
 ---
@@ -62,8 +62,15 @@ and the module docs under `docs/modules/`.
 - M4 done: native depth - offline last-known cache, biometric app lock,
   notification Pause/Resume actions, local TLS-expiry reminders, attention-first
   home-screen widgets, a cached fleet-status Quick Settings tile, app shortcuts,
-  and full i18n. See
+  and resource-backed localization foundations. See
   `docs/planning/m4-native-depth.mdx`.
+- Phone and Wear user-facing fallback copy is resource-backed, both debug modules
+  enable Android's accented and bidirectional pseudo-locales, and technical values
+  such as server addresses remain directionally isolated in RTL layouts. The
+  accessibility gate covers semantic headings and status text, keyboard/Switch
+  Access focus, TalkBack focus, 200% font, reduced motion, minimum touch targets,
+  and WCAG AA status contrast. Translation packs can be added without changing
+  application logic; no additional production locale is claimed yet.
 - The encrypted per-server monitor cache now supports one batched, typed read for
   fleet use. A cached fleet snapshot distinguishes available, missing, corrupt,
   undecryptable, and store-unavailable data; normalizes active/paused/status counts

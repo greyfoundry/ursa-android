@@ -34,6 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.MonitorImport
 import dev.astoris.ursa.core.network.MonitorImportRow
 import dev.astoris.ursa.core.network.MonitorImportStatus
@@ -92,7 +93,7 @@ fun MonitorImportScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.monitor_import_title)) },
+                title = { Text(stringResource(R.string.monitor_import_title), Modifier.accessibilityHeading()) },
                 navigationIcon = {
                     IconButton(onClick = close) {
                         Icon(

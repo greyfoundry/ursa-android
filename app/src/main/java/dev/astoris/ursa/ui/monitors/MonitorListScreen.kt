@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.FaviconCache
 import dev.astoris.ursa.data.model.AccessCapability
@@ -70,6 +71,7 @@ import dev.astoris.ursa.ui.StatusCircle
 import dev.astoris.ursa.ui.StatusPill
 import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.bidirectionalWrap
 import dev.astoris.ursa.ui.components.OperationalControlsRow
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
@@ -182,6 +184,7 @@ fun MonitorListScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             Column {
                                 Text(
                                     activeConnection?.displayName ?: stringResource(R.string.app_name),
+                                    modifier = Modifier.accessibilityHeading(),
                                     style = MaterialTheme.typography.titleMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -709,7 +712,7 @@ private fun MonitorRow(
                 )
                 monitor.url?.takeUnless { compact }?.let {
                     Text(
-                        it,
+                        bidirectionalWrap(it),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

@@ -2,8 +2,8 @@
     <string name="app_name">URSA</string>
     <string name="widget_refresh">Refresh</string>
     <string name="widget_no_data">No cached data yet. Tap to open URSA.</string>
-    <string name="widget_updated">Updated %1$s ago</string>
-    <string name="widget_stale">Stale: updated %1$s ago</string>
+    <string name="widget_updated">Updated %1$s</string>
+    <string name="widget_stale">Stale: updated %1$s</string>
     <string name="widget_locked">Unlock URSA to show monitor details.</string>
     <string name="widget_no_urgent">No urgent checks</string>
     <plurals name="widget_urgent">
@@ -1786,4 +1786,37 @@
     <string name="update_privacy">Manual check only. URSA sends its version, not a device or installation identifier.</string>
     <string name="login_connection_guide">Connect directly to your Uptime Kuma server. Include a reverse-proxy base path when used; add access-proxy headers under Advanced connection if needed. Credentials stay encrypted on this device.</string>
     <string name="update_current_notes"><b>In this version:</b> modern adaptive monitoring, richer incident and certificate views, secure custom headers, compact mode, saved filters, actionable diagnostics, Wear OS, and manual release checks.</string>
+    <!-- Cross-cutting localized fallbacks -->
+    <string name="authentication_error">Authentication could not be verified</string>
+    <string name="monitor_preset_unavailable">Monitor preset is unavailable.</string>
+    <string name="save_failed">Save failed.</string>
+    <string name="maintenance_details_unavailable">Maintenance details are unavailable.</string>
+    <string name="statuspage_request_failed">Request failed.</string>
+    <string name="statuspage_saved_server_required">Connect to the status page\'s saved server before changing incidents.</string>
+    <string name="statuspage_load_failed">Failed to load status page.</string>
+    <string name="statuspage_discovery_failed">Discovery failed.</string>
+    <string name="clipboard_unifiedpush_endpoint">UnifiedPush endpoint</string>
+    <string name="clipboard_push_url">Uptime Kuma push URL</string>
+    <string name="push_monitor_fallback_name">Monitor</string>
+    <string name="push_monitor_update">Monitor update</string>
+    <string name="push_monitor_status_title">%1$s %2$s</string>
+    <string name="push_status_up">is up</string>
+    <string name="push_status_down">is down</string>
+    <string name="push_status_pending">is pending</string>
+    <string name="push_status_maintenance">is in maintenance</string>
+    <string name="push_status_updated">was updated</string>
+    <string name="push_recovery_duration">%1$s\nWas down for %2$s.</string>
+    <string name="push_duration_less_than_minute">less than a minute</string>
+    <plurals name="push_duration_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="push_duration_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="push_duration_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
 </resources>

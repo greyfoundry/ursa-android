@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.push.PushAlertMode
 import dev.astoris.ursa.core.push.PushAlertTiming
@@ -86,6 +87,7 @@ import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.KumaPushSetupError
 import dev.astoris.ursa.ui.KumaPushSetupUiState
 import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.ui.bidirectionalWrap
 import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.core.push.PushLocalTestResult
 import dev.astoris.ursa.core.push.PushDiagnostics
@@ -204,7 +206,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.nav_notifications)) },
+                title = { Text(stringResource(R.string.nav_notifications), Modifier.accessibilityHeading()) },
                 actions = {
                     TextButton(
                         onClick = {
@@ -512,6 +514,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
 
             val ep = endpoint
             if (ep != null) {
+                val clipboardEndpointLabel = stringResource(R.string.clipboard_unifiedpush_endpoint)
                 Section(stringResource(R.string.push_section_endpoint)) {
                     Text(
                         stringResource(R.string.push_endpoint_desc),
@@ -520,7 +523,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     )
                     Card(Modifier.fillMaxWidth()) {
                         Text(
-                            ep,
+                            bidirectionalWrap(ep),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(12.dp),
                         )
@@ -534,7 +537,10 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         Button(
                             onClick = {
                                 scope.launch {
-                                    val clip = ClipData.newPlainText("UnifiedPush endpoint", ep).apply {
+                                    val clip = ClipData.newPlainText(
+                                        clipboardEndpointLabel,
+                                        ep,
+                                    ).apply {
                                         description.extras = PersistableBundle().apply {
                                             putBoolean("android.content.extra.IS_SENSITIVE", true)
                                         }
@@ -947,6 +953,7 @@ fun PushScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         BiometricGate.confirmDestructiveAction(
                             activity = activity,
                             enabled = destructiveStepUpEnabled,
+                            errorMessage = activity?.getString(R.string.authentication_error).orEmpty(),
                             onSuccess = {
                                 confirmRemove = false
                                 vm.deleteKumaPushSetup()

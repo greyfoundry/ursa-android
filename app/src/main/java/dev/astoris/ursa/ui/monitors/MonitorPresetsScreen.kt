@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.storage.MonitorPreset
 import dev.astoris.ursa.data.model.AccessCapability
@@ -52,7 +53,11 @@ fun MonitorPresetsScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.monitor_presets_title)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.monitor_presets_title), Modifier.accessibilityHeading()) },
+            )
+        },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),

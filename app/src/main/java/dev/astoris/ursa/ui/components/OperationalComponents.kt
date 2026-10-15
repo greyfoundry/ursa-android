@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.StatusPill
+import dev.astoris.ursa.ui.bidirectionalWrap
 
 @Composable
 fun SectionHeading(text: String) {
@@ -76,7 +77,7 @@ fun ServerContextHeader(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = serverAddress,
+                text = bidirectionalWrap(serverAddress),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,

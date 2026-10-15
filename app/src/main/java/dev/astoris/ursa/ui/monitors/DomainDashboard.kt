@@ -263,7 +263,7 @@ private fun DomainGroupCard(group: DomainGroup, onMonitorClick: (Int) -> Unit) {
                 Text(
                     domainCertificateSummary(group),
                     style = MaterialTheme.typography.bodySmall,
-                    color = domainCertificateColor(group),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -331,24 +331,10 @@ private fun domainCertificateSummary(group: DomainGroup): String {
     return stringResource(R.string.domain_tls_summary, health, coverage)
 }
 
-@Composable
-private fun domainCertificateColor(group: DomainGroup) = group.certificateEntries
-    .minByOrNull { certificatePriority(it.health) }
-    ?.let { certificateHealthColorForDomain(it.health) }
-    ?: MaterialTheme.colorScheme.onSurfaceVariant
-
 private fun certificatePriority(health: CertificateHealth): Int = when (health) {
     CertificateHealth.EXPIRED -> 0
     CertificateHealth.INVALID -> 1
     CertificateHealth.EXPIRING -> 2
     CertificateHealth.UNKNOWN -> 3
     CertificateHealth.HEALTHY -> 4
-}
-
-@Composable
-private fun certificateHealthColorForDomain(health: CertificateHealth) = when (health) {
-    CertificateHealth.EXPIRED, CertificateHealth.INVALID -> MaterialTheme.colorScheme.error
-    CertificateHealth.EXPIRING -> dev.astoris.ursa.ui.theme.KumaOrange
-    CertificateHealth.HEALTHY -> KumaGreen
-    CertificateHealth.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
 }

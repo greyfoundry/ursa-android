@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-14
+last-updated: 2026-10-15
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,29 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-15 - Accessibility and localization gate
+
+**changed**: Phone and Wear fallback copy now resolves through Android resources,
+including push notifications, widget freshness, setup/error states, tiles, and
+complications. Both debug modules enable Android's accented and bidirectional
+pseudo-locales. Mixed-direction server addresses, URLs, and endpoint fields are
+isolated or entered left-to-right without preventing the surrounding layout from
+mirroring. Screen titles expose heading semantics, maintenance weekdays use locale
+display names, and status pills have explicit accessible foreground colors.
+
+**compatibility**: No production locale was added or removed. Existing resource
+keys, persisted models, routes, push payloads, widget snapshots, and Wear pairing
+formats remain unchanged. Missing push copy is localized only at Android
+presentation time, so wire parsing stays locale-independent. The widget now delegates
+relative-time grammar to Android instead of composing an English suffix.
+
+**verification**: Focused phone push/status-color and Wear presentation tests pass.
+Android 17 phone and round Wear QA covers `en-XA`, `ar-XB`, 200% font, mirrored
+layout with left-to-right addresses, zero animation scales, hardware-keyboard focus,
+Switch Access focus, a TalkBack heading/focus check, and fully visible 48 dp touch
+targets. The complete 198-task two-flavor phone/Wear test, lint, and debug-assembly
+gate passes.
 
 ### 2026-10-14 - Wear attention source and freshness
 

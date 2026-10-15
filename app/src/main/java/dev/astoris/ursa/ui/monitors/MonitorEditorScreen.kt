@@ -54,6 +54,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
+import dev.astoris.ursa.ui.bidirectionalWrap
+import dev.astoris.ursa.ui.leftToRightTextStyle
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.LocalServiceDiscoveryError
 import dev.astoris.ursa.core.network.LocalServiceDiscoveryState
@@ -169,7 +172,10 @@ fun MonitorEditorScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(stringResource(if (draft.isNew) R.string.monitor_add_title else R.string.monitor_edit_title))
+                    Text(
+                        stringResource(if (draft.isNew) R.string.monitor_add_title else R.string.monitor_edit_title),
+                        Modifier.accessibilityHeading(),
+                    )
                 },
             )
         },
@@ -458,6 +464,7 @@ private fun MonitorForm(
                     )
                 },
                 singleLine = true,
+                textStyle = leftToRightTextStyle(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -1076,6 +1083,7 @@ private fun WebsocketOAuthFields(
         onValueChange = { onDraftChange(draft.copy(websocketOAuthTokenUrl = it.take(2_048))) },
         label = { Text(stringResource(R.string.monitor_websocket_oauth_token_url)) },
         singleLine = true,
+        textStyle = leftToRightTextStyle(),
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
@@ -1542,16 +1550,18 @@ private fun DatabaseFields(
         savedMessage = stringResource(R.string.monitor_database_connection_saved),
     )
     Text(
-        stringResource(
-            R.string.monitor_database_connection_example,
-            when (draft.type) {
-                "sqlserver" -> "Server=host,1433;Database=db;User Id=user;Password=password;Encrypt=true"
-                "postgres" -> "postgres://user:password@host:5432/database"
-                "mysql" -> "mysql://user@host:3306/database"
-                "mongodb" -> "mongodb://user:password@host:27017/database"
-                "oracledb" -> "host:1521/FREEPDB1"
-                else -> "redis://user:password@host:6379"
-            },
+        bidirectionalWrap(
+            stringResource(
+                R.string.monitor_database_connection_example,
+                when (draft.type) {
+                    "sqlserver" -> "Server=host,1433;Database=db;User Id=user;Password=password;Encrypt=true"
+                    "postgres" -> "postgres://user:password@host:5432/database"
+                    "mysql" -> "mysql://user@host:3306/database"
+                    "mongodb" -> "mongodb://user:password@host:27017/database"
+                    "oracledb" -> "host:1521/FREEPDB1"
+                    else -> "redis://user:password@host:6379"
+                },
+            ),
         ),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2418,6 +2428,7 @@ private fun GlobalpingFields(draft: MonitorDraft, onDraftChange: (MonitorDraft) 
             )
         },
         singleLine = true,
+        textStyle = leftToRightTextStyle(),
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
@@ -2837,17 +2848,21 @@ private fun PushMonitorSetup(pushUrl: String?, pushToken: String, isNew: Boolean
     }
     Card(Modifier.fillMaxWidth()) {
         Text(
-            if (revealed) pushUrl else pushUrl.replace(pushToken, "••••••••"),
+            bidirectionalWrap(if (revealed) pushUrl else pushUrl.replace(pushToken, "••••••••")),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(12.dp),
         )
     }
     val shareChooserTitle = stringResource(R.string.monitor_push_share_chooser)
+    val clipboardPushUrlLabel = stringResource(R.string.clipboard_push_url)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(
             onClick = {
                 scope.launch {
-                    val clip = ClipData.newPlainText("Uptime Kuma push URL", pushUrl).apply {
+                    val clip = ClipData.newPlainText(
+                        clipboardPushUrlLabel,
+                        pushUrl,
+                    ).apply {
                         description.extras = PersistableBundle().apply {
                             putBoolean("android.content.extra.IS_SENSITIVE", true)
                         }
@@ -2911,6 +2926,7 @@ private fun SensitiveField(
         },
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        textStyle = leftToRightTextStyle(),
         singleLine = minLines == 1,
         minLines = minLines,
         maxLines = if (minLines == 1) 1 else 8,

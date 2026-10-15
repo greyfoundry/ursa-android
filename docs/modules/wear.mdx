@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-14
+last-updated: 2026-10-15
 owner: astoris
 status: stable
 ---
@@ -71,6 +71,9 @@ password or session token on the watch.
   copied Kuma token. An offline or released v1 watch can retain earlier authority
   until it receives a supported clear request, the app data is cleared, or the Kuma
   token expires or is revoked.
+- Dashboard, detail, setup, tile, complication, freshness, and action-result copy
+  resolves through Android resources. Debug builds enable `en-XA` and `ar-XB`;
+  public-page addresses retain left-to-right entry inside mirrored RTL layouts.
 
 ## distribution
 
@@ -87,4 +90,6 @@ denials, AES-GCM tamper rejection, and action event names.
 Device QA covers standalone setup, dashboard/detail rendering, manifest registration,
 encrypted watch storage, and live Kuma pause/resume. Two independent AVDs cannot form
 a real Data Layer pair; the phone no-watch failure path and both compiled endpoints are
-verified separately.
+verified separately. Round-device QA also covers accented and bidirectional
+pseudo-locales so setup and operational copy remain legible without assuming English
+word lengths or left-to-right layout.

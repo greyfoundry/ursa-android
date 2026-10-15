@@ -32,7 +32,7 @@ class WearMainActivity : Activity() {
             return
         }
         val cached = WearSnapshotMemory.latest
-        if (cached == null) renderMessage("Loading status…") else renderSnapshot(cached, cached = true)
+        if (cached == null) renderMessage(getString(R.string.loading_status)) else renderSnapshot(cached, cached = true)
         val request = ++generation
         Thread {
             val snapshot = runBlocking { StatusPoll.fetchSnapshot(statusUrl) }
@@ -56,23 +56,23 @@ class WearMainActivity : Activity() {
 
     private fun renderSetup() {
         val root = WearUi.root(this)
-        root.addView(WearUi.title(this, "URSA"))
-        root.addView(WearUi.body(this, "Add a published Kuma status page to begin."))
-        root.addView(WearUi.button(this, "Set up", primary = true) { openSettings() })
+        root.addView(WearUi.title(this, getString(R.string.app_name)))
+        root.addView(WearUi.body(this, getString(R.string.setup_intro)))
+        root.addView(WearUi.button(this, getString(R.string.setup_action), primary = true) { openSettings() })
     }
 
     private fun renderMessage(message: String) {
         val root = WearUi.root(this)
-        root.addView(WearUi.title(this, "URSA"))
+        root.addView(WearUi.title(this, getString(R.string.app_name)))
         root.addView(WearUi.body(this, message))
     }
 
     private fun renderError() {
         val root = WearUi.root(this)
-        root.addView(WearUi.title(this, "No data"))
-        root.addView(WearUi.body(this, "Check the watch connection and published status-page URL."))
-        root.addView(WearUi.button(this, "Retry", primary = true) { load() })
-        root.addView(WearUi.button(this, "Settings") { openSettings() })
+        root.addView(WearUi.title(this, getString(R.string.no_data)))
+        root.addView(WearUi.body(this, getString(R.string.no_data_desc)))
+        root.addView(WearUi.button(this, getString(R.string.action_retry), primary = true) { load() })
+        root.addView(WearUi.button(this, getString(R.string.action_settings)) { openSettings() })
     }
 
     private fun renderSnapshot(
@@ -81,23 +81,23 @@ class WearMainActivity : Activity() {
         offline: Boolean = false,
     ) {
         val root = WearUi.root(this)
-        root.addView(WearUi.title(this, snapshot.title))
+        root.addView(WearUi.title(this, snapshot.title.ifBlank { getString(R.string.app_name) }))
         val summaryColor = when {
             snapshot.down > 0 -> WearUi.DOWN
             snapshot.pending > 0 || snapshot.maintenance > 0 -> WearUi.PENDING
             else -> WearUi.PRIMARY
         }
-        root.addView(WearUi.body(this, WearDisplay.fleetSummary(snapshot), summaryColor))
-        root.addView(WearUi.body(this, WearDisplay.sourceSummary(snapshot, cached, offline)))
-        root.addView(WearUi.button(this, "Refresh") { load() })
+        root.addView(WearUi.body(this, WearDisplay.fleetSummary(resources, snapshot), summaryColor))
+        root.addView(WearUi.body(this, WearDisplay.sourceSummary(resources, snapshot, cached, offline)))
+        root.addView(WearUi.button(this, getString(R.string.action_refresh)) { load() })
         snapshot.attentionFirst().take(MAX_MONITORS).forEach { monitor ->
             val card = WearUi.card(this).apply {
                 isClickable = true
                 isFocusable = true
                 contentDescription = buildString {
                     append(monitor.name)
-                    append(", ${WearDisplay.statusLabel(monitor.status)}")
-                    append(", ${WearDisplay.metrics(monitor)}")
+                    append(", ${WearDisplay.statusLabel(resources, monitor.status)}")
+                    append(", ${WearDisplay.metrics(resources, monitor)}")
                 }
                 setOnClickListener { openMonitor(monitor.id) }
             }
@@ -105,7 +105,7 @@ class WearMainActivity : Activity() {
             card.addView(
                 WearUi.body(
                     this,
-                    "${WearDisplay.statusLabel(monitor.status)} · ${WearDisplay.metrics(monitor)}",
+                    "${WearDisplay.statusLabel(resources, monitor.status)} · ${WearDisplay.metrics(resources, monitor)}",
                     WearUi.statusColor(monitor.status),
                 ),
             )
@@ -113,10 +113,20 @@ class WearMainActivity : Activity() {
             root.addView(card)
         }
         if (snapshot.monitors.size > MAX_MONITORS) {
-            root.addView(WearUi.body(this, "Showing $MAX_MONITORS of ${snapshot.monitors.size} monitors"))
+            root.addView(
+                WearUi.body(
+                    this,
+                    resources.getQuantityString(
+                        R.plurals.showing_monitors,
+                        snapshot.monitors.size,
+                        MAX_MONITORS,
+                        snapshot.monitors.size,
+                    ),
+                ),
+            )
         }
         root.addView(WearUi.spacer(this, 4))
-        root.addView(WearUi.button(this, "Settings") { openSettings() })
+        root.addView(WearUi.button(this, getString(R.string.action_settings)) { openSettings() })
     }
 
     private fun openMonitor(id: Int) {

@@ -15,7 +15,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.astoris.ursa.data.model.MonitorStatus
-import dev.astoris.ursa.ui.theme.White
 
 /**
  * A status badge matching Uptime Kuma's `badge rounded-pill bg-{color}`: a fully
@@ -33,7 +32,7 @@ fun StatusPill(status: MonitorStatus, modifier: Modifier = Modifier) {
     ) {
         Text(
             text = stringResource(StatusUi.labelRes(status)),
-            color = White,
+            color = StatusUi.contentColor(status),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
         )

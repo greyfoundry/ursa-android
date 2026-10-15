@@ -3,6 +3,7 @@ package dev.astoris.ursa.ui.widget
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.text.format.DateUtils
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -274,19 +275,14 @@ private fun rowIntent(context: Context, config: WidgetConfig, monitorId: Int) = 
     },
 )
 
-private fun relativeAge(updatedAt: Long, now: Long = System.currentTimeMillis()): String {
-    val minutes = ((now - updatedAt).coerceAtLeast(0L) / 60_000L).toInt()
-    return when {
-        minutes < 1 -> "less than a minute"
-        minutes < 60 -> "${minutes}m"
-        minutes < 1_440 -> "${minutes / 60}h"
-        else -> "${minutes / 1_440}d"
-    }
-}
-
 private fun freshnessLabel(context: Context, updatedAt: Long, now: Long = System.currentTimeMillis()): String {
     val age = (now - updatedAt).coerceAtLeast(0L)
-    val label = relativeAge(updatedAt, now)
+    val label = DateUtils.getRelativeTimeSpanString(
+        updatedAt.coerceAtMost(now),
+        now,
+        DateUtils.MINUTE_IN_MILLIS,
+        DateUtils.FORMAT_ABBREV_RELATIVE,
+    )
     return if (age >= FleetRepository.DEFAULT_STALE_AFTER_MILLIS) {
         context.getString(R.string.widget_stale, label)
     } else {

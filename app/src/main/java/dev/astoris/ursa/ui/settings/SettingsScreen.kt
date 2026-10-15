@@ -41,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.WearPairingError
 import dev.astoris.ursa.ui.WearPairingUiState
@@ -81,7 +82,7 @@ fun SettingsScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { Text(stringResource(R.string.settings_title), Modifier.accessibilityHeading()) },
             )
         },
     ) { padding ->

@@ -73,6 +73,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.HeartbeatHistoryExport
 import dev.astoris.ursa.core.network.HeartbeatHistoryExportData
@@ -96,6 +97,7 @@ import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.MonitorHistoryUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.ui.bidirectionalWrap
 import dev.astoris.ursa.ui.components.FreshnessIndicator
 import dev.astoris.ursa.ui.components.FreshnessState
 import dev.astoris.ursa.ui.components.TelemetrySummary
@@ -199,7 +201,7 @@ fun MonitorDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(monitor.name) },
+                title = { Text(monitor.name, Modifier.accessibilityHeading()) },
                 navigationIcon = {
                     if (showBack) {
                         IconButton(onClick = { vm.back() }) {
@@ -441,6 +443,7 @@ fun MonitorDetailScreen(
                         BiometricGate.confirmDestructiveAction(
                             activity = activity,
                             enabled = destructiveStepUpEnabled,
+                            errorMessage = activity?.getString(R.string.authentication_error).orEmpty(),
                             onSuccess = {
                                 actionInFlight = true
                                 vm.deleteMonitor(monitor.id, deleteChildren) { result ->
@@ -571,7 +574,9 @@ private fun MonitorOverviewSection(
         )
         WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_server), serverName)
         WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_type), monitor.type)
-        monitor.url?.let { WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_address), it) }
+        monitor.url?.let {
+            WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_address), bidirectionalWrap(it))
+        }
         parentName?.let { WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_parent), it) }
         if (monitor.tags.isNotEmpty()) {
             WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_tags), monitor.tags.joinToString())
@@ -1062,7 +1067,9 @@ private fun MonitorConfigurationSection(
         )
         WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_server), serverName)
         WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_type), monitor.type)
-        monitor.url?.let { WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_address), it) }
+        monitor.url?.let {
+            WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_address), bidirectionalWrap(it))
+        }
         parentName?.let { WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_parent), it) }
         if (monitor.tags.isNotEmpty()) {
             WorkspaceMetadataRow(stringResource(R.string.monitor_workspace_tags), monitor.tags.joinToString())

@@ -31,7 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +51,8 @@ import dev.astoris.ursa.ui.MaintenanceEditorUiState
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.allows
 import dev.astoris.ursa.ui.lock.BiometricGate
+import java.time.DayOfWeek
+import java.time.format.TextStyle
 
 @Composable
 fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier = Modifier) {
@@ -152,6 +157,7 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
                         BiometricGate.confirmDestructiveAction(
                             activity = activity,
                             enabled = destructiveStepUpEnabled,
+                            errorMessage = activity?.getString(R.string.authentication_error).orEmpty(),
                             onSuccess = {
                                 vm.deleteMaintenance(id) { if (it) confirmDelete = null }
                             },
@@ -244,9 +250,12 @@ private fun MaintenanceEditor(
             }
             MaintenanceStrategy.RECURRING_WEEKDAY -> {
                 Text(stringResource(R.string.maintenance_weekdays_label))
+                val locale = LocalConfiguration.current.locales[0]
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { index, label ->
-                        val day = index + 1
+                    (1..7).forEach { day ->
+                        val dayOfWeek = DayOfWeek.of(day)
+                        val label = dayOfWeek.getDisplayName(TextStyle.NARROW_STANDALONE, locale)
+                        val fullLabel = dayOfWeek.getDisplayName(TextStyle.FULL_STANDALONE, locale)
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label)
                             Checkbox(
@@ -256,6 +265,7 @@ private fun MaintenanceEditor(
                                         weekdays = if (checked) draft.weekdays + day else draft.weekdays - day,
                                     )
                                 },
+                                modifier = Modifier.semantics { contentDescription = fullLabel },
                             )
                         }
                     }

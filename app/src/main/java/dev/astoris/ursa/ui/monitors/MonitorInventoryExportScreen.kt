@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.MonitorInventoryDocument
 import dev.astoris.ursa.core.network.MonitorInventoryExport
 import dev.astoris.ursa.core.network.MonitorInventoryExportFormat
@@ -125,7 +126,7 @@ fun MonitorInventoryExportScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.inventory_export_title)) },
+                title = { Text(stringResource(R.string.inventory_export_title), Modifier.accessibilityHeading()) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(

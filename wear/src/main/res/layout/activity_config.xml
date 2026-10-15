@@ -28,6 +28,8 @@
             android:autofillHints="url"
             android:imeOptions="actionDone|flagNoExtractUi"
             android:importantForAutofill="no"
+            android:textDirection="ltr"
+            android:textAlignment="viewStart"
             android:singleLine="true" />
 
         <TextView

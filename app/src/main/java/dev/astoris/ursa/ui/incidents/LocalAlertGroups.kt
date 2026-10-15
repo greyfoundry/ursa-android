@@ -177,7 +177,7 @@ private fun LocalAlertGroupContent(group: LocalAlertGroup) {
         Text(
             stringResource(group.state.labelRes),
             style = MaterialTheme.typography.labelLarge,
-            color = alertGroupColor(group.state),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         group.events.takeLast(3).forEach { event ->
             val label = stringResource(event.kind.labelRes)

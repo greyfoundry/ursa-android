@@ -72,7 +72,8 @@ enum class WearMonitorAction(val eventName: String) {
 
 data class WearActionResult(
     val success: Boolean,
-    val message: String,
+    val messageRes: Int,
+    val serverMessage: String? = null,
 )
 
 object WearActionMessage {
@@ -192,7 +193,7 @@ data class WearPairingPayload(
             return WearPairingPayload(
                 serverUrl = normalized,
                 sessionToken = sessionToken.trim(),
-                serverName = serverName.ifEmpty { "Kuma server" },
+                serverName = serverName,
                 headers = headers.mapNotNull(WearActionHeader::normalizedOrNull),
                 protocolVersion = protocolVersion,
                 policyVersion = policyVersion,
@@ -238,10 +239,10 @@ object WearActionClient {
     ): WearActionResult {
         val serverUrl = config.normalizedServerUrl
         if (!config.isReady || serverUrl == null || monitorId <= 0) {
-            return WearActionResult(false, "Private actions are not configured")
+            return WearActionResult(false, R.string.action_not_configured)
         }
         if (!config.allows(action)) {
-            return WearActionResult(false, "This action is not allowed by the phone access profile")
+            return WearActionResult(false, R.string.action_not_allowed)
         }
         return withTimeoutOrNull(ACTION_TIMEOUT_MS) {
             suspendCancellableCoroutine { continuation ->
@@ -259,7 +260,7 @@ object WearActionClient {
                         },
                     )
                 } catch (_: Exception) {
-                    continuation.resume(WearActionResult(false, "Invalid server address"))
+                    continuation.resume(WearActionResult(false, R.string.action_invalid_server))
                     return@suspendCancellableCoroutine
                 }
 
@@ -281,24 +282,29 @@ object WearActionClient {
                     socket.emit("loginByToken", config.sessionToken.trim(), Ack { loginArgs ->
                         val login = loginArgs.getOrNull(0) as? JSONObject
                         if (login?.optBoolean("ok") != true) {
-                            finish(WearActionResult(false, "Session token was rejected"))
+                            finish(WearActionResult(false, R.string.action_session_rejected))
                             return@Ack
                         }
                         socket.emit(action.eventName, monitorId, Ack { actionArgs ->
                             val response = actionArgs.getOrNull(0) as? JSONObject
                             val success = response?.optBoolean("ok") == true
                             val serverMessage = WearActionMessage.clean(response?.optString("msg").orEmpty())
-                            val fallback = if (success) "Monitor updated" else "Monitor action failed"
-                            finish(WearActionResult(success, serverMessage.ifEmpty { fallback }))
+                            finish(
+                                WearActionResult(
+                                    success,
+                                    if (success) R.string.action_updated else R.string.action_failed,
+                                    serverMessage.takeIf(String::isNotEmpty),
+                                ),
+                            )
                         })
                     })
                 }
                 socket.on(Socket.EVENT_CONNECT_ERROR) {
-                    finish(WearActionResult(false, "Could not reach the server"))
+                    finish(WearActionResult(false, R.string.action_unreachable))
                 }
                 socket.connect()
             }
-        } ?: WearActionResult(false, "Server did not respond in time")
+        } ?: WearActionResult(false, R.string.action_timeout)
     }
 
     private const val CONNECT_TIMEOUT_MS = 8_000L

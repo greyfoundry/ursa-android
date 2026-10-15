@@ -19,9 +19,17 @@ class StatusComplicationService : SuspendingComplicationDataSourceService() {
     override fun getPreviewData(type: ComplicationType): ComplicationData? = dataFor(
         type,
         WearSnapshot(
-            title = "URSA",
+            title = getString(R.string.app_name),
             monitors = listOf(
-                WearMonitor(1, "Example", null, WearMonitorStatus.UP, 42, 0.999, emptyList()),
+                WearMonitor(
+                    1,
+                    getString(R.string.complication_preview_monitor),
+                    null,
+                    WearMonitorStatus.UP,
+                    42,
+                    0.999,
+                    emptyList(),
+                ),
             ),
         ),
     )
@@ -39,10 +47,14 @@ class StatusComplicationService : SuspendingComplicationDataSourceService() {
         snapshot: WearSnapshot,
         offline: Boolean = false,
     ): ComplicationData {
-        val short = WearDisplay.complicationText(snapshot)
-        val source = WearDisplay.sourceSummary(snapshot, cached = offline, offline = offline)
+        val short = WearDisplay.complicationText(resources, snapshot)
+        val source = WearDisplay.sourceSummary(resources, snapshot, cached = offline, offline = offline)
         val description = PlainComplicationText.Builder(
-            "URSA status: ${WearDisplay.fleetSummary(snapshot)}. $source",
+            getString(
+                R.string.complication_description,
+                WearDisplay.fleetSummary(resources, snapshot),
+                source,
+            ),
         ).build()
         val tapAction = PendingIntent.getActivity(
             this,
@@ -58,12 +70,16 @@ class StatusComplicationService : SuspendingComplicationDataSourceService() {
             ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
                 text = PlainComplicationText.Builder(
                     buildString {
-                        if (offline) append("Offline · ")
-                        append(WearDisplay.fleetSummary(snapshot))
+                        if (offline) append(getString(R.string.source_offline)).append(" · ")
+                        append(WearDisplay.fleetSummary(resources, snapshot))
                     },
                 ).build(),
                 contentDescription = description,
-            ).setTitle(PlainComplicationText.Builder(snapshot.title).build())
+            ).setTitle(
+                PlainComplicationText.Builder(
+                    snapshot.title.ifBlank { getString(R.string.app_name) },
+                ).build(),
+            )
                 .setTapAction(tapAction)
                 .build()
             else -> NoDataComplicationData()

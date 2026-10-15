@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.ui.KioskData
 import dev.astoris.ursa.ui.StatusPill
@@ -75,6 +76,7 @@ fun KioskScreen(
                     Column {
                         Text(
                             activeConnection?.displayName ?: stringResource(R.string.app_name),
+                            modifier = Modifier.accessibilityHeading(),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

@@ -176,7 +176,7 @@ internal fun CertificateDashboard(
                                     group.size,
                                 ),
                                 style = MaterialTheme.typography.titleSmall,
-                                color = certificateHealthColor(health),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(top = 8.dp),
                             )
                         }
@@ -232,7 +232,7 @@ private fun CertificateRow(entry: CertificateEntry, onClick: () -> Unit) {
             Text(
                 certificateExpiryLabel(entry),
                 style = MaterialTheme.typography.labelLarge,
-                color = certificateHealthColor(entry.health),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

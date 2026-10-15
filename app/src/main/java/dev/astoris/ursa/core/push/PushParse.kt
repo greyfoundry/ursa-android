@@ -40,7 +40,7 @@ object PushParse {
         val monitor = root["monitor"]?.let { runCatching { it.jsonObject }.getOrNull() }
         val heartbeat = root["heartbeat"]?.let { runCatching { it.jsonObject }.getOrNull() }
 
-        val name = monitor?.get("name")?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "Monitor"
+        val name = monitor?.get("name")?.jsonPrimitive?.contentOrNull?.ifBlank { null }.orEmpty()
         val status = heartbeat?.get("status")?.jsonPrimitive?.intOrNull
         val monitorId = heartbeat?.get("monitorID")?.jsonPrimitive?.intOrNull
             ?: monitor?.get("id")?.jsonPrimitive?.intOrNull
@@ -50,7 +50,7 @@ object PushParse {
 
         val message = root["msg"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
             ?: heartbeat?.get("msg")?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-            ?: statusPhrase(status)
+            ?: ""
 
         // `important` can be a real boolean (heartbeat event) or 1/0 (beat rows).
         val important = heartbeat?.get("important")?.let { el ->
@@ -60,7 +60,7 @@ object PushParse {
         return PushNotice(
             monitorId = monitorId,
             monitorName = name,
-            title = "$name ${statusPhrase(status)}",
+            title = "",
             body = message,
             important = important,
             status = status,
@@ -68,26 +68,4 @@ object PushParse {
         )
     }
 
-    private fun statusPhrase(status: Int?): String = when (status) {
-        1 -> "is Up"
-        0 -> "is Down"
-        2 -> "is Pending"
-        3 -> "in Maintenance"
-        else -> "updated"
-    }
-
-    /** Human "down for" text (#177). Kuma's webhook has no cumulative downtime, so the
-     *  caller computes the elapsed millis; this only formats it. */
-    fun formatDowntime(ms: Long): String {
-        val totalMin = ms / 60_000
-        if (totalMin < 1) return "less than a minute"
-        val days = totalMin / 1440
-        val hours = (totalMin % 1440) / 60
-        val mins = totalMin % 60
-        return buildList {
-            if (days > 0) add("${days}d")
-            if (hours > 0) add("${hours}h")
-            if (mins > 0) add("${mins}m")
-        }.joinToString(" ")
-    }
 }

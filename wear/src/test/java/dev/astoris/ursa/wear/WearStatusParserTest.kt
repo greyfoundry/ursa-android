@@ -82,30 +82,31 @@ class WearStatusParserTest {
     }
 
     @Test
-    fun displayCopyKeepsStatusAndMetricsConsistentAcrossSurfaces() {
+    fun displaySummaryKeepsAttentionOrderAcrossSurfaces() {
         val snapshot = WearStatusParser.parse(CONFIG_JSON, HEARTBEAT_JSON)
-        val api = snapshot.monitors.first { it.id == 7 }
 
-        assertEquals("1 down · 1 up", WearDisplay.fleetSummary(snapshot))
-        assertEquals("1 down", WearDisplay.complicationText(snapshot))
-        assertEquals("42 ms · 99.9%", WearDisplay.metrics(api))
-        assertEquals("No monitors", WearDisplay.complicationText(WearSnapshot("Empty", emptyList())))
+        assertEquals(
+            listOf(WearMonitorStatus.DOWN to 1, WearMonitorStatus.UP to 1),
+            WearDisplay.summaryParts(snapshot),
+        )
+        assertTrue(WearDisplay.summaryParts(WearSnapshot("Empty", emptyList())).isEmpty())
     }
 
     @Test
-    fun freshnessAndSourceExposeCachedOfflineAndStaleState() {
+    fun freshnessUsesConservativeBoundaries() {
         val snapshot = WearSnapshot("Fleet", emptyList(), capturedAtMillis = 1_000_000L)
 
-        assertEquals("Updated now", WearDisplay.freshness(snapshot, 1_030_000L))
-        assertEquals("Updated 4m ago", WearDisplay.freshness(snapshot, 1_299_999L))
-        assertEquals("Stale · updated 5m ago", WearDisplay.freshness(snapshot, 1_300_000L))
         assertEquals(
-            "Public page · Cached · Updated now",
-            WearDisplay.sourceSummary(snapshot, cached = true, offline = false, nowMillis = 1_030_000L),
+            WearFreshness(0, WearFreshnessUnit.NOW, stale = false),
+            WearDisplay.freshnessState(snapshot, 1_030_000L),
         )
         assertEquals(
-            "Public page · Offline · Cached · Stale · updated 5m ago",
-            WearDisplay.sourceSummary(snapshot, cached = true, offline = true, nowMillis = 1_300_000L),
+            WearFreshness(4, WearFreshnessUnit.MINUTE, stale = false),
+            WearDisplay.freshnessState(snapshot, 1_299_999L),
+        )
+        assertEquals(
+            WearFreshness(5, WearFreshnessUnit.MINUTE, stale = true),
+            WearDisplay.freshnessState(snapshot, 1_300_000L),
         )
     }
 

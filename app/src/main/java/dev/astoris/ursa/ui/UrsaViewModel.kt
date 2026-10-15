@@ -512,7 +512,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 val now = System.currentTimeMillis()
                 if (ResponseAlertUtil.shouldAlert(beat.status.code, beat.ping, threshold, alertStore.lastAlerted()[key], now)) {
-                    val name = monitors.value.firstOrNull { it.id == beat.monitorId }?.name ?: "Monitor ${beat.monitorId}"
+                    val name = monitors.value.firstOrNull { it.id == beat.monitorId }?.name
+                        ?: getApplication<Application>().getString(R.string.monitor_fallback_name, beat.monitorId)
                     val ping = beat.ping ?: 0
                     if (ResponseAlertNotifier.notify(getApplication(), url, beat.monitorId, name, ping, threshold, key)) {
                         eventLogStore.append(
@@ -965,7 +966,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             }
             _serverTags.value = tags.await()
             _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
-                ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
+                ?: MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_load_failed),
+                )
             _gameTypes.value = games?.await().orEmpty()
             if (draft?.type == "pm2") refreshPm2Processes()
         }
@@ -987,7 +991,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             }
             _serverTags.value = tags.await()
             _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
-                ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
+                ?: MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_load_failed),
+                )
             _gameTypes.value = games?.await().orEmpty()
             if (draft?.type == "pm2") refreshPm2Processes()
         }
@@ -1076,7 +1083,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             }
             _serverTags.value = tags.await()
             _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
-                ?: MonitorEditorUiState.Error(null, "Monitor preset is unavailable")
+                ?: MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_preset_unavailable),
+                )
             _gameTypes.value = games?.await().orEmpty()
             if (draft?.type == "pm2") refreshPm2Processes()
         }
@@ -1138,7 +1148,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _monitorEditor.value = if (result.ok) {
                 MonitorEditorUiState.Idle
             } else {
-                MonitorEditorUiState.Error(draft, result.message ?: "Save failed")
+                MonitorEditorUiState.Error(
+                    draft,
+                    result.message ?: getApplication<Application>().getString(R.string.save_failed),
+                )
             }
         }
     }
@@ -1176,7 +1189,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _maintenanceEditor.value = MaintenanceEditorUiState.Loading
         viewModelScope.launch {
             _maintenanceEditor.value = repo.maintenanceDraft(id)?.let(MaintenanceEditorUiState::Ready)
-                ?: MaintenanceEditorUiState.Error(null, "Maintenance details are unavailable")
+                ?: MaintenanceEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.maintenance_details_unavailable),
+                )
         }
     }
 
@@ -1185,7 +1201,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val result = repo.saveMaintenance(draft)
             _maintenanceEditor.value = if (result.ok) MaintenanceEditorUiState.Idle
-            else MaintenanceEditorUiState.Error(draft, result.message ?: "Save failed")
+            else MaintenanceEditorUiState.Error(
+                draft,
+                result.message ?: getApplication<Application>().getString(R.string.save_failed),
+            )
         }
     }
 
@@ -2108,7 +2127,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                             )
                             StatusPageFormResult.Verified(view.title)
                         } catch (e: Exception) {
-                            StatusPageFormResult.NetworkError(e.message ?: "Request failed")
+                            StatusPageFormResult.NetworkError(
+                                e.message ?: getApplication<Application>().getString(R.string.statuspage_request_failed),
+                            )
                         },
                     )
                 }
@@ -2254,7 +2275,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun incidentPageUnavailable() = IncidentMutationResult(
         IncidentMutationOutcome.REJECTED,
-        message = "Connect to the status page's saved server before changing incidents",
+        message = getApplication<Application>().getString(R.string.statuspage_saved_server_required),
     )
 
     private fun loadStatusPage(page: SavedStatusPage) {
@@ -2279,7 +2300,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     },
                 )
             } catch (e: Exception) {
-                StatusPageUiState.Error(e.message ?: "Failed to load status page")
+                StatusPageUiState.Error(
+                    e.message ?: getApplication<Application>().getString(R.string.statuspage_load_failed),
+                )
             }
         }
     }
@@ -2304,7 +2327,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             statusClient.discover(parsed.baseUrl, insecure, headers)
         } catch (e: Exception) {
             return StatusPageResolution.Failure(
-                StatusPageFormResult.NetworkError(e.message ?: "Discovery failed"),
+                StatusPageFormResult.NetworkError(
+                    e.message ?: getApplication<Application>().getString(R.string.statuspage_discovery_failed),
+                ),
             )
         }
         return if (discovered == null) {

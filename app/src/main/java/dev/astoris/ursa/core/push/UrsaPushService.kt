@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import dev.astoris.ursa.R
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
 import kotlinx.coroutines.CoroutineScope
@@ -44,11 +45,11 @@ class UrsaPushService : PushService() {
     override fun onMessage(message: PushMessage, instance: String) {
         cancelPathIssue(this)
         val raw = String(message.content, Charsets.UTF_8)
-        val notice = PushParse.parse(raw) ?: PushNotice(
+        val notice = PushParse.parse(raw)?.let(::localizeNotice) ?: PushNotice(
             monitorId = null,
             monitorName = "Uptime Kuma",
             title = "Uptime Kuma",
-            body = raw.take(240).ifBlank { "Monitor update" },
+            body = raw.take(240).ifBlank { getString(R.string.push_monitor_update) },
             important = false,
         )
         val deliveryTest = PushStore.recordMessage(this, notice.body)
@@ -344,8 +345,17 @@ class UrsaPushService : PushService() {
         }
     }
 
-    /** Append "Was down for X" to a recovery notification, using the locally tracked
-     *  down -> up transition (#177). No-op when the monitor id or status is unknown. */
+    private fun localizeNotice(notice: PushNotice): PushNotice {
+        val name = notice.monitorName.ifBlank { getString(R.string.push_monitor_fallback_name) }
+        val status = getString(pushStatusTextRes(notice.status))
+        return notice.copy(
+            monitorName = name,
+            title = getString(R.string.push_monitor_status_title, name, status),
+            body = notice.body.ifBlank { status },
+        )
+    }
+
+    /** Adds the locally tracked down -> up duration when a recovery arrives. */
     private fun enrichWithDowntime(notice: PushNotice): PushNotice {
         val id = notice.monitorId ?: return notice
         val store = DownSinceStore(this)
@@ -354,7 +364,13 @@ class UrsaPushService : PushService() {
             1 -> {
                 val since = store.takeDown(notice.serverId, id) ?: return notice
                 val elapsed = System.currentTimeMillis() - since
-                notice.copy(body = "${notice.body}\nWas down for ${PushParse.formatDowntime(elapsed)}.")
+                notice.copy(
+                    body = getString(
+                        R.string.push_recovery_duration,
+                        notice.body,
+                        formatPushDuration(this, elapsed),
+                    ),
+                )
             }
             else -> notice
         }
@@ -685,5 +701,34 @@ class UrsaPushService : PushService() {
                 }
             }
         }
+    }
+}
+
+internal fun pushStatusTextRes(status: Int?): Int = when (status) {
+    1 -> R.string.push_status_up
+    0 -> R.string.push_status_down
+    2 -> R.string.push_status_pending
+    3 -> R.string.push_status_maintenance
+    else -> R.string.push_status_updated
+}
+
+internal fun pushDurationUnits(millis: Long): List<Pair<Int, Int>> {
+    val totalMinutes = millis.coerceAtLeast(0L) / 60_000L
+    if (totalMinutes < 1) return emptyList()
+    val days = (totalMinutes / 1_440L).toInt()
+    val hours = ((totalMinutes % 1_440L) / 60L).toInt()
+    val minutes = (totalMinutes % 60L).toInt()
+    return buildList {
+        if (days > 0) add(days to R.plurals.push_duration_days)
+        if (hours > 0) add(hours to R.plurals.push_duration_hours)
+        if (minutes > 0) add(minutes to R.plurals.push_duration_minutes)
+    }
+}
+
+private fun formatPushDuration(context: Context, millis: Long): String {
+    val units = pushDurationUnits(millis)
+    if (units.isEmpty()) return context.getString(R.string.push_duration_less_than_minute)
+    return units.joinToString(" ") { (value, plural) ->
+        context.resources.getQuantityString(plural, value, value)
     }
 }

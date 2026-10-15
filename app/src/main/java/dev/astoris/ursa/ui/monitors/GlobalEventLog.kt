@@ -315,7 +315,7 @@ private fun ColumnScope.EventLogRowContent(entry: EventLogEntry) {
             Text(
                 stringResource(entry.kind.labelRes),
                 style = MaterialTheme.typography.labelLarge,
-                color = eventColor(entry.kind),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             entry.detail?.takeIf { it.isNotBlank() }?.let {
                 Text(

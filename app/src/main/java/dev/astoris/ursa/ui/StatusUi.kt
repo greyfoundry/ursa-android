@@ -6,8 +6,10 @@ import dev.astoris.ursa.R
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.ui.theme.KumaBlue
 import dev.astoris.ursa.ui.theme.KumaGreen
+import dev.astoris.ursa.ui.theme.KumaOnBrand
 import dev.astoris.ursa.ui.theme.KumaOrange
 import dev.astoris.ursa.ui.theme.KumaRed
+import dev.astoris.ursa.ui.theme.White
 
 object StatusUi {
     // Match Uptime Kuma's status colors exactly (vars.scss).
@@ -16,6 +18,15 @@ object StatusUi {
         MonitorStatus.DOWN -> KumaRed
         MonitorStatus.PENDING -> KumaOrange
         MonitorStatus.MAINTENANCE -> KumaBlue
+    }
+
+    fun contentColor(status: MonitorStatus): Color = when (status) {
+        MonitorStatus.UP,
+        MonitorStatus.PENDING,
+        -> KumaOnBrand
+        MonitorStatus.DOWN,
+        MonitorStatus.MAINTENANCE,
+        -> White
     }
 
     @StringRes

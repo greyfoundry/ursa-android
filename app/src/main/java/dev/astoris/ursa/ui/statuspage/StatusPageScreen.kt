@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.IncidentMutationOutcome
 import dev.astoris.ursa.core.network.IncidentMutationResult
@@ -79,6 +80,8 @@ import dev.astoris.ursa.ui.StatusUi
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.ui.bidirectionalWrap
+import dev.astoris.ursa.ui.leftToRightTextStyle
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.lock.BiometricGate
 import dev.astoris.ursa.ui.theme.KumaBlue
@@ -157,6 +160,7 @@ fun StatusPageScreen(
                             selected != null -> selected.name
                             else -> stringResource(R.string.statuspage_title)
                         },
+                        modifier = Modifier.accessibilityHeading(),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -305,6 +309,7 @@ fun StatusPageScreen(
                         BiometricGate.confirmDestructiveAction(
                             activity = activity,
                             enabled = destructiveStepUpEnabled,
+                            errorMessage = activity?.getString(R.string.authentication_error).orEmpty(),
                             onSuccess = {
                                 incidentBusy = true
                                 incidentMessage = null
@@ -408,7 +413,7 @@ private fun SavedStatusPageCard(
             Column(Modifier.weight(1f)) {
                 Text(page.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    page.url,
+                    bidirectionalWrap(page.url),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -505,6 +510,7 @@ private fun StatusPageEditor(
                 label = { Text(stringResource(R.string.statuspage_address)) },
                 placeholder = { Text(stringResource(R.string.statuspage_address_placeholder)) },
                 supportingText = { Text(stringResource(R.string.statuspage_address_desc)) },
+                textStyle = leftToRightTextStyle(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -515,6 +521,7 @@ private fun StatusPageEditor(
                 singleLine = true,
                 label = { Text(stringResource(R.string.statuspage_slug_optional)) },
                 placeholder = { Text(stringResource(R.string.statuspage_slug_placeholder)) },
+                textStyle = leftToRightTextStyle(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

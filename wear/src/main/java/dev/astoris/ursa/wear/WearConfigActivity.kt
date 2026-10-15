@@ -58,7 +58,10 @@ class WearConfigActivity : Activity() {
         pairedState.text = if (paired == null) {
             getString(R.string.config_not_paired)
         } else {
-            getString(R.string.config_paired_to, paired.serverName)
+            getString(
+                R.string.config_paired_to,
+                paired.serverName.ifBlank { getString(R.string.action_server_default) },
+            )
         }
         clearPairing.isEnabled = paired != null
     }

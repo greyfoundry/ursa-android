@@ -35,6 +35,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            isPseudoLocalesEnabled = true
+        }
         release {
             isMinifyEnabled = false
             signingConfig = if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {

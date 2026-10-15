@@ -61,11 +61,11 @@ object BiometricGate {
         } catch (_: KeyPermanentlyInvalidatedException) {
             deleteKey()
             runCatching { signingSignature() }.getOrElse {
-                onError(AUTHENTICATION_ERROR)
+                onError(activity.getString(R.string.authentication_error))
                 return
             }
         } catch (_: Exception) {
-            onError(AUTHENTICATION_ERROR)
+            onError(activity.getString(R.string.authentication_error))
             return
         }
         val challenge = ByteArray(32).also(SecureRandom()::nextBytes)
@@ -84,7 +84,7 @@ object BiometricGate {
                     val verified = runCatching {
                         proof != null && verifyProof(proof, challenge)
                     }.getOrDefault(false)
-                    if (verified) onSuccess() else onError(AUTHENTICATION_ERROR)
+                    if (verified) onSuccess() else onError(activity.getString(R.string.authentication_error))
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
@@ -99,6 +99,7 @@ object BiometricGate {
     fun confirmDestructiveAction(
         activity: FragmentActivity?,
         enabled: Boolean,
+        errorMessage: CharSequence,
         onSuccess: () -> Unit,
         onError: (CharSequence) -> Unit = {},
     ) {
@@ -107,7 +108,7 @@ object BiometricGate {
             return
         }
         if (activity == null) {
-            onError(AUTHENTICATION_ERROR)
+            onError(errorMessage)
             return
         }
         prompt(
@@ -170,5 +171,4 @@ object BiometricGate {
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "ursa_app_lock"
     private const val SIGNATURE_ALGORITHM = "SHA256withECDSA"
-    private const val AUTHENTICATION_ERROR = "Authentication could not be verified"
 }

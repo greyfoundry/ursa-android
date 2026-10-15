@@ -27,7 +27,12 @@ class StatusTileService : TileService() {
     ): ListenableFuture<TileBuilders.Tile> {
         val url = WearPrefs.statusUrl(this)
             ?: return Futures.immediateFuture(
-                tileOf(centered(messageLayout("Tap to set up"), WearConfigActivity::class.java)),
+                tileOf(
+                    centered(
+                        messageLayout(getString(R.string.tile_setup)),
+                        WearConfigActivity::class.java,
+                    ),
+                ),
             )
 
         // Fetch on a worker thread and complete the future; a tile refresh is
@@ -61,8 +66,8 @@ class StatusTileService : TileService() {
         snapshot: WearSnapshot?,
         offline: Boolean,
     ): LayoutElementBuilders.LayoutElement {
-        if (snapshot == null) return messageLayout("No data")
-        val headlineText = WearDisplay.complicationText(snapshot)
+        if (snapshot == null) return messageLayout(getString(R.string.no_data))
+        val headlineText = WearDisplay.complicationText(resources, snapshot)
         val headlineColor = when {
             snapshot.down > 0 -> DOWN_RED
             snapshot.pending > 0 || snapshot.maintenance > 0 -> PENDING
@@ -78,8 +83,14 @@ class StatusTileService : TileService() {
             .addContent(
                 Text.Builder(
                     this,
-                    if (offline) "Offline · ${WearDisplay.freshness(snapshot)}"
-                    else WearDisplay.freshness(snapshot),
+                    if (offline) {
+                        getString(
+                            R.string.offline_summary,
+                            WearDisplay.freshness(resources, snapshot),
+                        )
+                    } else {
+                        WearDisplay.freshness(resources, snapshot)
+                    },
                 )
                     .setTypography(Typography.TYPOGRAPHY_CAPTION1)
                     .setColor(ColorBuilders.argb(SUBTLE))

@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-13
+last-updated: 2026-10-15
 owner: astoris
 status: stable
 ---
@@ -270,6 +270,21 @@ route stack while screens migrate incrementally.
   implementation - explicit phone-to-watch session handoff for GitHub builds. The
   F-Droid build omits the transport dependency and pairing control. See
   `docs/modules/wear.mdx`.
+
+**accessibility and localization**
+- User-facing fallback copy lives in Android resources. Debug builds enable the
+  `en-XA` accented and `ar-XB` bidirectional pseudo-locales so clipping and
+  direction mistakes remain testable without shipping placeholder translations.
+- URL, host, token-endpoint, and other technical values are directionally isolated;
+  editable addresses retain left-to-right input behavior inside RTL layouts.
+- Screen titles expose heading semantics, transient operational messages retain
+  their live-region behavior, controls use platform touch targets, and status is
+  communicated by text or icon as well as color. Status-pill foreground/background
+  pairs have deterministic WCAG AA contrast tests.
+- The Android 17 device matrix covers both pseudo-locales, 200% font, hardware
+  keyboard order, Switch Access focus, TalkBack focus, zero animation scales, and
+  fully visible 48 dp touch targets. The UI follows system motion settings and adds
+  no essential meaning that depends on animation.
 
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).

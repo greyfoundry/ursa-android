@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.LocalNetworkAccess
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.data.model.AccessCapability
@@ -63,6 +64,7 @@ import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.ConnectionTestUiState
 import dev.astoris.ursa.ui.LoginUiState
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.leftToRightTextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -185,6 +187,7 @@ fun LoginScreen(
                                 if (initialConnection == null) R.string.servers_add
                                 else R.string.servers_reauthenticate,
                             ),
+                            modifier = Modifier.accessibilityHeading(),
                         )
                     },
                     navigationIcon = {
@@ -330,6 +333,7 @@ fun LoginScreen(
                             label = { Text(stringResource(R.string.login_server_url)) },
                             placeholder = { Text(stringResource(R.string.login_server_placeholder)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            textStyle = leftToRightTextStyle(),
                             readOnly = initialConnection != null,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),

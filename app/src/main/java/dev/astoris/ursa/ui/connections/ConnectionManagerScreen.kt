@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.storage.BackupError
@@ -61,6 +62,7 @@ import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.ui.ConnectionBackupPreview
 import dev.astoris.ursa.ui.ConnectionBackupResult
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.bidirectionalWrap
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
 import dev.astoris.ursa.ui.lock.BiometricGate
@@ -128,7 +130,7 @@ fun ConnectionManagerScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.servers_title)) },
+                title = { Text(stringResource(R.string.servers_title), Modifier.accessibilityHeading()) },
                 navigationIcon = {
                     IconButton(onClick = { vm.exitConnectionManager() }) {
                         Icon(
@@ -254,6 +256,7 @@ fun ConnectionManagerScreen(
                         BiometricGate.confirmDestructiveAction(
                             activity = activity,
                             enabled = destructiveStepUpEnabled,
+                            errorMessage = activity?.getString(R.string.authentication_error).orEmpty(),
                             onSuccess = {
                                 vm.removeConnection(connection.url)
                                 removing = null
@@ -455,7 +458,7 @@ private fun ConnectionCard(
                 Column(Modifier.weight(1f)) {
                     Text(connection.displayName, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        connection.url,
+                        bidirectionalWrap(connection.url),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -660,7 +663,7 @@ private fun RenameConnectionDialog(
                 value = alias,
                 onValueChange = { alias = it.take(80) },
                 label = { Text(stringResource(R.string.login_server_name)) },
-                supportingText = { Text(connection.url) },
+                supportingText = { Text(bidirectionalWrap(connection.url)) },
                 singleLine = true,
             )
         },

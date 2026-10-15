@@ -4,6 +4,7 @@ import android.animation.ValueAnimator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -30,3 +31,5 @@ fun Modifier.operationalAnnouncement(
         stateDescription = message
     }
 }
+
+fun Modifier.accessibilityHeading(): Modifier = semantics { heading() }

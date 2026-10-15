@@ -13,7 +13,7 @@ import org.junit.Test
  */
 class PushParseTest {
 
-    @Test fun down_webhook_builds_title_and_body() {
+    @Test fun down_webhook_preserves_payload_for_localized_presentation() {
         val n = PushParse.parse(
             """{"heartbeat":{"monitorID":7,"status":0,"important":true,"msg":"connect ECONNREFUSED"},
                "monitor":{"id":7,"name":"API"},
@@ -21,7 +21,7 @@ class PushParseTest {
         )!!
         assertEquals(7, n.monitorId)
         assertEquals("API", n.monitorName)
-        assertEquals("API is Down", n.title)
+        assertEquals("", n.title)
         assertEquals("[API] [🔴 Down] connect ECONNREFUSED", n.body)
         assertTrue(n.important)
     }
@@ -30,7 +30,7 @@ class PushParseTest {
         val n = PushParse.parse(
             """{"heartbeat":{"monitorID":3,"status":1},"monitor":{"id":3,"name":"Site"},"msg":"[Site] [✅ Up]"}"""
         )!!
-        assertEquals("Site is Up", n.title)
+        assertEquals(1, n.status)
         assertFalse(n.important)
     }
 
@@ -41,15 +41,15 @@ class PushParseTest {
         assertTrue(n.important)
     }
 
-    @Test fun missing_msg_falls_back_to_status_phrase() {
+    @Test fun missing_msg_is_left_for_localized_presentation() {
         val n = PushParse.parse("""{"heartbeat":{"monitorID":9,"status":3},"monitor":{"name":"DB"}}""")!!
-        assertEquals("DB in Maintenance", n.title)
-        assertEquals("in Maintenance", n.body)
+        assertEquals("DB", n.monitorName)
+        assertEquals("", n.body)
     }
 
-    @Test fun missing_name_defaults_to_monitor() {
+    @Test fun missing_name_is_left_for_localized_presentation() {
         val n = PushParse.parse("""{"heartbeat":{"status":0},"msg":"boom"}""")!!
-        assertEquals("Monitor is Down", n.title)
+        assertEquals("", n.monitorName)
         assertEquals("boom", n.body)
     }
 
@@ -62,7 +62,7 @@ class PushParseTest {
         val n = PushParse.parse(
             """{"heartbeat":{"monitorID":2,"status":1,"extra":"x"},"monitor":{"name":"Y","foo":1},"msg":"ok","bar":true}"""
         )!!
-        assertEquals("Y is Up", n.title)
+        assertEquals("Y", n.monitorName)
     }
 
     @Test fun exposes_status_for_downtime_tracking() {
@@ -83,12 +83,23 @@ class PushParseTest {
         assertNull(invalid.serverId)
     }
 
-    @Test fun formats_downtime() {
-        assertEquals("less than a minute", PushParse.formatDowntime(30_000))
-        assertEquals("1m", PushParse.formatDowntime(90_000))
-        assertEquals("5m", PushParse.formatDowntime(5 * 60_000L))
-        assertEquals("1h 5m", PushParse.formatDowntime((65 * 60_000L)))
-        assertEquals("2h", PushParse.formatDowntime((120 * 60_000L)))
-        assertEquals("1d 1h", PushParse.formatDowntime((25 * 60 * 60_000L)))
+    @Test fun maps_every_status_to_localized_presentation_resources() {
+        assertEquals(dev.astoris.ursa.R.string.push_status_up, pushStatusTextRes(1))
+        assertEquals(dev.astoris.ursa.R.string.push_status_down, pushStatusTextRes(0))
+        assertEquals(dev.astoris.ursa.R.string.push_status_pending, pushStatusTextRes(2))
+        assertEquals(dev.astoris.ursa.R.string.push_status_maintenance, pushStatusTextRes(3))
+        assertEquals(dev.astoris.ursa.R.string.push_status_updated, pushStatusTextRes(null))
+    }
+
+    @Test fun splits_downtime_into_localizable_units() {
+        assertEquals(emptyList<Pair<Int, Int>>(), pushDurationUnits(30_000))
+        assertEquals(listOf(1 to dev.astoris.ursa.R.plurals.push_duration_minutes), pushDurationUnits(90_000))
+        assertEquals(
+            listOf(
+                1 to dev.astoris.ursa.R.plurals.push_duration_days,
+                1 to dev.astoris.ursa.R.plurals.push_duration_hours,
+            ),
+            pushDurationUnits(25 * 60 * 60_000L),
+        )
     }
 }
