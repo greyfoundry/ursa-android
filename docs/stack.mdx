@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-25
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -22,6 +22,8 @@ actually resolves, the build wins - update this file.
 - compileSdk **37**, minSdk **26**, targetSdk **37**
 - JDK: build runs on Android Studio's bundled JBR 21, targets Java/Kotlin 17
 - SDK build-tools 37.0.0; platform android-37.0
+- AndroidX Benchmark Macrobenchmark **1.5.0**, ProfileInstaller **1.4.1**,
+  AndroidX Test **1.7.0**, test-ext JUnit **1.3.0**, UI Automator **2.4.0**
 
 **major runtime dependencies**
 - `io.socket:socket.io-client` - real-time Kuma connection. Exclude bundled
@@ -40,6 +42,9 @@ actually resolves, the build wins - update this file.
   `androidx.compose.material3.adaptive:adaptive-{layout,navigation}` (**1.3.0**) -
   window-aware bar/rail presentation and canonical monitor list-detail panes. See
   `docs/references/material3-adaptive.mdx`.
+- `androidx.profileinstaller:profileinstaller` (**1.4.1**) plus the non-shipping
+  `benchmarks/` test module - installs the generated Baseline Profile and measures
+  release-like critical journeys. See `docs/modules/performance.mdx`.
 
 **depends on**
 - `gradle/libs.versions.toml` - single source of truth for versions.
@@ -59,3 +64,5 @@ actually resolves, the build wins - update this file.
 - Kotlin 2.4 rejects Gradle 9.1; the wrapper is pinned to 9.7.1.
 - Build commands target explicit `fdroid` or `github` variants; do not rely on an
   ambiguous aggregate variant when producing an artifact.
+- Release builds are intentionally unminified. The generated Baseline Profile is
+  retained for ART compilation guidance; no R8-only Startup Profile is generated.

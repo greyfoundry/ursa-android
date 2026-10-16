@@ -1,0 +1,70 @@
+---
+last-updated: 2026-10-16
+owner: astoris
+status: stable
+---
+
+## what this is
+
+URSA's release-like performance test surface. It generates the Baseline Profile
+shipped in both phone distributions and measures startup plus the critical
+Home-to-monitor journey against deterministic 100, 500, and 1,000-monitor fleets.
+
+## technical map
+
+- `benchmarks/` is a `com.android.test` module targeting `:app`.
+- `BaselineProfileGenerator` records process-cold startup, Home server health,
+  inventory scrolling, search/filter, and monitor-detail navigation.
+- `StartupBenchmark` compares seven cold starts with the Baseline Profile required
+  against no pre-compilation.
+- `LargeFleetBenchmark` records frame timing and end-of-journey memory across five
+  repetitions for each fleet size.
+- `app/src/main/generated/baselineProfiles/baseline-prof.txt` is the generated
+  release input. `ProfileInstaller` lets supported Android versions install it.
+- `BenchmarkFixtureProvider` exists only in the generated `nonMinifiedRelease`
+  benchmark target. Android's `DUMP` permission restricts its exported shell entry
+  point, and the provider is absent from GitHub and F-Droid release manifests.
+
+The fixture path clears only the benchmark target's saved connections and caches,
+then writes one encrypted, view-only, unreachable local server snapshot. It never
+creates a Kuma monitor or contacts a real server.
+
+## run it
+
+Use one booted phone device and pin its serial so a connected Wear emulator cannot
+receive the phone benchmark:
+
+```powershell
+$env:ANDROID_SERIAL = "emulator-5554"
+./gradlew.bat :app:generateBaselineProfile --no-daemon
+./gradlew.bat :benchmarks:connectedFdroidBenchmarkReleaseAndroidTest --no-daemon
+```
+
+The full timing suite is deliberately run after release preparation so its recorded
+commit exactly matches the published product. Record the device/AVD, Android build,
+power/thermal conditions, commit, iterations, raw AndroidX output, and median or
+percentile comparison alongside any accepted result.
+
+## decisions and limits
+
+- Release builds remain intentionally unminified. The Baseline Profile still gives
+  ART ahead-of-time compilation guidance, but URSA does not generate a Startup
+  Profile solely for R8 dex layout.
+- Emulator numbers are regression evidence for the same controlled host, not a
+  promise of physical-device latency.
+- Profile collection uses public accessibility semantics and ordinary navigation;
+  benchmark-only shortcuts may seed data but may not bypass the user journey being
+  measured.
+
+## depends on
+
+- AndroidX Benchmark Macrobenchmark **1.5.0**
+- AndroidX ProfileInstaller **1.4.1**
+- deterministic fleet fixtures in `app/src/test/.../fixtures/`
+
+## gotchas
+
+- Generate profiles from `nonMinifiedRelease`, never debug.
+- Regenerate after a material change to startup, Home, inventory, search/filter, or
+  monitor-detail navigation.
+- Do not copy the benchmark provider into a shipping source set.

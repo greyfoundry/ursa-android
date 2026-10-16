@@ -58,6 +58,9 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
   strict semantic version parsing, and optional version-deduplicated notification.
 - Wear companion -> standalone public polling plus an optional same-signed Data Layer
   session handoff - see `docs/modules/wear.mdx`.
+- release performance -> `benchmarks/` drives the profileable phone app through
+  startup and deterministic 100/500/1,000-monitor critical journeys; generated
+  Baseline Profile rules ship through `:app` - see `docs/modules/performance.mdx`.
 
 **depends on**
 - `docs/references/*` - the external API contracts each layer implements against.

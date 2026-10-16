@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-15
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,26 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-16 - Baseline Profile and large-fleet measurement infrastructure
+
+**changed**: A dedicated AndroidX Macrobenchmark module now generates the phone
+Baseline Profile from cold startup, Home server-health inspection, monitor inventory
+scrolling, search/filter, and monitor-detail navigation. Release-like timing classes
+compare cold startup with and without the profile and measure frame timing plus
+end-of-journey memory for deterministic 100, 500, and 1,000-monitor fleets.
+
+**boundary**: Benchmark data is seeded through a DUMP-protected provider compiled
+only into `nonMinifiedRelease`. It writes one encrypted, view-only, unreachable local
+snapshot and is absent from both GitHub and F-Droid release manifests. Shipping
+builds remain intentionally unminified, so the generated Baseline Profile is retained
+without an R8 Startup Profile.
+
+**verification**: Both distribution profiles generated successfully on the API 37
+Pixel 8 AVD, the complete critical journey passed, and both release APKs packaged
+the Baseline Profile while excluding the fixture provider. Per maintainer release
+order, the full timing suite and accepted comparison are recorded after the exact
+release commit is published; QL-03 remains in progress until that evidence lands.
 
 ### 2026-10-15 - Accessibility and localization gate
 

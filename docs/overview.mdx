@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-15
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -91,6 +91,12 @@ and the module docs under `docs/modules/`.
 - Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.
+- A release-like AndroidX benchmark module now generates the shipped Baseline
+  Profile from startup, Home, monitor inventory, search/filter, and detail paths.
+  Its DUMP-protected deterministic fixture provider exists only in the benchmark
+  target and is absent from both release manifests. Final 100/500/1,000-monitor
+  timing evidence is recorded against the exact release commit; see
+  `docs/modules/performance.mdx`.
 - Competitor-parity items CP-001 through CP-046 are complete. Native keyword, JSON-query,
   WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser,
   Oracle Database, RADIUS, GameDig, Steam, PM2, system-service, Tailscale Ping,

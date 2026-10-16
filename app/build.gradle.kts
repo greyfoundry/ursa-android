@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.androidx.baselineprofile)
     // AGP 9+ has built-in Kotlin; do NOT apply org.jetbrains.kotlin.android.
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
@@ -88,6 +89,13 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().withBuildType("nonMinifiedRelease")) { variant ->
+        variant.sources.kotlin?.addStaticSourceDirectory("src/nonMinifiedRelease/java")
+        variant.sources.manifests.addStaticManifestFile("src/nonMinifiedRelease/AndroidManifest.xml")
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -126,6 +134,7 @@ dependencies {
 
     // home-screen widget (Jetpack Glance)
     implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.profileinstaller)
 
     // networking: Socket.IO (live monitors) + Ktor (public status-page REST)
     implementation(libs.socket.io.client) {
@@ -143,4 +152,12 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.serialization.json)
+
+    baselineProfile(project(":benchmarks"))
+}
+
+baselineProfile {
+    automaticGenerationDuringBuild = false
+    mergeIntoMain = true
+    saveInSrc = true
 }
