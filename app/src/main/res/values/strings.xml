@@ -462,6 +462,14 @@
     <string name="settings_require_unlock">Require unlock</string>
     <string name="settings_require_unlock_desc">Ask for your biometric or device PIN/pattern before showing monitors.</string>
     <string name="settings_require_unlock_unavailable">Set up a screen lock or biometric on your device to use this.</string>
+    <string name="settings_screenshot_protection">Screenshot protection</string>
+    <string name="settings_screenshot_protection_desc">Choose when URSA blocks screenshots, screen recording, and display on non-secure screens.</string>
+    <string name="settings_screenshot_off">Off</string>
+    <string name="settings_screenshot_off_desc">Allow screenshots and screen recording throughout URSA.</string>
+    <string name="settings_screenshot_sensitive">Sensitive screens only</string>
+    <string name="settings_screenshot_sensitive_desc">Block captures when viewing credentials or other sensitive information.</string>
+    <string name="settings_screenshot_always">Always</string>
+    <string name="settings_screenshot_always_desc">Block screenshots and screen recording throughout URSA.</string>
     <string name="settings_confirm_destructive">Confirm destructive actions</string>
     <string name="settings_confirm_destructive_desc">Ask for your biometric or device PIN/pattern before deleting a monitor, maintenance window, managed push setup, or saved server.</string>
     <string name="destructive_prompt_title">Confirm destructive action</string>

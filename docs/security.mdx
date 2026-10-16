@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-13
+last-updated: 2026-10-16
 owner: astoris
 status: in-flux
 ---
@@ -38,6 +38,10 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 - **Step up destructive confirmation when requested.** Users can opt into the same
   Keystore-backed biometric/device-credential proof used by app lock before destructive
   foreground actions. This safeguard does not grant capabilities or replace policy.
+- **Let users choose the capture boundary.** Screen capture protection starts and
+  defaults secure, then follows Off, Sensitive screens only, or Always immediately.
+  Sensitive mode covers credentials, tokens, secrets, and custom-header editors;
+  ordinary monitoring screens remain available for support screenshots.
 - **Treat server versions as untrusted input.** Kuma's authenticated version string
   is parsed strictly against a live-tested capability matrix. Missing, malformed,
   prerelease, older, and newer values do not gain version-specific write schemas;
@@ -71,7 +75,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | Category | Status | Where |
 |---|---|---|
 | STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `StatusPageStore.kt`, `MonitorPresetStore.kt`, `EventLogStore.kt`, `IncidentNoteStore.kt`, `FaviconStore.kt`, `ManagedPushScopeStore.kt`, `PushPendingAlertStore.kt`, `WidgetStore.kt` |
-| STORAGE-2 no data leakage | met | `FLAG_SECURE`; cloud backup and device transfer excluded |
+| STORAGE-2 no data leakage | met | secure-default, user-controlled `FLAG_SECURE`; cloud backup and device transfer excluded |
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
 | AUTH-1 secure auth | partial (server-dependent) | login + TOTP → token, `KumaClient` |
@@ -81,7 +85,7 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
 | PLATFORM-1 IPC | met | strict BROWSABLE launcher routes + bounded exported system surfaces |
 | PLATFORM-2 WebViews | n/a | app uses none |
-| PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide (release; skipped in debug) |
+| PLATFORM-3 UI security | met | persisted Off/Sensitive/Always `FLAG_SECURE` policy with secure startup |
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 37 |
 | CODE-2 enforced updates | n/a | F-Droid/GitHub distribution; informational check only |
 | CODE-3 no vulnerable deps | met | pinned versions, Dependabot updates and alerts |
@@ -97,9 +101,11 @@ AES-256-GCM) under a master key held
 in the Android Keystore, with an app-specific AAD. The login password and TOTP are
 never written to disk; only the resulting session token and optional user-supplied
 reverse-proxy headers are. Header values are masked in forms, omitted from
-summaries/logs, and rejected if they contain CR/LF. `FLAG_SECURE` is set
-app-wide (`MainActivity`), so monitor data and server URLs are kept out of
-screenshots, screen recordings, and the recents thumbnail. The manifest sets
+summaries/logs, and rejected if they contain CR/LF. `MainActivity` enables
+`FLAG_SECURE` before loading preferences, then applies the user's Off, Sensitive
+screens only, or Always choice. Missing or malformed preferences resolve to Always.
+Sensitive mode protects credential/session/header editors and the raw push endpoint;
+ordinary monitoring surfaces remain capturable for support. The manifest sets
 `allowBackup=false`; legacy backup rules and Android 12+ data-extraction rules also
 exclude every storage domain from cloud backup and device-to-device transfer.
 
@@ -120,7 +126,9 @@ DataStore. Per-widget records contain only the selected source identifier and mo
 IDs; private rows reuse the encrypted monitor cache. JWTs and reverse-proxy headers
 remain solely in `ConnectionStore` and are resolved in memory for a manual refresh.
 The exported system configuration activity validates the supplied widget ID against
-URSA's exact provider before reading storage and applies `FLAG_SECURE` in release.
+URSA's exact provider before reading storage and follows the same persisted capture
+policy. The chooser itself is non-sensitive because it renders only names and cached
+status, never credentials or header values.
 
 The optional favicon cache is also encrypted with the same Keystore-backed AEAD and
 lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small image
@@ -293,7 +301,7 @@ A push monitor's heartbeat URL is a bearer-style write capability: anyone who kn
 it can submit status to that monitor. New monitors use a cryptographically random
 32-character alphanumeric token and send the exact in-memory token shown by the
 editor to Kuma. The URL is masked by default, excluded from logs and local caches,
-and protected from screenshots by the app's secure window. Clipboard entries for
+and protected from screenshots unless the user explicitly selects Off. Clipboard entries for
 it and the UnifiedPush endpoint suppress Android's sensitive-content preview. Copy,
 reveal, and native share are explicit user actions with an on-screen
 password-equivalent warning; once copied or shared, the destination is outside
@@ -372,10 +380,11 @@ Private routes contain a one-way server scope and bounded local ID, resolve only
 saved records, and reject user info, query, fragment, encoded paths, and unknown
 destinations. Other exported components are the
 AppWidget receiver and Quick Settings tile, which the platform requires to be
-exported and which only expose cached counts). No WebViews. `FLAG_SECURE` is applied
-app-wide in **release** builds so no screen can be captured or previewed in recents;
-it is intentionally skipped in **debuggable** builds so developers can take
-screenshots (release security is unaffected). The push service (`UrsaPushService`)
+exported and which only expose cached counts). No WebViews. `FLAG_SECURE` starts
+enabled before preferences or restored routes are rendered. The persisted mode then
+keeps it off, applies it only to secret-bearing routes, or keeps it app-wide. Mode
+changes and route transitions take effect without restart; navigation cannot clear
+Always or re-enable Off. The push service (`UrsaPushService`)
 is `exported="false"` - the
 UnifiedPush connector ships its own internal receiver that forwards to it - so there
 is no exported push surface. The acknowledge/snooze and group-dismissal receivers
@@ -434,7 +443,8 @@ only if URSA ever brokers other people's credentials.
 Prioritized by value/effort. Tracked items - none are silently dropped.
 
 1. ~~**`FLAG_SECURE`** on windows showing sessions/monitor data (PLATFORM-3).~~
-   **Done (2026-07-04)** - applied app-wide in `MainActivity`.
+   **Done (2026-07-04; refined 2026-10-16)** - secure startup plus persisted
+   Off, Sensitive screens only, and Always modes in `MainActivity`.
 2. ~~**Disable backup and device transfer** for the encrypted store (STORAGE-2).~~
    **Done (2026-08-21)** - `allowBackup=false` plus explicit legacy and Android
    12+ exclusion rules in both phone and Wear modules.

@@ -68,8 +68,8 @@ whenever you pull your phone out.
   that heals itself when your connection drops.
 - 🌐 **Public status pages** - check a shared status page without logging in at all.
 - 🛡️ **Private by default** - credentials are encrypted on-device, only your session
-  token is ever stored (never your password), and monitor data is hidden from
-  screenshots and the app switcher.
+  token is ever stored (never your password), and screenshot protection defaults
+  to Always with optional Sensitive screens only and Off modes.
 - 📱 **Feels like Android** - a home-screen widget, a Quick Settings tile, app
   shortcuts and scoped deep links, biometric app lock, an offline last-known view,
   notification actions, responsive tablet layouts, and an opt-in glance display.

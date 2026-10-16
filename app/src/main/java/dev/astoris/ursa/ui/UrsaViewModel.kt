@@ -71,6 +71,7 @@ import dev.astoris.ursa.core.storage.ConnectionBackupData
 import dev.astoris.ursa.core.storage.PortablePreferences
 import dev.astoris.ursa.core.storage.DynamicColorStore
 import dev.astoris.ursa.core.storage.DisplayPreferenceStore
+import dev.astoris.ursa.core.storage.ScreenshotProtectionMode
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.IncidentNote
 import dev.astoris.ursa.core.storage.IncidentNoteStore
@@ -1956,6 +1957,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val compactDisplayEnabled: StateFlow<Boolean> = DisplayPreferenceStore.compact
     fun setCompactDisplayEnabled(enabled: Boolean) =
         DisplayPreferenceStore.setCompact(getApplication(), enabled)
+
+    val screenshotProtection = DisplayPreferenceStore.screenshotProtection
+    fun setScreenshotProtection(mode: ScreenshotProtectionMode) =
+        DisplayPreferenceStore.setScreenshotProtection(getApplication(), mode)
 
     fun checkForUpdates() {
         if (_updateCheck.value == UpdateCheckUiState.Loading) return

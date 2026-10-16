@@ -9,6 +9,29 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-16 - Runtime screenshot-protection modes
+
+**changed**: Settings now offers Off, Sensitive screens only, and Always capture
+protection through the existing device-preference store. `MainActivity` enables
+`FLAG_SECURE` before reading preferences, observes mode changes while started, and
+combines that mode with the route actually displayed by Navigation 3. Login/server
+setup, server management, monitor editing, and Notifications are sensitive; normal
+Home, Monitors, Incidents, Browse, detail, status-page, lock, and glance surfaces
+remain capturable in Sensitive mode. The nested Notifications tool reports the same
+boundary, and widget configuration follows the preference without becoming a second
+policy owner.
+
+**compatibility and security**: Missing or malformed values resolve to Always, so
+existing installs and new installs retain the previous fail-closed behavior. The
+window starts secure across process/activity recreation and clears only after the
+saved policy and current non-sensitive route are known. No credential, connection,
+backup, route, or widget schema changed.
+
+**verification**: Pure tests cover storage fallback/round-trip, Off/Sensitive/Always
+precedence, and every route classification. Android 17 QA verified immediate mode
+changes, process relaunch, Always on Home, Off on Home and Notifications, Sensitive
+on Home/Settings, entering and leaving Notifications, and the live window flag.
+
 ### 2026-10-16 - Current-shell system-inset reconciliation
 
 **finding**: The reported excessive top gap came from the older Monitors-first

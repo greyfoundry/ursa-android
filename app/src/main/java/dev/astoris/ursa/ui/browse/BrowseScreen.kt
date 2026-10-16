@@ -23,11 +23,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -84,6 +87,7 @@ internal enum class BrowseTool {
 fun BrowseScreen(
     vm: UrsaViewModel,
     modifier: Modifier = Modifier,
+    onSensitiveContentChanged: (Boolean) -> Unit = {},
 ) {
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val history by vm.beatHistory.collectAsStateWithLifecycle()
@@ -99,6 +103,13 @@ fun BrowseScreen(
     var notificationsFromSettings by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     val selected = BrowseTool.entries.firstOrNull { it.name == selectedName }
+    val currentSensitiveContentChanged by rememberUpdatedState(onSensitiveContentChanged)
+    SideEffect {
+        currentSensitiveContentChanged(selected == BrowseTool.NOTIFICATIONS)
+    }
+    DisposableEffect(Unit) {
+        onDispose { currentSensitiveContentChanged(false) }
+    }
     val activeServer = activeConnection?.displayName ?: stringResource(R.string.browse_current_server)
     val searchCopy = BrowseSearchCopy(
         monitor = stringResource(R.string.browse_resource_monitor),

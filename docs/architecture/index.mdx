@@ -33,8 +33,9 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
   MonitorEditorRegistry and its round-trip guard) -
   see `docs/modules/network.mdx`.
 - `core.storage` → `.../core/storage/` (ConnectionStore, encrypted caches,
-  preferences, event history, and incident notes) - DataStore with Tink
-  AES-256-GCM at rest, master key in Android Keystore.
+  preferences, event history, and incident notes) - sensitive records use
+  DataStore with Tink AES-256-GCM at rest and a master key in Android Keystore;
+  non-secret display/privacy choices use app-private preferences.
 - `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore,
   ManagedPushScopeStore, KumaWebhook, PushDeliveryTest) - UnifiedPush receive path,
   encrypted provider/server scope binding, delivery URL validation, privacy-safe

@@ -6,7 +6,7 @@ status: stable
 
 ## what this is
 
-The phone app's Android entry point and Compose host. It applies release UI privacy,
+The phone app's Android entry point and Compose host. It applies persisted UI privacy,
 restores the encrypted startup route, handles Android 17 local-network permission,
 and forwards only validated URSA deep links to the typed Navigation 3 route shell.
 
@@ -41,7 +41,12 @@ route still resolves only against data already saved by URSA.
 
 ## gotchas
 
-- Release builds set `FLAG_SECURE`; debug builds intentionally permit QA captures.
+- `MainActivity` starts with `FLAG_SECURE` before reading preferences, then applies
+  the saved Off, Sensitive screens only, or Always mode at runtime. Missing or
+  malformed values resolve to Always so upgrades and first launch fail closed.
+  Sensitive mode classifies the displayed Navigation route, including the nested
+  Notifications tool; leaving a sensitive surface clears the flag, while Always
+  cannot be cleared by navigation and Off cannot be re-enabled by a route.
 - The startup loading surface remains until encrypted connection selection is read.
   Network authentication may continue after that gate without bouncing the user to
   the login form.

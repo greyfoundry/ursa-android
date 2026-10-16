@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,12 +37,19 @@ internal fun UrsaNavHost(
     selected: Monitor?,
     editingConnection: ServerConnection?,
     monitorEditor: MonitorEditorUiState,
+    onSensitiveContentChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val activity = LocalContext.current.findActivity()
     val backStack = rememberNavBackStack(UrsaRoute.Startup)
     var restorationPending by remember { mutableStateOf(true) }
+    var nestedSensitiveContent by remember { mutableStateOf(false) }
     val desiredStack = routeState.toNavigationStack()
+    val displayedRoute = backStack.lastOrNull() as? UrsaRoute ?: routeState.toRoute()
+
+    SideEffect {
+        onSensitiveContentChanged(displayedRoute.isScreenshotSensitive() || nestedSensitiveContent)
+    }
 
     LaunchedEffect(desiredStack) {
         val active = desiredStack.last()
@@ -185,7 +193,14 @@ internal fun UrsaNavHost(
                     )
                 }
                 is UrsaRoute.Main -> NavEntry(key, contentKey = MAIN_CONTENT_KEY) {
-                    MainShell(vm, selected)
+                    MainShell(
+                        vm = vm,
+                        selected = selected,
+                        onSensitiveContentChanged = { sensitive ->
+                            nestedSensitiveContent = sensitive
+                            onSensitiveContentChanged(displayedRoute.isScreenshotSensitive() || sensitive)
+                        },
+                    )
                 }
                 is UrsaRoute.MonitorDetail -> NavEntry(key) {
                     val monitor = selected?.takeIf { it.id == key.monitorId }

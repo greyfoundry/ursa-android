@@ -7,7 +7,9 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UrsaRouteTest {
@@ -147,5 +149,24 @@ class UrsaRouteTest {
         )
 
         assertEquals(stack, Json.decodeFromString<List<UrsaRoute>>(Json.encodeToString(stack)))
+    }
+
+    @Test fun screenshotProtectionOnlyMarksSecretBearingRoutesSensitive() {
+        assertTrue(UrsaRoute.Login.isScreenshotSensitive())
+        assertTrue(UrsaRoute.ConnectionManager.isScreenshotSensitive())
+        assertTrue(UrsaRoute.ConnectionSetup(editing = false).isScreenshotSensitive())
+        assertTrue(UrsaRoute.MonitorEditor(42).isScreenshotSensitive())
+        assertTrue(UrsaRoute.Main(MainSection.NOTIFICATIONS).isScreenshotSensitive())
+
+        assertFalse(UrsaRoute.Locked.isScreenshotSensitive())
+        assertFalse(UrsaRoute.Startup.isScreenshotSensitive())
+        assertFalse(UrsaRoute.StatusPages("public-demo").isScreenshotSensitive())
+        assertFalse(UrsaRoute.Main(MainSection.HOME).isScreenshotSensitive())
+        assertFalse(UrsaRoute.Main(MainSection.MONITORS).isScreenshotSensitive())
+        assertFalse(UrsaRoute.Main(MainSection.INCIDENTS).isScreenshotSensitive())
+        assertFalse(UrsaRoute.Main(MainSection.BROWSE).isScreenshotSensitive())
+        assertFalse(UrsaRoute.Main(MainSection.SETTINGS).isScreenshotSensitive())
+        assertFalse(UrsaRoute.MonitorDetail(42).isScreenshotSensitive())
+        assertFalse(UrsaRoute.Kiosk.isScreenshotSensitive())
     }
 }

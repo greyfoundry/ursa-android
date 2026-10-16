@@ -32,7 +32,10 @@ import dev.astoris.ursa.ui.navigation.LegacyRouteState
 import dev.astoris.ursa.ui.navigation.UrsaNavHost
 
 @Composable
-fun UrsaApp(vm: UrsaViewModel = viewModel()) {
+fun UrsaApp(
+    vm: UrsaViewModel = viewModel(),
+    onSensitiveContentChanged: (Boolean) -> Unit = {},
+) {
     val startupReady by vm.startupReady.collectAsStateWithLifecycle()
     val selected by vm.selectedMonitor.collectAsStateWithLifecycle()
     val selectedId by vm.selectedId.collectAsStateWithLifecycle()
@@ -79,6 +82,7 @@ fun UrsaApp(vm: UrsaViewModel = viewModel()) {
         selected = selected,
         editingConnection = editingConnection,
         monitorEditor = monitorEditor,
+        onSensitiveContentChanged = onSensitiveContentChanged,
         modifier = Modifier.fillMaxSize(),
     )
 

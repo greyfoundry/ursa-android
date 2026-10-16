@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-15
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -265,7 +265,11 @@ route stack while screens migrate incrementally.
   the token remains in memory only.
 - `.../ui/settings/SettingsScreen.kt` also exposes Notifications, connection/setup
   guidance, compact density, optional update notifications, and a user-triggered
-  official-release check. It does not download or install packages.
+  official-release check. Screenshot protection offers Off, Sensitive screens
+  only, and Always without requiring a restart. Sensitive mode covers connection
+  credentials and backup secrets, monitor secrets/custom headers, and the raw
+  UnifiedPush endpoint; ordinary monitoring and status surfaces remain capturable.
+  It does not download or install packages.
 - `.../core/wear/WearSessionBridge.kt` plus the conditional `src/wearBridge`
   implementation - explicit phone-to-watch session handoff for GitHub builds. The
   F-Droid build omits the transport dependency and pairing control. See
@@ -352,6 +356,12 @@ route stack while screens migrate incrementally.
   uses `hasSession` (set once authenticated, and optimistically at startup if a
   stored JWT exists) - NOT raw connection state - so reconnects keep the list
   visible with a "Connection: …" banner. `logout()` clears it.
+- Screenshot protection starts secure until its persisted mode is read. A missing
+  or invalid value preserves the released Always behavior. Navigation reports the
+  actual displayed route rather than a desired route, preventing restored sensitive
+  content from being exposed while the route stack reconciles. The widget chooser
+  follows the same preference and is non-sensitive because it renders names and
+  cached status only, never sessions, passwords, or header values.
 - Saved public pages are encrypted by `StatusPageStore`; public-page URLs never
   duplicate access headers. A page whose normalized base URL exactly matches a
   saved server inherits that server's encrypted headers only at request time.

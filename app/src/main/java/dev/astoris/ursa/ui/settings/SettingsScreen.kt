@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -35,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.core.net.toUri
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -48,6 +52,7 @@ import dev.astoris.ursa.ui.WearPairingUiState
 import dev.astoris.ursa.ui.UpdateCheckUiState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
 import dev.astoris.ursa.core.network.ConnectionTransportPolicy
+import dev.astoris.ursa.core.storage.ScreenshotProtectionMode
 import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +70,7 @@ fun SettingsScreen(
     val slowThresholdMs by vm.slowThresholdMs.collectAsStateWithLifecycle()
     val dynamicColorEnabled by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
     val compactDisplayEnabled by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
+    val screenshotProtection by vm.screenshotProtection.collectAsStateWithLifecycle()
     val connectionFailure by vm.connectionFailure.collectAsStateWithLifecycle()
     val updateCheck by vm.updateCheck.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
@@ -228,6 +234,38 @@ fun SettingsScreen(
                     checked = destructiveStepUpEnabled && canLock,
                     enabled = canLock,
                     onCheckedChange = vm::setDestructiveStepUpEnabled,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.settings_screenshot_protection),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.accessibilityHeading(),
+            )
+            Text(
+                stringResource(R.string.settings_screenshot_protection_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column(Modifier.fillMaxWidth().selectableGroup()) {
+                ScreenshotProtectionOption(
+                    selected = screenshotProtection == ScreenshotProtectionMode.OFF,
+                    title = stringResource(R.string.settings_screenshot_off),
+                    description = stringResource(R.string.settings_screenshot_off_desc),
+                    onClick = { vm.setScreenshotProtection(ScreenshotProtectionMode.OFF) },
+                )
+                ScreenshotProtectionOption(
+                    selected = screenshotProtection == ScreenshotProtectionMode.SENSITIVE,
+                    title = stringResource(R.string.settings_screenshot_sensitive),
+                    description = stringResource(R.string.settings_screenshot_sensitive_desc),
+                    onClick = { vm.setScreenshotProtection(ScreenshotProtectionMode.SENSITIVE) },
+                )
+                ScreenshotProtectionOption(
+                    selected = screenshotProtection == ScreenshotProtectionMode.ALWAYS,
+                    title = stringResource(R.string.settings_screenshot_always),
+                    description = stringResource(R.string.settings_screenshot_always_desc),
+                    onClick = { vm.setScreenshotProtection(ScreenshotProtectionMode.ALWAYS) },
                 )
             }
 
@@ -488,6 +526,32 @@ fun SettingsScreen(
                 TextButton(onClick = { showUpdates = false }) { Text(stringResource(R.string.action_done)) }
             },
         )
+    }
+}
+
+@Composable
+private fun ScreenshotProtectionOption(
+    selected: Boolean,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(Modifier.padding(start = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

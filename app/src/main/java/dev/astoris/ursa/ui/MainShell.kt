@@ -45,7 +45,11 @@ import dev.astoris.ursa.ui.theme.UrsaMotion
  */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun MainShell(vm: UrsaViewModel, selected: Monitor? = null) {
+fun MainShell(
+    vm: UrsaViewModel,
+    selected: Monitor? = null,
+    onSensitiveContentChanged: (Boolean) -> Unit = {},
+) {
     val tab by vm.tab.collectAsStateWithLifecycle()
 
     NavigationSuiteScaffold(
@@ -69,7 +73,7 @@ fun MainShell(vm: UrsaViewModel, selected: Monitor? = null) {
                     MainTab.HOME -> HomeScreen(vm)
                     MainTab.MONITORS -> MonitorListDetailPane(vm, selected)
                     MainTab.INCIDENTS -> IncidentsScreen(vm)
-                    MainTab.BROWSE -> BrowseScreen(vm)
+                    MainTab.BROWSE -> BrowseScreen(vm, onSensitiveContentChanged = onSensitiveContentChanged)
                     MainTab.NOTIFICATIONS -> PushScreen(vm)
                     MainTab.SETTINGS -> SettingsScreen(vm)
                 }

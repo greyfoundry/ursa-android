@@ -111,6 +111,23 @@ fun LegacyRouteState.toNavigationStack(): List<UrsaRoute> {
     }
 }
 
+/** Screens that can render credentials, tokens, secrets, or custom header values. */
+fun UrsaRoute.isScreenshotSensitive(): Boolean = when (this) {
+    UrsaRoute.Login,
+    UrsaRoute.ConnectionManager,
+    is UrsaRoute.ConnectionSetup,
+    is UrsaRoute.MonitorEditor,
+    -> true
+
+    is UrsaRoute.Main -> tab == MainSection.NOTIFICATIONS
+    UrsaRoute.Locked,
+    UrsaRoute.Startup,
+    is UrsaRoute.StatusPages,
+    is UrsaRoute.MonitorDetail,
+    UrsaRoute.Kiosk,
+    -> false
+}
+
 fun MainTab.toMainSection(): MainSection = when (this) {
     MainTab.HOME -> MainSection.HOME
     MainTab.MONITORS -> MainSection.MONITORS
