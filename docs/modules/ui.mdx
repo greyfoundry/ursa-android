@@ -285,6 +285,11 @@ route stack while screens migrate incrementally.
   keyboard order, Switch Access focus, TalkBack focus, zero animation scales, and
   fully visible 48 dp touch targets. The UI follows system motion settings and adds
   no essential meaning that depends on animation.
+- The current Home-first adaptive shell also passes its system-inset matrix with
+  the Pixel cutout, portrait/landscape, gesture and three-button navigation,
+  compact/expanded navigation, monitor detail, 100%/200% text, and IME transitions.
+  Material owns bar/rail/app-bar insets; individual destinations do not compensate
+  with screen-specific bottom spacing.
 
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).

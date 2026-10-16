@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-25
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -53,6 +53,14 @@ route still resolves only against data already saved by URSA.
 - Material 3 Adaptive owns pane presentation and pane predictive back. The
   ViewModel continues to own the selected monitor so deep links and released
   actions use the same state boundary on every window size.
+- System-inset ownership follows the Material components instead of fixed padding:
+  `NavigationSuiteScaffold` lays out and consumes its bottom bar or start rail,
+  destination top app bars consume the remaining status-bar/cutout edge, and the
+  top-level Home, Incidents, and Browse surfaces consume only their own top and
+  horizontal safe-drawing edges. Child content does not add another bottom inset.
+  IME resizing remains platform-driven. This contract is verified in portrait and
+  landscape with gesture/three-button navigation, the Pixel cutout, compact and
+  expanded navigation, 100%/200% text, and a visible IME.
 - Home is additive to the released monitor/notification/settings destinations.
   Fresh sessions start there; restored typed routes and existing deep links retain
   their previous destination and selection semantics.

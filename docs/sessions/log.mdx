@@ -9,6 +9,21 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-16 - Current-shell system-inset reconciliation
+
+**finding**: The reported excessive top gap came from the older Monitors-first
+release. The current Home-first adaptive shell already assigns each system edge to
+one owner: the adaptive navigation suite owns its bottom bar or start rail, Material
+top app bars own the remaining status/cutout edge, and top-level destinations without
+an app bar consume only top and horizontal safe drawing. No screen-specific bottom
+padding or duplicate root inset remains, so no UI code change was warranted.
+
+**verification**: Android 17 device QA covered Home, Monitors, monitor detail,
+Incidents, and Browse in portrait/landscape, the Pixel camera cutout, gesture and
+three-button navigation, 100% and 200% text, visible IME state, and an expanded rail
+layout. Content stayed outside system controls without the old dead zones; adaptive
+navigation and scroll content met directly at their owned boundary.
+
 ### 2026-10-16 - Baseline Profile and large-fleet measurement infrastructure
 
 **changed**: A dedicated AndroidX Macrobenchmark module now generates the phone
