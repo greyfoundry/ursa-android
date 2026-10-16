@@ -63,7 +63,6 @@
     <string name="nav_monitors">Monitors</string>
     <string name="nav_incidents">Incidents</string>
     <string name="nav_notifications">Notifications</string>
-    <string name="nav_settings">Settings</string>
     <string name="nav_browse">Browse</string>
     <string name="settings_notifications_desc">Configure UnifiedPush alerts and notification diagnostics</string>
 
@@ -123,7 +122,7 @@
         <item quantity="one">%1$d of %2$d server needs attention</item>
         <item quantity="other">%1$d of %2$d servers need attention</item>
     </plurals>
-    <string name="home_fleet_coverage">Data available for %1$d of %2$d servers</string>
+    <string name="home_fleet_coverage">Servers with data: %1$d/%2$d</string>
     <string name="home_fleet_data_health">Unavailable: %1$d • stale: %2$d</string>
     <string name="home_fleet_refresh_all">Refresh all</string>
     <string name="home_fleet_refreshing">Refreshing…</string>
@@ -263,17 +262,12 @@
     <string name="monitors_empty">No monitors yet</string>
     <string name="monitors_none_match">No monitors match</string>
     <string name="inventory_filters">Filters</string>
-    <string name="inventory_result_count">%1$d of %2$d monitors</string>
+    <string name="inventory_result_count">Monitors shown: %1$d/%2$d</string>
     <string name="monitor_row_context">%1$s · %2$s</string>
-    <plurals name="monitors_need_attention">
-        <item quantity="one">%d monitor needs attention</item>
-        <item quantity="other">%d monitors need attention</item>
-    </plurals>
     <string name="search_hint">Search monitors</string>
     <string name="action_search">Search</string>
     <string name="action_close_search">Close search</string>
     <string name="action_back">Back</string>
-    <string name="action_filter">Filter</string>
     <string name="action_more">More options</string>
     <string name="filter_all">All</string>
     <string name="filter_active">Active</string>
@@ -396,9 +390,9 @@
     <string name="backup_export_desc">Choose a password for this file. Servers, access headers, favorites, and alert preferences are encrypted.</string>
     <string name="backup_import_desc">Enter the password used when this backup was created. Valid servers are merged by URL.</string>
     <string name="backup_preview_title">Review import</string>
-    <string name="backup_preview_summary">%1$d new servers · %2$d existing servers</string>
+    <string name="backup_preview_summary">New servers: %1$d · Existing servers: %2$d</string>
     <string name="backup_preview_preferences">Alert, appearance, and favorite preferences from this backup will also be merged.</string>
-    <string name="backup_preview_validation">Validated: %1$d ready · 0 skipped · 0 failed</string>
+    <string name="backup_preview_validation">Validated · Ready: %1$d · Skipped: 0 · Failed: 0</string>
     <string name="backup_preview_restrictions">Existing restrictions preserved by default: %1$d</string>
     <string name="backup_restore_access">Restore access profiles</string>
     <string name="backup_restore_access_desc">Off by default. Existing server restrictions stay unchanged unless you enable this.</string>
@@ -548,12 +542,12 @@
     <string name="history_load_failed">History could not be loaded. Check the server connection and try again.</string>
     <string name="history_no_retained_rows">Kuma returned no retained heartbeats in this interval.</string>
     <string name="history_observed_coverage">Observed data: %1$s to %2$s</string>
-    <string name="history_result_truncated">Showing the newest %d rows. Earlier rows in this interval were omitted.</string>
+    <string name="history_result_truncated">Rows shown: newest %d. Earlier rows in this interval were omitted.</string>
     <string name="history_export_description">Export this exact requested range as streamed CSV or accessible HTML. Includes identity, UTC coverage, state, and latency; excludes addresses, messages, credentials, headers, and notification data.</string>
     <string name="history_export_csv">Save history CSV</string>
     <string name="history_export_html">Save history HTML</string>
     <string name="history_export_failed">Could not write the history file.</string>
-    <string name="history_export_saved_truncated">Saved %1$d heartbeat rows; the result reached the %2$d-row safety limit.</string>
+    <string name="history_export_saved_truncated">Heartbeat rows saved: %1$d; safety limit reached: %2$d.</string>
     <plurals name="history_export_saved">
         <item quantity="one">Saved %d heartbeat row.</item>
         <item quantity="other">Saved %d heartbeat rows.</item>
@@ -668,8 +662,6 @@
     <string name="detail_tls_certificate">TLS certificate</string>
     <string name="cert_valid">Valid</string>
     <string name="cert_invalid">Invalid</string>
-    <string name="detail_issuer">Issuer: %1$s</string>
-    <string name="detail_subject">Subject: %1$s</string>
     <string name="certificate_dashboard_title">Certificates</string>
     <string name="certificate_sort_expiry">Expiry</string>
     <string name="certificate_sort_name">Name</string>
@@ -767,13 +759,13 @@
     <string name="push_timeline_policy_suppressed">No notification: the effective per-monitor mode excludes this transition.</string>
     <string name="push_timeline_event_suppressed">No notification: this transition type is disabled in event preferences.</string>
     <string name="push_timeline_duplicate_suppressed">No notification: this transition matches the last received state.</string>
-    <string name="push_timeline_delayed">First delivery scheduled after %1$d minutes.</string>
-    <string name="push_timeline_delivered">Delivery %1$d posted to Android.</string>
-    <string name="push_timeline_repeated">Repeat delivery %1$d posted to Android.</string>
+    <string name="push_timeline_delayed">Delay before first delivery: %1$d min.</string>
+    <string name="push_timeline_delivered">Posted Android delivery #%1$d.</string>
+    <string name="push_timeline_repeated">Posted repeat Android delivery #%1$d.</string>
     <string name="push_timeline_acknowledged">Acknowledged on this device; pending repeats were cancelled.</string>
     <string name="push_timeline_snoozed">Snoozed on this device for one hour.</string>
     <string name="push_timeline_recovered">Recovery cancelled the active Down alert and pending repeats.</string>
-    <string name="push_timeline_correlated">%1$d recent Down alerts may share a failure domain; none were suppressed.</string>
+    <string name="push_timeline_correlated">Recent Down alerts: %1$d. They may share a failure domain; none were suppressed.</string>
     <string name="push_timeline_notification_permission">No notification: Android notification permission is required.</string>
     <string name="push_timeline_app_notifications_disabled">No notification: notifications are disabled for URSA.</string>
     <string name="push_timeline_channel_disabled">No notification: the effective Android alert channel is disabled.</string>
@@ -1024,7 +1016,7 @@
     <string name="push_policy_down_device_blocked">A Down transition is eligible, but Android notifications are blocked for URSA.</string>
     <string name="push_policy_down_mode_blocked">A Down transition will not notify under the current mode.</string>
     <string name="push_policy_down_dependency_suppressed">A Down transition will be suppressed because %1$s was last received as Down.</string>
-    <string name="push_policy_down_group_threshold_suppressed">A Down transition will be suppressed because %1$d of %2$d managed children in %3$s are last received as Down; the threshold is %4$d.</string>
+    <string name="push_policy_down_group_threshold_suppressed">A Down transition will be suppressed. Managed children last received as Down: %1$d/%2$d in %3$s; threshold: %4$d.</string>
     <string name="push_policy_down_delayed">A Down transition will be delivered at %1$s after the configured delay.</string>
     <string name="push_policy_down_snoozed">A Down transition is snoozed until %1$s.</string>
     <string name="push_policy_down_immediate">A Down transition will be delivered now.</string>
@@ -1056,13 +1048,13 @@
         <item quantity="other">On · %1$d dependencies are not currently known Down</item>
     </plurals>
     <string name="push_policy_group_threshold">Group threshold</string>
-    <string name="push_policy_group_threshold_value">%1$s · %2$d of %3$d required · %4$d currently Down</string>
+    <string name="push_policy_group_threshold_value">%1$s · Required: %2$d/%3$d · Currently Down: %4$d</string>
     <string name="push_policy_grouping">Grouping</string>
     <string name="push_policy_grouping_default">Grouped by server when 2+ alerts are active · URSA default</string>
     <string name="push_policy_grouping_correlation">Grouped by server at 2+ active alerts · likely shared failures highlighted · no suppression</string>
     <string name="push_correlation_enable">Highlight likely shared failures</string>
     <string name="push_correlation_desc">When 3 recent Down alerts share a group or tag, or 5 reach this server within 2 minutes, the Android summary says they may share a failure domain. Alerts are never suppressed.</string>
-    <string name="push_group_correlation_hint">%1$d recent Down alerts may share a failure domain</string>
+    <string name="push_group_correlation_hint">Recent Down alerts: %1$d. They may share a failure domain</string>
     <plurals name="push_group_summary_title">
         <item quantity="one">%1$d monitor alert</item>
         <item quantity="other">%1$d monitor alerts</item>
@@ -1084,12 +1076,12 @@
     <string name="push_group_alerts_desc">Optionally require multiple managed children in one Kuma group to be Down before this device delivers a child Down alert. Kuma’s server-side behavior is unchanged.</string>
     <string name="push_group_alerts_empty">Create a Kuma group with at least two child monitors and assign those children to this managed provider first.</string>
     <string name="push_group_alert_off">Off · each child alerts independently</string>
-    <string name="push_group_alert_summary">%1$d of %2$d Down</string>
+    <string name="push_group_alert_summary">Down: %1$d/%2$d</string>
     <string name="push_group_alert_dialog_title">Group alerts for %1$s</string>
-    <string name="push_group_alert_dialog_desc">This group has %1$d managed child monitors. Down events below the threshold are suppressed on this device; recovery and maintenance events are unchanged.</string>
+    <string name="push_group_alert_dialog_desc">Managed child monitors in this group: %1$d. Down events below the threshold are suppressed on this device; recovery and maintenance events are unchanged.</string>
     <string name="push_group_alert_enable">Require multiple children to be Down</string>
     <string name="push_group_alert_save_error">The group changed or the rule could not be stored securely. Refresh and try again.</string>
-    <string name="push_group_alert_suppressed_detail">Suppressed because %1$d of %2$d monitors in %3$s were last received as Down; the threshold is %4$d.</string>
+    <string name="push_group_alert_suppressed_detail">Suppressed. Monitors last received as Down: %1$d/%2$d in %3$s; threshold: %4$d.</string>
     <string name="push_alert_mode_dialog_title">Alerts for %1$s</string>
     <string name="push_alert_mode_muted">Muted</string>
     <string name="push_alert_mode_muted_desc">Receive no alert notifications for this monitor.</string>
@@ -1231,8 +1223,8 @@
     <string name="monitor_websocket_headers_title">Request headers (%1$d/%2$d)</string>
     <string name="monitor_websocket_headers_help">Optional headers sent with the request. Values are hidden after saving.</string>
     <string name="monitor_websocket_headers_browser_only">These saved headers use an advanced format URSA cannot edit safely. They will remain unchanged; use Uptime Kuma for header changes.</string>
-    <string name="monitor_websocket_header_name">Header %1$d name</string>
-    <string name="monitor_websocket_header_value">Header %1$d value</string>
+    <string name="monitor_websocket_header_name">Name for header %1$d</string>
+    <string name="monitor_websocket_header_value">Value for header %1$d</string>
     <string name="monitor_websocket_header_saved">Saved on the server. Leave blank to keep it; enter a value when renaming.</string>
     <string name="monitor_websocket_header_add">Add request header</string>
     <string name="monitor_websocket_header_remove">Remove request header</string>
@@ -1313,13 +1305,12 @@
     <string name="monitor_smtp_browser_only">This monitor uses an unknown SMTP security mode. The mode will stay unchanged; use Uptime Kuma to change connection security.</string>
     <string name="monitor_ntp_thresholds_title">NTP thresholds</string>
     <string name="monitor_ntp_stratum_threshold">Stratum threshold</string>
-    <string name="monitor_ntp_stratum_threshold_help">Mark down when stratum is at or above this value. Use 1-15; blank keeps the server fallback of 5.</string>
+    <string name="monitor_ntp_stratum_threshold_help">Mark down when stratum is at or above this value. Use 1 through 15; blank keeps the server fallback of 5.</string>
     <string name="monitor_ntp_offset_threshold">Time offset threshold (ms)</string>
     <string name="monitor_ntp_offset_threshold_help">Mark down when the absolute time offset reaches this value. Blank keeps the server fallback of 1000 ms.</string>
     <string name="monitor_ntp_dispersion_threshold">Root dispersion threshold (ms)</string>
     <string name="monitor_ntp_dispersion_threshold_help">Mark down when root dispersion reaches this value. Blank keeps the server fallback of 500 ms.</string>
     <string name="monitor_globalping_title">Globalping probe</string>
-    <string name="monitor_globalping_ping_title">Globalping ping</string>
     <string name="monitor_globalping_subtype">Probe type</string>
     <string name="monitor_globalping_subtype_ping">Ping</string>
     <string name="monitor_globalping_subtype_http">HTTP</string>
@@ -1342,7 +1333,7 @@
     <string name="monitor_globalping_http2">HTTP2</string>
     <string name="monitor_globalping_http_method">HTTP method</string>
     <string name="monitor_globalping_http_status_codes">Accepted status codes</string>
-    <string name="monitor_globalping_http_status_codes_help">Enter comma-separated codes or ranges, such as 200-299, 301.</string>
+    <string name="monitor_globalping_http_status_codes_help">Enter comma-separated codes or ranges, such as 200 through 299, or 301.</string>
     <string name="monitor_globalping_http_ignore_tls">Ignore TLS certificate errors</string>
     <string name="monitor_globalping_http_expiry">Notify before certificate expiry</string>
     <string name="monitor_globalping_http_cache_bust">Add a cache-busting query parameter</string>
@@ -1379,7 +1370,7 @@
     <string name="monitor_grpc_tls">Use TLS</string>
     <string name="monitor_snmp_title">SNMP query</string>
     <string name="monitor_snmp_version">SNMP version</string>
-    <string name="monitor_snmp_version_1">SNMPv1</string>
+    <string name="monitor_snmp_version_1" tools:ignore="Typos">SNMPv1</string>
     <string name="monitor_snmp_version_2c">SNMPv2c</string>
     <string name="monitor_snmp_version_3">SNMPv3</string>
     <string name="monitor_snmp_version_unsupported">Unsupported SNMP version</string>
@@ -1599,21 +1590,21 @@
     <string name="monitor_group_no_children_message">You can still create an empty group, then create its first child from the result.</string>
     <string name="monitor_group_preview">Preview changes</string>
     <string name="monitor_group_preview_desc">Review the exact group and child assignments. Changes run sequentially so a failed monitor can be retried safely.</string>
-    <string name="monitor_group_preview_count">%1$d existing monitors will move into this group.</string>
+    <string name="monitor_group_preview_count">Existing monitors moving into this group: %1$d.</string>
     <string name="monitor_group_preview_empty">No existing monitors will move. You can create a new child after the group is saved.</string>
     <string name="monitor_group_apply">Create group</string>
     <string name="monitor_group_access_required">This wizard needs Create monitor. Moving existing children also needs Edit monitor and Bulk actions.</string>
     <string name="monitor_group_failed_title">Group was not confirmed</string>
     <string name="monitor_group_failed_message">Refresh the monitor list before trying again so an unknown server result cannot create a duplicate group.</string>
     <string name="monitor_group_partial_title">Group created with partial results</string>
-    <string name="monitor_group_partial_message">%1$d monitor assignments succeeded and %2$d failed. Retry only the failed assignments.</string>
+    <string name="monitor_group_partial_message">Assignments succeeded: %1$d · Failed: %2$d. Retry only the failed assignments.</string>
     <string name="monitor_group_failed_assignments">Failed assignments</string>
     <string name="monitor_group_success_title">Group created</string>
-    <string name="monitor_group_success_message">%1$d existing monitor assignments succeeded.</string>
+    <string name="monitor_group_success_message">Existing monitor assignments succeeded: %1$d.</string>
     <string name="monitor_group_retry_failed">Retry failed assignments</string>
     <string name="monitor_import_title">Import monitors</string>
     <string name="browse_monitor_import_desc">Dry-run a CSV or tab-delimited TXT file, review duplicates, then create safe rows.</string>
-    <string name="monitor_import_description">Choose a headered CSV or tab-delimited TXT file with at most %1$d monitor rows. New monitors are inactive. Credentials and server assignments are never read from the file.</string>
+    <string name="monitor_import_description">Choose a headered CSV or tab-delimited TXT file. Maximum monitor rows: %1$d. New monitors are inactive. Credentials and server assignments are never read from the file.</string>
     <string name="monitor_import_columns">Columns: type, name, endpoint, port, description, interval, retry_interval, resend_interval, max_retries. Type and name are required.</string>
     <string name="monitor_import_choose">Choose CSV or TXT</string>
     <string name="monitor_import_access_denied">This connection must allow monitor creation and bulk actions.</string>
@@ -1623,7 +1614,7 @@
     <string name="inventory_export_csv">Save CSV</string>
     <string name="inventory_export_html">Save accessible HTML</string>
     <string name="inventory_export_failed">Could not write the inventory file.</string>
-    <string name="inventory_export_saved_truncated">Saved %1$d monitors; the source exceeded the %2$d-row safety limit.</string>
+    <string name="inventory_export_saved_truncated">Monitors saved: %1$d; source row safety limit reached: %2$d.</string>
     <string name="inventory_export_no_server_title">No active server</string>
     <string name="inventory_export_no_server_message">Connect to a saved server before exporting its inventory.</string>
     <plurals name="inventory_export_monitor_count">
@@ -1636,7 +1627,7 @@
     </plurals>
     <string name="monitor_import_invalid_title">File could not be dry-run</string>
     <string name="monitor_import_invalid_message">Check the header, quoting, row count, field lengths, and numeric values, then choose the file again.</string>
-    <string name="monitor_import_summary">%1$d rows: %2$d ready, %3$d review required</string>
+    <string name="monitor_import_summary">Rows: %1$d · Ready: %2$d · Review required: %3$d</string>
     <plurals name="monitor_import_create">
         <item quantity="one">Create %1$d safe row</item>
         <item quantity="other">Create %1$d safe rows</item>
@@ -1711,7 +1702,7 @@
         <item quantity="other">Edit %1$d monitors</item>
     </plurals>
     <string name="bulk_edit_scope_help">Choose only the common fields to replace. Type-specific settings, secrets, notifications, tags, groups, and monitor state stay unchanged.</string>
-    <string name="bulk_edit_invalid">Use at least 1 second for intervals and 0-100 retries.</string>
+    <string name="bulk_edit_invalid">Use at least 1 second for intervals and 0 through 100 retries.</string>
     <string name="bulk_edit_preview_title">Review exact changes</string>
     <string name="bulk_edit_preview_help">Each monitor is rechecked before saving. If its current values changed after this preview, URSA leaves it untouched and reports a failure.</string>
     <string name="bulk_edit_check_interval">Check interval</string>

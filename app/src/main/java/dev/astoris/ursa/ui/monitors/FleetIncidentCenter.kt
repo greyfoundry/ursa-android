@@ -291,10 +291,10 @@ internal fun FleetIncidentCenter(
     notes: List<IncidentNote>,
     serverUrl: String?,
     loadImportantHeartbeats: suspend () -> List<Heartbeat>?,
-    onClose: (() -> Unit)? = null,
     onIncidentClick: (Int) -> Unit,
     onSaveNote: (Int, String?, String) -> Unit,
     modifier: Modifier = Modifier,
+    onClose: (() -> Unit)? = null,
     showHeader: Boolean = true,
 ) {
     onClose?.let { BackHandler(onBack = it) }

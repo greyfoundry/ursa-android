@@ -44,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -1327,7 +1328,7 @@ private fun PushGroupAlertDialog(
 ) {
     var enabled by remember(groupName, initialRequiredDown) { mutableStateOf(initialRequiredDown != null) }
     var requiredDown by remember(groupName, initialRequiredDown, memberCount) {
-        mutableStateOf((initialRequiredDown ?: 2).coerceIn(2, memberCount.coerceAtLeast(2)))
+        mutableIntStateOf((initialRequiredDown ?: 2).coerceIn(2, memberCount.coerceAtLeast(2)))
     }
     var saveRejected by remember { mutableStateOf(false) }
     AlertDialog(

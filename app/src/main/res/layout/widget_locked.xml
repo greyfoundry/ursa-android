@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FAFAFA"
@@ -7,4 +8,5 @@
     android:padding="12dp"
     android:text="@string/widget_locked"
     android:textColor="#707A74"
-    android:textSize="12sp" />
+    android:textSize="12sp"
+    tools:ignore="Overdraw" />

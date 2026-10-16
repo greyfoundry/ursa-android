@@ -51,6 +51,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -646,10 +647,10 @@ private fun MonitorHistorySection(
     val now = remember { System.currentTimeMillis() }
     var customDialogOpen by rememberSaveable { mutableStateOf(false) }
     var customStartMillis by rememberSaveable(customRange?.startMillis) {
-        mutableStateOf(customRange?.startMillis ?: now - DateUtils.DAY_IN_MILLIS)
+        mutableLongStateOf(customRange?.startMillis ?: now - DateUtils.DAY_IN_MILLIS)
     }
     var customEndMillis by rememberSaveable(customRange?.endMillis) {
-        mutableStateOf(customRange?.endMillis ?: now)
+        mutableLongStateOf(customRange?.endMillis ?: now)
     }
     var pendingExport by remember { mutableStateOf<PendingHeartbeatHistoryExport?>(null) }
     var pendingSlaReport by remember { mutableStateOf<PendingHeartbeatSlaReport?>(null) }

@@ -1554,12 +1554,12 @@ private fun DatabaseFields(
             stringResource(
                 R.string.monitor_database_connection_example,
                 when (draft.type) {
-                    "sqlserver" -> "Server=host,1433;Database=db;User Id=user;Password=password;Encrypt=true"
-                    "postgres" -> "postgres://user:password@host:5432/database"
-                    "mysql" -> "mysql://user@host:3306/database"
-                    "mongodb" -> "mongodb://user:password@host:27017/database"
+                    "sqlserver" -> "Server=host,1433;Database=db;Encrypt=true"
+                    "postgres" -> "postgres://host:5432/database"
+                    "mysql" -> "mysql://host:3306/database"
+                    "mongodb" -> "mongodb://host:27017/database"
                     "oracledb" -> "host:1521/FREEPDB1"
-                    else -> "redis://user:password@host:6379"
+                    else -> "redis://host:6379"
                 },
             ),
         ),
