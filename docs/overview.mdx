@@ -94,8 +94,8 @@ and the module docs under `docs/modules/`.
 - A release-like AndroidX benchmark module now generates the shipped Baseline
   Profile from startup, Home, monitor inventory, search/filter, and detail paths.
   Its DUMP-protected deterministic fixture provider exists only in the benchmark
-  target and is absent from both release manifests. Final 100/500/1,000-monitor
-  timing evidence is recorded against the exact release commit; see
+  target and is absent from both release manifests. The final 100/500/1,000-monitor
+  timing evidence is recorded only against the exact published release commit; see
   `docs/modules/performance.mdx`.
 - Competitor-parity items CP-001 through CP-046 are complete. Native keyword, JSON-query,
   WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser,
@@ -124,8 +124,8 @@ and the module docs under `docs/modules/`.
   offers an opt-in always-on fleet glance display with explicit power and burn-in
   guidance, and the separate Wear OS app now provides an attention-first dashboard,
   source/freshness/offline-aware monitor details, complications, and optionally
-  paired capability-aware private actions. Other
-  Scoped app deep links, compact rows, connection guidance, a manual update check, advanced
+  paired capability-aware private actions. Scoped app deep links, compact rows,
+  connection guidance, a manual update check, advanced
   filters with saved views, and actionable typed connection failures are complete.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
 - A live-tested Kuma capability matrix pins the stable 2.4.0-2.5.6 contract and

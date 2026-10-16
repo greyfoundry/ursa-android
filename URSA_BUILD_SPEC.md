@@ -49,7 +49,9 @@ snake/camel naming splits, and double-encoded configuration, belongs in
   Keystore-backed master key.
 - Passwords and TOTP codes are never persisted. Session tokens and custom header
   values are masked, never logged, and never rendered after save.
-- Release builds apply `FLAG_SECURE` and exclude all app data from backup/transfer.
+- Release builds start with `FLAG_SECURE`, then apply the persisted Off, Sensitive
+  screens only, or Always policy without briefly exposing protected content. All app
+  data remains excluded from backup and device transfer.
 - TLS is the default. Plain HTTP and session-lifetime TOFU for self-signed
   certificates are explicit self-hosting compromises documented in
   `docs/security.mdx`.
@@ -60,10 +62,10 @@ snake/camel naming splits, and double-encoded configuration, belongs in
 
 | Component | Version |
 |---|---|
-| Kotlin | 2.4.10 |
+| Kotlin | 2.4.21 |
 | Compose BOM | 2026.09.00 |
 | Android Gradle Plugin | 9.4.1 |
-| Gradle | 9.7.1 |
+| Gradle | 9.8.1 |
 | compileSdk / targetSdk | 37 / 37 |
 | phone minSdk | 26 |
 | Wear minSdk | 30 |
@@ -79,6 +81,7 @@ built-in Kotlin, so modules do not apply `org.jetbrains.kotlin.android`.
 ./gradlew.bat :app:lintFdroidDebug :app:lintGithubDebug --no-daemon
 ./gradlew.bat :wear:testFdroidDebugUnitTest :wear:testGithubDebugUnitTest --no-daemon
 ./gradlew.bat :wear:lintFdroidDebug :wear:lintGithubDebug --no-daemon
+./gradlew.bat :benchmarks:compileFdroidBenchmarkKotlin :benchmarks:compileGithubBenchmarkKotlin --no-daemon
 ./gradlew.bat :app:assembleFdroidRelease --no-daemon
 ```
 

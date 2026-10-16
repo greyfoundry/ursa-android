@@ -40,10 +40,11 @@ $env:ANDROID_SERIAL = "emulator-5554"
 ./gradlew.bat :benchmarks:connectedFdroidBenchmarkReleaseAndroidTest --no-daemon
 ```
 
-The full timing suite is deliberately run after release preparation so its recorded
-commit exactly matches the published product. Record the device/AVD, Android build,
-power/thermal conditions, commit, iterations, raw AndroidX output, and median or
-percentile comparison alongside any accepted result.
+The full timing suite is deliberately run after publication so its recorded commit
+exactly matches the released product. Record the device/AVD, Android build,
+power/thermal conditions, release tag and commit, iterations, raw AndroidX output,
+and median or percentile comparison alongside any accepted result. Do not substitute
+debug timing or pre-release measurements for this gate.
 
 ## decisions and limits
 

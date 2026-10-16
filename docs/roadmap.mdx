@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-21
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -29,10 +29,12 @@ promise of dates. Completed implementation detail lives in
 
 ## next priorities
 
-1. Finish advanced monitor-type-specific creation only where a native form is safer
-   and clearer than opening Kuma. Existing unknown fields must remain round-trip safe.
-2. Improve localization coverage and welcome community translations.
-3. Continue accessibility, performance, large-fleet, and older-device testing.
+1. Publish the reviewed release, then record the reproducible 100/500/1,000-monitor
+   benchmark evidence against that exact release commit.
+2. Improve localization coverage and welcome community translations without claiming
+   a locale before its complete pack and pseudo-locale gate pass.
+3. Continue accessibility, performance, large-fleet, and older-device regression
+   testing as release gates.
 4. Add issue-driven integrations only when they fit the existing connection and
    network abstractions without creating a second configuration system.
 
