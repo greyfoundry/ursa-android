@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## [1.3.4](https://github.com/greyfoundry/ursa-android/compare/v1.3.3...v1.3.4) (2026-10-17)
+
+### Added
+
+* Open on an attention-first Home that combines every saved server from live,
+  refreshed, or encrypted cached data, with explicit health and freshness details.
+* Navigate the adaptive Home, Monitors, Incidents, and Browse destinations with
+  global resource search, monitor workspaces, saved views, and server drill-downs.
+* Create and edit every monitor type verified in Uptime Kuma 2.5.6, with safe
+  browser fallback for server-owned administration that does not belong in URSA.
+* Clone monitors, save encrypted credential-free presets, build groups, preview
+  bulk edits, import validated CSV/TXT rows, and copy sanitized drafts between servers.
+* Configure connection access profiles, per-connection cleartext policy,
+  encrypted portable backups, destructive-action confirmation, and scoped Wear actions.
+* Explain effective phone alert policy, dependencies, grouped thresholds,
+  correlated alert storms, delivery-path failures, binding repair, and alert history.
+* Export credential-free inventory and exact heartbeat ranges, generate
+  coverage-aware SLA reports, and surface attention on widgets, the tile, and Wear OS.
+
+### Changed
+
+* Verify the Socket.IO, public REST, monitor-editor, and round-trip compatibility
+  boundary through Uptime Kuma 2.5.6.
+* Improve large-fleet stability, cache-first refresh behavior, accessibility,
+  pseudo-locales, right-to-left layout, and phone/tablet system-inset ownership.
+* Let screenshot protection be Off, Sensitive screens only, or Always while
+  preserving fail-closed behavior for existing installs and unread preferences.
+* Update the Android build to Kotlin 2.4.21 and Gradle 9.8.1, add release-like
+  Baseline Profile and macrobenchmark infrastructure, and refresh all public guides.
+
+### Fixed
+
+* Preserve unexposed Kuma fields across monitor edits and reject unsafe or stale
+  mutations before they can overwrite newer server state.
+* Keep fleet refreshes bounded and cancellable, distinguish valid empty snapshots
+  from incomplete loads, and retain useful encrypted offline state.
+* Clear all phone-app lint findings and keep both GitHub and F-Droid variants free
+  of new static-analysis warnings.
+
 ## [1.3.3](https://github.com/greyfoundry/ursa-android/compare/v1.3.2...v1.3.3) (2026-09-20)
 
 ### Added
