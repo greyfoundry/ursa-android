@@ -9,7 +9,7 @@ import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 
 internal const val TARGET_PACKAGE = BuildConfig.TARGET_PACKAGE
-private const val TARGET_MONITOR = "Monitor 1-99"
+private const val TARGET_MONITOR = "Monitor 1-100"
 private const val WAIT_MILLIS = 30_000L
 
 internal fun prepareFleet(monitorCount: Int) {
@@ -65,6 +65,7 @@ internal fun MacrobenchmarkScope.exerciseInventorySearchAndDetail() {
     device.pressBack()
     device.requireObject(By.text("Filters"), "monitor filters").click()
     device.requireObject(By.text("All"), "all-monitor filter").click()
+    device.requireObject(By.text("Home"), "Home navigation").click()
     device.waitForIdle()
 }
 
