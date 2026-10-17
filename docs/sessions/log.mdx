@@ -9,6 +9,23 @@ status: stable
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
 
+### 2026-10-17 - Published-release performance baseline
+
+**changed**: Completed QL-03 against the exact v1.3.4 tag and published commit.
+The non-shipping fixture provider is now wired into both profile-generation and
+timing targets, the deterministic search selects an unambiguous fixture, and each
+repeated critical journey returns to Home. Shipping GitHub and F-Droid manifests
+remain free of the provider.
+
+**verification**: Both distribution Baseline Profiles regenerated successfully on
+the visible API 37 Pixel 8 AVD. Seven cold starts measured a 1,817.5 ms median with
+the shipped profile versus 2,186.7 ms without compilation, a 16.9% reduction. Five
+critical-journey repetitions at 100, 500, and 1,000 monitors completed without
+thermal throttling; median heap grew from 8.5 MiB to 11.9 MiB and anonymous RSS from
+73.3 MiB to 76.9 MiB. The public performance reference records full frame
+percentiles, environment, scope, and emulator limitations; raw JSON and 29 Perfetto
+traces remain in ignored maintainer evidence.
+
 ### 2026-10-17 - Public product docs and release imagery
 
 **changed**: Refreshed the README product story, compatibility and developer

@@ -94,6 +94,10 @@ androidComponents {
         variant.sources.kotlin?.addStaticSourceDirectory("src/nonMinifiedRelease/java")
         variant.sources.manifests.addStaticManifestFile("src/nonMinifiedRelease/AndroidManifest.xml")
     }
+    onVariants(selector().withBuildType("benchmarkRelease")) { variant ->
+        variant.sources.kotlin?.addStaticSourceDirectory("src/nonMinifiedRelease/java")
+        variant.sources.manifests.addStaticManifestFile("src/nonMinifiedRelease/AndroidManifest.xml")
+    }
 }
 
 dependencies {

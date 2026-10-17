@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-16
+last-updated: 2026-10-17
 owner: astoris
 status: stable
 ---
@@ -21,9 +21,10 @@ Home-to-monitor journey against deterministic 100, 500, and 1,000-monitor fleets
   repetitions for each fleet size.
 - `app/src/main/generated/baselineProfiles/baseline-prof.txt` is the generated
   release input. `ProfileInstaller` lets supported Android versions install it.
-- `BenchmarkFixtureProvider` exists only in the generated `nonMinifiedRelease`
-  benchmark target. Android's `DUMP` permission restricts its exported shell entry
-  point, and the provider is absent from GitHub and F-Droid release manifests.
+- `BenchmarkFixtureProvider` exists only in the generated `nonMinifiedRelease` and
+  `benchmarkRelease` test targets. Android's `DUMP` permission restricts its
+  exported shell entry point, and the provider is absent from GitHub and F-Droid
+  release manifests.
 
 The fixture path clears only the benchmark target's saved connections and caches,
 then writes one encrypted, view-only, unreachable local server snapshot. It never
@@ -37,14 +38,71 @@ receive the phone benchmark:
 ```powershell
 $env:ANDROID_SERIAL = "emulator-5554"
 ./gradlew.bat :app:generateBaselineProfile --no-daemon
-./gradlew.bat :benchmarks:connectedFdroidBenchmarkReleaseAndroidTest --no-daemon
+$startup = "dev.astoris.ursa.benchmarks.StartupBenchmark"
+./gradlew.bat :benchmarks:connectedFdroidBenchmarkReleaseAndroidTest `
+  "-Pandroid.testInstrumentationRunnerArguments.class=$startup" --no-daemon
+$fleet = "dev.astoris.ursa.benchmarks.LargeFleetBenchmark"
+./gradlew.bat :benchmarks:connectedFdroidBenchmarkReleaseAndroidTest `
+  "-Pandroid.testInstrumentationRunnerArguments.class=$fleet" --no-daemon
 ```
+
+Preserve `benchmarks/build/outputs/connected_android_test_additional_output/`
+after each timing class. A later connected-test invocation replaces the AndroidX
+JSON, messages, and Perfetto traces from the previous class.
 
 The full timing suite is deliberately run after publication so its recorded commit
 exactly matches the released product. Record the device/AVD, Android build,
 power/thermal conditions, release tag and commit, iterations, raw AndroidX output,
 and median or percentile comparison alongside any accepted result. Do not substitute
 debug timing or pre-release measurements for this gate.
+
+## v1.3.4 reference run - 2026-10-17
+
+The reference target was tag `v1.3.4`, commit
+`ce028f0565501ee885eb0c155077519450aa0399`. Application sources and the shipped
+Baseline Profile came from that detached release checkout. Three harness-only
+corrections made the published target measurable: expose the DUMP-protected fixture
+provider to `benchmarkRelease`, select the unambiguous `Monitor 1-100` fixture, and
+return to Home between repeated journeys. None is compiled into a shipping release.
+
+The Baseline Profile journey regenerated successfully for both distributions. The
+timing build then restored the profile from the tag so the comparison measured what
+v1.3.4 actually shipped rather than substituting the newly generated output.
+
+Environment:
+
+- visible Pixel 8 AVD, Android 17 / API 37;
+- build `CP31.260618.005`, fingerprint
+  `google/sdk_gphone16k_x86_64/emu64xa16k:17/CP31.260618.005/15731206:user/dev-keys`;
+- 4 emulated CPU cores at up to 2 GHz and 4.1 GB reported memory;
+- battery 100%, 25 C; thermal status 0 before and after measurement;
+- no AndroidX thermal-throttle sleep in any run.
+
+Cold startup used seven repetitions per compilation mode:
+
+| compilation | minimum | median | maximum | coefficient of variation |
+|---|---:|---:|---:|---:|
+| no compilation | 1,872.3 ms | 2,186.7 ms | 7,335.1 ms | 0.664 |
+| shipped Baseline Profile | 1,699.6 ms | 1,817.5 ms | 1,960.9 ms | 0.048 |
+
+The shipped profile reduced median initial-display time by 16.9% on this host. Its
+seven-run sample was also substantially more consistent than the uncompiled sample.
+
+The critical Home, health, inventory, search/filter, detail, and return journey used
+five repetitions per fleet. AndroidX reports sampled frame percentiles across those
+repetitions; memory is the median end-of-journey value.
+
+| monitors | frame CPU p50 / p90 / p95 | overrun p50 / p90 / p95 | heap | anonymous RSS |
+|---:|---:|---:|---:|---:|
+| 100 | 88.2 / 183.5 / 241.2 ms | 100.3 / 322.9 / 436.2 ms | 8.5 MiB | 73.3 MiB |
+| 500 | 86.9 / 150.3 / 195.4 ms | 89.8 / 294.8 / 436.1 ms | 9.7 MiB | 74.4 MiB |
+| 1,000 | 83.7 / 150.3 / 186.1 ms | 88.6 / 231.3 / 407.7 ms | 11.9 MiB | 76.9 MiB |
+
+The controlled AVD did not show a fleet-size-driven frame-time regression, while
+median heap grew by 3.4 MiB and anonymous RSS by 3.6 MiB from 100 to 1,000 monitors.
+Absolute frame times remain emulator-only regression evidence, not an end-user
+latency target. Raw AndroidX JSON, messages, and all 29 Perfetto traces are retained
+in the maintainer's ignored local evidence directory.
 
 ## decisions and limits
 
