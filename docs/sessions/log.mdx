@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-10-16
+last-updated: 2026-10-17
 owner: astoris
 status: stable
 ---
@@ -8,6 +8,21 @@ status: stable
 
 The running change log across sessions - project memory over time. Append a dated
 entry every session that changes structure. Newest at top.
+
+### 2026-10-17 - Public product docs and release imagery
+
+**changed**: Refreshed the README product story, compatibility and developer
+guidance, the full public technical documentation set, every wiki page, and the
+F-Droid listing imagery against the completed Home-first shell and Uptime Kuma
+2.5.6 compatibility boundary. The seven current Pixel captures cover Home,
+Monitors, live detail, light mode, the open three-dot monitor menu, advanced
+filters, and Browse; README now leads with Home, the menu, detail, and Browse.
+
+**verification**: Every repository screenshot is 1080x2400 and byte-identical to
+its Fastlane counterpart. The monitor-baseline validator passes, the public-doc and
+wiki link/staleness scans are clean, and the captures contain only the local QA
+server and public certificate-test hosts. QL-04 is complete; release-specific
+version and changelog fields remain owned by the following release phase.
 
 ### 2026-10-16 - Runtime screenshot-protection modes
 

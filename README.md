@@ -18,10 +18,10 @@ touch Google or a paid relay.
 no ads, and no tracking - now and forever. If it works for your Kuma setup, it's yours.
 
 <p>
-  <img src="docs/assets/screenshots/02-monitors-dark.png" width="220" alt="Monitor list" />
+  <img src="docs/assets/screenshots/01-home-dark.png" width="220" alt="Fleet Home showing urgent monitors and server health" />
   <img src="docs/assets/screenshots/05-features-menu-dark.png" width="220" alt="Monitor list with the feature menu open" />
-  <img src="docs/assets/screenshots/03-detail-dark.png" width="220" alt="Monitor detail with heartbeat and TLS certificate" />
-  <img src="docs/assets/screenshots/06-advanced-filters-dark.png" width="220" alt="Advanced monitor filters and saved views" />
+  <img src="docs/assets/screenshots/03-detail-dark.png" width="220" alt="Live monitor detail with response time and uptime" />
+  <img src="docs/assets/screenshots/07-browse-dark.png" width="220" alt="Browse catalogue of operations, insights, and server tools" />
 </p>
 
 ## 🐻 Why URSA?
