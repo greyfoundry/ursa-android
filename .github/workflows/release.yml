@@ -74,7 +74,10 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleGithubRelease :app:assembleFdroidRelease :wear:assembleGithubRelease --no-daemon --stacktrace
+        run: |
+          ./gradlew :app:assembleGithubRelease --no-daemon --stacktrace
+          ./gradlew :app:assembleFdroidRelease --no-daemon --stacktrace
+          ./gradlew :wear:assembleGithubRelease --no-daemon --stacktrace
 
       - name: Name the APKs after the tag
         id: apk
