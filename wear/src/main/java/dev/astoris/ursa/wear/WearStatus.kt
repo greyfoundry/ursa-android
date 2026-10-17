@@ -1,5 +1,6 @@
 package dev.astoris.ursa.wear
 
+import android.content.res.Resources
 import java.net.URI
 import java.util.Locale
 import kotlinx.serialization.json.Json
@@ -32,6 +33,7 @@ data class WearMonitor(
 data class WearSnapshot(
     val title: String,
     val monitors: List<WearMonitor>,
+    val capturedAtMillis: Long = System.currentTimeMillis(),
 ) {
     val up: Int get() = monitors.count { it.status == WearMonitorStatus.UP }
     val down: Int get() = monitors.count { it.status == WearMonitorStatus.DOWN }
@@ -81,6 +83,7 @@ data class WearActionConfig(
     val serverUrl: String,
     val sessionToken: String,
     val headers: List<WearActionHeader> = emptyList(),
+    val allowedCapabilities: Set<WearAccessCapability> = WearAccessCapability.entries.toSet(),
 ) {
     val normalizedServerUrl: String? get() {
         val uri = safeHttpUri(serverUrl) ?: return null
@@ -98,6 +101,12 @@ data class WearActionConfig(
             headers.all { it.normalizedOrNull() != null } &&
             headers.map { it.name.trim().lowercase(Locale.ROOT) }.distinct().size == headers.size
 
+    fun allows(action: WearMonitorAction): Boolean = when (action) {
+        WearMonitorAction.PAUSE,
+        WearMonitorAction.RESUME,
+        -> WearAccessCapability.MONITOR_STATE in allowedCapabilities
+    }
+
     companion object {
         const val MAX_TOKEN_LENGTH = 8_192
         const val MAX_HEADERS = 8
@@ -107,7 +116,11 @@ data class WearActionConfig(
 object WearStatusParser {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    fun parse(configBody: String, heartbeatBody: String): WearSnapshot {
+    fun parse(
+        configBody: String,
+        heartbeatBody: String,
+        capturedAtMillis: Long = System.currentTimeMillis(),
+    ): WearSnapshot {
         val configRoot = parseObject(configBody)
         val heartbeatRoot = parseObject(heartbeatBody)
         val beats = heartbeatRoot["heartbeatList"] as? JsonObject ?: JsonObject(emptyMap())
@@ -126,7 +139,7 @@ object WearStatusParser {
                 val latest = (beats[id.toString()] as? JsonArray)?.lastOrNull() as? JsonObject
                 monitors[id] = WearMonitor(
                     id = id,
-                    name = monitor.string("name") ?: "Monitor $id",
+                    name = monitor.string("name") ?: "#$id",
                     group = groupName,
                     status = latest.status(),
                     pingMs = latest?.get("ping")?.jsonPrimitive?.doubleOrNull?.toInt(),
@@ -136,8 +149,12 @@ object WearStatusParser {
                 )
             }
         }
-        val title = (configRoot["config"] as? JsonObject)?.string("title") ?: "URSA"
-        return WearSnapshot(title = title, monitors = monitors.values.toList())
+        val title = (configRoot["config"] as? JsonObject)?.string("title").orEmpty()
+        return WearSnapshot(
+            title = title,
+            monitors = monitors.values.toList(),
+            capturedAtMillis = capturedAtMillis,
+        )
     }
 
     private fun parseObject(body: String): JsonObject = runCatching {
@@ -174,39 +191,131 @@ object WearStatusParser {
 }
 
 object WearDisplay {
-    fun fleetSummary(snapshot: WearSnapshot): String {
-        if (snapshot.monitors.isEmpty()) return "No monitors"
+    internal fun summaryParts(snapshot: WearSnapshot): List<Pair<WearMonitorStatus, Int>> {
         val unknown = snapshot.monitors.size - snapshot.up - snapshot.down -
             snapshot.pending - snapshot.maintenance
         return buildList {
-            if (snapshot.down > 0) add("${snapshot.down} down")
-            if (snapshot.pending > 0) add("${snapshot.pending} pending")
-            if (snapshot.maintenance > 0) add("${snapshot.maintenance} maintenance")
-            if (unknown > 0) add("$unknown unknown")
-            if (snapshot.up > 0) add("${snapshot.up} up")
-        }.joinToString(" · ")
+            if (snapshot.down > 0) add(WearMonitorStatus.DOWN to snapshot.down)
+            if (snapshot.pending > 0) add(WearMonitorStatus.PENDING to snapshot.pending)
+            if (snapshot.maintenance > 0) add(WearMonitorStatus.MAINTENANCE to snapshot.maintenance)
+            if (unknown > 0) add(WearMonitorStatus.UNKNOWN to unknown)
+            if (snapshot.up > 0) add(WearMonitorStatus.UP to snapshot.up)
+        }
     }
 
-    fun complicationText(snapshot: WearSnapshot): String = when {
-        snapshot.monitors.isEmpty() -> "No monitors"
-        snapshot.down > 0 -> "${snapshot.down} down"
-        snapshot.pending > 0 -> "${snapshot.pending} pending"
-        snapshot.maintenance > 0 -> "Maintenance"
-        else -> "All clear"
+    fun fleetSummary(resources: Resources, snapshot: WearSnapshot): String {
+        if (snapshot.monitors.isEmpty()) return resources.getString(R.string.status_no_monitors)
+        return summaryParts(snapshot).joinToString(" · ") { (status, count) ->
+            resources.getQuantityString(status.countRes(), count, count)
+        }
     }
 
-    fun metrics(monitor: WearMonitor): String = buildList {
-        monitor.pingMs?.let { add("$it ms") }
-        monitor.uptime24h?.let { add(String.format(Locale.US, "%.1f%%", it * 100.0)) }
-    }.joinToString(" · ").ifEmpty { "No recent metrics" }
-
-    fun statusLabel(status: WearMonitorStatus): String = when (status) {
-        WearMonitorStatus.UP -> "Up"
-        WearMonitorStatus.DOWN -> "Down"
-        WearMonitorStatus.PENDING -> "Pending"
-        WearMonitorStatus.MAINTENANCE -> "Maintenance"
-        WearMonitorStatus.UNKNOWN -> "Unknown"
+    fun complicationText(resources: Resources, snapshot: WearSnapshot): String = when {
+        snapshot.monitors.isEmpty() -> resources.getString(R.string.status_no_monitors)
+        snapshot.down > 0 -> resources.getQuantityString(R.plurals.status_down_count, snapshot.down, snapshot.down)
+        snapshot.pending > 0 -> resources.getQuantityString(
+            R.plurals.status_pending_count,
+            snapshot.pending,
+            snapshot.pending,
+        )
+        snapshot.maintenance > 0 -> resources.getString(R.string.status_maintenance)
+        else -> resources.getString(R.string.status_all_clear)
     }
+
+    fun metrics(resources: Resources, monitor: WearMonitor): String = buildList {
+        monitor.pingMs?.let { add(resources.getString(R.string.metrics_ping, it)) }
+        monitor.uptime24h?.let { add(resources.getString(R.string.metrics_uptime, it * 100.0)) }
+    }.joinToString(" · ").ifEmpty { resources.getString(R.string.metrics_empty) }
+
+    fun statusLabel(resources: Resources, status: WearMonitorStatus): String =
+        resources.getString(status.labelRes())
+
+    fun sourceSummary(
+        resources: Resources,
+        snapshot: WearSnapshot,
+        cached: Boolean,
+        offline: Boolean,
+        nowMillis: Long = System.currentTimeMillis(),
+    ): String = buildList {
+        add(resources.getString(R.string.source_public_page))
+        if (offline) add(resources.getString(R.string.source_offline))
+        if (cached) add(resources.getString(R.string.source_cached))
+        add(freshness(resources, snapshot, nowMillis))
+    }.joinToString(" · ")
+
+    fun freshness(
+        resources: Resources,
+        snapshot: WearSnapshot,
+        nowMillis: Long = System.currentTimeMillis(),
+    ): String {
+        val state = freshnessState(snapshot, nowMillis)
+        val age = when (state.unit) {
+            WearFreshnessUnit.NOW -> resources.getString(R.string.freshness_now)
+            WearFreshnessUnit.MINUTE -> resources.getQuantityString(
+                R.plurals.freshness_minutes,
+                state.value,
+                state.value,
+            )
+            WearFreshnessUnit.HOUR -> resources.getQuantityString(
+                R.plurals.freshness_hours,
+                state.value,
+                state.value,
+            )
+            WearFreshnessUnit.DAY -> resources.getQuantityString(
+                R.plurals.freshness_days,
+                state.value,
+                state.value,
+            )
+        }
+        return resources.getString(
+            if (state.stale) R.string.freshness_stale else R.string.freshness_updated,
+            age,
+        )
+    }
+
+    internal fun freshnessState(
+        snapshot: WearSnapshot,
+        nowMillis: Long = System.currentTimeMillis(),
+    ): WearFreshness {
+        val ageMillis = (nowMillis - snapshot.capturedAtMillis).coerceAtLeast(0L)
+        val (value, unit) = when {
+            ageMillis < MINUTE_MILLIS -> 0 to WearFreshnessUnit.NOW
+            ageMillis < HOUR_MILLIS -> (ageMillis / MINUTE_MILLIS).toInt() to WearFreshnessUnit.MINUTE
+            ageMillis < DAY_MILLIS -> (ageMillis / HOUR_MILLIS).toInt() to WearFreshnessUnit.HOUR
+            else -> (ageMillis / DAY_MILLIS).toInt() to WearFreshnessUnit.DAY
+        }
+        return WearFreshness(value, unit, ageMillis >= STALE_AFTER_MILLIS)
+    }
+
+    const val STALE_AFTER_MILLIS = 5 * 60_000L
+
+    private const val MINUTE_MILLIS = 60_000L
+    private const val HOUR_MILLIS = 60 * MINUTE_MILLIS
+    private const val DAY_MILLIS = 24 * HOUR_MILLIS
+}
+
+internal data class WearFreshness(
+    val value: Int,
+    val unit: WearFreshnessUnit,
+    val stale: Boolean,
+)
+
+internal enum class WearFreshnessUnit { NOW, MINUTE, HOUR, DAY }
+
+private fun WearMonitorStatus.countRes(): Int = when (this) {
+    WearMonitorStatus.UP -> R.plurals.status_up_count
+    WearMonitorStatus.DOWN -> R.plurals.status_down_count
+    WearMonitorStatus.PENDING -> R.plurals.status_pending_count
+    WearMonitorStatus.MAINTENANCE -> R.plurals.status_maintenance_count
+    WearMonitorStatus.UNKNOWN -> R.plurals.status_unknown_count
+}
+
+private fun WearMonitorStatus.labelRes(): Int = when (this) {
+    WearMonitorStatus.UP -> R.string.status_up
+    WearMonitorStatus.DOWN -> R.string.status_down
+    WearMonitorStatus.PENDING -> R.string.status_pending
+    WearMonitorStatus.MAINTENANCE -> R.string.status_maintenance
+    WearMonitorStatus.UNKNOWN -> R.string.status_unknown
 }
 
 private fun safeHttpUri(value: String): URI? {

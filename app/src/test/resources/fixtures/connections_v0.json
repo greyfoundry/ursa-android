@@ -1,0 +1,32 @@
+[
+  {
+    "url": "https://minimal.example.test",
+    "username": ""
+  },
+  {
+    "url": "https://session.example.test",
+    "username": "operator",
+    "jwt": "fixture-session-token",
+    "alias": "Home"
+  },
+  {
+    "url": "https://proxy.example.test",
+    "username": "proxy-user",
+    "headers": [
+      {
+        "name": "CF-Access-Client-Id",
+        "value": "fixture-client-id"
+      },
+      {
+        "name": "CF-Access-Client-Secret",
+        "value": "fixture-client-secret"
+      }
+    ]
+  },
+  {
+    "url": "https://internal.example.test",
+    "username": "admin",
+    "insecure": true,
+    "alias": "Internal"
+  }
+]

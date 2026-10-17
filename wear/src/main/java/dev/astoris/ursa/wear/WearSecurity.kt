@@ -22,6 +22,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
@@ -71,7 +72,8 @@ enum class WearMonitorAction(val eventName: String) {
 
 data class WearActionResult(
     val success: Boolean,
-    val message: String,
+    val messageRes: Int,
+    val serverMessage: String? = null,
 )
 
 object WearActionMessage {
@@ -99,13 +101,24 @@ data class WearActionHeader(
     }
 }
 
+enum class WearAccessCapability {
+    MONITOR_STATE,
+}
+
 data class WearPairingPayload(
     val serverUrl: String,
     val sessionToken: String,
     val serverName: String,
     val headers: List<WearActionHeader> = emptyList(),
+    val protocolVersion: Int = LEGACY_PROTOCOL_VERSION,
+    val policyVersion: Int = LEGACY_POLICY_VERSION,
+    val allowedCapabilities: Set<WearAccessCapability> = WearAccessCapability.entries.toSet(),
 ) {
     fun encode(): ByteArray = buildJsonObject {
+        if (protocolVersion >= CURRENT_PROTOCOL_VERSION) {
+            put("protocolVersion", protocolVersion)
+            put("policyVersion", policyVersion)
+        }
         put("serverUrl", serverUrl)
         put("sessionToken", sessionToken)
         put("serverName", WearActionMessage.clean(serverName).take(MAX_NAME_LENGTH))
@@ -117,18 +130,57 @@ data class WearPairingPayload(
                 })
             }
         })
+        if (protocolVersion >= CURRENT_PROTOCOL_VERSION) {
+            put("allowedCapabilities", buildJsonArray {
+                WearAccessCapability.entries.filter { it in allowedCapabilities }.forEach { add(it.name) }
+            })
+        }
     }.toString().encodeToByteArray()
+
+    fun allows(action: WearMonitorAction): Boolean = when (action) {
+        WearMonitorAction.PAUSE,
+        WearMonitorAction.RESUME,
+        -> WearAccessCapability.MONITOR_STATE in allowedCapabilities
+    }
 
     companion object {
         const val MESSAGE_PATH = "/ursa/session/v1"
+        const val V2_MESSAGE_PATH = "/ursa/session/v2"
+        const val CLEAR_MESSAGE_PATH = "/ursa/session/clear/v1"
         const val CAPABILITY = "ursa_session_receiver"
+        const val V2_CAPABILITY = "ursa_session_receiver_v2"
+        const val CURRENT_PROTOCOL_VERSION = 2
+        const val CURRENT_POLICY_VERSION = 1
+        const val LEGACY_PROTOCOL_VERSION = 1
+        const val LEGACY_POLICY_VERSION = 0
         private const val MAX_MESSAGE_BYTES = 16_384
         private const val MAX_NAME_LENGTH = 80
 
-        fun parse(bytes: ByteArray): WearPairingPayload? {
+        fun parse(bytes: ByteArray): WearPairingPayload? = parse(bytes, expectedProtocol = null)
+
+        fun parseVersion1(bytes: ByteArray): WearPairingPayload? =
+            parse(bytes, expectedProtocol = LEGACY_PROTOCOL_VERSION)
+
+        fun parseVersion2(bytes: ByteArray): WearPairingPayload? =
+            parse(bytes, expectedProtocol = CURRENT_PROTOCOL_VERSION)
+
+        private fun parse(bytes: ByteArray, expectedProtocol: Int?): WearPairingPayload? {
             if (bytes.isEmpty() || bytes.size > MAX_MESSAGE_BYTES) return null
             val json = runCatching { Json.parseToJsonElement(bytes.decodeToString()).jsonObject }.getOrNull()
                 ?: return null
+            val protocolVersion = json.int("protocolVersion") ?: LEGACY_PROTOCOL_VERSION
+            if (protocolVersion !in LEGACY_PROTOCOL_VERSION..CURRENT_PROTOCOL_VERSION) return null
+            if (expectedProtocol != null && protocolVersion != expectedProtocol) return null
+            val policyVersion: Int
+            val allowedCapabilities: Set<WearAccessCapability>
+            if (protocolVersion == LEGACY_PROTOCOL_VERSION) {
+                policyVersion = LEGACY_POLICY_VERSION
+                allowedCapabilities = WearAccessCapability.entries.toSet()
+            } else {
+                policyVersion = json.int("policyVersion") ?: return null
+                if (policyVersion != CURRENT_POLICY_VERSION) return null
+                allowedCapabilities = parseCapabilities(json) ?: return null
+            }
             val serverUrl = json.string("serverUrl")
             val sessionToken = json.string("sessionToken")
             val serverName = WearActionMessage.clean(
@@ -141,9 +193,21 @@ data class WearPairingPayload(
             return WearPairingPayload(
                 serverUrl = normalized,
                 sessionToken = sessionToken.trim(),
-                serverName = serverName.ifEmpty { "Kuma server" },
+                serverName = serverName,
                 headers = headers.mapNotNull(WearActionHeader::normalizedOrNull),
+                protocolVersion = protocolVersion,
+                policyVersion = policyVersion,
+                allowedCapabilities = allowedCapabilities,
             )
+        }
+
+        private fun parseCapabilities(json: JsonObject): Set<WearAccessCapability>? {
+            val array = json["allowedCapabilities"] as? JsonArray ?: return null
+            if (array.size > WearAccessCapability.entries.size) return null
+            return array.mapTo(linkedSetOf()) { item ->
+                val name = (item as? JsonPrimitive)?.contentOrNull ?: return null
+                WearAccessCapability.entries.firstOrNull { it.name == name } ?: return null
+            }
         }
 
         private fun parseHeaders(json: JsonObject): List<WearActionHeader>? {
@@ -161,6 +225,9 @@ data class WearPairingPayload(
 
         private fun JsonObject.string(key: String): String =
             (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
+
+        private fun JsonObject.int(key: String): Int? =
+            (this[key] as? JsonPrimitive)?.intOrNull
     }
 }
 
@@ -172,7 +239,10 @@ object WearActionClient {
     ): WearActionResult {
         val serverUrl = config.normalizedServerUrl
         if (!config.isReady || serverUrl == null || monitorId <= 0) {
-            return WearActionResult(false, "Private actions are not configured")
+            return WearActionResult(false, R.string.action_not_configured)
+        }
+        if (!config.allows(action)) {
+            return WearActionResult(false, R.string.action_not_allowed)
         }
         return withTimeoutOrNull(ACTION_TIMEOUT_MS) {
             suspendCancellableCoroutine { continuation ->
@@ -190,7 +260,7 @@ object WearActionClient {
                         },
                     )
                 } catch (_: Exception) {
-                    continuation.resume(WearActionResult(false, "Invalid server address"))
+                    continuation.resume(WearActionResult(false, R.string.action_invalid_server))
                     return@suspendCancellableCoroutine
                 }
 
@@ -212,24 +282,29 @@ object WearActionClient {
                     socket.emit("loginByToken", config.sessionToken.trim(), Ack { loginArgs ->
                         val login = loginArgs.getOrNull(0) as? JSONObject
                         if (login?.optBoolean("ok") != true) {
-                            finish(WearActionResult(false, "Session token was rejected"))
+                            finish(WearActionResult(false, R.string.action_session_rejected))
                             return@Ack
                         }
                         socket.emit(action.eventName, monitorId, Ack { actionArgs ->
                             val response = actionArgs.getOrNull(0) as? JSONObject
                             val success = response?.optBoolean("ok") == true
                             val serverMessage = WearActionMessage.clean(response?.optString("msg").orEmpty())
-                            val fallback = if (success) "Monitor updated" else "Monitor action failed"
-                            finish(WearActionResult(success, serverMessage.ifEmpty { fallback }))
+                            finish(
+                                WearActionResult(
+                                    success,
+                                    if (success) R.string.action_updated else R.string.action_failed,
+                                    serverMessage.takeIf(String::isNotEmpty),
+                                ),
+                            )
                         })
                     })
                 }
                 socket.on(Socket.EVENT_CONNECT_ERROR) {
-                    finish(WearActionResult(false, "Could not reach the server"))
+                    finish(WearActionResult(false, R.string.action_unreachable))
                 }
                 socket.connect()
             }
-        } ?: WearActionResult(false, "Server did not respond in time")
+        } ?: WearActionResult(false, R.string.action_timeout)
     }
 
     private const val CONNECT_TIMEOUT_MS = 8_000L

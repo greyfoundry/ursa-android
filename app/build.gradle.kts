@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.androidx.baselineprofile)
     // AGP 9+ has built-in Kotlin; do NOT apply org.jetbrains.kotlin.android.
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
@@ -16,8 +17,8 @@ android {
         // Literal versionName/versionCode so F-Droid's parser can read them for
         // auto-update (it cannot evaluate variables or arithmetic). Update both
         // by hand for each release (major*10000 + minor*100 + patch).
-        versionCode = 10303
-        versionName = "1.3.3"
+        versionCode = 10304
+        versionName = "1.3.4"
     }
 
     // Release signing: uses the keystore from CI secrets when present, otherwise
@@ -35,6 +36,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            isPseudoLocalesEnabled = true
+        }
         release {
             isMinifyEnabled = false
             signingConfig = if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
@@ -85,6 +89,13 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().withBuildType("nonMinifiedRelease")) { variant ->
+        variant.sources.kotlin?.addStaticSourceDirectory("src/nonMinifiedRelease/java")
+        variant.sources.manifests.addStaticManifestFile("src/nonMinifiedRelease/AndroidManifest.xml")
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -96,6 +107,12 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material3.adaptive.navigation.suite)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.material3.adaptive)
+    implementation(libs.androidx.material3.adaptive.layout)
+    implementation(libs.androidx.material3.adaptive.navigation)
 
     // storage
     implementation(libs.androidx.datastore.preferences)
@@ -117,6 +134,7 @@ dependencies {
 
     // home-screen widget (Jetpack Glance)
     implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.profileinstaller)
 
     // networking: Socket.IO (live monitors) + Ktor (public status-page REST)
     implementation(libs.socket.io.client) {
@@ -134,4 +152,12 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.serialization.json)
+
+    baselineProfile(project(":benchmarks"))
+}
+
+baselineProfile {
+    automaticGenerationDuringBuild = false
+    mergeIntoMain = true
+    saveInSrc = true
 }

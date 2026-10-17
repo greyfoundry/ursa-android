@@ -75,11 +75,21 @@ class GlobalEventLogTest {
                 kind = LocalEventKind.SLOW_RESPONSE,
                 atMillis = 300,
             ),
+            LocalEvent(
+                id = "suppressed",
+                monitorName = "API",
+                kind = LocalEventKind.PUSH_SUPPRESSED,
+                atMillis = 400,
+                detail = "Suppressed because Router was last received as Down.",
+            ),
         )
 
         val events = combinedEventLog(listOf(monitor()), emptyMap(), local)
 
-        assertEquals(listOf(EventLogKind.SLOW_RESPONSE, EventLogKind.PAUSED), events.map { it.kind })
+        assertEquals(
+            listOf(EventLogKind.PUSH_SUPPRESSED, EventLogKind.SLOW_RESPONSE, EventLogKind.PAUSED),
+            events.map { it.kind },
+        )
         assertTrue(events.first().matches(EventLogFilter.ALERTS))
         assertFalse(events.first().matches(EventLogFilter.ACTIONS))
         assertTrue(events.last().matches(EventLogFilter.ACTIONS))

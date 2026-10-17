@@ -63,11 +63,15 @@ object PushAlertPreferenceKey {
     fun snooze(serverId: String?, monitorId: Int?): String? =
         scoped(serverId, monitorId)?.let { "snooze:$it" }
 
+    fun correlation(serverId: String?): String? =
+        serverId?.takeIf(ManagedPushNotification::isValidServerId)?.let { "correlation:$it" }
+
     fun belongsToServer(key: String, serverId: String): Boolean =
         key.startsWith("$serverId:") ||
             key.startsWith("severity:$serverId:") ||
             key.startsWith("timing:$serverId:") ||
-            key.startsWith("snooze:$serverId:")
+            key.startsWith("snooze:$serverId:") ||
+            key == correlation(serverId)
 
     private fun scoped(serverId: String?, monitorId: Int?): String? {
         if (!ManagedPushNotification.isValidServerId(serverId) || monitorId == null || monitorId <= 0) {
@@ -171,6 +175,18 @@ class PushAlertModeStore(context: Context) {
             if (untilMillis == null || untilMillis <= System.currentTimeMillis()) remove(key)
             else putLong(key, untilMillis)
         }
+        return true
+    }
+
+    fun snoozes(serverId: String?, monitorIds: Iterable<Int>): Map<Int, Long> =
+        monitorIds.mapNotNull { monitorId -> snoozedUntil(serverId, monitorId)?.let { monitorId to it } }.toMap()
+
+    fun stormCorrelationEnabled(serverId: String?): Boolean =
+        PushAlertPreferenceKey.correlation(serverId)?.let { prefs.getBoolean(it, false) } ?: false
+
+    fun setStormCorrelationEnabled(serverId: String, enabled: Boolean): Boolean {
+        val key = PushAlertPreferenceKey.correlation(serverId) ?: return false
+        prefs.edit { if (enabled) putBoolean(key, true) else remove(key) }
         return true
     }
 

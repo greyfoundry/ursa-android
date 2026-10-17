@@ -27,7 +27,12 @@ class StatusTileService : TileService() {
     ): ListenableFuture<TileBuilders.Tile> {
         val url = WearPrefs.statusUrl(this)
             ?: return Futures.immediateFuture(
-                tileOf(centered(messageLayout("Tap to set up"), WearConfigActivity::class.java)),
+                tileOf(
+                    centered(
+                        messageLayout(getString(R.string.tile_setup)),
+                        WearConfigActivity::class.java,
+                    ),
+                ),
             )
 
         // Fetch on a worker thread and complete the future; a tile refresh is
@@ -35,8 +40,17 @@ class StatusTileService : TileService() {
         // cache if refresh frequency ever grows.
         val future = SettableFuture.create<TileBuilders.Tile>()
         Thread {
-            val snapshot = runBlocking { StatusPoll.fetchSnapshot(url) }
-            future.set(tileOf(centered(snapshotLayout(snapshot), WearMainActivity::class.java)))
+            val fetched = runBlocking { StatusPoll.fetchSnapshot(url) }
+            if (fetched != null) WearSnapshotMemory.latest = fetched
+            val snapshot = fetched ?: WearSnapshotMemory.latest
+            future.set(
+                tileOf(
+                    centered(
+                        snapshotLayout(snapshot, offline = fetched == null && snapshot != null),
+                        WearMainActivity::class.java,
+                    ),
+                ),
+            )
         }.start()
         return future
     }
@@ -48,9 +62,12 @@ class StatusTileService : TileService() {
             ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION).build(),
         )
 
-    private fun snapshotLayout(snapshot: WearSnapshot?): LayoutElementBuilders.LayoutElement {
-        if (snapshot == null) return messageLayout("No data")
-        val headlineText = WearDisplay.complicationText(snapshot)
+    private fun snapshotLayout(
+        snapshot: WearSnapshot?,
+        offline: Boolean,
+    ): LayoutElementBuilders.LayoutElement {
+        if (snapshot == null) return messageLayout(getString(R.string.no_data))
+        val headlineText = WearDisplay.complicationText(resources, snapshot)
         val headlineColor = when {
             snapshot.down > 0 -> DOWN_RED
             snapshot.pending > 0 || snapshot.maintenance > 0 -> PENDING
@@ -64,7 +81,17 @@ class StatusTileService : TileService() {
                     .build(),
             )
             .addContent(
-                Text.Builder(this, "${snapshot.up}/${snapshot.monitors.size} up")
+                Text.Builder(
+                    this,
+                    if (offline) {
+                        getString(
+                            R.string.offline_summary,
+                            WearDisplay.freshness(resources, snapshot),
+                        )
+                    } else {
+                        WearDisplay.freshness(resources, snapshot)
+                    },
+                )
                     .setTypography(Typography.TYPOGRAPHY_CAPTION1)
                     .setColor(ColorBuilders.argb(SUBTLE))
                     .build(),

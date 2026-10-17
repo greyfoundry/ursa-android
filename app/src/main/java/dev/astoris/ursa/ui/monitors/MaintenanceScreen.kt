@@ -1,6 +1,7 @@
 package dev.astoris.ursa.ui.monitors
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,24 +31,38 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.network.MaintenanceCodec
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MaintenanceDraftError
 import dev.astoris.ursa.core.network.MaintenanceStrategy
+import dev.astoris.ursa.data.model.AccessCapability
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.ui.AccessProfileNotice
 import dev.astoris.ursa.ui.MaintenanceEditorUiState
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.allows
+import dev.astoris.ursa.ui.lock.BiometricGate
+import java.time.DayOfWeek
+import java.time.format.TextStyle
 
 @Composable
 fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val maintenances by vm.maintenances.collectAsStateWithLifecycle()
     val editor by vm.maintenanceEditor.collectAsStateWithLifecycle()
     val monitors by vm.monitors.collectAsStateWithLifecycle()
+    val activeConnection by vm.activeConnection.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current as? FragmentActivity
+    val canWrite = activeConnection.allows(AccessCapability.MAINTENANCE_WRITE)
     var confirmDelete by remember { mutableStateOf<MaintenanceDraft?>(null) }
 
     BackHandler {
@@ -65,6 +80,7 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
             initial = editorDraft,
             monitors = monitors,
             saving = editor is MaintenanceEditorUiState.Saving,
+            canSave = canWrite,
             error = (editor as? MaintenanceEditorUiState.Error)?.message,
             onSave = vm::saveMaintenance,
             onCancel = vm::closeMaintenanceEditor,
@@ -75,6 +91,7 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
             modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            AccessProfileNotice(activeConnection)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -82,7 +99,9 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
             ) {
                 Text(stringResource(R.string.status_maintenance), style = MaterialTheme.typography.headlineSmall)
                 Row {
-                    TextButton(onClick = vm::createMaintenance) { Text(stringResource(R.string.action_add)) }
+                    TextButton(onClick = vm::createMaintenance, enabled = canWrite) {
+                        Text(stringResource(R.string.action_add))
+                    }
                     TextButton(onClick = onClose) { Text(stringResource(R.string.action_close)) }
                 }
             }
@@ -94,7 +113,11 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
                 Text(stringResource(R.string.maintenance_empty))
             }
             maintenances.forEach { maintenance ->
-                Card(onClick = { maintenance.id?.let(vm::editMaintenance) }, modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    onClick = { maintenance.id?.let(vm::editMaintenance) },
+                    enabled = canWrite,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(maintenance.title, style = MaterialTheme.typography.titleMedium)
                         Text(
@@ -110,10 +133,12 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
                             Text(stringResource(R.string.maintenance_timezone_value, it), style = MaterialTheme.typography.bodySmall)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = {
+                            TextButton(enabled = canWrite, onClick = {
                                 maintenance.id?.let { id -> vm.setMaintenanceActive(id, !maintenance.active) {} }
                             }) { Text(stringResource(if (maintenance.active) R.string.action_pause else R.string.action_resume)) }
-                            TextButton(onClick = { confirmDelete = maintenance }) { Text(stringResource(R.string.action_delete)) }
+                            TextButton(enabled = canWrite, onClick = { confirmDelete = maintenance }) {
+                                Text(stringResource(R.string.action_delete))
+                            }
                         }
                     }
                 }
@@ -127,8 +152,17 @@ fun MaintenanceScreen(vm: UrsaViewModel, onClose: () -> Unit, modifier: Modifier
             title = { Text(stringResource(R.string.maintenance_delete_title)) },
             text = { Text(stringResource(R.string.maintenance_delete_message, maintenance.title)) },
             confirmButton = {
-                Button(onClick = {
-                    maintenance.id?.let { id -> vm.deleteMaintenance(id) { if (it) confirmDelete = null } }
+                Button(enabled = canWrite, onClick = {
+                    maintenance.id?.let { id ->
+                        BiometricGate.confirmDestructiveAction(
+                            activity = activity,
+                            enabled = destructiveStepUpEnabled,
+                            errorMessage = activity?.getString(R.string.authentication_error).orEmpty(),
+                            onSuccess = {
+                                vm.deleteMaintenance(id) { if (it) confirmDelete = null }
+                            },
+                        )
+                    }
                 }) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.action_cancel)) } },
@@ -142,6 +176,7 @@ private fun MaintenanceEditor(
     initial: MaintenanceDraft,
     monitors: List<Monitor>,
     saving: Boolean,
+    canSave: Boolean,
     error: String?,
     onSave: (MaintenanceDraft) -> Unit,
     onCancel: () -> Unit,
@@ -215,9 +250,12 @@ private fun MaintenanceEditor(
             }
             MaintenanceStrategy.RECURRING_WEEKDAY -> {
                 Text(stringResource(R.string.maintenance_weekdays_label))
+                val locale = LocalConfiguration.current.locales[0]
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { index, label ->
-                        val day = index + 1
+                    (1..7).forEach { day ->
+                        val dayOfWeek = DayOfWeek.of(day)
+                        val label = dayOfWeek.getDisplayName(TextStyle.NARROW_STANDALONE, locale)
+                        val fullLabel = dayOfWeek.getDisplayName(TextStyle.FULL_STANDALONE, locale)
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(label)
                             Checkbox(
@@ -227,6 +265,7 @@ private fun MaintenanceEditor(
                                         weekdays = if (checked) draft.weekdays + day else draft.weekdays - day,
                                     )
                                 },
+                                modifier = Modifier.semantics { contentDescription = fullLabel },
                             )
                         }
                     }
@@ -286,7 +325,7 @@ private fun MaintenanceEditor(
         validation?.let { Text(maintenanceError(it), color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = onCancel, enabled = !saving) { Text(stringResource(R.string.action_cancel)) }
-            Button(onClick = { onSave(draft) }, enabled = !saving && validation == null) {
+            Button(onClick = { onSave(draft) }, enabled = canSave && !saving && validation == null) {
                 Text(stringResource(if (saving) R.string.action_saving else R.string.action_save))
             }
         }

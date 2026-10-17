@@ -1,0 +1,13 @@
+{
+  "id": "d37a7ec6-a32b-4ab7-bf36-cb5fc57b7236",
+  "serverId": "0123456789abcdef0123456789abcdef",
+  "monitorId": 7,
+  "monitorName": "Public API",
+  "title": "Public API is down",
+  "body": "Connection timed out",
+  "severity": "STANDARD",
+  "firstDelayMinutes": 5,
+  "repeatMinutes": 15,
+  "maxRepeats": 3,
+  "deliveredCount": 1
+}

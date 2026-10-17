@@ -38,10 +38,12 @@ object BiometricGate {
         activity: FragmentActivity,
         onSuccess: () -> Unit,
         onError: (CharSequence) -> Unit = {},
+        titleRes: Int = R.string.lock_prompt_title,
+        subtitleRes: Int = R.string.lock_prompt_subtitle,
     ) {
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(activity.getString(R.string.lock_prompt_title))
-            .setSubtitle(activity.getString(R.string.lock_prompt_subtitle))
+            .setTitle(activity.getString(titleRes))
+            .setSubtitle(activity.getString(subtitleRes))
             .apply {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
@@ -59,11 +61,11 @@ object BiometricGate {
         } catch (_: KeyPermanentlyInvalidatedException) {
             deleteKey()
             runCatching { signingSignature() }.getOrElse {
-                onError(AUTHENTICATION_ERROR)
+                onError(activity.getString(R.string.authentication_error))
                 return
             }
         } catch (_: Exception) {
-            onError(AUTHENTICATION_ERROR)
+            onError(activity.getString(R.string.authentication_error))
             return
         }
         val challenge = ByteArray(32).also(SecureRandom()::nextBytes)
@@ -82,7 +84,7 @@ object BiometricGate {
                     val verified = runCatching {
                         proof != null && verifyProof(proof, challenge)
                     }.getOrDefault(false)
-                    if (verified) onSuccess() else onError(AUTHENTICATION_ERROR)
+                    if (verified) onSuccess() else onError(activity.getString(R.string.authentication_error))
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
@@ -91,6 +93,31 @@ object BiometricGate {
             },
         )
         prompt.authenticate(info, BiometricPrompt.CryptoObject(signingSignature))
+    }
+
+    /** Optional confirmation safeguard; it does not replace repository access policy. */
+    fun confirmDestructiveAction(
+        activity: FragmentActivity?,
+        enabled: Boolean,
+        errorMessage: CharSequence,
+        onSuccess: () -> Unit,
+        onError: (CharSequence) -> Unit = {},
+    ) {
+        if (!enabled) {
+            onSuccess()
+            return
+        }
+        if (activity == null) {
+            onError(errorMessage)
+            return
+        }
+        prompt(
+            activity = activity,
+            onSuccess = onSuccess,
+            onError = onError,
+            titleRes = R.string.destructive_prompt_title,
+            subtitleRes = R.string.destructive_prompt_subtitle,
+        )
     }
 
     private fun signingSignature(): Signature {
@@ -144,5 +171,4 @@ object BiometricGate {
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "ursa_app_lock"
     private const val SIGNATURE_ALGORITHM = "SHA256withECDSA"
-    private const val AUTHENTICATION_ERROR = "Authentication could not be verified"
 }

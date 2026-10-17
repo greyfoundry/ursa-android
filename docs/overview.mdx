@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-21
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -34,21 +34,73 @@ and the module docs under `docs/modules/`.
 **status**
 - M1 (core viewing) implemented: login incl. 2FA, live monitor list, monitor
   detail (response chart + heartbeat history + TLS cert), saved public status pages with native
-  recent checks and incident history, pause/resume.
+  recent checks and incident history plus guarded incident operations when the page maps to the
+  active authenticated server, pause/resume.
 - M2 done: Tink AES-256-GCM credential encryption (Keystore master key), resilient
   reconnect (auto re-auth, session survives drops), opt-in self-signed TLS trust.
 - M3 done: UnifiedPush push - receive path (non-exported `PushService`, webhook
-  parser, notifications) + registration UI. See `docs/modules/push.mdx`.
+  parser, notifications), registration UI, and encrypted exact-server binding for
+  managed providers. Setup identifies the exact connection/provider/delivery/test
+  state, and push-monitor creation exposes its masked heartbeat URL with explicit
+  copy/share guidance. Each managed monitor can also explain its effective local
+  alert policy and current delivery blockers, and can opt into cycle-safe local
+  dependency suppression or a per-Kuma-group N-of-M child threshold with an
+  encrypted audit trail. Both are device policies and do not change Kuma. One encrypted device
+  timeline groups each received transition with its delay/repeat, delivery,
+  acknowledgement, snooze, suppression, cautious correlation, and recovery decisions. Active alerts from the
+  same bound server gain a native Android inbox summary from the second alert
+  onward without delaying the first. An off-by-default local correlation option
+  can add a cautious shared-failure hint when recent Down alerts share a parent,
+  tag, or server burst; it never suppresses child alerts. Push diagnostics also
+  separate distributor loss, registration failure, stale managed setup, Kuma
+  connection failures, and a 30-second end-to-end delivery timeout from actual
+  monitor-down transitions. Unexpected distributor loss raises a privacy-safe
+  Android alert; an explicit Disconnect remains quiet. Unknown providers, unknown
+  monitors, and duplicate marked Webhooks expose one repair path; unbound alerts
+  stay immediate but cannot inherit scoped policy, grouping, delay, or actions. See
+  `docs/modules/push.mdx`.
 - M4 done: native depth - offline last-known cache, biometric app lock,
-  notification Pause/Resume actions, local TLS-expiry reminders, home-screen widget,
-  Quick Settings tile, app shortcuts, and full i18n. See
+  notification Pause/Resume actions, local TLS-expiry reminders, attention-first
+  home-screen widgets, a cached fleet-status Quick Settings tile, app shortcuts,
+  and resource-backed localization foundations. See
   `docs/planning/m4-native-depth.mdx`.
+- Phone and Wear user-facing fallback copy is resource-backed, both debug modules
+  enable Android's accented and bidirectional pseudo-locales, and technical values
+  such as server addresses remain directionally isolated in RTL layouts. The
+  accessibility gate covers semantic headings and status text, keyboard/Switch
+  Access focus, TalkBack focus, 200% font, reduced motion, minimum touch targets,
+  and WCAG AA status contrast. Translation packs can be added without changing
+  application logic; no additional production locale is claimed yet.
+- The encrypted per-server monitor cache now supports one batched, typed read for
+  fleet use. A cached fleet snapshot distinguishes available, missing, corrupt,
+  undecryptable, and store-unavailable data; normalizes active/paused/status counts
+  and five-minute freshness; and withholds all server identity and monitor data while
+  the app is locked. Its explicit refresh path permits at most two temporary
+  connections, applies each server's existing transport/TLS/header/session policy,
+  retains successful results when peers fail, and closes every temporary session.
+  Home presents that model as an all-server operational summary with urgent,
+  affected, stale, and unavailable totals. Every server is labelled live,
+  refreshed, cached, stale, or unavailable; an explicit bounded refresh preserves
+  cached peers on partial failure, and server drill-down selects the correct
+  connection before opening filtered monitors or incident history.
+- Each Fleet server card can expand a privacy-safe health panel for the bounded
+  Kuma version, compatibility tier, transport policy, session state, local access
+  profile, managed-push binding presence, last successful data time, encrypted-cache
+  freshness, and verified feature set. Unknown, unsupported, unconfigured, denied,
+  and offline states stay distinct instead of collapsing into one generic error.
 - Both `fdroid` and `github` phone/Wear flavors build, test, and lint cleanly; the
   F-Droid release flavor is also built in CI. Monitor list and detail flows are
   device-tested. See `docs/sessions/log.mdx`.
-- Competitor-parity items CP-001 through CP-046 are complete, except the explicitly
-  partial CP-031 advanced monitor-type creation boundary. Native SFTP creation and
-  editing are included; less common type-specific forms remain in Kuma. This includes
+- A release-like AndroidX benchmark module now generates the shipped Baseline
+  Profile from startup, Home, monitor inventory, search/filter, and detail paths.
+  Its DUMP-protected deterministic fixture provider exists only in the benchmark
+  target and is absent from both release manifests. The final 100/500/1,000-monitor
+  timing evidence is recorded only against the exact published release commit; see
+  `docs/modules/performance.mdx`.
+- Competitor-parity items CP-001 through CP-046 are complete. Native keyword, JSON-query,
+  WebSocket, MQTT, SMTP, NTP, every Globalping subtype, Docker, Real Browser,
+  Oracle Database, RADIUS, GameDig, Steam, PM2, system-service, Tailscale Ping,
+  SIP OPTIONS, and SFTP creation and editing are included. This includes
   fleet incidents/reliability, certificate/domain dashboards, and the filtered global
   event log, an explainable 30-day uptime/latency aggregate, and a persisted
   favourite-monitor live-heartbeat panel, encrypted local incident notes, and a
@@ -56,16 +108,103 @@ and the module docs under `docs/modules/`.
   registered UnifiedPush endpoint, separate local/end-to-end push tests, and
   metadata-only diagnostics, per-monitor mute/down/recovery/all-transition modes,
   and critical/standard/silent Android delivery channels. Monitor CRUD now includes
-  bulk state changes, notification assignment, groups/tags, maintenance, and
+  bulk state changes, previewed drift-safe bulk edits of low-risk common fields,
+  safe monitor cloning, encrypted credential-free presets, bounded validated
+  CSV/tab-delimited import with dry-run duplicate detection and no imported secrets,
+  portable sanitized copies between saved servers, exact custom heartbeat-history
+  ranges from the last 30 days with explicit observed coverage and bounded results,
+  streamed per-monitor heartbeat-history export as formula-safe CSV or accessible
+  HTML with requested and observed UTC intervals, plus coverage-aware SLA summaries
+  and reports that exclude maintenance, pending, and missing time from uptime,
+  credential-free active-server inventory export as deterministic CSV or accessible
+  HTML, a previewed and resumable group
+  wizard, notification assignment, groups/tags, maintenance, and
   privacy-preserving local-service discovery and detailed encrypted configurable
   widgets. Expanded screens now use a monitor list-detail layout, Settings
   offers an opt-in always-on fleet glance display with explicit power and burn-in
   guidance, and the separate Wear OS app now provides an attention-first dashboard,
-  monitor details, complications, and optionally paired private actions. Advanced
-  monitor-type-specific create fields other than SFTP remain the open CP-031
-  boundary. Scoped app deep links, compact rows, connection guidance, a manual update check, advanced
+  source/freshness/offline-aware monitor details, complications, and optionally
+  paired capability-aware private actions. Scoped app deep links, compact rows,
+  connection guidance, a manual update check, advanced
   filters with saved views, and actionable typed connection failures are complete.
 - Security posture mapped to OWASP MASVS: `docs/security.mdx`.
+- A live-tested Kuma capability matrix pins the stable 2.4.0-2.5.6 contract and
+  version-gates SFTP and authenticated public-incident writes; see
+  `docs/references/uptime-kuma-api.mdx`.
+- Native monitor editing now resolves through one registry that declares each
+  known 2.5.6 type's verified range, editable and sensitive fields, defaults,
+  validation/codec profile, conditional dependencies, fidelity, transfer policy,
+  help mode, and browser fallback. Existing edits fetch a fresh full object and
+  pass a runtime guard that rejects type drift or any unrelated-field change.
+  Common-protocol increments now cover Kuma's keyword matching, JSON-query
+  expression/comparison behavior, WebSocket handshakes/authentication, MQTT message
+  checks, SMTP transport verification, NTP quality thresholds, subtype-aware
+  Globalping Ping, DNS, and HTTP configuration, and native PostgreSQL,
+  MySQL/MariaDB, Microsoft SQL Server, MongoDB, Redis, and Oracle Database
+  configuration without claiming future fields. Oracle exposes its service
+  connection string, username, presence-only password, and optional query while
+  preserving nested result conditions. gRPC keyword monitors additionally expose the target,
+  inline protobuf, service and method, masked JSON-object body, TLS, and keyword
+  match while preserving unused legacy metadata opaquely. SNMPv1/v2c monitors
+  expose host/port, masked community, OID, bounded timeout, and JSONata comparison;
+  SNMPv3 stays opaque because Kuma 2.5.6 cannot round-trip its username. RabbitMQ
+  monitors expose management-node failover, masked credentials, and timeout;
+  Kafka producer monitors expose brokers, topic/message, TLS, auto-topic creation,
+  timeout, and every 2.5.6 SASL mechanism with presence-only secret handling. Docker
+  monitors expose a container name or ID and select an existing Kuma-managed host;
+  daemon endpoints never leave the network adapter and host administration remains in Kuma.
+  Real Browser monitors expose the HTTP(S) target, optional existing remote-browser
+  selection, and bounded screenshot delay while discarding tokenized browser URLs.
+  RADIUS monitors expose the host/port, username, masked password and shared secret,
+  and required Called-Station-ID and Calling-Station-ID fields.
+  GameDig monitors select a server-provided game and support exact-port behaviour
+  plus an optional masked query token. Steam exposes host/port while keeping its
+  Web API key in Kuma's global server configuration.
+  PM2 monitors use Kuma's live local-process picker with manual fallback, while
+  system-service monitors accept the platform's internal service name. Both remain
+  credential-free and available only on verified Kuma 2.5.x schemas.
+  Tailscale Ping and SIP OPTIONS expose only host and required port fields, remain
+  credential-free, and follow Kuma's non-container host-tool requirement.
+  Existing monitors can also be cloned into a new inactive draft. The clone drops
+  its ID/history, notification/group/tag assignments, server-managed selector IDs,
+  and all credential values or saved-value flags before review. Credential-free
+  drafts can be saved as one of 50 encrypted local presets and reopened from
+  Browse without copying a server session or creating a monitor automatically.
+  A monitor can also be copied to another saved server through the same sanitizer.
+  The destination must authenticate and allow monitor creation; only unambiguous
+  tag-name and notification-name/type matches are preselected, while credentials,
+  parent groups, server selector IDs, and active state always require review.
+- The phone shell now uses stable Navigation 3 with serializable, non-secret route
+  keys and process-restorable navigation intent. Material 3 Adaptive switches the
+  top-level bar/rail and monitor one-/two-pane layout from live window constraints;
+  shared operational components standardize server context, freshness, designed
+  data states, safe actions, inventory controls, and timelines. Fresh sessions
+  now open on an attention-first active-server Home while restored routes and
+  existing deep links retain their previous destinations. Monitors now exposes
+  visible inventory search/filter/sort/saved-view controls and a three-section
+  Overview/History/Configuration workspace without changing the adaptive
+  list-detail or mutation boundaries. Derived inventory work is memoized away
+  from unrelated heartbeat-history updates, parent-name queries are linear, and
+  History keeps the existing quick windows while allowing an exact device-local
+  start/end interval. Kuma UTC rows are filtered to that interval, deduplicated,
+  capped at 10,000 displayed rows, and labelled with their actual observed coverage.
+  The exact displayed result can be exported through Android's document provider
+  without a second network request or an additional whole-file in-memory copy.
+  SLA reports estimate cadence from retained rows, list every detected missing
+  interval, and return unavailable when coverage is insufficient.
+  deterministic 1,000-monitor tests protect stable server ordering. Incidents is now a first-class adaptive
+  destination with explicit Kuma-history and encrypted device-alert-group sources,
+  reliability windows, encrypted local notes, redacted sharing, and direct
+  monitor navigation. Browse is now the fourth primary destination and gives
+  named Operations, Insights/reports, and Manage sections to maintenance,
+  status pages, notifications, certificate/domain/event/fleet/live tools,
+  monitor views, encrypted monitor presets, servers, and device settings. Released Settings and
+  Notifications route names and deep links remain restorable. Browse also
+  searches permitted local metadata across monitors, groups, tags, observed
+  incidents, maintenance, status pages, servers, saved views, and tools without
+  indexing credentials, access headers, URLs, or full bodies;
+  see `docs/references/navigation3.mdx` and
+  `docs/references/material3-adaptive.mdx`.
 - Local reference material (gitignored): `docs/kuma-notes/`, `archive/uptime-kuma/`,
   `MEMORY.md`.
 - Brand assets in: bear app icon (adaptive + themed monochrome), notification icon,

@@ -24,9 +24,10 @@ class WearStatusParserTest {
 
     @Test
     fun publicPayloadProducesLatencyUptimeGroupsAndTags() {
-        val snapshot = WearStatusParser.parse(CONFIG_JSON, HEARTBEAT_JSON)
+        val snapshot = WearStatusParser.parse(CONFIG_JSON, HEARTBEAT_JSON, capturedAtMillis = 123L)
 
         assertEquals("Home lab", snapshot.title)
+        assertEquals(123L, snapshot.capturedAtMillis)
         assertEquals(2, snapshot.monitors.size)
         assertEquals(1, snapshot.up)
         assertEquals(1, snapshot.down)
@@ -81,14 +82,32 @@ class WearStatusParserTest {
     }
 
     @Test
-    fun displayCopyKeepsStatusAndMetricsConsistentAcrossSurfaces() {
+    fun displaySummaryKeepsAttentionOrderAcrossSurfaces() {
         val snapshot = WearStatusParser.parse(CONFIG_JSON, HEARTBEAT_JSON)
-        val api = snapshot.monitors.first { it.id == 7 }
 
-        assertEquals("1 down · 1 up", WearDisplay.fleetSummary(snapshot))
-        assertEquals("1 down", WearDisplay.complicationText(snapshot))
-        assertEquals("42 ms · 99.9%", WearDisplay.metrics(api))
-        assertEquals("No monitors", WearDisplay.complicationText(WearSnapshot("Empty", emptyList())))
+        assertEquals(
+            listOf(WearMonitorStatus.DOWN to 1, WearMonitorStatus.UP to 1),
+            WearDisplay.summaryParts(snapshot),
+        )
+        assertTrue(WearDisplay.summaryParts(WearSnapshot("Empty", emptyList())).isEmpty())
+    }
+
+    @Test
+    fun freshnessUsesConservativeBoundaries() {
+        val snapshot = WearSnapshot("Fleet", emptyList(), capturedAtMillis = 1_000_000L)
+
+        assertEquals(
+            WearFreshness(0, WearFreshnessUnit.NOW, stale = false),
+            WearDisplay.freshnessState(snapshot, 1_030_000L),
+        )
+        assertEquals(
+            WearFreshness(4, WearFreshnessUnit.MINUTE, stale = false),
+            WearDisplay.freshnessState(snapshot, 1_299_999L),
+        )
+        assertEquals(
+            WearFreshness(5, WearFreshnessUnit.MINUTE, stale = true),
+            WearDisplay.freshnessState(snapshot, 1_300_000L),
+        )
     }
 
     private companion object {

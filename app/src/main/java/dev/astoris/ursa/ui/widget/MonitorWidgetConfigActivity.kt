@@ -4,7 +4,6 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -38,10 +37,13 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.StatusPageClient
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.DisplayPreferenceStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.StatusPageStore
+import dev.astoris.ursa.core.storage.shouldSecure
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.ServerConnection
@@ -80,6 +82,7 @@ class MonitorWidgetConfigActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         setResult(Activity.RESULT_CANCELED)
         widgetId = intent?.getIntExtra(
             AppWidgetManager.EXTRA_APPWIDGET_ID,
@@ -94,11 +97,10 @@ class MonitorWidgetConfigActivity : FragmentActivity() {
             return
         }
 
-        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-        if (!debuggable) window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE,
-        )
+        DisplayPreferenceStore.load(this)
+        if (!DisplayPreferenceStore.screenshotProtection.value.shouldSecure(sensitiveContent = false)) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         connectionStore = ConnectionStore(this)
         pageStore = StatusPageStore(this)
         widgetStore = WidgetStore(this)
@@ -261,7 +263,11 @@ private fun WidgetConfigScreen(
     onSave: () -> Unit,
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.widget_config_title)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.widget_config_title), Modifier.accessibilityHeading()) },
+            )
+        },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),

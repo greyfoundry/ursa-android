@@ -1,0 +1,18 @@
+# id	value
+deep_link_push	ursa://push
+deep_link_settings	ursa://settings
+deep_link_status_page	ursa://status-page/public-demo
+notification_pause	dev.astoris.ursa.action.PAUSE
+notification_resume	dev.astoris.ursa.action.RESUME
+notification_acknowledge	dev.astoris.ursa.action.ACKNOWLEDGE_ALERT
+notification_snooze	dev.astoris.ursa.action.SNOOZE_ALERT
+channel_monitor_critical	ursa_monitors_critical
+channel_monitor_standard	ursa_monitors_standard
+channel_monitor_silent	ursa_monitors_silent
+channel_monitor_recovery	ursa_monitors_recovery
+channel_monitor_maintenance	ursa_monitors_maintenance
+channel_updates	ursa_updates
+channel_overall_status	ursa_overall_status
+channel_certificate_expiry	ursa_cert_expiry
+shortcut_push_id	push
+shortcut_settings_id	settings

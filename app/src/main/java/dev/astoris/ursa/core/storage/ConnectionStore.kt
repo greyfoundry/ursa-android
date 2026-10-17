@@ -5,6 +5,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.ServerConnection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -67,21 +70,67 @@ class ConnectionStore(context: Context) {
         }
     }
 
-    suspend fun snapshot(): List<ServerConnection> = connections.first()
-
-    /** Merge a validated portable backup by URL, preserving local sessions when omitted. */
-    suspend fun mergeImported(imported: List<ServerConnection>) {
+    /** Update only URSA's local action policy without touching credentials or server settings. */
+    suspend fun updateAccess(
+        url: String,
+        profile: AccessProfile,
+        customCapabilities: Set<AccessCapability>,
+    ) {
         context.dataStore.edit { prefs ->
-            val merged = decode(prefs).toMutableList()
-            imported.forEach { incoming ->
-                val index = merged.indexOfFirst { it.url == incoming.url }
-                if (index >= 0) {
-                    val existing = merged[index]
-                    merged[index] = incoming.copy(jwt = incoming.jwt ?: existing.jwt)
+            val next = decode(prefs).map { connection ->
+                if (connection.url == url) {
+                    connection.copy(
+                        accessProfile = profile,
+                        customCapabilities = customCapabilities,
+                    )
                 } else {
-                    merged += incoming
+                    connection
                 }
             }
+            prefs[connectionsKey] = encode(next)
+        }
+    }
+
+    suspend fun updateCleartextPolicy(url: String, policy: CleartextPolicy) {
+        context.dataStore.edit { prefs ->
+            prefs[connectionsKey] = encode(
+                decode(prefs).map { connection ->
+                    if (connection.url == url) connection.copy(cleartextPolicy = policy) else connection
+                },
+            )
+        }
+    }
+
+    suspend fun snapshot(): List<ServerConnection> = connections.first()
+
+    /** Reads saved connections and active selection atomically for fleet presentation. */
+    suspend fun selectionSnapshot(): ConnectionSelectionSnapshot {
+        val prefs = context.dataStore.data.first()
+        val saved = decode(prefs)
+        val selected = prefs[activeUrlKey]?.takeIf { url -> saved.any { it.url == url } }
+            ?: saved.firstOrNull()?.url
+        return ConnectionSelectionSnapshot(saved, selected)
+    }
+
+    /** Reads the active connection and its encrypted record from one DataStore snapshot. */
+    suspend fun activeConnection(): ServerConnection? {
+        val prefs = context.dataStore.data.first()
+        val connections = decode(prefs)
+        val active = prefs[activeUrlKey]
+        return connections.firstOrNull { it.url == active } ?: connections.firstOrNull()
+    }
+
+    /** Merge a validated backup, preserving existing access restrictions unless explicitly restored. */
+    suspend fun mergeImported(
+        imported: List<ServerConnection>,
+        restoreAccessProfiles: Boolean = false,
+    ) {
+        context.dataStore.edit { prefs ->
+            val merged = ConnectionImportMerge.merge(
+                existing = decode(prefs),
+                imported = imported,
+                restoreAccessProfiles = restoreAccessProfiles,
+            )
             prefs[connectionsKey] = encode(merged)
             val active = prefs[activeUrlKey]
             if (active == null || merged.none { it.url == active }) {
@@ -99,3 +148,8 @@ class ConnectionStore(context: Context) {
         return runCatching { json.decodeFromString<List<ServerConnection>>(plain) }.getOrDefault(emptyList())
     }
 }
+
+data class ConnectionSelectionSnapshot(
+    val connections: List<ServerConnection>,
+    val activeUrl: String?,
+)

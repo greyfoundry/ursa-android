@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.ui.KioskData
 import dev.astoris.ursa.ui.StatusPill
@@ -45,7 +46,11 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KioskScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun KioskScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    handleSystemBack: Boolean = true,
+) {
     val monitors by vm.monitors.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
     val showingCache by vm.showingCache.collectAsStateWithLifecycle()
@@ -61,7 +66,7 @@ fun KioskScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = previous }
     }
-    BackHandler(onBack = vm::exitKioskMode)
+    BackHandler(enabled = handleSystemBack, onBack = vm::exitKioskMode)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -71,6 +76,7 @@ fun KioskScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     Column {
                         Text(
                             activeConnection?.displayName ?: stringResource(R.string.app_name),
+                            modifier = Modifier.accessibilityHeading(),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

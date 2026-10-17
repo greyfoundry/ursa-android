@@ -1,6 +1,7 @@
 package dev.astoris.ursa.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -30,9 +31,14 @@ fun UrsaPressableCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val motionEnabled = systemMotionEnabled()
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.985f else 1f,
-        animationSpec = if (pressed) UrsaMotion.fast() else UrsaMotion.settle(),
+        animationSpec = when {
+            !motionEnabled -> snap()
+            pressed -> UrsaMotion.fast()
+            else -> UrsaMotion.settle()
+        },
         label = "card press",
     )
     Card(

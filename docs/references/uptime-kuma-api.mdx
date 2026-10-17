@@ -1,17 +1,17 @@
 ---
-last-updated: 2026-09-19
+last-updated: 2026-10-12
 owner: astoris
 status: stable
-source: verified from Uptime Kuma 2.5.5 source and a live 2.5.5 container
+source: verified from Uptime Kuma source and live 2.4.0 through 2.5.6 containers
 ---
 
 ## what this is
 
 How URSA talks to an Uptime Kuma server. Kuma has no stable public API - it's a
 Socket.IO app plus a few unauthenticated REST endpoints for public status pages.
-Everything below was rechecked through tag `2.5.5` (`c98982a`) and captured from
-the official `louislam/uptime-kuma:2.5.5` image (digest
-`sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe`).
+Everything below was rechecked through tag `2.5.6` (`7ca4a3d`) and captured from
+digest-pinned official images for 2.4.0 and every 2.5.0-2.5.6 release. The
+reproducible probe is `scripts/verify-kuma-compatibility.ps1`.
 Sanitized raw captures and the complete source-derived event/route inventory live
 under gitignored `docs/kuma-notes/`. Build a thin adapter around this; expect drift
 between versions.
@@ -34,7 +34,8 @@ it is saved. Kuma's `uk...` API keys are not an alternative socket credential:
 endpoint. Passing one to `loginByToken` is rejected by design.
 
 **server → client events (⚠ several are POSITIONAL args, not objects)**
-- `info` → `{ version, latestVersion, serverTimezone, dbType, isContainer, ... }`
+- `info` is emitted without version/runtime fields before authentication, then as
+  `{ version, latestVersion, serverTimezone, dbType, isContainer, ... }` after login.
 - `monitorList` → `{ [id]: MonitorObject }` (id-keyed object, not array)
 - `heartbeat` → `{ monitorID, status, time, msg, ping, important, retries }` (camelCase)
 - `heartbeatList` → **positional** `(monitorID:String, HeartbeatRow[], overwrite:Boolean)`
@@ -45,10 +46,20 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   proxyList, dockerHostList, apiKeyList, remoteBrowserList, statusPageList,
   initServerTimezone`
 
+`dockerHostList` is an array of `{ id, userID, dockerDaemon, dockerType, name }`.
+URSA retains only positive `id`, non-empty `name`, and `dockerType` for selection;
+the daemon address and owning user ID are discarded at the network boundary.
+
+`remoteBrowserList` is an array of `{ id, url, name }`. The URL is a Playwright
+WebSocket address and may include an access token. URSA retains only positive `id`
+and non-empty `name`; the URL is discarded at the network boundary.
+
 **client → server events (with ack callback)**
 - `getMonitorBeats(id, periodHours)` → `{ ok, data: HeartbeatRow[] }`
   rows are **snake_case**: `{ id, monitor_id, status, msg, time, ping, duration,
-  down_count, end_time, retries }`
+  down_count, end_time, retries }`. In verified 2.5.6 source, `periodHours` is used
+  directly as a SQL hour offset; this event has no start/end cursor, row limit, or
+  pagination argument. Returned `time` values are UTC SQL datetimes.
 - `getMonitorChartData(id, periodHours)` → `{ ok, data: [{ up, down, avgPing,
   minPing, maxPing, timestamp }] }` (⚠ NOT `ping/pingMin/pingMax`)
 - `monitorImportantHeartbeatListPaged(null, offset, count)` →
@@ -74,7 +85,15 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   template. Kuma does not save the temporary config.
 - `editMonitor(fullMonitorObject)` returns `{ ok, msg }`. Notification assignment
   is the full object's `{ "notificationIDList": { "<id>": true } }` map. Kuma
-  restarts the edited monitor, so bulk callers should update sequentially.
+  restarts the edited monitor, so bulk callers should update sequentially. URSA
+  fetches that object immediately before save, requires its type to match the
+  typed draft, and compares every non-editable field before emitting the mutation.
+- `add(fullMonitorObject)` returns `{ ok, msg, monitorID }`. Push monitors require
+  a 32-character alphanumeric `pushToken`; Kuma 2.4.0 through 2.5.6 generate it
+  from the same 62-character alphabet. Their public heartbeat endpoint is
+  `<baseURL>/api/push/<pushToken>?status=up&msg=OK&ping=`. `status` accepts `up`
+  or `down`, `msg` is optional display text, and `ping` is an optional non-negative
+  millisecond value. The token is a write capability and must be treated as secret.
 - `getTags()` returns `{ ok, tags: [{ id, name, color }] }`.
   `addMonitorTag(tagID, monitorID, value)` and
   `deleteMonitorTag(tagID, monitorID, value)` update assignments and push an
@@ -93,12 +112,264 @@ endpoint. Passing one to `loginByToken` is rejected by design.
   `recurring-weekday`, and `recurring-day-of-month`. Payloads use `dateRange`,
   `{ hours, minutes }` `timeRange` entries, `timezoneOption`, `intervalDay`,
   `weekdays`, `daysOfMonth`, `cron`, and `durationMinutes`.
+- Authenticated public-incident operations are status-page-slug scoped:
+  `postIncident(slug, { title, content, style })` creates an active pinned incident
+  and returns `{ ok, incident }`; `editIncident(slug, id, { title, content, style,
+  pin })` returns the updated incident; `unpinIncident(slug)` clears the page's pin;
+  `resolveIncident(slug, id)` returns the now inactive/unpinned incident; and
+  `deleteIncident(slug, id)` returns `{ ok }`. Supported styles are `info`,
+  `warning`, `danger`, `primary`, `light`, and `dark`.
+- `getIncidentHistory(slug, null)` returns `{ ok, incidents, total, hasMore }` over
+  the authenticated socket. Use it after a mutation: Kuma's unauthenticated REST
+  incident-history response can retain a stale cache even after the socket
+  acknowledgement succeeds.
 
 **status codes**: `0=DOWN, 1=UP, 2=PENDING, 3=MAINTENANCE`.
 **time**: string `"YYYY-MM-DD HH:mm:ss.SSS"` in server tz, not epoch.
 
-Kuma 2.5.0 adds `ntp` and `pm2` monitor types plus the authenticated
-`getPM2ProcessList` event. Those additions do not change URSA's read,
+## verified compatibility matrix
+
+URSA's stable write-verified range is 2.4.0 through 2.5.6. The probe boots each
+exact digest, creates an administrator, authenticates over the real Socket.IO
+polling contract, checks `info.version` and `monitorTypeList`, and removes its
+container and volume. Every image exercises the complete public-incident mutation
+lifecycle. At the 2.4.0 floor and 2.5.6 ceiling it also exercises monitor
+create/get/round-trip edit/pause/resume/delete, maintenance
+create/assign/pause/resume/delete, and Webhook notification create/delete.
+
+| Image tag | OCI index digest | Reported `info.version` | NTP/PM2/system-service | SFTP | Incident writes |
+|---|---|---|---|---|---|
+| 2.4.0 | `sha256:91e963bfda569ba115206e843febb446f473ab525add4e08b2b9e3beffa16985` | 2.4.0 | no | no | yes |
+| 2.5.0 | `sha256:a8610b3b4c38077922ba51b036691e06887d7cefd91fe620fd3d6d23d03dc240` | 2.5.0 | yes | no | yes |
+| 2.5.1 | `sha256:ecd5b8c8b49fe9436c735de9c72b161fcc2b6d8710599393d369a2f6e0167d02` | 2.5.0 | yes | no | yes |
+| 2.5.2 | `sha256:68ef1413af569e3e480ae4a04edf5a884255a78736241e0bf7e2b2980ac1327c` | 2.5.1 | yes | no | yes |
+| 2.5.3 | `sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c` | 2.5.3 | yes | no | yes |
+| 2.5.4 | `sha256:917318f9d7be5257f43ba412c766a473be336eb451d70744f3b482d0c3997c0e` | 2.5.4 | yes | yes | yes |
+| 2.5.5 | `sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe` | 2.5.5 | yes | yes | yes |
+| 2.5.6 | `sha256:9912da7d7d9b6ddc0c2d904beb84d24689c1ed9c33b81419eb9008663a92a329` | 2.5.6 | yes | yes | yes |
+
+Kuma 2.5.1 and 2.5.2 publish the previous release number over the socket. Their
+feature boundaries are unchanged by that ambiguity: both advertise NTP/PM2/system-service and
+neither advertises SFTP. `KumaCapabilities` therefore evaluates the reported
+stable version, not an invented tag. Missing, malformed, prerelease, older, and
+newer versions retain safe reads but are not advertised as write-verified. Known
+type-specific schemas are separately gated, so SFTP create/edit is available only
+when the server reports 2.5.4 through 2.5.6.
+All monitor writes also require the reported version to remain inside the global
+write-verified range; a type without a special schema threshold cannot bypass that
+outer gate.
+
+Keyword monitors use the ordinary `url` endpoint plus required string `keyword`
+and boolean `invertKeyword` fields. In 2.5.6, `invertKeyword = false` means the
+check succeeds when the response contains the keyword; `true` reverses that test
+and alerts when the response contains it. URSA exposes only these type-specific
+fields for now and preserves other HTTP settings from the freshly loaded object.
+
+JSON-query monitors use required string fields `jsonPath`, `jsonPathOperator`, and
+`expectedValue`. Kuma 2.5.6 accepts operators `>`, `>=`, `<`, `<=`, `!=`, `==`,
+and `contains`; the UI defaults new expressions to `$` and comparisons to `==`.
+Numeric comparison values are still transported as strings by Kuma's editor.
+
+MQTT monitors use required `hostname`, `port`, and `mqttTopic` fields, optional
+`mqttUsername`, `mqttPassword`, and `mqttWebsocketPath`, and `mqttCheckType` of
+`keyword` or `json-query`. Kuma prepends `mqtt://` when the host has no recognized
+`mqtt`, `mqtts`, `ws`, or `wss` scheme. It supplies no default port. Keyword mode
+tests `mqttSuccessMessage` as a substring and an empty string accepts any received
+message. JSON-query mode evaluates `jsonPath` and compares its string result exactly
+with `expectedValue`. The WebSocket path is empty or matches
+`^/[A-Za-z0-9-_&amp;()*+]*$`. A non-empty `conditions` array takes precedence server-side,
+so clients that do not edit conditions must preserve it unchanged.
+
+SMTP monitors use required `hostname` and `port` fields plus nullable
+`smtpSecurity`. Kuma 2.5.6 maps `secure` to SMTP over TLS, `nostarttls` to
+plaintext with STARTTLS disabled, and `starttls` to a required STARTTLS upgrade
+with certificate verification. The server falls back to port 25 when the wire
+value is absent, but its editor requires an explicit port and URSA does not invent
+that default. The monitor calls Nodemailer's transport verification only; it does
+not send email or require mailbox credentials. Existing null or unknown security
+values must remain opaque because converting them would silently change transport
+behavior.
+
+NTP monitors, available from Kuma 2.5.0, use required `hostname` and `port` plus
+`ntpStratumThreshold`, `ntpTimeOffsetThreshold`, and
+`ntpRootDispersionThreshold`. The editor defaults new monitors to UDP port 123, a
+300-second interval, a 48-second timeout, and thresholds 5, 1000 ms, and 500 ms.
+Stratum accepts 1 through 15; the two millisecond thresholds accept positive
+integers. The checker always rejects unsynchronized stratum 16, then rejects
+stratum at or above its threshold, absolute clock offset at or above its threshold,
+and root dispersion at or above its threshold. Falsy server values fall back to
+5/1000/500; clients must preserve explicit null values during unrelated edits
+rather than silently materializing those defaults.
+
+Globalping monitors use a subtype-specific contract. Ping sends `subtype: "ping"`,
+`hostname`, one `location` magic string, nullable `ipFamily` (`ipv4` or `ipv6` when
+explicit), `protocol` (`ICMP` or `TCP`), `ping_count`, and a `port` used only by TCP.
+Kuma's editor initializes Ping to `world`, automatic IP family, ICMP, retained port
+80, three packets, and a 48-second timeout. It accepts one location expression; `+`
+may combine provider and geography filters, while comma-separated locations are not
+supported. Packet count is 1 through 100 and TCP ports are 1 through 65535. URSA's
+native codec owns this exact shape.
+
+DNS sends `subtype: "dns"`, `hostname`, `location`, nullable `ipFamily`, optional
+`dns_resolve_server`, required port, `dns_resolve_type`, optional `keyword`, and
+`protocol` (`UDP` or `TCP`). Kuma 2.5.6 offers A, AAAA, ANY, CNAME, DNSKEY, DS,
+HTTPS, MX, NS, NSEC, PTR, RRSIG, SOA, SRV, SVCB, and TXT. New drafts use
+world/automatic, port 53, A, and UDP. The server treats `keyword` as a
+case-insensitive JavaScript regular expression over returned records, so URSA does
+not apply an incompatible JVM-regex validator.
+
+HTTP sends `subtype: "http"`, `url`, `location`, nullable `ipFamily`, optional
+resolver, nullable protocol (automatic) or `HTTP2`, `method` (`HEAD`, `GET`, or
+`OPTIONS`), JSON-encoded accepted status codes, `ignoreTls`, `expiryNotification`,
+`cacheBust`, response-check fields, JSON-encoded request headers, and optional
+Basic, Bearer, or OAuth2 client-credentials authentication. Kuma does not offer mTLS
+for this subtype. URSA reuses its eight-entry validated header model and
+presence-only secret state: saved values never enter editable fields, blank
+unchanged entries are recovered only from the fresh full object, and changing or
+removing an entry or method clears superseded secrets. Keyword and JSON-query
+response checks are mutually exclusive on save. Unknown subtypes, future enum
+values, unsupported authentication, and future header shapes remain opaque.
+
+Database monitors share `databaseConnectionString`. PostgreSQL, MySQL/MariaDB,
+Microsoft SQL Server, MongoDB, and Oracle Database also use `databaseQuery`; a blank
+query falls back to `SELECT 1` for the first three SQL drivers, `SELECT 1 FROM DUAL`
+for Oracle, or `{ "ping": 1 }` for MongoDB. MongoDB passes
+a parsed JSON object to the driver command and can evaluate `jsonPath` with JSONata
+before comparing its string result with `expectedValue`. MySQL can supply a separate
+`radiusPassword` override. Oracle requires `basic_auth_user` and `basic_auth_pass`
+alongside a service string such as `host:1521/FREEPDB1`. Redis uses `ignoreTls` and
+has no query field. MySQL, SQL Server, and Oracle can also carry recursive result `conditions`; clients without the exact
+condition editor must preserve that array unchanged. Connection strings and the
+MySQL override can contain credentials, while the Oracle password is explicitly
+sensitive; none may be prefilled, logged, or copied into local monitor caches.
+
+gRPC keyword monitors use `grpcUrl`, inline `grpcProtobuf`, `grpcServiceName`,
+`grpcMethod`, JSON-object string `grpcBody`, `grpcEnableTls`, `keyword`, and
+`invertKeyword`. Kuma's checker parses the body before invoking the generated
+camel-case method and searches the JSON response string for the keyword. The body
+may contain credentials, so URSA keeps only a presence flag in editor state and
+recovers an unchanged value from the freshly fetched full object. Kuma 2.5.6 can
+return legacy `grpcMetadata` only in sensitive monitor responses, but its editor and
+checker do not use it; URSA preserves it opaquely rather than exposing a misleading
+control.
+
+SNMP monitors use `hostname`, `port`, `radiusPassword` for the community,
+`snmpOid`, `snmpVersion` (`1`, `2c`, or `3`), `timeout`, `maxretries`, `jsonPath`,
+`jsonPathOperator`, and `expectedValue`. The 2.5.6 web form defaults to port 161,
+v2c, a five-second timeout, `$`, and `==`; its OID pattern accepts numeric roots 0-2
+without leading zeroes. URSA natively creates and edits v1/v2c, keeps community
+strings presence-only, and mirrors Kuma's timeout ceiling of 80% of the interval.
+Kuma 2.5.6's checker reads `snmp_v3_username`, but its monitor edit event does not
+persist the form's `snmpV3Username` and its monitor response does not return it.
+URSA therefore preserves existing v3 and unknown records opaquely and retains the
+browser escape rather than claiming a safe v3 editor.
+
+RabbitMQ monitors use JSON-array `rabbitmqNodes`, `rabbitmqUsername`,
+`rabbitmqPassword`, and `timeout`. Kuma tries each management base URL in order and
+reports Up when one returns HTTP 200 from `api/health/checks/alarms/`; HTTP 503
+returns the cluster alarm reason. Node URLs must use HTTP or HTTPS. URSA keeps the
+password presence-only and recovers an unchanged value only from the fresh full
+object used for that edit.
+
+Kafka producer monitors use JSON-array `kafkaProducerBrokers`,
+`kafkaProducerTopic`, `kafkaProducerMessage`, `kafkaProducerSsl`,
+`kafkaProducerAllowAutoTopicCreation`, `timeout`, and object
+`kafkaProducerSaslOptions`. Kuma 2.5.6 accepts SASL mechanisms `None`, `plain`,
+`scram-sha-256`, `scram-sha-512`, and `aws`; the first three authenticated modes
+use username/password, while AWS uses authorization identity, access-key ID,
+secret access key, and optional session token. URSA never places returned
+passwords, secret keys, or session tokens in editable state. Blank edits retain
+only same-mechanism secrets, the optional session token can be removed explicitly,
+and unknown future SASL objects remain unchanged.
+
+Docker monitors use `docker_container` for the exact container name or ID and
+`docker_host` for the numeric ID of a server-configured Docker host. Kuma inspects
+`/containers/{container}/json`; a running container without a health check is Up,
+while a paused or stopped container is not. URSA creates and edits these two fields,
+selects only hosts received from the current server, and leaves host administration
+in Kuma. The server-bound host ID makes Docker monitors ineligible for cross-server
+transfer.
+
+Real Browser monitors use HTTP(S) `url`, nullable numeric `remote_browser`, and
+integer `screenshot_delay` in milliseconds. Null selects Kuma-local Chromium;
+otherwise the ID must belong to the authenticated user's `remoteBrowserList`.
+Kuma waits for network idle, optionally delays, captures a screenshot, and accepts
+HTTP 200-399. Its web form caps the delay at half the interval. URSA mirrors those
+fields and that bound, leaves remote-browser administration in Kuma, and treats the
+server-bound selector as non-transferable. The remote connection lifecycle remains
+owned by Kuma, not the client editing the monitor.
+
+RADIUS monitors use `hostname`, `port` (default `1812`), `radiusUsername`,
+`radiusPassword`, `radiusSecret`, `radiusCalledStationId`, and
+`radiusCallingStationId`. Kuma 2.5.6 requires all five access-request identity and
+secret fields; `Access-Accept` and `Access-Challenge` are healthy, while
+`Access-Reject` fails the check. URSA keeps both returned secrets presence-only and
+recovers unchanged values solely from the fresh full object used for an edit.
+Current FreeRADIUS releases require an explicit legacy-client compatibility setting
+for Kuma 2.5.6 requests that omit the Message-Authenticator attribute; that server
+policy belongs to the RADIUS administrator, not URSA.
+
+GameDig monitors use `hostname`, required `port`, required `game`, boolean
+`gamedigGivenPortOnly` (default `true`), and optional `gamedigToken`. The
+authenticated `getGameList` acknowledgement returns `{ ok, gameList }`; each row
+contains `keys`, `pretty`, `options`, and `extra`. URSA selects only `keys[0]` and
+`pretty`, preserving an unavailable saved key rather than silently replacing it.
+The monitor checker passes the token only when non-empty. A live Kuma 2.5.5 query
+against a Minecraft status fixture returned the fixture name, player counts, and
+ping through Kuma's bundled GameDig client.
+
+Steam monitors persist only `hostname` and `port`. Kuma resolves the host and calls
+Steam's `IGameServersService/GetServerList/v1/` with a globally configured
+`steamAPIKey`; that credential is server configuration, not a monitor field. When
+it is absent, the checker reports `Steam API Key not found`. URSA therefore exposes
+host and port plus that prerequisite, without asking for or transporting the key.
+
+PM2 and system-service monitors persist one trimmed `system_service_name`. Kuma
+2.5.0 introduced both schemas and the authenticated `getPM2ProcessList`
+acknowledgement, which returns `{ ok, processList }` rows containing stable string
+`id`, `name`, and normalized `status`. PM2 saves the stable name because numeric
+IDs may change; only `online` is healthy. System-service runs `systemctl is-active`
+on Linux or queries the internal service name on Windows. Its accepted name is
+limited to letters, numbers, dot, underscore, hyphen, and `@`; PM2 names may contain
+spaces but not ASCII control characters.
+
+Tailscale Ping and SIP OPTIONS were added in Kuma 2.5.0 and are offered by Kuma's
+editor only when `info.isContainer` is false. Tailscale Ping persists `hostname`
+and executes `tailscale ping --c 1 <hostname>` with a timeout equal to 80 percent
+of the monitor interval; a `pong from ... in <N>ms` line produces an Up heartbeat
+with ping `N`. SIP OPTIONS persists `hostname` and required `port`, then executes
+`sipsak -s sip:<hostname>:<port> --from sip:sipsak@<hostname> -v` with a
+three-second timeout; a line containing `200 OK` is healthy. Both tools run on the
+Kuma host, not the Android device, and neither monitor contains credentials.
+
+WebSocket-upgrade monitors use a `ws`/`wss` `url`, optional comma-separated
+`wsSubprotocol`, boolean `wsIgnoreSecWebsocketAcceptHeader`, and string-array
+`accepted_statuscodes`. Kuma 2.5.6 offers every individual close code from
+`1000` through `4999` and defaults new monitors to `["1000"]`; its server splits
+subprotocols on commas and removes whitespace. The full object may also contain
+`headers` as a JSON-encoded object. URSA's structured editor supports up to eight
+unique HTTP-token names with string values; it masks saved values and reconstructs
+unchanged entries from the fresh full object. Malformed JSON, non-string values,
+case-insensitive duplicates, and larger objects remain opaque. Authentication
+uses nullable `authMethod`: `basic` pairs `basic_auth_user` with
+`basic_auth_pass`, while `bearer` uses `bearer_token`. URSA reduces returned
+passwords/tokens to presence flags before UI state, retains a blank saved value
+only while the method is unchanged, and clears the superseded fields when the
+method changes. OAuth client credentials (`oauth2-cc`) use
+`oauth_auth_method` (`client_secret_basic` or `client_secret_post`),
+`oauth_token_url`, `oauth_client_id`, `oauth_client_secret`, `oauth_scopes`, and
+`oauth_audience`. mTLS (`mtls`) uses `tlsCert`, `tlsKey`, and optional `tlsCa`.
+URSA keeps OAuth client secrets and all returned PEM material out of editable
+state, retains blank saved values from the fresh full object, and offers an
+explicit removal control for the optional CA. Deliberately changing auth methods
+clears the superseded fields; ordinary edits preserve dormant legacy fields.
+
+Kuma exposes no idempotency key for `postIncident`. A lost create acknowledgement
+is therefore an unknown outcome: refresh incident history before allowing another
+create instead of automatically replaying it.
+
+Kuma 2.5.0 adds `ntp`, `pm2`, `system-service`, `tailscale-ping`, and `sip-options`
+monitor types plus the authenticated `getPM2ProcessList` event. Those additions do not change URSA's read,
 heartbeat-history, certificate, pause, or resume contracts.
 
 Kuma 2.5.1 adds seven outbound notification providers: SMS Gateway, ClickUp,
@@ -109,7 +380,10 @@ type, Signalgrid, Notify!, and Amoot SMS providers, plus a cached-response fix.
 SFTP monitor objects add `sftpPath`, `sshAuthMethod`, `sshUsername`, `sshPassword`,
 `sshPrivateKey`, and `sshPassphrase`; common edits must retain these fields from
 the fresh full object. Kuma 2.5.5 fixes a TCP monitor socket leak without changing
-the client contract. Across 2.5.0 through 2.5.5, the source inventory remains 87
+the client contract. Kuma 2.5.6 fixes only the public average-response badge
+calculation and likewise does not change URSA's authenticated socket, monitor,
+notification, or status-page contracts. Across 2.5.0 through 2.5.6, the source
+inventory remains 87
 client events, 30 server emit candidates, and 33 REST routes. Previously consumed
 live payload shapes are unchanged; the full monitor shape and `monitorTypeList`
 gain only the SFTP additions.
@@ -128,8 +402,8 @@ gain only the SFTP additions.
 
 - **Case split**: live `heartbeat` event is camelCase; `getMonitorBeats` rows are
   snake_case. The data model must map both to one domain type.
-- **String IDs in positional events**: monitor IDs are JSON strings in live 2.5.3
-  through 2.5.5 `heartbeatList`, `avgPing`, `uptime`, and `certInfo` emissions even
+- **String IDs in positional events**: monitor IDs are JSON strings in Kuma 2.5.3
+  through 2.5.6 `heartbeatList`, `avgPing`, `uptime`, and `certInfo` emissions even
   though IDs inside object payloads are numbers. Normalize both forms at the
   adapter boundary.
 - **Double-encoded JSON**: notification `config` and monitor `tags` arrive as a
@@ -139,6 +413,9 @@ gain only the SFTP additions.
   never log/store it, preserve unknown fields, and mutate only the intended field.
 - **Public incident overlap**: a pinned active incident is returned by both the
   main page endpoint and incident history. De-duplicate by numeric incident ID.
+- **Public incident cache**: the REST history endpoint can lag an acknowledged
+  authenticated write. A mapped authenticated viewer should refresh through
+  `getIncidentHistory`; an unmatched public page has only the cached REST view.
 - Monitor `add` (M2+) requires a NOT-NULL `conditions` field (stringified JSON
   array) on Kuma 2.x - absent from the wiki.
 - Kuma 2.x boots into a separate "setup-database" mode; the app socket isn't

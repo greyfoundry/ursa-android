@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "URSA"
 include(":app")
 include(":wear")
+include(":benchmarks")

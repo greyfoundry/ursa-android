@@ -1,23 +1,43 @@
 package dev.astoris.ursa.ui
 
 import android.app.Application
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.widget.RemoteViews
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.astoris.ursa.R
+import dev.astoris.ursa.core.access.AccessDecision
+import dev.astoris.ursa.core.access.AccessPolicy
 import dev.astoris.ursa.core.network.ConnectionState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
+import dev.astoris.ursa.core.network.HeartbeatHistoryRange
+import dev.astoris.ursa.core.network.HeartbeatHistoryResult
+import dev.astoris.ursa.core.network.KumaCompatibilityTier
 import dev.astoris.ursa.core.network.LocalServiceDiscovery
 import dev.astoris.ursa.core.network.LocalServiceProtocol
 import dev.astoris.ursa.core.network.MonitorDraft
+import dev.astoris.ursa.core.network.MonitorDraftTransfer
+import dev.astoris.ursa.core.network.MonitorEditorRegistry
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
+import dev.astoris.ursa.core.network.IncidentMutationOutcome
+import dev.astoris.ursa.core.network.IncidentMutationResult
+import dev.astoris.ursa.core.network.PublicIncident
+import dev.astoris.ursa.core.network.PublicIncidentDraft
+import dev.astoris.ursa.core.network.PublicIncidentStyle
+import dev.astoris.ursa.core.network.PublicIncidentTarget
 import dev.astoris.ursa.core.network.ResolvedStatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddress
 import dev.astoris.ursa.core.network.StatusPageAddressError
 import dev.astoris.ursa.core.network.StatusPageAddressResult
 import dev.astoris.ursa.core.network.StatusPageClient
+import dev.astoris.ursa.core.network.filterHeartbeatHistory
 import dev.astoris.ursa.core.push.PushStore
 import dev.astoris.ursa.core.push.PushDeliveryTest
 import dev.astoris.ursa.core.push.PushAlertMode
@@ -29,10 +49,18 @@ import dev.astoris.ursa.core.push.PushQuietHours
 import dev.astoris.ursa.core.push.PushQuietHoursStore
 import dev.astoris.ursa.core.push.PushEventPreferences
 import dev.astoris.ursa.core.push.PushEventPreferencesStore
+import dev.astoris.ursa.core.push.PushDependencyGraph
+import dev.astoris.ursa.core.push.PushDependencyPolicy
+import dev.astoris.ursa.core.push.PushDependencyStore
+import dev.astoris.ursa.core.push.PushGroupAlertPolicy
+import dev.astoris.ursa.core.push.PushGroupAlertRules
+import dev.astoris.ursa.core.push.PushGroupAlertStore
 import dev.astoris.ursa.core.push.PushTransitionStore
 import dev.astoris.ursa.core.push.OverallStatusService
 import dev.astoris.ursa.core.push.OverallStatusStore
 import dev.astoris.ursa.core.push.KumaWebhook
+import dev.astoris.ursa.core.push.ManagedPushScopeStore
+import dev.astoris.ursa.core.push.PushNotificationGroups
 import dev.astoris.ursa.core.push.UrsaPushService
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.ConnectionStore
@@ -43,6 +71,7 @@ import dev.astoris.ursa.core.storage.ConnectionBackupData
 import dev.astoris.ursa.core.storage.PortablePreferences
 import dev.astoris.ursa.core.storage.DynamicColorStore
 import dev.astoris.ursa.core.storage.DisplayPreferenceStore
+import dev.astoris.ursa.core.storage.ScreenshotProtectionMode
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.IncidentNote
 import dev.astoris.ursa.core.storage.IncidentNoteStore
@@ -51,6 +80,9 @@ import dev.astoris.ursa.core.storage.LocalEventKind
 import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorPreferenceStore
+import dev.astoris.ursa.core.storage.MonitorPreset
+import dev.astoris.ursa.core.storage.MonitorPresetCodec
+import dev.astoris.ursa.core.storage.MonitorPresetStore
 import dev.astoris.ursa.core.storage.ResponseAlertStore
 import dev.astoris.ursa.core.storage.StatusPageStore
 import dev.astoris.ursa.core.work.CertExpiryWorker
@@ -65,21 +97,44 @@ import dev.astoris.ursa.core.update.AvailableRelease
 import dev.astoris.ursa.core.update.ReleaseClient
 import dev.astoris.ursa.core.update.UpdateNotifier
 import dev.astoris.ursa.ui.monitors.SavedMonitorView
+import dev.astoris.ursa.ui.monitors.ActivityFilter
+import dev.astoris.ursa.ui.monitors.MonitorViewFilter
 import dev.astoris.ursa.ui.monitors.HeartbeatRange
+import dev.astoris.ursa.ui.widget.MonitorWidgetReceiver
+import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
+import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
+import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.model.FleetSnapshot
+import dev.astoris.ursa.data.model.FleetSnapshotSource
 import dev.astoris.ursa.data.model.RequestHeader
 import dev.astoris.ursa.data.model.SavedStatusPage
 import dev.astoris.ursa.data.model.ServerConnection
 import dev.astoris.ursa.data.model.StatusPageView
+import dev.astoris.ursa.data.model.StatusIncidentView
 import dev.astoris.ursa.data.repository.MonitorRepository
 import dev.astoris.ursa.data.repository.BulkMonitorUpdateResult
+import dev.astoris.ursa.data.repository.BulkMonitorEdit
+import dev.astoris.ursa.data.repository.BulkMonitorEditPreview
+import dev.astoris.ursa.data.repository.BulkMonitorEditResult
+import dev.astoris.ursa.data.repository.MonitorGroupMutationResult
+import dev.astoris.ursa.data.repository.MonitorImportApplyResult
+import dev.astoris.ursa.core.network.MonitorImportPreview
+import dev.astoris.ursa.core.network.MonitorImportRow
+import dev.astoris.ursa.data.repository.FleetRepository
+import dev.astoris.ursa.data.repository.mergeActiveFleetSnapshot
 import org.unifiedpush.android.connector.UnifiedPush
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,6 +146,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -113,10 +170,31 @@ sealed interface ConnectionTestUiState {
     data class Error(val message: String) : ConnectionTestUiState
 }
 
+data class MonitorImportUiState(
+    val preview: MonitorImportPreview? = null,
+    val result: MonitorImportApplyResult? = null,
+)
+
+sealed interface MonitorHistoryUiState {
+    data object Idle : MonitorHistoryUiState
+    data object Loading : MonitorHistoryUiState
+    data class Ready(val result: HeartbeatHistoryResult) : MonitorHistoryUiState
+    data object Error : MonitorHistoryUiState
+}
+
+data class FleetHomeUiState(
+    val snapshot: FleetSnapshot? = null,
+    val loading: Boolean = false,
+    val refreshing: Boolean = false,
+    val failed: Boolean = false,
+)
+
 enum class WearPairingError {
     NO_ACTIVE_SESSION,
     SELF_SIGNED_UNSUPPORTED,
+    CLEARTEXT_BLOCKED,
     NO_REACHABLE_WATCH,
+    WATCH_UPDATE_REQUIRED,
     TRANSFER_FAILED,
 }
 
@@ -124,13 +202,25 @@ sealed interface WearPairingUiState {
     data object Idle : WearPairingUiState
     data object Sending : WearPairingUiState
     data class Success(val watchCount: Int) : WearPairingUiState
+    data class Cleared(val watchCount: Int) : WearPairingUiState
     data class Error(val reason: WearPairingError) : WearPairingUiState
 }
 
 sealed interface ConnectionBackupResult {
     data class Document(val content: String) : ConnectionBackupResult
+    data class Preview(val value: ConnectionBackupPreview) : ConnectionBackupResult
     data class Imported(val count: Int) : ConnectionBackupResult
     data class Error(val reason: BackupError) : ConnectionBackupResult
+}
+
+data class ConnectionBackupPreview(
+    val data: ConnectionBackupData,
+    val addedCount: Int,
+    val updatedCount: Int,
+    val preservedRestrictionCount: Int,
+) {
+    val includesAccessProfiles: Boolean
+        get() = data.payloadVersion >= 2
 }
 
 sealed interface UpdateCheckUiState {
@@ -156,7 +246,13 @@ sealed interface StatusPageFormResult {
     data class NetworkError(val message: String) : StatusPageFormResult
 }
 
-enum class KumaPushSetupError { INVALID_ENDPOINT, SERVER_UNAVAILABLE, SAVE_FAILED, DELETE_FAILED }
+enum class KumaPushSetupError {
+    INVALID_ENDPOINT,
+    SERVER_UNAVAILABLE,
+    SAVE_FAILED,
+    SCOPE_SAVE_FAILED,
+    DELETE_FAILED,
+}
 
 sealed interface KumaPushSetupUiState {
     data object Idle : KumaPushSetupUiState
@@ -168,6 +264,7 @@ sealed interface KumaPushSetupUiState {
         val isDefault: Boolean,
         val selectedMonitorIds: Set<Int>,
         val unavailableMonitorIds: Set<Int> = emptySet(),
+        val duplicateCount: Int = 0,
         val recentlySaved: Boolean = false,
     ) : KumaPushSetupUiState
     data class Error(val reason: KumaPushSetupError) : KumaPushSetupUiState
@@ -197,23 +294,27 @@ private sealed interface StatusPageResolution {
     data class Failure(val result: StatusPageFormResult) : StatusPageResolution
 }
 
-/** The three primary destinations in the bottom navigation bar. */
-enum class MainTab { MONITORS, NOTIFICATIONS, SETTINGS }
+/** Authenticated destinations currently exposed by the adaptive navigation suite. */
+enum class MainTab { HOME, MONITORS, NOTIFICATIONS, SETTINGS, INCIDENTS, BROWSE }
 
 class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = ConnectionStore(app)
     private val cacheStore = MonitorCacheStore(app)
     private val monitorPreferenceStore = MonitorPreferenceStore(app)
+    private val monitorPresetStore = MonitorPresetStore(app)
     private val certExpiryStore = CertExpiryStore(app)
     private val eventLogStore = EventLogStore(app)
     private val incidentNoteStore = IncidentNoteStore(app)
+    private val managedPushScopeStore = ManagedPushScopeStore(app)
     private val repo = MonitorRepository(store, cacheStore, certExpiryStore, viewModelScope)
+    private val fleetRepository = FleetRepository(store, cacheStore, managedPushScopeStore)
     private val localServiceDiscovery = LocalServiceDiscovery(app)
 
     val monitors: StateFlow<List<Monitor>> = repo.monitors
     val maintenances: StateFlow<List<MaintenanceDraft>> = repo.maintenances
     val state: StateFlow<ConnectionState> = repo.state
+    val kumaCompatibility = repo.compatibility
     val connectionFailure: StateFlow<ConnectionFailureReason?> =
         combine(repo.connectionFailure, repo.state) { reason, connectionState ->
             when {
@@ -228,10 +329,22 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
     private val _savedViews = MutableStateFlow<List<SavedMonitorView>>(emptyList())
     val savedViews: StateFlow<List<SavedMonitorView>> = _savedViews.asStateFlow()
+    val monitorPresets: StateFlow<List<MonitorPreset>> =
+        monitorPresetStore.presets.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _monitorFilterRequest = MutableStateFlow<MonitorViewFilter?>(null)
+    val monitorFilterRequest: StateFlow<MonitorViewFilter?> = _monitorFilterRequest.asStateFlow()
     val connections: StateFlow<List<ServerConnection>> =
         repo.connections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val activeUrl: StateFlow<String?> =
         repo.activeUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val activeConnection: StateFlow<ServerConnection?> =
+        combine(repo.connections, repo.activeUrl) { connections, url ->
+            connections.firstOrNull { it.url == url } ?: connections.firstOrNull()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val _fleetHome = MutableStateFlow(FleetHomeUiState())
+    val fleetHome: StateFlow<FleetHomeUiState> = _fleetHome.asStateFlow()
+    private val _accessDenial = MutableStateFlow<AccessDecision.Denied?>(null)
+    val accessDenial: StateFlow<AccessDecision.Denied?> = _accessDenial.asStateFlow()
     val localEvents: StateFlow<List<LocalEvent>> =
         combine(eventLogStore.events, repo.activeUrl) { events, url ->
             events.filter { it.serverUrl == null || it.serverUrl == url }
@@ -265,18 +378,32 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private val _monitorEditor = MutableStateFlow<MonitorEditorUiState>(MonitorEditorUiState.Idle)
     val monitorEditor: StateFlow<MonitorEditorUiState> = _monitorEditor.asStateFlow()
+    private val _monitorImport = MutableStateFlow(MonitorImportUiState())
+    val monitorImport: StateFlow<MonitorImportUiState> = _monitorImport.asStateFlow()
     val localServiceDiscoveryState = localServiceDiscovery.state
 
     private val _beats = MutableStateFlow<List<Heartbeat>>(emptyList())
     val beats: StateFlow<List<Heartbeat>> = _beats.asStateFlow()
-    private val _beatRange = MutableStateFlow(HeartbeatRange.DAY)
-    val beatRange: StateFlow<HeartbeatRange> = _beatRange.asStateFlow()
+    private val _beatRange = MutableStateFlow<HeartbeatRange?>(HeartbeatRange.DAY)
+    val beatRange: StateFlow<HeartbeatRange?> = _beatRange.asStateFlow()
+    private val _customBeatRange = MutableStateFlow<HeartbeatHistoryRange?>(null)
+    val customBeatRange: StateFlow<HeartbeatHistoryRange?> = _customBeatRange.asStateFlow()
+    private val _monitorHistory = MutableStateFlow<MonitorHistoryUiState>(MonitorHistoryUiState.Idle)
+    val monitorHistory: StateFlow<MonitorHistoryUiState> = _monitorHistory.asStateFlow()
+    private var heartbeatHistoryJob: Job? = null
 
     val certs: StateFlow<Map<Int, CertInfo>> = repo.certs
     val beatHistory: StateFlow<Map<Int, List<Heartbeat>>> = repo.beatHistory
     val notifications: StateFlow<List<KumaNotification>> = repo.notifications
+    val dockerHosts: StateFlow<List<KumaDockerHost>> = repo.dockerHosts
+    val remoteBrowsers: StateFlow<List<KumaRemoteBrowser>> = repo.remoteBrowsers
     private val _serverTags = MutableStateFlow<List<KumaTag>>(emptyList())
     val serverTags: StateFlow<List<KumaTag>> = _serverTags.asStateFlow()
+    private val _gameTypes = MutableStateFlow<List<KumaGameType>>(emptyList())
+    val gameTypes: StateFlow<List<KumaGameType>> = _gameTypes.asStateFlow()
+    private val _pm2Processes = MutableStateFlow<List<KumaPm2Process>>(emptyList())
+    val pm2Processes: StateFlow<List<KumaPm2Process>> = _pm2Processes.asStateFlow()
+    private var pm2ProcessJob: Job? = null
     private val _maintenanceEditor = MutableStateFlow<MaintenanceEditorUiState>(MaintenanceEditorUiState.Idle)
     val maintenanceEditor: StateFlow<MaintenanceEditorUiState> = _maintenanceEditor.asStateFlow()
 
@@ -302,12 +429,25 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     private val _kumaPushTestSending = MutableStateFlow(false)
     val kumaPushTestSending: StateFlow<Boolean> = _kumaPushTestSending.asStateFlow()
     private val pushAlertModeStore = PushAlertModeStore(app)
+    private val pushDependencyStore = PushDependencyStore(app)
+    private val pushGroupAlertStore = PushGroupAlertStore(app)
+    private val pushTransitionStore = PushTransitionStore(app)
     private val _pushAlertModes = MutableStateFlow<Map<Int, PushAlertMode>>(emptyMap())
     val pushAlertModes: StateFlow<Map<Int, PushAlertMode>> = _pushAlertModes.asStateFlow()
     private val _pushSeverities = MutableStateFlow<Map<Int, PushSeverity>>(emptyMap())
     val pushSeverities: StateFlow<Map<Int, PushSeverity>> = _pushSeverities.asStateFlow()
     private val _pushAlertTimings = MutableStateFlow<Map<Int, PushAlertTiming>>(emptyMap())
     val pushAlertTimings: StateFlow<Map<Int, PushAlertTiming>> = _pushAlertTimings.asStateFlow()
+    private val _pushSnoozes = MutableStateFlow<Map<Int, Long>>(emptyMap())
+    val pushSnoozes: StateFlow<Map<Int, Long>> = _pushSnoozes.asStateFlow()
+    private val _pushStormCorrelationEnabled = MutableStateFlow(false)
+    val pushStormCorrelationEnabled: StateFlow<Boolean> = _pushStormCorrelationEnabled.asStateFlow()
+    private val _pushDependencyGraph = MutableStateFlow(PushDependencyGraph())
+    val pushDependencyGraph: StateFlow<PushDependencyGraph> = _pushDependencyGraph.asStateFlow()
+    private val _pushDependencyStatuses = MutableStateFlow<Map<Int, Int?>>(emptyMap())
+    val pushDependencyStatuses: StateFlow<Map<Int, Int?>> = _pushDependencyStatuses.asStateFlow()
+    private val _pushGroupAlertRules = MutableStateFlow(PushGroupAlertRules())
+    val pushGroupAlertRules: StateFlow<PushGroupAlertRules> = _pushGroupAlertRules.asStateFlow()
     private val pushQuietHoursStore = PushQuietHoursStore(app)
     private val _pushQuietHours = MutableStateFlow(pushQuietHoursStore.load())
     val pushQuietHours: StateFlow<PushQuietHours> = _pushQuietHours.asStateFlow()
@@ -318,13 +458,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     val overallStatusEnabled: StateFlow<Boolean> = _overallStatusEnabled.asStateFlow()
 
     // Which bottom-nav tab is selected.
-    private val _tab = MutableStateFlow(MainTab.MONITORS)
+    private val _tab = MutableStateFlow(MainTab.HOME)
     val tab: StateFlow<MainTab> = _tab.asStateFlow()
     private val _kioskMode = MutableStateFlow(false)
     val kioskMode: StateFlow<Boolean> = _kioskMode.asStateFlow()
-    private val _incidentOpenRequest = MutableStateFlow<Int?>(null)
-    val incidentOpenRequest: StateFlow<Int?> = _incidentOpenRequest.asStateFlow()
-
     private val releaseClient = ReleaseClient()
     private val _updateCheck = MutableStateFlow<UpdateCheckUiState>(UpdateCheckUiState.Idle)
     val updateCheck: StateFlow<UpdateCheckUiState> = _updateCheck.asStateFlow()
@@ -338,6 +475,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- App lock ---
     val lockEnabled: StateFlow<Boolean> = LockStore.enabled
+    val destructiveStepUpEnabled: StateFlow<Boolean> = LockStore.destructiveStepUpEnabled
     private val _locked = MutableStateFlow(false)
     val locked: StateFlow<Boolean> = _locked.asStateFlow()
 
@@ -375,7 +513,8 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 val now = System.currentTimeMillis()
                 if (ResponseAlertUtil.shouldAlert(beat.status.code, beat.ping, threshold, alertStore.lastAlerted()[key], now)) {
-                    val name = monitors.value.firstOrNull { it.id == beat.monitorId }?.name ?: "Monitor ${beat.monitorId}"
+                    val name = monitors.value.firstOrNull { it.id == beat.monitorId }?.name
+                        ?: getApplication<Application>().getString(R.string.monitor_fallback_name, beat.monitorId)
                     val ping = beat.ping ?: 0
                     if (ResponseAlertNotifier.notify(getApplication(), url, beat.monitorId, name, ping, threshold, key)) {
                         eventLogStore.append(
@@ -398,6 +537,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         // Keep hasSession true whenever we reach an authenticated state.
         viewModelScope.launch {
             state.collect { if (it == ConnectionState.Authenticated) _hasSession.value = true }
+        }
+        viewModelScope.launch {
+            repo.mutationDenials.collect { _accessDenial.value = it }
         }
         // Auto-reconnect to the last active server if we have a stored session.
         viewModelScope.launch {
@@ -442,13 +584,27 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
             _login.value = when (
-                val r = repo.addServerAndLogin(normalized, username, password, token, insecure, alias, headers)
+                val r = repo.addServerAndLogin(
+                    normalized,
+                    username,
+                    password,
+                    token,
+                    insecure,
+                    alias,
+                    headers,
+                    accessProfile,
+                    customCapabilities,
+                    cleartextPolicy,
+                )
             ) {
                 is LoginResult.Success -> {
                     OverallStatusService.refreshIfEnabled(getApplication())
@@ -467,13 +623,25 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
         onSuccess: () -> Unit = {},
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _login.value = LoginUiState.Loading
             _login.value = when (
-                val result = repo.addServerByToken(normalized, sessionToken.trim(), insecure, alias, headers)
+                val result = repo.addServerByToken(
+                    normalized,
+                    sessionToken.trim(),
+                    insecure,
+                    alias,
+                    headers,
+                    accessProfile,
+                    customCapabilities,
+                    cleartextPolicy,
+                )
             ) {
                 is LoginResult.Success -> {
                     OverallStatusService.refreshIfEnabled(getApplication())
@@ -491,6 +659,132 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         OverallStatusService.refreshIfEnabled(getApplication())
     }
 
+    fun refreshActiveServer() {
+        val connection = activeConnection.value ?: return
+        switchTo(connection)
+    }
+
+    suspend fun loadCachedFleet() {
+        if (_fleetHome.value.refreshing) return
+        _fleetHome.value = _fleetHome.value.copy(
+            loading = _fleetHome.value.snapshot == null,
+            failed = false,
+        )
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                fleetRepository.loadCached(contentUnlocked = !_locked.value)
+            }
+            _fleetHome.value = FleetHomeUiState(snapshot = withActiveFleet(snapshot))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _fleetHome.value = _fleetHome.value.copy(failed = true)
+        } finally {
+            _fleetHome.value = _fleetHome.value.copy(loading = false)
+        }
+    }
+
+    suspend fun refreshFleet() {
+        if (_fleetHome.value.refreshing) return
+        _fleetHome.value = _fleetHome.value.copy(
+            loading = _fleetHome.value.snapshot == null,
+            refreshing = true,
+            failed = false,
+        )
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                fleetRepository.refresh(contentUnlocked = !_locked.value)
+            }
+            _fleetHome.value = FleetHomeUiState(snapshot = withActiveFleet(snapshot))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _fleetHome.value = _fleetHome.value.copy(failed = true)
+        } finally {
+            _fleetHome.value = _fleetHome.value.copy(
+                loading = false,
+                refreshing = false,
+            )
+        }
+    }
+
+    suspend fun syncFleetHomeActiveServer() {
+        val snapshot = _fleetHome.value.snapshot ?: return
+        val live = state.value == ConnectionState.Authenticated && !showingCache.value
+        if (!live) {
+            if (snapshot.servers.any { it.source == FleetSnapshotSource.LIVE }) {
+                loadCachedFleet()
+            }
+            return
+        }
+        _fleetHome.value = _fleetHome.value.copy(snapshot = withActiveFleet(snapshot))
+    }
+
+    private fun withActiveFleet(snapshot: FleetSnapshot): FleetSnapshot {
+        if (snapshot.isLocked || state.value != ConnectionState.Authenticated || showingCache.value) {
+            return snapshot
+        }
+        val url = activeUrl.value ?: return snapshot
+        val now = System.currentTimeMillis()
+        return mergeActiveFleetSnapshot(
+            snapshot = snapshot,
+            activeUrl = url,
+            monitors = monitors.value,
+            capturedAtMillis = lastUpdated.value ?: now,
+            loadedAtMillis = now,
+            reportedVersion = kumaCompatibility.value.reportedVersion,
+        )
+    }
+
+    fun openFleetServerMonitors(serverUrl: String, attentionOnly: Boolean = false) {
+        viewModelScope.launch {
+            openServerMonitors(serverUrl, attentionOnly)
+        }
+    }
+
+    private suspend fun openServerMonitors(serverUrl: String, attentionOnly: Boolean) {
+        if (!activateFleetServer(serverUrl)) return
+        _selectedId.value = null
+        _beats.value = emptyList()
+        _monitorFilterRequest.value = if (attentionOnly) {
+            MonitorViewFilter(
+                statuses = setOf(
+                    MonitorStatus.DOWN,
+                    MonitorStatus.PENDING,
+                    MonitorStatus.MAINTENANCE,
+                ),
+                activity = ActivityFilter.ACTIVE,
+            )
+        } else {
+            null
+        }
+        _tab.value = MainTab.MONITORS
+    }
+
+    fun openFleetServerIncidents(serverUrl: String) {
+        viewModelScope.launch {
+            if (!activateFleetServer(serverUrl)) return@launch
+            _selectedId.value = null
+            _beats.value = emptyList()
+            _tab.value = MainTab.INCIDENTS
+        }
+    }
+
+    private suspend fun activateFleetServer(serverUrl: String): Boolean {
+        val connection = store.snapshot().firstOrNull { it.url == serverUrl } ?: return false
+        return try {
+            if (repo.activeUrl.first() != serverUrl) {
+                repo.switchTo(connection)
+                OverallStatusService.refreshIfEnabled(getApplication())
+            }
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun testConnection(
         url: String,
         username: String,
@@ -498,12 +792,21 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         token: String = "",
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _connectionTest.value = ConnectionTestUiState.Loading
             _connectionTest.value = when (
-                val result = repo.testServer(normalized, username, password, token, insecure, headers)
+                val result = repo.testServer(
+                    normalized,
+                    username,
+                    password,
+                    token,
+                    insecure,
+                    headers,
+                    cleartextPolicy,
+                )
             ) {
                 is LoginResult.Success -> ConnectionTestUiState.Success
                 LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
@@ -517,12 +820,19 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         sessionToken: String,
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ) {
         val normalized = normalizeUrl(url)
         viewModelScope.launch {
             _connectionTest.value = ConnectionTestUiState.Loading
             _connectionTest.value = when (
-                val result = repo.testServerToken(normalized, sessionToken.trim(), insecure, headers)
+                val result = repo.testServerToken(
+                    normalized,
+                    sessionToken.trim(),
+                    insecure,
+                    headers,
+                    cleartextPolicy,
+                )
             ) {
                 is LoginResult.Success -> ConnectionTestUiState.Success
                 LoginResult.TwoFactorRequired -> ConnectionTestUiState.NeedsTwoFactor
@@ -534,9 +844,46 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun renameConnection(url: String, alias: String?) =
         viewModelScope.launch { repo.renameServer(url, alias) }
 
+    fun updateConnectionAccess(
+        url: String,
+        profile: AccessProfile,
+        customCapabilities: Set<AccessCapability>,
+    ) = viewModelScope.launch {
+        repo.updateServerAccess(url, profile, customCapabilities)
+        val stateRestricted = AccessPolicy.evaluate(
+            profile = profile,
+            customCapabilities = customCapabilities,
+            required = setOf(AccessCapability.MONITOR_STATE),
+        ) is AccessDecision.Denied
+        if (stateRestricted && store.activeUrl.first() == url) {
+            clearWearPairingBestEffort()
+        }
+    }
+
+    fun dismissAccessDenial() {
+        _accessDenial.value = null
+    }
+
+    fun updateConnectionCleartextPolicy(url: String, policy: CleartextPolicy) =
+        viewModelScope.launch {
+            val wasActive = store.activeUrl.first() == url
+            repo.updateServerCleartextPolicy(url, policy)
+            if (wasActive && policy == CleartextPolicy.DENY) clearWearPairingBestEffort()
+        }
+
     fun removeConnection(url: String) {
         viewModelScope.launch {
+            if (store.activeUrl.first() == url) clearWearPairingBestEffort()
             val fallback = repo.removeServer(url)
+            withContext(Dispatchers.IO) {
+                managedPushScopeStore.removeServer(url).forEach { scope ->
+                    scope.monitors.forEach { PushAlertWorker.cancel(getApplication(), scope.serverId, it.id) }
+                    pushAlertModeStore.clearServer(scope.serverId)
+                    pushDependencyStore.clearServer(scope.serverId)
+                    pushGroupAlertStore.clearServer(scope.serverId)
+                    pushTransitionStore.clearServer(scope.serverId)
+                }
+            }
             OverallStatusService.refreshIfEnabled(getApplication())
             _hasSession.value = fallback?.jwt != null
             if (fallback == null) {
@@ -568,20 +915,230 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         onResult(result)
     }
 
-    fun createMonitor() {
+    fun previewBulkMonitorEdit(
+        ids: Set<Int>,
+        edit: BulkMonitorEdit,
+        onResult: (BulkMonitorEditPreview) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.previewBulkEdit(ids, edit))
+    }
+
+    fun applyBulkMonitorEdit(
+        preview: BulkMonitorEditPreview,
+        onResult: (BulkMonitorEditResult) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.applyBulkEdit(preview))
+    }
+
+    fun createMonitor(parentId: Int? = null) {
         _monitorEditor.value = MonitorEditorUiState.Loading
         viewModelScope.launch {
-            _serverTags.value = repo.serverTags().orEmpty()
-            _monitorEditor.value = MonitorEditorUiState.Ready(repo.newMonitorDraft())
+            val tags = async { repo.serverTags().orEmpty() }
+            val games = async { repo.gameTypes().orEmpty() }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = MonitorEditorUiState.Ready(repo.newMonitorDraft().copy(parentId = parentId))
+            _gameTypes.value = games.await()
         }
+    }
+
+    fun createMonitorGroup(
+        name: String,
+        childIds: Set<Int>,
+        onResult: (MonitorGroupMutationResult) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.createMonitorGroup(name, childIds))
+    }
+
+    fun retryMonitorGroupAssignments(
+        groupId: Int,
+        childIds: Set<Int>,
+        onResult: (MonitorGroupMutationResult) -> Unit,
+    ) = viewModelScope.launch {
+        onResult(repo.assignMonitorsToGroup(groupId, childIds))
     }
 
     fun editMonitor(id: Int) {
         _monitorEditor.value = MonitorEditorUiState.Loading
         viewModelScope.launch {
-            _serverTags.value = repo.serverTags().orEmpty()
-            _monitorEditor.value = repo.monitorDraft(id)?.let(MonitorEditorUiState::Ready)
-                ?: MonitorEditorUiState.Error(null, "Monitor details are unavailable")
+            val tags = async { repo.serverTags().orEmpty() }
+            val draft = repo.monitorDraft(id)
+            val games = draft?.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
+                ?: MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_load_failed),
+                )
+            _gameTypes.value = games?.await().orEmpty()
+            if (draft?.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun cloneMonitor(id: Int) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val tags = async { repo.serverTags().orEmpty() }
+            val source = repo.monitorDraft(id)
+            val draft = source?.let {
+                MonitorDraftTransfer.clone(
+                    it,
+                    getApplication<Application>().getString(dev.astoris.ursa.R.string.monitor_clone_name, it.name),
+                )
+            }
+            val games = draft?.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
+                ?: MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_load_failed),
+                )
+            _gameTypes.value = games?.await().orEmpty()
+            if (draft?.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun copyMonitorToServer(id: Int, destination: ServerConnection) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val sourceConnection = activeConnection.value
+            val allowed = AccessPolicy.evaluate(
+                destination,
+                AccessCapability.MONITOR_CREATE,
+            ) is AccessDecision.Allowed
+            if (sourceConnection == null || sourceConnection.url == destination.url || !allowed) {
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_failed),
+                )
+                return@launch
+            }
+
+            val sourceNotifications = async { repo.notificationSnapshot() }
+            val source = repo.monitorDraft(id)
+            val notificationRows = sourceNotifications.await()
+            if (source == null || notificationRows == null) {
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_failed),
+                )
+                return@launch
+            }
+
+            if (!repo.switchTo(destination)) {
+                repo.switchTo(sourceConnection)
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_destination_failed),
+                )
+                return@launch
+            }
+
+            val destinationNotifications = async { repo.notificationSnapshot() }
+            val destinationTags = async { repo.serverTags() }
+            val compatibility = withTimeoutOrNull(5_000L) {
+                repo.compatibility.first { it.tier != KumaCompatibilityTier.AWAITING_VERSION }
+            } ?: repo.compatibility.value
+            val notifications = destinationNotifications.await()
+            val tags = destinationTags.await()
+            if (notifications == null || tags == null) {
+                repo.switchTo(sourceConnection)
+                _monitorEditor.value = MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_metadata_failed),
+                )
+                return@launch
+            }
+
+            val draft = MonitorDraftTransfer.portable(source, notificationRows, notifications, tags)
+            val games = draft.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _selectedId.value = null
+            _beats.value = emptyList()
+            _serverTags.value = tags
+            _gameTypes.value = games?.await().orEmpty()
+            _monitorEditor.value = if (MonitorEditorRegistry.createVerified(draft.type, compatibility)) {
+                MonitorEditorUiState.Ready(draft)
+            } else {
+                MonitorEditorUiState.Error(
+                    draft,
+                    getApplication<Application>().getString(R.string.monitor_portable_copy_unsupported),
+                )
+            }
+            if (draft.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun createMonitorFromPreset(id: String) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val preset = monitorPresetStore.presets.first().firstOrNull { it.id == id }
+            val draft = preset?.let(MonitorPresetCodec::draft)
+            val tags = async { repo.serverTags().orEmpty() }
+            val games = draft?.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = draft?.let(MonitorEditorUiState::Ready)
+                ?: MonitorEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.monitor_preset_unavailable),
+                )
+            _gameTypes.value = games?.await().orEmpty()
+            if (draft?.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun reviewImportedMonitor(draft: MonitorDraft) {
+        _monitorEditor.value = MonitorEditorUiState.Loading
+        viewModelScope.launch {
+            val tags = async { repo.serverTags().orEmpty() }
+            val games = draft.takeIf { it.type == "gamedig" }?.let {
+                async { repo.gameTypes().orEmpty() }
+            }
+            _serverTags.value = tags.await()
+            _monitorEditor.value = MonitorEditorUiState.Ready(draft)
+            _gameTypes.value = games?.await().orEmpty()
+            if (draft.type == "pm2") refreshPm2Processes()
+        }
+    }
+
+    fun importMonitors(
+        rows: List<MonitorImportRow>,
+        onResult: (MonitorImportApplyResult) -> Unit,
+    ) = viewModelScope.launch {
+        val result = repo.importMonitors(rows)
+        _monitorImport.value = _monitorImport.value.copy(result = result)
+        onResult(result)
+    }
+
+    fun setMonitorImportPreview(preview: MonitorImportPreview?) {
+        _monitorImport.value = MonitorImportUiState(preview = preview)
+    }
+
+    fun clearMonitorImport() {
+        _monitorImport.value = MonitorImportUiState()
+    }
+
+    fun saveMonitorPreset(draft: MonitorDraft, title: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            onResult(monitorPresetStore.save(UUID.randomUUID().toString(), title, draft))
+        }
+    }
+
+    fun deleteMonitorPreset(id: String) {
+        viewModelScope.launch { monitorPresetStore.remove(id) }
+    }
+
+    fun refreshPm2Processes() {
+        pm2ProcessJob?.cancel()
+        _pm2Processes.value = emptyList()
+        pm2ProcessJob = viewModelScope.launch {
+            _pm2Processes.value = repo.pm2Processes().orEmpty()
         }
     }
 
@@ -592,7 +1149,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _monitorEditor.value = if (result.ok) {
                 MonitorEditorUiState.Idle
             } else {
-                MonitorEditorUiState.Error(draft, result.message ?: "Save failed")
+                MonitorEditorUiState.Error(
+                    draft,
+                    result.message ?: getApplication<Application>().getString(R.string.save_failed),
+                )
             }
         }
     }
@@ -601,6 +1161,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         localServiceDiscovery.stop()
         _monitorEditor.value = MonitorEditorUiState.Idle
         _serverTags.value = emptyList()
+        _gameTypes.value = emptyList()
+        pm2ProcessJob?.cancel()
+        pm2ProcessJob = null
+        _pm2Processes.value = emptyList()
     }
 
     fun discoverLocalService(protocol: LocalServiceProtocol) = localServiceDiscovery.start(protocol)
@@ -626,7 +1190,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _maintenanceEditor.value = MaintenanceEditorUiState.Loading
         viewModelScope.launch {
             _maintenanceEditor.value = repo.maintenanceDraft(id)?.let(MaintenanceEditorUiState::Ready)
-                ?: MaintenanceEditorUiState.Error(null, "Maintenance details are unavailable")
+                ?: MaintenanceEditorUiState.Error(
+                    null,
+                    getApplication<Application>().getString(R.string.maintenance_details_unavailable),
+                )
         }
     }
 
@@ -635,7 +1202,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val result = repo.saveMaintenance(draft)
             _maintenanceEditor.value = if (result.ok) MaintenanceEditorUiState.Idle
-            else MaintenanceEditorUiState.Error(draft, result.message ?: "Save failed")
+            else MaintenanceEditorUiState.Error(
+                draft,
+                result.message ?: getApplication<Application>().getString(R.string.save_failed),
+            )
         }
     }
 
@@ -708,8 +1278,17 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             AppRoute.Settings -> enterSettings()
             is AppRoute.StatusPage -> openStatusPageDeepLink(route.pageId)
             is AppRoute.Connection -> openScopedConnection(route.serverScope)
+            is AppRoute.Attention -> openAttentionDeepLink(route.serverScope)
             is AppRoute.Monitor -> openMonitorDeepLink(route.serverScope, route.monitorId)
             is AppRoute.Incident -> openIncidentDeepLink(route.serverScope, route.monitorId)
+        }
+    }
+
+    private fun openAttentionDeepLink(serverScope: String) {
+        viewModelScope.launch {
+            startupReady.first { it }
+            val connection = connectionForScope(serverScope) ?: return@launch
+            openServerMonitors(connection.url, attentionOnly = true)
         }
     }
 
@@ -749,15 +1328,12 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             if (!known) return@launch
             _selectedId.value = null
             _statusPageMode.value = false
-            _tab.value = MainTab.MONITORS
-            _incidentOpenRequest.value = monitorId
+            _tab.value = MainTab.INCIDENTS
         }
     }
 
     private suspend fun connectionForScope(scope: String): ServerConnection? =
         store.snapshot().firstOrNull { AppDeepLink.serverScope(it.url) == scope }
-
-    fun consumeIncidentOpenRequest() { _incidentOpenRequest.value = null }
 
     fun openStatusPageDeepLink(pageId: String) {
         if (pageId.isBlank() || pageId.length > 100) return
@@ -775,6 +1351,13 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         refetchBeats()
     }
 
+    fun setCustomBeatRange(range: HeartbeatHistoryRange) {
+        if (range.validationError(System.currentTimeMillis()) != null) return
+        _customBeatRange.value = range
+        _beatRange.value = null
+        refetchBeats()
+    }
+
     /** On-demand 30-day server aggregates for the fleet summary; never polled in the background. */
     suspend fun fleetChartData(monitorIds: List<Int>): Map<Int, List<MonitorChartPoint>?> =
         repo.chartData(monitorIds, FLEET_SUMMARY_HOURS)
@@ -783,22 +1366,47 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun refetchBeats() {
         val id = _selectedId.value ?: return
-        viewModelScope.launch { _beats.value = repo.beats(id, _beatRange.value.hours) }
+        heartbeatHistoryJob?.cancel()
+        heartbeatHistoryJob = viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val range = _beatRange.value?.let { HeartbeatHistoryRange.recent(it.hours, now) }
+                ?: _customBeatRange.value
+                ?: HeartbeatHistoryRange.recent(HeartbeatRange.DAY.hours, now)
+            if (range.validationError(now) != null) {
+                _beats.value = emptyList()
+                _monitorHistory.value = MonitorHistoryUiState.Error
+                return@launch
+            }
+            _monitorHistory.value = MonitorHistoryUiState.Loading
+            val rows = repo.heartbeatHistory(id, range.requiredLookbackHours(now))
+            if (rows == null) {
+                _beats.value = emptyList()
+                _monitorHistory.value = MonitorHistoryUiState.Error
+                return@launch
+            }
+            val result = filterHeartbeatHistory(rows, range)
+            _beats.value = result.beats
+            _monitorHistory.value = MonitorHistoryUiState.Ready(result)
+        }
     }
 
     fun back() {
+        heartbeatHistoryJob?.cancel()
         _selectedId.value = null
         _beats.value = emptyList()
+        _monitorHistory.value = MonitorHistoryUiState.Idle
     }
 
     fun resetLogin() { _login.value = LoginUiState.Idle }
 
     fun logout() {
+        heartbeatHistoryJob?.cancel()
         repo.disconnect()
         _hasSession.value = false
         _kioskMode.value = false
         _selectedId.value = null
         _beats.value = emptyList()
+        _monitorHistory.value = MonitorHistoryUiState.Idle
         _login.value = LoginUiState.Idle
     }
 
@@ -809,6 +1417,21 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             refreshKumaPushSetup()
         }
         _tab.value = t
+    }
+
+    fun openMonitors(filter: MonitorViewFilter? = null) {
+        _monitorFilterRequest.value = filter
+        _tab.value = MainTab.MONITORS
+    }
+
+    fun consumeMonitorFilterRequest() {
+        _monitorFilterRequest.value = null
+    }
+
+    fun openMonitor(monitorId: Int) {
+        if (monitors.value.none { it.id == monitorId }) return
+        _tab.value = MainTab.MONITORS
+        select(monitorId)
     }
     // Deep-link entry points (app shortcuts) map onto tabs.
     fun enterPush() = selectTab(MainTab.NOTIFICATIONS)
@@ -899,7 +1522,7 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun importConnectionBackup(
+    fun prepareConnectionBackupImport(
         document: String,
         password: String,
         onResult: (ConnectionBackupResult) -> Unit,
@@ -917,24 +1540,58 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 is BackupDecodeResult.Error -> onResult(ConnectionBackupResult.Error(decoded.reason))
                 is BackupDecodeResult.Success -> {
                     val data = decoded.data
-                    store.mergeImported(data.connections)
-                    if (!_hasSession.value) {
-                        data.connections.firstOrNull { it.jwt != null }?.let { connection ->
-                            repo.switchTo(connection)
-                            _hasSession.value = true
-                        }
-                    }
-                    DynamicColorStore.setEnabled(getApplication(), data.preferences.dynamicColor)
-                    alertStore.setEnabled(data.preferences.slowAlertsEnabled)
-                    alertStore.setGlobalThresholdMs(data.preferences.slowAlertThresholdMs)
-                    alertStore.mergePerMonitorThresholds(data.preferences.perMonitorThresholds)
-                    data.preferences.favoritesByServer.forEach { (url, ids) ->
-                        monitorPreferenceStore.mergeFavorites(url, ids)
-                    }
-                    _slowAlertEnabled.value = data.preferences.slowAlertsEnabled
-                    _slowThresholdMs.value = data.preferences.slowAlertThresholdMs
-                    onResult(ConnectionBackupResult.Imported(data.connections.size))
+                    val existing = store.snapshot()
+                    val existingUrls = existing.mapTo(mutableSetOf()) { it.url }
+                    val importedUrls = data.connections.mapTo(mutableSetOf()) { it.url }
+                    val updatedCount = data.connections.count { it.url in existingUrls }
+                    onResult(
+                        ConnectionBackupResult.Preview(
+                            ConnectionBackupPreview(
+                                data = data,
+                                addedCount = data.connections.size - updatedCount,
+                                updatedCount = updatedCount,
+                                preservedRestrictionCount = existing.count { connection ->
+                                    connection.url in importedUrls &&
+                                        connection.accessProfile != AccessProfile.MANAGE
+                                },
+                            ),
+                        ),
+                    )
                 }
+            }
+        }
+    }
+
+    fun applyConnectionBackupImport(
+        preview: ConnectionBackupPreview,
+        restoreAccessProfiles: Boolean,
+        onResult: (ConnectionBackupResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val data = preview.data
+            try {
+                store.mergeImported(
+                    imported = data.connections,
+                    restoreAccessProfiles = restoreAccessProfiles,
+                )
+                if (!_hasSession.value) {
+                    data.connections.firstOrNull { it.jwt != null }?.let { connection ->
+                        repo.switchTo(connection)
+                        _hasSession.value = true
+                    }
+                }
+                DynamicColorStore.setEnabled(getApplication(), data.preferences.dynamicColor)
+                alertStore.setEnabled(data.preferences.slowAlertsEnabled)
+                alertStore.setGlobalThresholdMs(data.preferences.slowAlertThresholdMs)
+                alertStore.mergePerMonitorThresholds(data.preferences.perMonitorThresholds)
+                data.preferences.favoritesByServer.forEach { (url, ids) ->
+                    monitorPreferenceStore.mergeFavorites(url, ids)
+                }
+                _slowAlertEnabled.value = data.preferences.slowAlertsEnabled
+                _slowThresholdMs.value = data.preferences.slowAlertThresholdMs
+                onResult(ConnectionBackupResult.Imported(data.connections.size))
+            } catch (_: Exception) {
+                onResult(ConnectionBackupResult.Error(BackupError.INVALID_CONTENT))
             }
         }
     }
@@ -956,12 +1613,19 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun unregisterPush() {
         val app = getApplication<Application>()
+        PushStore.expectUnregister(app)
+        UrsaPushService.cancelPathIssue(app)
         UnifiedPush.unregister(app)
         UnifiedPush.removeDistributor(app)
         PushStore.clear(app)
         _kumaPushSetup.value = KumaPushSetupUiState.Idle
         _pushAlertModes.value = emptyMap()
         _pushSeverities.value = emptyMap()
+        _pushAlertTimings.value = emptyMap()
+        _pushSnoozes.value = emptyMap()
+        _pushDependencyGraph.value = PushDependencyGraph()
+        _pushDependencyStatuses.value = emptyMap()
+        _pushGroupAlertRules.value = PushGroupAlertRules()
     }
 
     fun testLocalPushNotification() {
@@ -998,6 +1662,11 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushAlertModes.value = emptyMap()
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
+            _pushSnoozes.value = emptyMap()
+            _pushStormCorrelationEnabled.value = false
+            _pushDependencyGraph.value = PushDependencyGraph()
+            _pushDependencyStatuses.value = emptyMap()
+            _pushGroupAlertRules.value = PushGroupAlertRules()
             return
         }
         val deliveryUrl = KumaWebhook.deliveryUrl(endpoint, pushDistributor.value) ?: run {
@@ -1005,33 +1674,53 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             _pushAlertModes.value = emptyMap()
             _pushSeverities.value = emptyMap()
             _pushAlertTimings.value = emptyMap()
+            _pushSnoozes.value = emptyMap()
+            _pushStormCorrelationEnabled.value = false
+            _pushDependencyGraph.value = PushDependencyGraph()
+            _pushDependencyStatuses.value = emptyMap()
+            _pushGroupAlertRules.value = PushGroupAlertRules()
             return
         }
         viewModelScope.launch {
             _kumaPushSetup.value = KumaPushSetupUiState.Loading
-            val ids = monitors.value.map(Monitor::id)
+            val monitorRows = monitors.value
+            val ids = monitorRows.map(Monitor::id)
             val snapshot = repo.managedPushAssignments(ids) ?: run {
                 _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SERVER_UNAVAILABLE)
                 _pushAlertModes.value = emptyMap()
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
+                _pushSnoozes.value = emptyMap()
+                _pushStormCorrelationEnabled.value = false
+                _pushDependencyGraph.value = PushDependencyGraph()
+                _pushDependencyStatuses.value = emptyMap()
+                _pushGroupAlertRules.value = PushGroupAlertRules()
                 return@launch
             }
             val notification = snapshot.notification
             val serverId = notification?.serverId
+            val providerCurrent = notification?.webhookUrl == deliveryUrl &&
+                notification.schemaVersion == ManagedPushNotification.CURRENT_SCHEMA &&
+                ManagedPushNotification.isValidServerId(serverId) &&
+                snapshot.duplicateCount == 0
+            val scopeCurrent = providerCurrent && serverId != null && bindManagedPushScope(serverId, monitorRows)
+            val selectedIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = notification?.id,
                 serverId = serverId,
-                configurationCurrent = notification?.webhookUrl == deliveryUrl &&
-                    notification.schemaVersion == ManagedPushNotification.CURRENT_SCHEMA &&
-                    ManagedPushNotification.isValidServerId(serverId),
+                configurationCurrent = scopeCurrent,
                 isDefault = notification?.isDefault ?: true,
-                selectedMonitorIds = if (notification == null) ids.toSet() else snapshot.selectedMonitorIds,
+                selectedMonitorIds = selectedIds,
                 unavailableMonitorIds = snapshot.unavailableMonitorIds,
+                duplicateCount = snapshot.duplicateCount,
             )
             _pushAlertModes.value = pushAlertModeStore.modes(serverId, ids)
             _pushSeverities.value = pushAlertModeStore.severities(serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(serverId, ids)
+            _pushSnoozes.value = pushAlertModeStore.snoozes(serverId, ids)
+            _pushStormCorrelationEnabled.value = pushAlertModeStore.stormCorrelationEnabled(serverId)
+            loadPushDependencies(serverId, selectedIds)
+            loadPushGroupAlerts(serverId, selectedIds)
         }
     }
 
@@ -1044,27 +1733,99 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             _kumaPushSetup.value = KumaPushSetupUiState.Loading
-            val ids = monitors.value.map(Monitor::id)
+            val monitorRows = monitors.value
+            val ids = monitorRows.map(Monitor::id)
             val result = repo.saveManagedPushSetup(deliveryUrl, isDefault, selectedMonitorIds, ids)
             if (result == null) {
                 _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SAVE_FAILED)
                 return@launch
             }
+            if (!bindManagedPushScope(result.serverId, monitorRows)) {
+                _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.SCOPE_SAVE_FAILED)
+                return@launch
+            }
             val snapshot = repo.managedPushAssignments(ids)
             val unavailable = result.failedMonitorIds + snapshot?.unavailableMonitorIds.orEmpty()
+            val effectiveSelectedIds = snapshot?.selectedMonitorIds ?: (selectedMonitorIds - result.failedMonitorIds)
+            val duplicateCount = snapshot?.duplicateCount ?: 0
             _kumaPushSetup.value = KumaPushSetupUiState.Ready(
                 notificationId = result.notificationId,
                 serverId = result.serverId,
-                configurationCurrent = true,
+                configurationCurrent = duplicateCount == 0,
                 isDefault = isDefault,
-                selectedMonitorIds = snapshot?.selectedMonitorIds ?: (selectedMonitorIds - result.failedMonitorIds),
+                selectedMonitorIds = effectiveSelectedIds,
                 unavailableMonitorIds = unavailable,
+                duplicateCount = duplicateCount,
                 recentlySaved = true,
             )
             _pushAlertModes.value = pushAlertModeStore.modes(result.serverId, ids)
             _pushSeverities.value = pushAlertModeStore.severities(result.serverId, ids)
             _pushAlertTimings.value = pushAlertModeStore.timings(result.serverId, ids)
+            _pushSnoozes.value = pushAlertModeStore.snoozes(result.serverId, ids)
+            _pushStormCorrelationEnabled.value = pushAlertModeStore.stormCorrelationEnabled(result.serverId)
+            loadPushDependencies(result.serverId, effectiveSelectedIds)
+            loadPushGroupAlerts(result.serverId, effectiveSelectedIds)
         }
+    }
+
+    private fun loadPushDependencies(serverId: String?, validIds: Set<Int>) {
+        val loaded = pushDependencyStore.load(serverId)
+        val retained = loaded.parentsByMonitor.mapNotNull { (monitorId, parents) ->
+            if (monitorId !in validIds) null else monitorId to parents.filterTo(sortedSetOf()) { it in validIds }
+        }.toMap()
+        val safeGraph = PushDependencyPolicy.validated(retained, validIds) ?: PushDependencyGraph()
+        if (serverId != null && safeGraph != loaded) pushDependencyStore.save(serverId, safeGraph, validIds)
+        _pushDependencyGraph.value = safeGraph
+        _pushDependencyStatuses.value = pushTransitionStore.statuses(serverId, validIds)
+    }
+
+    private fun loadPushGroupAlerts(serverId: String?, validIds: Set<Int>) {
+        val loaded = pushGroupAlertStore.load(serverId)
+        val safe = PushGroupAlertPolicy.reconciled(loaded, managedGroupMembers(validIds))
+        if (serverId != null && safe != loaded) pushGroupAlertStore.save(serverId, safe)
+        _pushGroupAlertRules.value = safe
+    }
+
+    private fun managedGroupMembers(validIds: Set<Int>): Map<Int, Set<Int>> {
+        val groupIds = monitors.value.filter { it.type == "group" }.mapTo(mutableSetOf(), Monitor::id)
+        return monitors.value.asSequence()
+            .filter { it.id in validIds && it.type != "group" && it.parentId?.let(groupIds::contains) == true }
+            .groupBy { requireNotNull(it.parentId) }
+            .mapValues { (_, children) -> children.mapTo(sortedSetOf(), Monitor::id) }
+    }
+
+    fun refreshPushDependencyStatuses() {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return
+        val serverId = setup.serverId ?: return
+        _pushDependencyStatuses.value = pushTransitionStore.statuses(serverId, monitors.value.map(Monitor::id))
+    }
+
+    fun setPushDependencies(monitorId: Int, parentIds: Set<Int>): Boolean {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return false
+        if (!setup.configurationCurrent) return false
+        val serverId = setup.serverId ?: return false
+        val validIds = setup.selectedMonitorIds
+        val updated = PushDependencyPolicy.updated(_pushDependencyGraph.value, monitorId, parentIds, validIds)
+            ?: return false
+        if (!pushDependencyStore.save(serverId, updated, validIds)) return false
+        _pushDependencyGraph.value = updated
+        return true
+    }
+
+    fun setPushGroupAlert(groupId: Int, requiredDown: Int?): Boolean {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return false
+        if (!setup.configurationCurrent) return false
+        val serverId = setup.serverId ?: return false
+        val memberIds = managedGroupMembers(setup.selectedMonitorIds)[groupId].orEmpty()
+        val updated = PushGroupAlertPolicy.updated(
+            _pushGroupAlertRules.value,
+            groupId,
+            memberIds,
+            requiredDown,
+        ) ?: return false
+        if (!pushGroupAlertStore.save(serverId, updated)) return false
+        _pushGroupAlertRules.value = updated
+        return true
     }
 
     fun setPushAlertMode(monitorId: Int, mode: PushAlertMode) {
@@ -1076,6 +1837,17 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             PushAlertWorker.cancel(getApplication(), serverId, monitorId)
         }
         _pushAlertModes.value = _pushAlertModes.value + (monitorId to mode)
+    }
+
+    private suspend fun bindManagedPushScope(serverId: String, monitorRows: List<Monitor>): Boolean {
+        val connection = store.activeConnection() ?: return false
+        return withContext(Dispatchers.IO) {
+            if (managedPushScopeStore.bind(serverId, connection.url, monitorRows) == null) return@withContext false
+            if (PushStore.clearScopeIssue(getApplication(), serverId)) {
+                UrsaPushService.cancelScopeIssue(getApplication())
+            }
+            true
+        }
     }
 
     fun setPushSeverity(monitorId: Int, severity: PushSeverity) {
@@ -1093,6 +1865,15 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         val safeTiming = timing.normalized()
         if (!pushAlertModeStore.setTiming(serverId, monitorId, safeTiming)) return
         _pushAlertTimings.value = _pushAlertTimings.value + (monitorId to safeTiming)
+    }
+
+    fun setPushStormCorrelationEnabled(enabled: Boolean) {
+        val setup = _kumaPushSetup.value as? KumaPushSetupUiState.Ready ?: return
+        if (!setup.configurationCurrent) return
+        val serverId = setup.serverId ?: return
+        if (!pushAlertModeStore.setStormCorrelationEnabled(serverId, enabled)) return
+        _pushStormCorrelationEnabled.value = enabled
+        PushNotificationGroups.refresh(getApplication(), serverId)
     }
 
     fun setPushQuietHours(schedule: PushQuietHours) {
@@ -1122,10 +1903,18 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 pushAlertModeStore.clearServer(serverId)
-                PushTransitionStore(getApplication()).clearServer(serverId)
+                pushDependencyStore.clearServer(serverId)
+                pushGroupAlertStore.clearServer(serverId)
+                managedPushScopeStore.remove(serverId)
+                pushTransitionStore.clearServer(serverId)
                 _pushAlertModes.value = emptyMap()
                 _pushSeverities.value = emptyMap()
                 _pushAlertTimings.value = emptyMap()
+                _pushSnoozes.value = emptyMap()
+                _pushStormCorrelationEnabled.value = false
+                _pushDependencyGraph.value = PushDependencyGraph()
+                _pushDependencyStatuses.value = emptyMap()
+                _pushGroupAlertRules.value = PushGroupAlertRules()
                 refreshKumaPushSetup()
             }
             else _kumaPushSetup.value = KumaPushSetupUiState.Error(KumaPushSetupError.DELETE_FAILED)
@@ -1169,6 +1958,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun setCompactDisplayEnabled(enabled: Boolean) =
         DisplayPreferenceStore.setCompact(getApplication(), enabled)
 
+    val screenshotProtection = DisplayPreferenceStore.screenshotProtection
+    fun setScreenshotProtection(mode: ScreenshotProtectionMode) =
+        DisplayPreferenceStore.setScreenshotProtection(getApplication(), mode)
+
     fun checkForUpdates() {
         if (_updateCheck.value == UpdateCheckUiState.Loading) return
         viewModelScope.launch {
@@ -1192,6 +1985,23 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
     fun setLockEnabled(enabled: Boolean) {
         LockStore.setEnabled(getApplication(), enabled)
         if (!enabled) _locked.value = false
+        val app = getApplication<Application>()
+        val manager = AppWidgetManager.getInstance(app)
+        val ids = manager.getAppWidgetIds(ComponentName(app, MonitorWidgetReceiver::class.java))
+        if (enabled && ids.isNotEmpty()) {
+            manager.updateAppWidget(ids, RemoteViews(app.packageName, R.layout.widget_locked))
+        }
+        if (ids.isNotEmpty()) {
+            app.sendBroadcast(
+                Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                    .setComponent(ComponentName(app, MonitorWidgetReceiver::class.java))
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids),
+            )
+        }
+    }
+
+    fun setDestructiveStepUpEnabled(enabled: Boolean) {
+        LockStore.setDestructiveStepUpEnabled(getApplication(), enabled)
     }
 
     fun sendActiveSessionToWear() {
@@ -1208,6 +2018,10 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 _wearPairing.value = WearPairingUiState.Error(WearPairingError.SELF_SIGNED_UNSUPPORTED)
                 return@launch
             }
+            if (!ConnectionTransportPolicy.allows(connection)) {
+                _wearPairing.value = WearPairingUiState.Error(WearPairingError.CLEARTEXT_BLOCKED)
+                return@launch
+            }
             val transfer = WearSessionTransfer.from(connection)
             if (transfer == null) {
                 _wearPairing.value = WearPairingUiState.Error(WearPairingError.NO_ACTIVE_SESSION)
@@ -1222,11 +2036,38 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                 is WearSessionSendResult.Failure -> WearPairingUiState.Error(
                     when (result.reason) {
                         WearSessionSendError.NO_REACHABLE_WATCH -> WearPairingError.NO_REACHABLE_WATCH
+                        WearSessionSendError.WATCH_UPDATE_REQUIRED -> WearPairingError.WATCH_UPDATE_REQUIRED
                         WearSessionSendError.TRANSFER_FAILED -> WearPairingError.TRANSFER_FAILED
                     },
                 )
             }
         }
+    }
+
+    fun clearActiveSessionFromWear() {
+        if (!wearBridgeAvailable || _wearPairing.value == WearPairingUiState.Sending) return
+        viewModelScope.launch {
+            _wearPairing.value = WearPairingUiState.Sending
+            _wearPairing.value = when (
+                val result = withContext(Dispatchers.IO) {
+                    WearSessionBridge.clear(getApplication())
+                }
+            ) {
+                is WearSessionSendResult.Success -> WearPairingUiState.Cleared(result.watchCount)
+                is WearSessionSendResult.Failure -> WearPairingUiState.Error(
+                    when (result.reason) {
+                        WearSessionSendError.NO_REACHABLE_WATCH -> WearPairingError.NO_REACHABLE_WATCH
+                        WearSessionSendError.WATCH_UPDATE_REQUIRED -> WearPairingError.WATCH_UPDATE_REQUIRED
+                        WearSessionSendError.TRANSFER_FAILED -> WearPairingError.TRANSFER_FAILED
+                    },
+                )
+            }
+        }
+    }
+
+    private suspend fun clearWearPairingBestEffort() {
+        if (!wearBridgeAvailable) return
+        withContext(Dispatchers.IO) { WearSessionBridge.clear(getApplication()) }
     }
 
     fun clearWearPairingResult() {
@@ -1291,7 +2132,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                             )
                             StatusPageFormResult.Verified(view.title)
                         } catch (e: Exception) {
-                            StatusPageFormResult.NetworkError(e.message ?: "Request failed")
+                            StatusPageFormResult.NetworkError(
+                                e.message ?: getApplication<Application>().getString(R.string.statuspage_request_failed),
+                            )
                         },
                     )
                 }
@@ -1325,6 +2168,121 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
         _statusPage.value = StatusPageUiState.Idle
     }
 
+    fun savePublicIncident(
+        page: SavedStatusPage,
+        existing: StatusIncidentView?,
+        title: String,
+        content: String,
+        style: PublicIncidentStyle,
+        pinned: Boolean,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            val draft = PublicIncidentDraft(
+                target = target,
+                id = existing?.id,
+                title = title,
+                content = content,
+                style = style,
+                pinned = existing?.let { pinned } ?: true,
+            )
+            finishPublicIncidentMutation(
+                page,
+                if (existing == null) repo.createPublicIncident(draft) else repo.editPublicIncident(draft),
+                onResult,
+            )
+        }
+    }
+
+    fun setPublicIncidentPinned(
+        page: SavedStatusPage,
+        incident: StatusIncidentView,
+        pinned: Boolean,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            val result = repo.editPublicIncident(
+                incident.toPublicIncident(target).toDraft().copy(pinned = pinned),
+            )
+            finishPublicIncidentMutation(page, result, onResult)
+        }
+    }
+
+    fun resolvePublicIncident(
+        page: SavedStatusPage,
+        incident: StatusIncidentView,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            finishPublicIncidentMutation(
+                page,
+                repo.resolvePublicIncident(incident.toPublicIncident(target)),
+                onResult,
+            )
+        }
+    }
+
+    fun deletePublicIncident(
+        page: SavedStatusPage,
+        incident: StatusIncidentView,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target = publicIncidentTarget(page) ?: return@launch onResult(incidentPageUnavailable())
+            finishPublicIncidentMutation(
+                page,
+                repo.deletePublicIncident(incident.toPublicIncident(target)),
+                onResult,
+            )
+        }
+    }
+
+    private suspend fun publicIncidentTarget(page: SavedStatusPage): PublicIncidentTarget? {
+        val connection = store.activeConnection() ?: return null
+        if (normalizeUrl(connection.url) != page.url) return null
+        return PublicIncidentTarget(connection.url, page.id, page.slug)
+    }
+
+    private fun StatusIncidentView.toPublicIncident(target: PublicIncidentTarget) = PublicIncident(
+        target = target,
+        id = id,
+        title = title,
+        content = content,
+        style = PublicIncidentStyle.fromWire(style),
+        pinned = pinned,
+        active = active,
+        createdDate = createdDate,
+        lastUpdatedDate = lastUpdatedDate,
+    )
+
+    private fun PublicIncident.toStatusIncidentView() = StatusIncidentView(
+        id = id,
+        style = style.wireValue,
+        title = title,
+        content = content,
+        active = active,
+        pinned = pinned,
+        createdDate = createdDate,
+        lastUpdatedDate = lastUpdatedDate,
+    )
+
+    private fun finishPublicIncidentMutation(
+        page: SavedStatusPage,
+        result: IncidentMutationResult,
+        onResult: (IncidentMutationResult) -> Unit,
+    ) {
+        if (result.applied || result.outcome == IncidentMutationOutcome.INDETERMINATE) loadStatusPage(page)
+        onResult(result)
+    }
+
+    private fun incidentPageUnavailable() = IncidentMutationResult(
+        IncidentMutationOutcome.REJECTED,
+        message = getApplication<Application>().getString(R.string.statuspage_saved_server_required),
+    )
+
     private fun loadStatusPage(page: SavedStatusPage) {
         viewModelScope.launch {
             _statusPage.value = StatusPageUiState.Loading
@@ -1333,11 +2291,23 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
                     .firstOrNull { normalizeUrl(it.url) == page.url }
                     ?.headers
                     .orEmpty()
+                val publicView = statusClient.fetch(page.url, page.slug, page.insecure, headers)
+                val history = publicIncidentTarget(page)?.let { repo.publicIncidentHistory(it) }
                 StatusPageUiState.Loaded(
-                    statusClient.fetch(page.url, page.slug, page.insecure, headers),
+                    if (history == null) {
+                        publicView
+                    } else {
+                        publicView.copy(
+                            incidents = history.incidents.map { it.toStatusIncidentView() },
+                            incidentTotal = history.total,
+                            incidentHasMore = history.hasMore,
+                        )
+                    },
                 )
             } catch (e: Exception) {
-                StatusPageUiState.Error(e.message ?: "Failed to load status page")
+                StatusPageUiState.Error(
+                    e.message ?: getApplication<Application>().getString(R.string.statuspage_load_failed),
+                )
             }
         }
     }
@@ -1362,7 +2332,9 @@ class UrsaViewModel(app: Application) : AndroidViewModel(app) {
             statusClient.discover(parsed.baseUrl, insecure, headers)
         } catch (e: Exception) {
             return StatusPageResolution.Failure(
-                StatusPageFormResult.NetworkError(e.message ?: "Discovery failed"),
+                StatusPageFormResult.NetworkError(
+                    e.message ?: getApplication<Application>().getString(R.string.statuspage_discovery_failed),
+                ),
             )
         }
         return if (discovered == null) {

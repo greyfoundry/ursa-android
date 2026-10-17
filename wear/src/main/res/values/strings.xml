@@ -19,4 +19,93 @@
     <string name="action_confirm_resume">Resume %1$s?</string>
     <string name="action_confirm_desc">This changes the monitor on your Kuma server.</string>
     <string name="action_cancel">Cancel</string>
+
+    <string name="setup_intro">Add a published Kuma status page to begin.</string>
+    <string name="setup_action">Set up</string>
+    <string name="loading_status">Loading status…</string>
+    <string name="no_data">No data</string>
+    <string name="no_data_desc">Check the watch connection and published status-page URL.</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_back">Back</string>
+    <plurals name="showing_monitors">
+        <item quantity="one">Showing %1$d of %2$d monitor</item>
+        <item quantity="other">Showing %1$d of %2$d monitors</item>
+    </plurals>
+
+    <string name="monitor_title">Monitor</string>
+    <string name="monitor_loading">Loading details…</string>
+    <string name="monitor_unavailable">Monitor unavailable</string>
+    <string name="monitor_missing">This monitor is not on the configured public status page.</string>
+    <string name="monitor_group">Group · %1$s</string>
+    <string name="monitor_tags">Tags · %1$s</string>
+    <string name="monitor_private_actions">Private actions · paired phone session</string>
+    <string name="monitor_actions_unpaired">Pause/resume is off. Pair this watch from URSA Settings on your phone.</string>
+    <string name="monitor_actions_denied">Pause/resume is disabled by this server\'s phone access profile.</string>
+    <string name="monitor_contacting">Contacting Kuma…</string>
+
+    <string name="status_no_monitors">No monitors</string>
+    <plurals name="status_down_count">
+        <item quantity="one">%1$d down</item>
+        <item quantity="other">%1$d down</item>
+    </plurals>
+    <plurals name="status_pending_count">
+        <item quantity="one">%1$d pending</item>
+        <item quantity="other">%1$d pending</item>
+    </plurals>
+    <plurals name="status_maintenance_count">
+        <item quantity="one">%1$d maintenance</item>
+        <item quantity="other">%1$d maintenance</item>
+    </plurals>
+    <plurals name="status_unknown_count">
+        <item quantity="one">%1$d unknown</item>
+        <item quantity="other">%1$d unknown</item>
+    </plurals>
+    <plurals name="status_up_count">
+        <item quantity="one">%1$d up</item>
+        <item quantity="other">%1$d up</item>
+    </plurals>
+    <string name="status_maintenance">Maintenance</string>
+    <string name="status_all_clear">All clear</string>
+    <string name="status_up">Up</string>
+    <string name="status_down">Down</string>
+    <string name="status_pending">Pending</string>
+    <string name="status_unknown">Unknown</string>
+    <string name="metrics_ping">%1$d ms</string>
+    <string name="metrics_uptime">%1$.1f%%</string>
+    <string name="metrics_empty">No recent metrics</string>
+    <string name="source_public_page">Public page</string>
+    <string name="source_offline">Offline</string>
+    <string name="source_cached">Cached</string>
+    <string name="freshness_now">now</string>
+    <plurals name="freshness_minutes">
+        <item quantity="one">%1$d min ago</item>
+        <item quantity="other">%1$d min ago</item>
+    </plurals>
+    <plurals name="freshness_hours">
+        <item quantity="one">%1$d hr ago</item>
+        <item quantity="other">%1$d hr ago</item>
+    </plurals>
+    <plurals name="freshness_days">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
+    <string name="freshness_updated">Updated %1$s</string>
+    <string name="freshness_stale">Stale · updated %1$s</string>
+
+    <string name="tile_setup">Tap to set up</string>
+    <string name="complication_description">URSA status: %1$s. %2$s</string>
+    <string name="complication_preview_monitor">Example</string>
+    <string name="offline_summary">Offline · %1$s</string>
+
+    <string name="action_server_default">Kuma server</string>
+    <string name="action_not_configured">Private actions are not configured.</string>
+    <string name="action_not_allowed">This action is not allowed by the phone access profile.</string>
+    <string name="action_invalid_server">Invalid server address.</string>
+    <string name="action_session_rejected">Session token was rejected.</string>
+    <string name="action_updated">Monitor updated.</string>
+    <string name="action_failed">Monitor action failed.</string>
+    <string name="action_unreachable">Could not reach the server.</string>
+    <string name="action_timeout">Server did not respond in time.</string>
 </resources>

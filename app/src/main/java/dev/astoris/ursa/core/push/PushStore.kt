@@ -2,6 +2,7 @@ package dev.astoris.ursa.core.push
 
 import android.content.Context
 import androidx.core.content.edit
+import dev.astoris.ursa.data.model.ManagedPushNotification
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,11 +21,15 @@ data class PushDiagnostics(
     val lastMessageAtMs: Long? = null,
     val lastErrorAtMs: Long? = null,
     val lastError: PushRegistrationError? = null,
+    val lastUnexpectedUnregisterAtMs: Long? = null,
     val lastLocalTestAtMs: Long? = null,
     val lastLocalTestResult: PushLocalTestResult? = null,
     val deliveryTestRequestedAtMs: Long? = null,
     val deliveryTestReceivedAtMs: Long? = null,
     val deliveryTestRejectedAtMs: Long? = null,
+    val scopeIssue: ManagedPushScopeIssue? = null,
+    val scopeIssueAtMs: Long? = null,
+    val scopeIssueServerId: String? = null,
 )
 
 /**
@@ -45,12 +50,17 @@ object PushStore {
     private const val KEY_LAST_MESSAGE_AT = "last_message_at"
     private const val KEY_LAST_ERROR_AT = "last_error_at"
     private const val KEY_LAST_ERROR = "last_error"
+    private const val KEY_EXPECTED_UNREGISTER_AT = "expected_unregister_at"
+    private const val KEY_LAST_UNEXPECTED_UNREGISTER_AT = "last_unexpected_unregister_at"
     private const val KEY_LAST_LOCAL_TEST_AT = "last_local_test_at"
     private const val KEY_LAST_LOCAL_TEST_RESULT = "last_local_test_result"
     private const val KEY_DELIVERY_TEST_TOKEN = "delivery_test_token"
     private const val KEY_DELIVERY_TEST_REQUESTED_AT = "delivery_test_requested_at"
     private const val KEY_DELIVERY_TEST_RECEIVED_AT = "delivery_test_received_at"
     private const val KEY_DELIVERY_TEST_REJECTED_AT = "delivery_test_rejected_at"
+    private const val KEY_SCOPE_ISSUE = "scope_issue"
+    private const val KEY_SCOPE_ISSUE_AT = "scope_issue_at"
+    private const val KEY_SCOPE_ISSUE_SERVER_ID = "scope_issue_server_id"
 
     private val _endpoint = MutableStateFlow<String?>(null)
     val endpoint: StateFlow<String?> = _endpoint.asStateFlow()
@@ -77,6 +87,7 @@ object PushStore {
         p.edit {
             putString(KEY_ENDPOINT, url)
             putLong(KEY_LAST_REGISTRATION_AT, System.currentTimeMillis())
+            remove(KEY_EXPECTED_UNREGISTER_AT)
         }
         _endpoint.value = url
         _diagnostics.value = readDiagnostics(p)
@@ -143,14 +154,52 @@ object PushStore {
         _diagnostics.value = readDiagnostics(p)
     }
 
-    fun recordUnregistered(context: Context) {
+    fun recordScopeIssue(
+        context: Context,
+        issue: ManagedPushScopeIssue,
+        serverId: String,
+    ) {
+        if (!ManagedPushNotification.isValidServerId(serverId)) return
         val p = prefs(context)
         p.edit {
+            putString(KEY_SCOPE_ISSUE, issue.name)
+            putLong(KEY_SCOPE_ISSUE_AT, System.currentTimeMillis())
+            putString(KEY_SCOPE_ISSUE_SERVER_ID, serverId)
+        }
+        _diagnostics.value = readDiagnostics(p)
+    }
+
+    /** Clears only the issue repaired by the verified provider currently being viewed. */
+    fun clearScopeIssue(context: Context, serverId: String): Boolean {
+        val p = prefs(context)
+        if (p.getString(KEY_SCOPE_ISSUE_SERVER_ID, null) != serverId) return false
+        p.edit {
+            remove(KEY_SCOPE_ISSUE)
+            remove(KEY_SCOPE_ISSUE_AT)
+            remove(KEY_SCOPE_ISSUE_SERVER_ID)
+        }
+        _diagnostics.value = readDiagnostics(p)
+        return true
+    }
+
+    fun expectUnregister(context: Context) {
+        prefs(context).edit { putLong(KEY_EXPECTED_UNREGISTER_AT, System.currentTimeMillis()) }
+    }
+
+    /** Returns true when this callback follows the user's explicit disconnect action. */
+    fun recordUnregistered(context: Context): Boolean {
+        val p = prefs(context)
+        val now = System.currentTimeMillis()
+        val expected = PushUnregisterPolicy.isExpected(p.timestamp(KEY_EXPECTED_UNREGISTER_AT), now)
+        p.edit {
             remove(KEY_ENDPOINT)
+            remove(KEY_EXPECTED_UNREGISTER_AT)
+            if (!expected) putLong(KEY_LAST_UNEXPECTED_UNREGISTER_AT, now)
             clearDeliveryTest()
         }
         _endpoint.value = null
         _diagnostics.value = readDiagnostics(p)
+        return expected
     }
 
     /** Clear registration state on unregister while retaining privacy-safe history. */
@@ -185,6 +234,7 @@ object PushStore {
             lastError = prefs.getString(KEY_LAST_ERROR, null)?.let { value ->
                 runCatching { PushRegistrationError.valueOf(value) }.getOrNull()
             },
+            lastUnexpectedUnregisterAtMs = prefs.timestamp(KEY_LAST_UNEXPECTED_UNREGISTER_AT),
             lastLocalTestAtMs = prefs.timestamp(KEY_LAST_LOCAL_TEST_AT),
             lastLocalTestResult = prefs.getString(KEY_LAST_LOCAL_TEST_RESULT, null)?.let { value ->
                 runCatching { PushLocalTestResult.valueOf(value) }.getOrNull()
@@ -192,6 +242,11 @@ object PushStore {
             deliveryTestRequestedAtMs = prefs.timestamp(KEY_DELIVERY_TEST_REQUESTED_AT),
             deliveryTestReceivedAtMs = prefs.timestamp(KEY_DELIVERY_TEST_RECEIVED_AT),
             deliveryTestRejectedAtMs = prefs.timestamp(KEY_DELIVERY_TEST_REJECTED_AT),
+            scopeIssue = prefs.getString(KEY_SCOPE_ISSUE, null)?.let { value ->
+                runCatching { ManagedPushScopeIssue.valueOf(value) }.getOrNull()
+            },
+            scopeIssueAtMs = prefs.timestamp(KEY_SCOPE_ISSUE_AT),
+            scopeIssueServerId = prefs.getString(KEY_SCOPE_ISSUE_SERVER_ID, null),
         )
 
     private fun android.content.SharedPreferences.timestamp(key: String): Long? =

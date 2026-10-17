@@ -32,66 +32,89 @@ class WearMonitorDetailActivity : Activity() {
             renderMissing()
             return
         }
-        WearSnapshotMemory.latest?.monitors?.firstOrNull { it.id == monitorId }?.let(::render)
-            ?: renderLoading()
+        val cachedSnapshot = WearSnapshotMemory.latest
+        val cachedMonitor = cachedSnapshot?.monitors?.firstOrNull { it.id == monitorId }
+        if (cachedSnapshot != null && cachedMonitor != null) {
+            render(cachedMonitor, cachedSnapshot, cached = true)
+        } else {
+            renderLoading()
+        }
         val statusUrl = WearPrefs.statusUrl(this) ?: return renderMissing()
         val request = ++generation
         Thread {
             val snapshot = runBlocking { StatusPoll.fetchSnapshot(statusUrl) }
             runOnUiThread {
                 if (request != generation || isFinishing || isDestroyed) return@runOnUiThread
-                if (snapshot != null) WearSnapshotMemory.latest = snapshot
-                snapshot?.monitors?.firstOrNull { it.id == monitorId }?.let(::render)
-                    ?: renderMissing()
+                if (snapshot != null) {
+                    WearSnapshotMemory.latest = snapshot
+                    snapshot.monitors.firstOrNull { it.id == monitorId }
+                        ?.let { render(it, snapshot) }
+                        ?: renderMissing()
+                } else if (cachedSnapshot != null && cachedMonitor != null) {
+                    render(cachedMonitor, cachedSnapshot, cached = true, offline = true)
+                } else {
+                    renderMissing()
+                }
             }
         }.start()
     }
 
     private fun renderLoading() {
         val root = WearUi.root(this)
-        root.addView(WearUi.title(this, "Monitor"))
-        root.addView(WearUi.body(this, "Loading details…"))
+        root.addView(WearUi.title(this, getString(R.string.monitor_title)))
+        root.addView(WearUi.body(this, getString(R.string.monitor_loading)))
     }
 
     private fun renderMissing() {
         val root = WearUi.root(this)
-        root.addView(WearUi.title(this, "Monitor unavailable"))
-        root.addView(WearUi.body(this, "This monitor is not on the configured public status page."))
-        root.addView(WearUi.button(this, "Back") { finish() })
+        root.addView(WearUi.title(this, getString(R.string.monitor_unavailable)))
+        root.addView(WearUi.body(this, getString(R.string.monitor_missing)))
+        root.addView(WearUi.button(this, getString(R.string.action_back)) { finish() })
     }
 
-    private fun render(monitor: WearMonitor) {
+    private fun render(
+        monitor: WearMonitor,
+        snapshot: WearSnapshot,
+        cached: Boolean = false,
+        offline: Boolean = false,
+    ) {
         val root = WearUi.root(this)
         root.addView(WearUi.title(this, monitor.name))
         root.addView(
             WearUi.body(
                 this,
-                WearDisplay.statusLabel(monitor.status),
+                WearDisplay.statusLabel(resources, monitor.status),
                 WearUi.statusColor(monitor.status),
             ),
         )
-        root.addView(WearUi.label(this, WearDisplay.metrics(monitor)))
+        root.addView(WearUi.label(this, WearDisplay.metrics(resources, monitor)))
+        root.addView(WearUi.body(this, WearDisplay.sourceSummary(resources, snapshot, cached, offline)))
         monitor.group?.let {
             root.addView(WearUi.spacer(this, 6))
-            root.addView(WearUi.body(this, "Group · $it"))
+            root.addView(WearUi.body(this, getString(R.string.monitor_group, it)))
         }
         if (monitor.tags.isNotEmpty()) {
             root.addView(WearUi.spacer(this, 6))
-            root.addView(WearUi.body(this, "Tags · ${monitor.tags.joinToString(" · ")}"))
+            root.addView(WearUi.body(this, getString(R.string.monitor_tags, monitor.tags.joinToString(" · "))))
         }
-        if (WearPrefs.actionConfig(this) != null) {
+        val actionConfig = WearPrefs.actionConfig(this)
+        if (actionConfig?.allows(WearMonitorAction.PAUSE) == true) {
             root.addView(WearUi.spacer(this, 8))
+            root.addView(WearUi.body(this, getString(R.string.monitor_private_actions)))
             root.addView(WearUi.button(this, getString(R.string.action_pause)) {
                 confirmAction(monitor, WearMonitorAction.PAUSE)
             })
             root.addView(WearUi.button(this, getString(R.string.action_resume), primary = true) {
                 confirmAction(monitor, WearMonitorAction.RESUME)
             })
+        } else if (actionConfig == null) {
+            root.addView(WearUi.spacer(this, 8))
+            root.addView(WearUi.body(this, getString(R.string.monitor_actions_unpaired)))
         } else {
             root.addView(WearUi.spacer(this, 8))
-            root.addView(WearUi.body(this, "Pause/resume is off. Pair this watch from URSA Settings on your phone."))
+            root.addView(WearUi.body(this, getString(R.string.monitor_actions_denied)))
         }
-        root.addView(WearUi.button(this, "Back") { finish() })
+        root.addView(WearUi.button(this, getString(R.string.action_back)) { finish() })
     }
 
     private fun confirmAction(monitor: WearMonitor, action: WearMonitorAction) {
@@ -111,12 +134,16 @@ class WearMonitorDetailActivity : Activity() {
 
     private fun executeAction(action: WearMonitorAction) {
         val config = WearPrefs.actionConfig(this) ?: return
-        Toast.makeText(this, "Contacting Kuma…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, R.string.monitor_contacting, Toast.LENGTH_SHORT).show()
         Thread {
             val result = runBlocking { WearActionClient.execute(config, monitorId, action) }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    this,
+                    result.serverMessage ?: getString(result.messageRes),
+                    Toast.LENGTH_LONG,
+                ).show()
                 if (result.success) load()
             }
         }.start()

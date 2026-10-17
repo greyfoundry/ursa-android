@@ -3,6 +3,7 @@ package dev.astoris.ursa.ui.connections
 import android.content.res.Resources
 import java.io.InputStream
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -11,10 +12,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -45,28 +49,46 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.fragment.app.FragmentActivity
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.storage.BackupError
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.ServerConnection
+import dev.astoris.ursa.ui.ConnectionBackupPreview
 import dev.astoris.ursa.ui.ConnectionBackupResult
 import dev.astoris.ursa.ui.UrsaViewModel
+import dev.astoris.ursa.ui.bidirectionalWrap
 import dev.astoris.ursa.ui.components.UrsaPressableCard
 import dev.astoris.ursa.ui.labelRes
+import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun ConnectionManagerScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    handleSystemBack: Boolean = true,
+) {
     val connections by vm.connections.collectAsStateWithLifecycle()
     val activeUrl by vm.activeUrl.collectAsStateWithLifecycle()
     val connectionState by vm.state.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current as? FragmentActivity
     val context = LocalContext.current
     val resources = LocalResources.current
     var editing by remember { mutableStateOf<ServerConnection?>(null) }
+    var accessEditing by remember { mutableStateOf<ServerConnection?>(null) }
+    var transportEditing by remember { mutableStateOf<ServerConnection?>(null) }
     var removing by remember { mutableStateOf<ServerConnection?>(null) }
     var backupDialog by remember { mutableStateOf<BackupDialogMode?>(null) }
     var pendingImport by remember { mutableStateOf<String?>(null) }
     var pendingExport by remember { mutableStateOf<String?>(null) }
+    var importPreview by remember { mutableStateOf<ConnectionBackupPreview?>(null) }
     var backupBusy by remember { mutableStateOf(false) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
 
@@ -102,13 +124,13 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         }
     }
 
-    BackHandler { vm.exitConnectionManager() }
+    BackHandler(enabled = handleSystemBack) { vm.exitConnectionManager() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.servers_title)) },
+                title = { Text(stringResource(R.string.servers_title), Modifier.accessibilityHeading()) },
                 navigationIcon = {
                     IconButton(onClick = { vm.exitConnectionManager() }) {
                         Icon(
@@ -143,6 +165,12 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         vm.exitConnectionManager()
                     },
                     onRename = { editing = connection },
+                    onEditAccess = { accessEditing = connection },
+                    onReviewTransport = if (ConnectionTransportPolicy.isCleartext(connection.url)) {
+                        { transportEditing = connection }
+                    } else {
+                        null
+                    },
                     onReauthenticate = { vm.reauthenticate(connection) },
                     onRemove = { removing = connection },
                 )
@@ -195,6 +223,28 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         )
     }
 
+    accessEditing?.let { connection ->
+        AccessProfileDialog(
+            connection = connection,
+            onDismiss = { accessEditing = null },
+            onSave = { profile, capabilities ->
+                vm.updateConnectionAccess(connection.url, profile, capabilities)
+                accessEditing = null
+            },
+        )
+    }
+
+    transportEditing?.let { connection ->
+        CleartextPolicyDialog(
+            connection = connection,
+            onDismiss = { transportEditing = null },
+            onSave = { policy ->
+                vm.updateConnectionCleartextPolicy(connection.url, policy)
+                transportEditing = null
+            },
+        )
+    }
+
     removing?.let { connection ->
         AlertDialog(
             onDismissRequest = { removing = null },
@@ -203,8 +253,15 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        vm.removeConnection(connection.url)
-                        removing = null
+                        BiometricGate.confirmDestructiveAction(
+                            activity = activity,
+                            enabled = destructiveStepUpEnabled,
+                            errorMessage = activity?.getString(R.string.authentication_error).orEmpty(),
+                            onSuccess = {
+                                vm.removeConnection(connection.url)
+                                removing = null
+                            },
+                        )
                     },
                 ) {
                     Text(stringResource(R.string.servers_remove), color = MaterialTheme.colorScheme.error)
@@ -241,29 +298,139 @@ fun ConnectionManagerScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                             is ConnectionBackupResult.Error -> {
                                 backupMessage = backupErrorMessage(resources, result.reason)
                             }
+                            is ConnectionBackupResult.Preview -> Unit
                             is ConnectionBackupResult.Imported -> Unit
                         }
                     }
                 } else {
                     val document = pendingImport.orEmpty()
-                    vm.importConnectionBackup(document, password) { result ->
+                    vm.prepareConnectionBackupImport(document, password) { result ->
                         backupBusy = false
                         backupDialog = null
                         pendingImport = null
-                        backupMessage = when (result) {
-                            is ConnectionBackupResult.Imported -> resources.getQuantityString(
-                                R.plurals.backup_imported_count,
-                                result.count,
-                                result.count,
-                            )
-                            is ConnectionBackupResult.Error -> backupErrorMessage(resources, result.reason)
-                            is ConnectionBackupResult.Document -> null
+                        when (result) {
+                            is ConnectionBackupResult.Preview -> importPreview = result.value
+                            is ConnectionBackupResult.Error -> {
+                                backupMessage = backupErrorMessage(resources, result.reason)
+                            }
+                            is ConnectionBackupResult.Document,
+                            is ConnectionBackupResult.Imported -> Unit
                         }
                     }
                 }
             },
         )
     }
+
+    importPreview?.let { preview ->
+        BackupImportPreviewDialog(
+            preview = preview,
+            busy = backupBusy,
+            onDismiss = { if (!backupBusy) importPreview = null },
+            onConfirm = { restoreAccessProfiles ->
+                backupBusy = true
+                vm.applyConnectionBackupImport(preview, restoreAccessProfiles) { result ->
+                    backupBusy = false
+                    importPreview = null
+                    backupMessage = when (result) {
+                        is ConnectionBackupResult.Imported -> resources.getQuantityString(
+                            R.plurals.backup_imported_count,
+                            result.count,
+                            result.count,
+                        )
+                        is ConnectionBackupResult.Error -> backupErrorMessage(resources, result.reason)
+                        is ConnectionBackupResult.Document,
+                        is ConnectionBackupResult.Preview -> null
+                    }
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun BackupImportPreviewDialog(
+    preview: ConnectionBackupPreview,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (restoreAccessProfiles: Boolean) -> Unit,
+) {
+    var restoreAccessProfiles by remember(preview) { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(stringResource(R.string.backup_preview_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    stringResource(
+                        R.string.backup_preview_summary,
+                        preview.addedCount,
+                        preview.updatedCount,
+                    ),
+                )
+                Text(
+                    stringResource(R.string.backup_preview_preferences),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(
+                        R.string.backup_preview_validation,
+                        preview.data.connections.size,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (preview.preservedRestrictionCount > 0) {
+                    Text(
+                        stringResource(
+                            R.string.backup_preview_restrictions,
+                            preview.preservedRestrictionCount,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().toggleable(
+                        value = restoreAccessProfiles,
+                        role = Role.Checkbox,
+                        onValueChange = { restoreAccessProfiles = it },
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = restoreAccessProfiles, onCheckedChange = null)
+                    Column(Modifier.padding(start = 8.dp)) {
+                        Text(stringResource(R.string.backup_restore_access))
+                        Text(
+                            stringResource(
+                                if (preview.includesAccessProfiles) {
+                                    R.string.backup_restore_access_desc
+                                } else {
+                                    R.string.backup_restore_access_legacy_desc
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !busy,
+                onClick = { onConfirm(restoreAccessProfiles) },
+            ) {
+                Text(stringResource(if (busy) R.string.backup_working else R.string.backup_import))
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !busy, onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -273,6 +440,8 @@ private fun ConnectionCard(
     connectionState: ConnectionState,
     onSelect: () -> Unit,
     onRename: () -> Unit,
+    onEditAccess: () -> Unit,
+    onReviewTransport: (() -> Unit)?,
     onReauthenticate: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -289,11 +458,22 @@ private fun ConnectionCard(
                 Column(Modifier.weight(1f)) {
                     Text(connection.displayName, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        connection.url,
+                        bidirectionalWrap(connection.url),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
+                    if (ConnectionTransportPolicy.isCleartext(connection.url)) {
+                        Text(
+                            stringResource(connection.cleartextPolicy.labelRes()),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = when (connection.cleartextPolicy) {
+                                CleartextPolicy.DENY -> MaterialTheme.colorScheme.error
+                                CleartextPolicy.LEGACY -> MaterialTheme.colorScheme.tertiary
+                                CleartextPolicy.ALLOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
                     if (connection.headers.isNotEmpty()) {
                         Text(
                             pluralStringResource(
@@ -305,20 +485,138 @@ private fun ConnectionCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    Text(
+                        stringResource(connection.accessProfile.labelRes()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
                 ConnectionBadge(active = active, state = connectionState)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onRename) { Text(stringResource(R.string.servers_rename)) }
-                TextButton(onClick = onReauthenticate) {
-                    Text(stringResource(R.string.servers_reauthenticate))
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onRename) { Text(stringResource(R.string.servers_rename)) }
+                    TextButton(onClick = onEditAccess) { Text(stringResource(R.string.servers_access)) }
+                    onReviewTransport?.let { action ->
+                        TextButton(onClick = action) { Text(stringResource(R.string.servers_transport)) }
+                    }
                 }
-                TextButton(onClick = onRemove) {
-                    Text(stringResource(R.string.servers_remove), color = MaterialTheme.colorScheme.error)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onReauthenticate) {
+                        Text(stringResource(R.string.servers_reauthenticate))
+                    }
+                    TextButton(onClick = onRemove) {
+                        Text(stringResource(R.string.servers_remove), color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun CleartextPolicyDialog(
+    connection: ServerConnection,
+    onDismiss: () -> Unit,
+    onSave: (CleartextPolicy) -> Unit,
+) {
+    var policy by remember(connection.url) {
+        mutableStateOf(
+            if (connection.cleartextPolicy == CleartextPolicy.DENY) {
+                CleartextPolicy.DENY
+            } else {
+                CleartextPolicy.ALLOW
+            },
+        )
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.cleartext_review_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.cleartext_review_desc, connection.displayName))
+                if (connection.cleartextPolicy == CleartextPolicy.LEGACY) {
+                    Text(
+                        stringResource(R.string.cleartext_legacy_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.FilterChip(
+                        selected = policy == CleartextPolicy.ALLOW,
+                        onClick = { policy = CleartextPolicy.ALLOW },
+                        label = { Text(stringResource(R.string.cleartext_allow)) },
+                    )
+                    androidx.compose.material3.FilterChip(
+                        selected = policy == CleartextPolicy.DENY,
+                        onClick = { policy = CleartextPolicy.DENY },
+                        label = { Text(stringResource(R.string.cleartext_block)) },
+                    )
+                }
+                Text(
+                    stringResource(
+                        if (policy == CleartextPolicy.DENY) {
+                            R.string.cleartext_block_desc
+                        } else {
+                            R.string.cleartext_allow_desc
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (policy == CleartextPolicy.DENY) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(policy) }) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+private fun CleartextPolicy.labelRes(): Int = when (this) {
+    CleartextPolicy.LEGACY -> R.string.cleartext_status_legacy
+    CleartextPolicy.DENY -> R.string.cleartext_status_blocked
+    CleartextPolicy.ALLOW -> R.string.cleartext_status_allowed
+}
+
+@Composable
+private fun AccessProfileDialog(
+    connection: ServerConnection,
+    onDismiss: () -> Unit,
+    onSave: (AccessProfile, Set<AccessCapability>) -> Unit,
+) {
+    var profile by remember(connection.url) { mutableStateOf(connection.accessProfile) }
+    var capabilities by remember(connection.url) { mutableStateOf(connection.customCapabilities) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.servers_access_title)) },
+        text = {
+            AccessProfileEditor(
+                profile = profile,
+                customCapabilities = capabilities,
+                onProfileChange = { profile = it },
+                onCapabilityChange = { capability, enabled ->
+                    capabilities = if (enabled) capabilities + capability else capabilities - capability
+                },
+                modifier = Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(profile, capabilities) }) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -365,7 +663,7 @@ private fun RenameConnectionDialog(
                 value = alias,
                 onValueChange = { alias = it.take(80) },
                 label = { Text(stringResource(R.string.login_server_name)) },
-                supportingText = { Text(connection.url) },
+                supportingText = { Text(bidirectionalWrap(connection.url)) },
                 singleLine = true,
             )
         },

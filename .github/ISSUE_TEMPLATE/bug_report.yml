@@ -60,7 +60,7 @@ body:
     attributes:
       label: URSA version
       description: App version name, or the commit hash if you built it yourself.
-      placeholder: e.g. 1.3.3 or commit abc1234
+      placeholder: e.g. the current release version or commit abc1234
     validations:
       required: true
 
@@ -76,7 +76,7 @@ body:
     id: kuma-version
     attributes:
       label: Uptime Kuma version
-      placeholder: e.g. 2.5.5
+      placeholder: e.g. 2.5.6
     validations:
       required: true
 

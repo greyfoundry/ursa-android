@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-21
+last-updated: 2026-10-09
 owner: astoris
 status: stable
 ---
@@ -83,6 +83,12 @@ ledger even when part of their data contract already exists.
   favourites; Cloudflare Access service tokens; encrypted credentials; local
   service discovery; widgets; and support for Docker, Push, Steam, and MQTT
   monitor types.
+
+- **URSA delivery:** Native Steam host/port editing does not move Kuma's global API
+  key onto the phone. The broader GameDig editor uses Kuma's live game catalogue
+  and optional masked query-token retention. Native PM2 uses Kuma's live local
+  process list with manual fallback, and system-service validates the internal
+  platform service name without collecting credentials.
 - **Platform caveat:** the Android listing describes a smaller feature set and
   user reports mention missing 2FA and unreliable multi-server use. Features are
   therefore not assumed to be Android-identical without direct evidence.
@@ -390,8 +396,8 @@ copy, and an update to this ledger.
 
 | ID | Status | Capability | Evidence sources | Acceptance boundary |
 | --- | --- | --- | --- | --- |
-| CP-030 | complete | Create/edit/delete monitors | KumaAlert, Manager, PocketKuma, KumaCheck, Uptiminger | Typed validation covers common create flows; every existing 2.5.5 type supports safe common-field editing through a fresh full-object round trip that preserves unknown fields. Deletion names the target, warns that heartbeat history is removed, and gives groups an explicit child-deletion choice. No raw JSON editor is exposed. Live create/edit/delete passed against Kuma 2.5.3. |
-| CP-031 | partial | Current Uptime Kuma monitor-type coverage | KumaAlert, Manager, PocketKuma | The verified 2.5.5 catalogue contains 34 types and all can be safely common-edited without data loss. Native creation covers HTTP(S), TCP port, ping, DNS, push, group, manual, and SFTP with password or private-key authentication. Other advanced type-specific creation fields remain in Kuma. |
+| CP-030 | complete | Create/edit/delete monitors | KumaAlert, Manager, PocketKuma, KumaCheck, Uptiminger | Typed validation covers common create flows; every existing 2.5.6 type supports safe common-field editing through a fresh full-object round trip that preserves unknown fields. Deletion names the target, warns that heartbeat history is removed, and gives groups an explicit child-deletion choice. No raw JSON editor is exposed. Live create/edit/delete passed against Kuma 2.5.6. |
+| CP-031 | complete | Current Uptime Kuma monitor-type coverage | KumaAlert, Manager, PocketKuma | All 34 monitor types in the verified Kuma 2.5.6 catalogue can be created and safely edited. Every full object is fetched immediately before an edit so unknown future fields remain unchanged. Saved request/authentication, database, gRPC-body, SNMP-community, RabbitMQ, Kafka SASL, RADIUS, GameDig, and SFTP secrets stay masked. Docker and Real Browser select existing server-managed resources without exposing daemon or potentially tokenized WebSocket addresses and remain server-bound. Tailscale Ping and SIP OPTIONS follow Kuma's non-container host-tool boundary. SNMPv3 and nested database result conditions remain preserved but browser-managed because Kuma 2.5.6 cannot safely round-trip those individual fields. |
 | CP-032 | complete | Notification-channel assignment | KumaAlert, Manager | Monitor create/edit lists every existing Kuma provider by name and type, preselects server-default providers for new monitors, and round-trips assignments with the full monitor object. Empty state is explicit; provider configuration and secrets never enter the UI model. |
 | CP-033 | complete | Bulk pause/resume and selection | Manager | “Manage monitors” adds explicit row selection, Select/Clear visible follows the current search and filters, and pause/resume confirms the exact applicable count with stronger whole-fleet wording. Calls are sequential, already-correct states are skipped, successful changes are logged, and partial failures remain selected for retry. |
 | CP-034 | complete | Server-synced groups, tags, folders, and ordering | KumaAlert | Nested group/folder rows use Kuma parent relationships and server weight, with an explicit server-order sort. Create/edit can move a monitor between eligible groups while excluding self/descendants, and can assign/remove existing server tags without losing tag values. Kuma 2.5.3 exposes weight but no weight-mutation event, so URSA deliberately does not offer a divergent local reorder. |
@@ -404,7 +410,7 @@ copy, and an update to this ledger.
 | ID | Status | Capability | Evidence sources | Acceptance boundary |
 | --- | --- | --- | --- | --- |
 | CP-038 | complete | Detailed configurable home widgets | KumaAlert, Kuma : Status, UptimeKuma Android Widget | Private monitor and public-page widgets, chosen rows, heartbeat/uptime, manual refresh, interval guidance, and deep links. |
-| CP-039 | complete | Adaptive tablet and kiosk mode | KumaAlert, InfraLab | At 840dp and wider the monitor list remains beside an independently populated detail pane. Settings offers an opt-in, attention-first glance display that keeps the screen awake only while visible, warns about power use and OLED burn-in, restores the window flag on exit, and remains intentionally escapable rather than using Android lock-task mode. |
+| CP-039 | complete | Adaptive tablet and kiosk mode | KumaAlert, InfraLab | Material 3 Adaptive keeps the monitor list beside an independently populated detail pane whenever live window constraints allow it, and changes the top-level bar into a rail without device-name or orientation checks. Settings offers an opt-in, attention-first glance display that keeps the screen awake only while visible, warns about power use and OLED burn-in, restores the window flag on exit, and remains intentionally escapable rather than using Android lock-task mode. |
 | CP-040 | complete | Full Wear OS app and complications | KumaAlert, Uptime Mate, Wuma | Standalone public overview, attention-first rows, latency/uptime/groups/tags, validated detail routes, tile, and short/long complications. Optional confirmed pause/resume uses a phone-paired encrypted session and access headers; no credentials are entered on-watch. |
 | CP-041 | complete | Connection/monitor/incident deep links | KumaAlert, KumaCheck | Strict `ursa://` routes use a one-way server scope rather than a server URL, reject malformed IDs and encoded path tricks, and route widgets and notifications to the matching saved server. |
 | CP-042 | complete | Compact display preference | Uptime Flutter | The persisted compact option reduces list spacing and secondary text while retaining 56dp row targets and existing accessibility descriptions. |

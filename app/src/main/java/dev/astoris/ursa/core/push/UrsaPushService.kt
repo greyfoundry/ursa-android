@@ -12,87 +12,232 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import dev.astoris.ursa.MainActivity
-import androidx.core.net.toUri
+import dev.astoris.ursa.R
 import dev.astoris.ursa.core.storage.EventLogStore
 import dev.astoris.ursa.core.storage.LocalEventKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.PushService
 import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
+import java.util.UUID
 
 /**
  * Receives UnifiedPush events from the distributor. Declared NON-exported in the
  * manifest - the connector ships its own internal receiver that forwards events here,
  * so there is no exported push surface to harden (MASVS-PLATFORM-1).
  *
- * The push body is Kuma's Webhook JSON; it is untrusted input, parsed tolerantly by
- * [PushParse] and only ever rendered into a notification (never acted upon).
+ * The push body is Kuma's Webhook JSON; it is untrusted input and parsed tolerantly
+ * by [PushParse]. Bound managed status may update local delivery state, but never
+ * authorizes a remote server mutation.
  */
 class UrsaPushService : PushService() {
-
-    private val eventScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
         Log.d(TAG, "New endpoint for instance=$instance")
         PushStore.recordRegistered(this, endpoint.url)
+        cancelPathIssue(this)
     }
 
     override fun onMessage(message: PushMessage, instance: String) {
+        cancelPathIssue(this)
         val raw = String(message.content, Charsets.UTF_8)
-        val notice = PushParse.parse(raw) ?: PushNotice(
+        val notice = PushParse.parse(raw)?.let(::localizeNotice) ?: PushNotice(
             monitorId = null,
             monitorName = "Uptime Kuma",
             title = "Uptime Kuma",
-            body = raw.take(240).ifBlank { "Monitor update" },
+            body = raw.take(240).ifBlank { getString(R.string.push_monitor_update) },
             important = false,
         )
         val deliveryTest = PushStore.recordMessage(this, notice.body)
         val policyStore = PushAlertModeStore(this)
+        val transitionStore = PushTransitionStore(this)
+        val scope = if (deliveryTest) null else ManagedPushScopeStore(this).load(notice.serverId)
+        val scopeIssue = if (deliveryTest) null else {
+            ManagedPushScopePolicy.issue(scope, notice.serverId, notice.monitorId)
+        }
+        if (scopeIssue != null) {
+            notice.serverId?.let { PushStore.recordScopeIssue(this, scopeIssue, it) }
+            postScopeIssue(this, scopeIssue)
+        }
         val enriched = if (deliveryTest) {
             notice.copy(
+                monitorId = null,
                 monitorName = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_title),
                 title = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_title),
                 body = getString(dev.astoris.ursa.R.string.push_test_kuma_notification_body),
                 important = false,
+                status = null,
+                serverId = null,
             )
         } else {
-            enrichWithDowntime(notice)
+            enrichWithDowntime(if (scopeIssue == null) notice else notice.copy(serverId = null))
         }
+        val boundScope = scope.takeIf { scopeIssue == null }
         val managedIdentity = PushAlertWork.identity(enriched.serverId, enriched.monitorId)
+            .takeIf { boundScope != null }
+        val mode = policyStore.mode(enriched.serverId, enriched.monitorId)
+        val configuredSeverity = policyStore.severity(enriched.serverId, enriched.monitorId)
+        val timing = policyStore.timing(enriched.serverId, enriched.monitorId)
+        val activeAlert = managedIdentity?.let {
+            PushPendingAlertStore(this).loadActive(enriched.serverId ?: return@let null, enriched.monitorId ?: return@let null)
+        }
+        val alertId = if (deliveryTest) null else activeAlert?.id ?: UUID.randomUUID().toString()
+        if (!deliveryTest && alertId != null) {
+            recordTimeline(
+                serverUrl = boundScope?.serverUrl,
+                monitorId = enriched.monitorId,
+                monitorName = enriched.monitorName,
+                kind = LocalEventKind.PUSH_RECEIVED,
+                detailRes = when (enriched.status) {
+                    0 -> dev.astoris.ursa.R.string.push_timeline_received_down
+                    1 -> dev.astoris.ursa.R.string.push_timeline_received_recovery
+                    else -> dev.astoris.ursa.R.string.push_timeline_received_transition
+                },
+                alertId = alertId,
+                decision = PushAlertTimeline.decision(
+                    outcome = PushAlertTimeline.RECEIVED,
+                    mode = mode,
+                    configuredSeverity = configuredSeverity,
+                    timing = timing,
+                ),
+            )
+        }
+        if (!deliveryTest && boundScope != null) {
+            transitionStore.recordStatus(enriched.serverId, enriched.monitorId, enriched.status)
+        }
         if (!deliveryTest && enriched.status == 1 && managedIdentity != null) {
             val serverId = enriched.serverId ?: return
             val monitorId = enriched.monitorId ?: return
             policyStore.setSnoozedUntil(serverId, monitorId, null)
             PushAlertWorker.cancel(this, serverId, monitorId)
+            activeAlert?.let { alert ->
+                recordTimeline(
+                    serverUrl = boundScope?.serverUrl,
+                    monitorId = monitorId,
+                    monitorName = enriched.monitorName,
+                    kind = LocalEventKind.PUSH_RECOVERED,
+                    detailRes = dev.astoris.ursa.R.string.push_timeline_recovered,
+                    alertId = alert.id,
+                    decision = PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.RECOVERED,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                        deliveredCount = alert.deliveredCount,
+                    ),
+                )
+            }
         }
         if (
             !deliveryTest &&
             !PushAlertPolicy.shouldNotify(
-                policyStore.mode(enriched.serverId, enriched.monitorId),
+                mode,
                 enriched.status,
             )
         ) {
+            alertId?.let {
+                recordTimeline(
+                    boundScope?.serverUrl,
+                    enriched.monitorId,
+                    enriched.monitorName,
+                    LocalEventKind.PUSH_SUPPRESSED,
+                    dev.astoris.ursa.R.string.push_timeline_policy_suppressed,
+                    it,
+                    PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.SUPPRESSED,
+                        reason = PushAlertTimeline.REASON_POLICY,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                    ),
+                )
+            }
             return
         }
         val eventPreferences = PushEventPreferencesStore(this).load()
-        if (!deliveryTest && !PushEventPolicy.shouldNotify(enriched.status, eventPreferences)) return
+        if (!deliveryTest && !PushEventPolicy.shouldNotify(enriched.status, eventPreferences)) {
+            alertId?.let {
+                recordTimeline(
+                    boundScope?.serverUrl,
+                    enriched.monitorId,
+                    enriched.monitorName,
+                    LocalEventKind.PUSH_SUPPRESSED,
+                    dev.astoris.ursa.R.string.push_timeline_event_suppressed,
+                    it,
+                    PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.SUPPRESSED,
+                        reason = PushAlertTimeline.REASON_EVENT_PREFERENCE,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                    ),
+                )
+            }
+            return
+        }
         if (
             !deliveryTest &&
-            !PushTransitionStore(this).shouldDeliver(
+            !transitionStore.shouldDeliver(
                 enriched.serverId,
                 enriched.monitorId,
                 enriched.status,
             )
         ) {
+            alertId?.let {
+                recordTimeline(
+                    boundScope?.serverUrl,
+                    enriched.monitorId,
+                    enriched.monitorName,
+                    LocalEventKind.PUSH_SUPPRESSED,
+                    dev.astoris.ursa.R.string.push_timeline_duplicate_suppressed,
+                    it,
+                    PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.SUPPRESSED,
+                        reason = PushAlertTimeline.REASON_DUPLICATE,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        timing = timing,
+                    ),
+                )
+            }
             return
         }
-        val configuredSeverity = policyStore.severity(enriched.serverId, enriched.monitorId)
+        if (!deliveryTest && enriched.status == 0 && boundScope != null && managedIdentity != null) {
+            val serverId = enriched.serverId ?: return
+            val monitorId = enriched.monitorId ?: return
+            val suppression = PushDependencyStore(this).suppression(serverId, monitorId, transitionStore)
+            if (suppression != null) {
+                timelineScope.launch {
+                    recordPushDependencySuppression(
+                        this@UrsaPushService,
+                        boundScope,
+                        monitorId,
+                        enriched.monitorName,
+                        suppression,
+                        alertId,
+                    )
+                }
+                return
+            }
+            val groupEvaluation = PushGroupAlertStore(this).evaluation(serverId, monitorId, transitionStore)
+            if (groupEvaluation?.suppressed == true) {
+                timelineScope.launch {
+                    recordPushGroupAlertSuppression(
+                        this@UrsaPushService,
+                        boundScope,
+                        monitorId,
+                        enriched.monitorName,
+                        groupEvaluation,
+                        alertId,
+                    )
+                }
+                return
+            }
+        }
         val quietSeverity = if (deliveryTest) configuredSeverity else PushQuietHoursPolicy.effectiveSeverity(
             configuredSeverity,
             PushQuietHoursStore(this).load(),
@@ -102,52 +247,130 @@ class UrsaPushService : PushService() {
         } else {
             PushEventPolicy.route(enriched.status, configuredSeverity)
         }
-        val result = when {
-            !deliveryTest && enriched.status == 0 && managedIdentity != null -> PushAlertWorker.beginDown(
+        var correlation: PushCorrelationResult? = null
+        val start = if (!deliveryTest && enriched.status == 0 && managedIdentity != null && alertId != null) {
+            PushAlertWorker.beginDown(
                 context = this,
                 notice = enriched,
                 severity = configuredSeverity,
-                timing = policyStore.timing(enriched.serverId, enriched.monitorId),
+                timing = timing,
                 snoozedUntilMillis = policyStore.snoozedUntil(enriched.serverId, enriched.monitorId),
+                alertId = alertId,
+                correlationSink = { correlation = it },
             )
+        } else null
+        val result = when {
+            start != null -> start.result
             managedIdentity != null -> postNotification(
                 this,
                 enriched,
                 idOverride = managedIdentity.notificationId,
                 severity = configuredSeverity,
                 routeOverride = eventRoute,
+                serverUrl = boundScope?.serverUrl,
+                correlationSink = { correlation = it },
             )
             else -> postNotification(
                 this,
                 enriched,
                 severity = configuredSeverity,
                 routeOverride = eventRoute,
+                serverUrl = boundScope?.serverUrl,
             )
         }
-        if (result == PushLocalTestResult.POSTED && !deliveryTest) {
-            eventScope.launch {
-                EventLogStore(this@UrsaPushService).append(
-                    serverUrl = null,
+        if (!deliveryTest && alertId != null && start?.decision is PushAlertDecision.WaitUntil) {
+            val scheduledAt = start.decision.atMillis
+            recordTimeline(
+                serverUrl = boundScope?.serverUrl,
+                monitorId = enriched.monitorId,
+                monitorName = enriched.monitorName,
+                kind = LocalEventKind.PUSH_DELAYED,
+                detailRes = dev.astoris.ursa.R.string.push_timeline_delayed,
+                alertId = alertId,
+                decision = PushAlertTimeline.decision(
+                    outcome = PushAlertTimeline.DELAYED,
+                    mode = mode,
+                    configuredSeverity = configuredSeverity,
+                    effectiveSeverity = quietSeverity,
+                    timing = timing,
+                    scheduledAtMillis = scheduledAt,
+                ),
+                formatArgs = arrayOf(timing.firstDelayMinutes),
+            )
+        }
+        if (!deliveryTest && alertId != null && result != null) {
+            val posted = result == PushLocalTestResult.POSTED
+            recordTimeline(
+                serverUrl = boundScope?.serverUrl,
+                monitorId = enriched.monitorId,
+                monitorName = enriched.monitorName,
+                kind = if (posted) LocalEventKind.PUSH_ALERT else LocalEventKind.PUSH_SUPPRESSED,
+                detailRes = if (posted) {
+                    dev.astoris.ursa.R.string.push_timeline_delivered
+                } else {
+                    result.timelineDetailRes
+                },
+                alertId = alertId,
+                decision = PushAlertTimeline.decision(
+                    outcome = if (posted) PushAlertTimeline.DELIVERED else PushAlertTimeline.SUPPRESSED,
+                    reason = PushAlertTimeline.suppressionReason(result),
+                    mode = mode,
+                    configuredSeverity = configuredSeverity,
+                    effectiveSeverity = quietSeverity,
+                    timing = timing,
+                    deliveredCount = if (posted) 1 else 0,
+                ),
+                formatArgs = if (posted) arrayOf(1) else emptyArray(),
+            )
+            correlation?.let { correlationResult ->
+                recordTimeline(
+                    serverUrl = boundScope?.serverUrl,
                     monitorId = enriched.monitorId,
                     monitorName = enriched.monitorName,
-                    kind = LocalEventKind.PUSH_ALERT,
-                    detail = enriched.body,
+                    kind = LocalEventKind.PUSH_CORRELATED,
+                    detailRes = dev.astoris.ursa.R.string.push_timeline_correlated,
+                    alertId = alertId,
+                    decision = PushAlertTimeline.decision(
+                        outcome = PushAlertTimeline.CORRELATED,
+                        mode = mode,
+                        configuredSeverity = configuredSeverity,
+                        effectiveSeverity = quietSeverity,
+                        timing = timing,
+                        deliveredCount = 1,
+                        correlation = correlationResult,
+                    ),
+                    formatArgs = arrayOf(correlationResult.count),
                 )
             }
         }
     }
 
-    /** Append "Was down for X" to a recovery notification, using the locally tracked
-     *  down -> up transition (#177). No-op when the monitor id or status is unknown. */
+    private fun localizeNotice(notice: PushNotice): PushNotice {
+        val name = notice.monitorName.ifBlank { getString(R.string.push_monitor_fallback_name) }
+        val status = getString(pushStatusTextRes(notice.status))
+        return notice.copy(
+            monitorName = name,
+            title = getString(R.string.push_monitor_status_title, name, status),
+            body = notice.body.ifBlank { status },
+        )
+    }
+
+    /** Adds the locally tracked down -> up duration when a recovery arrives. */
     private fun enrichWithDowntime(notice: PushNotice): PushNotice {
         val id = notice.monitorId ?: return notice
         val store = DownSinceStore(this)
         return when (notice.status) {
-            0 -> { store.markDown(id, System.currentTimeMillis()); notice }
+            0 -> { store.markDown(notice.serverId, id, System.currentTimeMillis()); notice }
             1 -> {
-                val since = store.takeDown(id) ?: return notice
+                val since = store.takeDown(notice.serverId, id) ?: return notice
                 val elapsed = System.currentTimeMillis() - since
-                notice.copy(body = "${notice.body}\nWas down for ${PushParse.formatDowntime(elapsed)}.")
+                notice.copy(
+                    body = getString(
+                        R.string.push_recovery_duration,
+                        notice.body,
+                        formatPushDuration(this, elapsed),
+                    ),
+                )
             }
             else -> notice
         }
@@ -158,22 +381,52 @@ class UrsaPushService : PushService() {
         val safeReason = runCatching { PushRegistrationError.valueOf(reason.name) }
             .getOrDefault(PushRegistrationError.INTERNAL_ERROR)
         PushStore.recordRegistrationError(this, safeReason)
+        postPathIssue(this, safeReason)
     }
 
     override fun onUnregistered(instance: String) {
         Log.d(TAG, "Unregistered instance=$instance")
-        PushStore.recordUnregistered(this)
+        if (PushStore.recordUnregistered(this)) cancelPathIssue(this) else postPathIssue(this)
     }
 
-    override fun onDestroy() {
-        eventScope.cancel()
-        super.onDestroy()
+    private fun recordTimeline(
+        serverUrl: String?,
+        monitorId: Int?,
+        monitorName: String,
+        kind: LocalEventKind,
+        detailRes: Int,
+        alertId: String,
+        decision: dev.astoris.ursa.core.storage.LocalAlertDecision,
+        formatArgs: Array<out Any> = emptyArray(),
+    ) {
+        val detail = getString(detailRes, *formatArgs)
+        timelineScope.launch {
+            EventLogStore(this@UrsaPushService).append(
+                serverUrl = serverUrl,
+                monitorId = monitorId,
+                monitorName = monitorName,
+                kind = kind,
+                detail = detail,
+                alertId = alertId,
+                alertDecision = decision,
+            )
+        }
     }
 
     companion object {
         private const val TAG = "UrsaPush"
+        /** Process-scoped so a short-lived connector service cannot cancel durable timeline writes. */
+        private val timelineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         const val CHANNEL_ID = "ursa_monitors_critical"
         private const val LOCAL_TEST_NOTIFICATION_ID = 0x55525341
+        private const val PATH_ISSUE_NOTIFICATION_ID = 0x55525350
+        private const val SCOPE_ISSUE_NOTIFICATION_ID = 0x55525351
+        private val PATH_ISSUE_ROUTE = PushChannelRoute(
+            channelId = "ursa_push_health",
+            highPriority = false,
+            sound = true,
+            vibration = false,
+        )
 
         fun postLocalTest(context: Context): PushLocalTestResult = postNotification(
             context,
@@ -187,6 +440,77 @@ class UrsaPushService : PushService() {
             LOCAL_TEST_NOTIFICATION_ID,
         )
 
+        internal fun cancelPathIssue(context: Context) {
+            NotificationManagerCompat.from(context).cancel(PATH_ISSUE_NOTIFICATION_ID)
+        }
+
+        internal fun cancelScopeIssue(context: Context) {
+            NotificationManagerCompat.from(context).cancel(SCOPE_ISSUE_NOTIFICATION_ID)
+        }
+
+        private fun postPathIssue(context: Context, error: PushRegistrationError? = null) {
+            val (titleRes, bodyRes) = when (error) {
+                PushRegistrationError.INTERNAL_ERROR ->
+                    dev.astoris.ursa.R.string.push_health_internal_title to
+                        dev.astoris.ursa.R.string.push_health_internal_body
+                PushRegistrationError.NETWORK ->
+                    dev.astoris.ursa.R.string.push_health_network_title to
+                        dev.astoris.ursa.R.string.push_health_network_body
+                PushRegistrationError.ACTION_REQUIRED ->
+                    dev.astoris.ursa.R.string.push_health_action_title to
+                        dev.astoris.ursa.R.string.push_health_action_body
+                PushRegistrationError.VAPID_REQUIRED ->
+                    dev.astoris.ursa.R.string.push_health_vapid_title to
+                        dev.astoris.ursa.R.string.push_health_vapid_body
+                null ->
+                    dev.astoris.ursa.R.string.push_health_disconnected_title to
+                        dev.astoris.ursa.R.string.push_health_disconnected_body
+            }
+            postHealthIssue(context, PATH_ISSUE_NOTIFICATION_ID, titleRes, bodyRes)
+        }
+
+        private fun postScopeIssue(context: Context, issue: ManagedPushScopeIssue) {
+            val (titleRes, bodyRes) = when (issue) {
+                ManagedPushScopeIssue.UNKNOWN_PROVIDER ->
+                    dev.astoris.ursa.R.string.push_scope_unknown_provider_title to
+                        dev.astoris.ursa.R.string.push_scope_unknown_provider_body
+                ManagedPushScopeIssue.UNKNOWN_MONITOR ->
+                    dev.astoris.ursa.R.string.push_scope_unknown_monitor_title to
+                        dev.astoris.ursa.R.string.push_scope_unknown_monitor_body
+            }
+            postHealthIssue(context, SCOPE_ISSUE_NOTIFICATION_ID, titleRes, bodyRes)
+        }
+
+        private fun postHealthIssue(context: Context, id: Int, titleRes: Int, bodyRes: Int) {
+            ensureChannel(context)
+            if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+            val notifications = NotificationManagerCompat.from(context)
+            if (!notifications.areNotificationsEnabled()) return
+            val channel = context.getSystemService(NotificationManager::class.java)
+                .getNotificationChannel(PATH_ISSUE_ROUTE.channelId)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) return
+            notifications.notify(
+                id,
+                NotificationCompat.Builder(context, PATH_ISSUE_ROUTE.channelId)
+                    .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
+                    .setContentTitle(context.getString(titleRes))
+                    .setContentText(context.getString(bodyRes))
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(context.getString(bodyRes)))
+                    .setCategory(NotificationCompat.CATEGORY_ERROR)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setOnlyAlertOnce(true)
+                    .setAutoCancel(true)
+                    .setContentIntent(PushNotificationGroups.contentIntent(context))
+                    .build(),
+            )
+        }
+
         /** Returns the exact reason a local notification was or was not posted. */
         internal fun postNotification(
             context: Context,
@@ -194,6 +518,8 @@ class UrsaPushService : PushService() {
             idOverride: Int? = null,
             severity: PushSeverity = PushSeverity.CRITICAL,
             routeOverride: PushChannelRoute? = null,
+            serverUrl: String? = null,
+            correlationSink: ((PushCorrelationResult) -> Unit)? = null,
         ): PushLocalTestResult {
             ensureChannel(context)
             val route = routeOverride ?: PushSeverityPolicy.route(severity)
@@ -215,24 +541,13 @@ class UrsaPushService : PushService() {
                 return PushLocalTestResult.CHANNEL_DISABLED
             }
 
-            val open = Intent()
-            open.setClassName(context.packageName, MainActivity::class.java.name)
-            open.action = Intent.ACTION_VIEW
-            open.data = "ursa://push".toUri()
-            open.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            val contentIntent = PendingIntent.getActivity(
-                context,
-                0,
-                open,
-                PendingIntent.FLAG_IMMUTABLE,
-            )
             val builder = NotificationCompat.Builder(context, route.channelId)
                 .setSmallIcon(dev.astoris.ursa.R.drawable.ic_stat_ursa)
                 .setContentTitle(notice.title)
                 .setContentText(notice.body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(notice.body))
                 .setAutoCancel(true)
-                .setContentIntent(contentIntent)
+                .setContentIntent(PushNotificationGroups.contentIntent(context))
                 .setPriority(
                     when {
                         route.highPriority -> NotificationCompat.PRIORITY_HIGH
@@ -244,6 +559,19 @@ class UrsaPushService : PushService() {
             val alertServerId = notice.serverId
             val alertMonitorId = notice.monitorId
             val managedIdentity = PushAlertWork.identity(alertServerId, alertMonitorId)
+            val id = idOverride ?: notice.monitorId ?: notice.title.hashCode()
+            val groupIdentity = PushNotificationGroups.boundIdentity(context, alertServerId)
+            if (groupIdentity != null && alertServerId != null) {
+                PushNotificationGroups.applyToChild(
+                    context,
+                    builder,
+                    alertServerId,
+                    id,
+                    groupIdentity,
+                    alertMonitorId,
+                    notice.status,
+                )
+            }
             if (
                 notice.status == 0 &&
                 managedIdentity != null &&
@@ -270,22 +598,35 @@ class UrsaPushService : PushService() {
                         PushAlertActionReceiver.ACTION_SNOOZE,
                     ),
                 )
-            } else notice.monitorId?.let { monitorId ->
+            } else if (serverUrl != null) notice.monitorId?.let { monitorId ->
                 builder.addAction(
                     android.R.drawable.ic_media_pause,
                     "Pause",
-                    monitorActionIntent(context, monitorId, MonitorActionReceiver.ACTION_PAUSE),
+                    monitorActionIntent(context, serverUrl, monitorId, id, MonitorActionReceiver.ACTION_PAUSE),
                 )
                 builder.addAction(
                     android.R.drawable.ic_media_play,
                     "Resume",
-                    monitorActionIntent(context, monitorId, MonitorActionReceiver.ACTION_RESUME),
+                    monitorActionIntent(context, serverUrl, monitorId, id, MonitorActionReceiver.ACTION_RESUME),
                 )
             }
-            val id = idOverride ?: notice.monitorId ?: notice.title.hashCode()
             notifications.notify(id, builder.build())
+            if (groupIdentity != null && alertServerId != null) {
+                PushNotificationGroups.refresh(context, alertServerId)?.let { correlationSink?.invoke(it) }
+            }
             return PushLocalTestResult.POSTED
         }
+
+        private val PushLocalTestResult.timelineDetailRes: Int
+            get() = when (this) {
+                PushLocalTestResult.POSTED -> dev.astoris.ursa.R.string.push_timeline_delivered
+                PushLocalTestResult.PERMISSION_REQUIRED ->
+                    dev.astoris.ursa.R.string.push_timeline_notification_permission
+                PushLocalTestResult.APP_NOTIFICATIONS_DISABLED ->
+                    dev.astoris.ursa.R.string.push_timeline_app_notifications_disabled
+                PushLocalTestResult.CHANNEL_DISABLED ->
+                    dev.astoris.ursa.R.string.push_timeline_channel_disabled
+            }
 
         private fun alertActionIntent(
             context: Context,
@@ -306,12 +647,20 @@ class UrsaPushService : PushService() {
             )
         }
 
-        private fun monitorActionIntent(context: Context, monitorId: Int, action: String): PendingIntent {
+        private fun monitorActionIntent(
+            context: Context,
+            serverUrl: String,
+            monitorId: Int,
+            notificationId: Int,
+            action: String,
+        ): PendingIntent {
             val intent = Intent()
             intent.setClassName(context.packageName, MonitorActionReceiver::class.java.name)
             intent.action = action
             intent.putExtra(MonitorActionReceiver.EXTRA_MONITOR_ID, monitorId)
-            val requestCode = "$monitorId:$action".hashCode()
+            intent.putExtra(MonitorActionReceiver.EXTRA_SERVER_URL, serverUrl)
+            intent.putExtra(MonitorActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+            val requestCode = "$serverUrl:$monitorId:$action".hashCode()
             return PendingIntent.getBroadcast(
                 context,
                 requestCode,
@@ -333,6 +682,7 @@ class UrsaPushService : PushService() {
                 PushEventPolicy.RECOVERY_ROUTE to dev.astoris.ursa.R.string.push_channel_recovery,
                 PushEventPolicy.MAINTENANCE_ROUTE to dev.astoris.ursa.R.string.push_channel_maintenance,
                 PushEventPolicy.UPDATE_ROUTE to dev.astoris.ursa.R.string.push_channel_updates,
+                PATH_ISSUE_ROUTE to dev.astoris.ursa.R.string.push_channel_health,
             )
             channels.forEach { (route, nameRes) ->
                 if (mgr.getNotificationChannel(route.channelId) == null) {
@@ -351,5 +701,34 @@ class UrsaPushService : PushService() {
                 }
             }
         }
+    }
+}
+
+internal fun pushStatusTextRes(status: Int?): Int = when (status) {
+    1 -> R.string.push_status_up
+    0 -> R.string.push_status_down
+    2 -> R.string.push_status_pending
+    3 -> R.string.push_status_maintenance
+    else -> R.string.push_status_updated
+}
+
+internal fun pushDurationUnits(millis: Long): List<Pair<Int, Int>> {
+    val totalMinutes = millis.coerceAtLeast(0L) / 60_000L
+    if (totalMinutes < 1) return emptyList()
+    val days = (totalMinutes / 1_440L).toInt()
+    val hours = ((totalMinutes % 1_440L) / 60L).toInt()
+    val minutes = (totalMinutes % 60L).toInt()
+    return buildList {
+        if (days > 0) add(days to R.plurals.push_duration_days)
+        if (hours > 0) add(hours to R.plurals.push_duration_hours)
+        if (minutes > 0) add(minutes to R.plurals.push_duration_minutes)
+    }
+}
+
+private fun formatPushDuration(context: Context, millis: Long): String {
+    val units = pushDurationUnits(millis)
+    if (units.isEmpty()) return context.getString(R.string.push_duration_less_than_minute)
+    return units.joinToString(" ") { (value, plural) ->
+        context.resources.getQuantityString(plural, value, value)
     }
 }

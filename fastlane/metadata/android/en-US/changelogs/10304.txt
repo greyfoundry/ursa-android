@@ -1,0 +1,7 @@
+URSA 1.3.4 adds a Home-first operations experience for Uptime Kuma 2.5.6.
+
+* See every saved server and urgent monitor, including encrypted cached data.
+* Use Monitors, Incidents, Browse, search, filters, and saved views.
+* Create or edit every verified monitor type; clone, import, bulk-edit, group, or safely copy monitors between servers.
+* Get clearer alert policy, exports, SLA reports, widgets, tile, and Wear views.
+* Choose Off, Sensitive screens only, or Always for screenshot protection.

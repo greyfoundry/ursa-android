@@ -1,0 +1,5 @@
+{
+  "source": "PRIVATE_SERVER",
+  "sourceId": "https://minimal.example.test",
+  "selectedMonitorIds": [1, 2, 7]
+}

@@ -1,0 +1,27 @@
+{
+  "monitors": [
+    {
+      "id": 1,
+      "name": "API",
+      "url": "https://api.example.test/health",
+      "type": "http",
+      "active": true,
+      "tags": ["prod", "public"],
+      "parentId": 10,
+      "weight": 20,
+      "status": "UP",
+      "ping": 42,
+      "avgPing": 40,
+      "uptime24h": 0.999
+    },
+    {
+      "id": 2,
+      "name": "Database",
+      "url": null,
+      "type": "port",
+      "active": false,
+      "status": "DOWN"
+    }
+  ],
+  "updatedAt": 1720000000000
+}

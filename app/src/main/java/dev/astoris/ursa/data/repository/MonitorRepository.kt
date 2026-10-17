@@ -1,10 +1,26 @@
 package dev.astoris.ursa.data.repository
 
+import dev.astoris.ursa.core.access.AccessDecision
+import dev.astoris.ursa.core.access.MutationExecution
+import dev.astoris.ursa.core.access.MutationExecutor
 import dev.astoris.ursa.core.network.ConnectionState
+import dev.astoris.ursa.core.network.ConnectionFailureReason
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
 import dev.astoris.ursa.core.network.KumaClient
+import dev.astoris.ursa.core.network.KumaCapabilities
+import dev.astoris.ursa.core.network.KumaCompatibility
 import dev.astoris.ursa.core.network.MonitorDraft
 import dev.astoris.ursa.core.network.MaintenanceDraft
 import dev.astoris.ursa.core.network.MonitorMutationResult
+import dev.astoris.ursa.core.network.MonitorImportRow
+import dev.astoris.ursa.core.network.MonitorImportStatus
+import dev.astoris.ursa.core.network.safeAutomaticDraftOrNull
+import dev.astoris.ursa.core.network.PublicIncident
+import dev.astoris.ursa.core.network.PublicIncidentDraft
+import dev.astoris.ursa.core.network.PublicIncidentHistory
+import dev.astoris.ursa.core.network.PublicIncidentTarget
+import dev.astoris.ursa.core.network.IncidentMutationOutcome
+import dev.astoris.ursa.core.network.IncidentMutationResult
 import dev.astoris.ursa.core.storage.CertExpiry
 import dev.astoris.ursa.core.storage.CertExpiryStore
 import dev.astoris.ursa.core.storage.CertExpiryUtil
@@ -12,11 +28,18 @@ import dev.astoris.ursa.core.storage.ConnectionStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.core.storage.MonitorSnapshot
 import dev.astoris.ursa.data.model.CertInfo
+import dev.astoris.ursa.data.model.AccessCapability
+import dev.astoris.ursa.data.model.AccessProfile
+import dev.astoris.ursa.data.model.CleartextPolicy
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
+import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
 import dev.astoris.ursa.data.model.RequestHeader
@@ -28,6 +51,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,6 +61,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -47,6 +73,7 @@ data class ManagedPushAssignments(
     val notification: ManagedPushNotification?,
     val selectedMonitorIds: Set<Int>,
     val unavailableMonitorIds: Set<Int>,
+    val duplicateCount: Int = 0,
 )
 
 data class ManagedPushSaveResult(
@@ -59,6 +86,44 @@ data class BulkMonitorUpdateResult(
     val succeededIds: Set<Int>,
     val failedIds: Set<Int>,
 )
+
+data class MonitorImportApplyResult(
+    val succeededLines: Set<Int>,
+    val failedLines: Set<Int>,
+)
+
+data class MonitorGroupPlan(
+    val name: String,
+    val childIds: Set<Int>,
+) {
+    companion object {
+        fun create(name: String, childIds: Set<Int>): MonitorGroupPlan? {
+            val normalizedName = name.trim()
+            if (normalizedName.isEmpty() || childIds.size > MAX_CHILDREN || childIds.any { it <= 0 }) return null
+            return MonitorGroupPlan(normalizedName, childIds.toSortedSet())
+        }
+
+        private const val MAX_CHILDREN = 1_000
+    }
+}
+
+data class MonitorGroupMutationResult(
+    val groupId: Int? = null,
+    val succeededIds: Set<Int> = emptySet(),
+    val failedIds: Set<Int> = emptySet(),
+    val message: String? = null,
+) {
+    val groupCreated: Boolean get() = groupId != null
+}
+
+internal fun displayedMonitors(
+    live: List<Monitor>,
+    cached: List<Monitor>,
+    liveListReady: Boolean,
+): List<Monitor> = if (liveListReady) live else cached
+
+internal fun isShowingMonitorCache(cached: List<Monitor>, liveListReady: Boolean): Boolean =
+    !liveListReady && cached.isNotEmpty()
 
 /**
  * Single source of truth for the UI. Owns the active [KumaClient], bridges it to the
@@ -74,6 +139,12 @@ class MonitorRepository(
 ) {
     private val activeClient = MutableStateFlow<KumaClient?>(null)
     private var activeUrlValue: String? = null
+    private val mutationExecutor = MutationExecutor(store::activeConnection)
+    private val _mutationDenials = MutableSharedFlow<AccessDecision.Denied>(extraBufferCapacity = 1)
+    private val _localConnectionFailure = MutableStateFlow<ConnectionFailureReason?>(null)
+
+    /** Typed denials for presentation; remote blocks never run when one is emitted. */
+    val mutationDenials: SharedFlow<AccessDecision.Denied> = _mutationDenials.asSharedFlow()
 
     val connections: Flow<List<ServerConnection>> = store.connections
     val activeUrl: Flow<String?> = store.activeUrl
@@ -83,14 +154,17 @@ class MonitorRepository(
         .flatMapLatest { client -> client?.monitors ?: flowOf(emptyMap()) }
         .map { map -> map.values.sortedBy { it.name.lowercase() } }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
+    private val liveMonitorListReady: StateFlow<Boolean> = activeClient
+        .flatMapLatest { client -> client?.monitorListReady ?: flowOf(false) }
+        .stateIn(scope, SharingStarted.Eagerly, false)
 
     // Last-known list loaded from the encrypted cache for the active server.
     private val cachedMonitors = MutableStateFlow<List<Monitor>>(emptyList())
     private val lastUpdatedMs = MutableStateFlow<Long?>(null)
 
-    /** What the UI shows: live data when available, otherwise the cached snapshot. */
+    /** What the UI shows: cached data until the server has delivered even an empty live list. */
     val monitors: StateFlow<List<Monitor>> =
-        combine(liveMonitors, cachedMonitors) { live, cached -> live.ifEmpty { cached } }
+        combine(liveMonitors, cachedMonitors, liveMonitorListReady, ::displayedMonitors)
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** When the currently shown list came from the cache, its capture time (epoch ms). */
@@ -98,16 +172,30 @@ class MonitorRepository(
 
     /** True while showing cached data because live monitors have not arrived yet. */
     val showingCache: StateFlow<Boolean> =
-        combine(liveMonitors, cachedMonitors) { live, cached -> live.isEmpty() && cached.isNotEmpty() }
+        combine(cachedMonitors, liveMonitorListReady, ::isShowingMonitorCache)
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val state: StateFlow<ConnectionState> = activeClient
+    private val remoteState = activeClient
         .flatMapLatest { client -> client?.state ?: flowOf(ConnectionState.Disconnected) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
+    val state: StateFlow<ConnectionState> = combine(remoteState, _localConnectionFailure) { remote, local ->
+        if (local == null) remote else ConnectionState.Error
+    }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), ConnectionState.Disconnected)
 
-    val connectionFailure: StateFlow<dev.astoris.ursa.core.network.ConnectionFailureReason?> = activeClient
+    private val remoteConnectionFailure = activeClient
         .flatMapLatest { client -> client?.failure ?: flowOf(null) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+    val connectionFailure: StateFlow<ConnectionFailureReason?> =
+        combine(remoteConnectionFailure, _localConnectionFailure) { remote, local -> local ?: remote }
+            .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val compatibility: StateFlow<KumaCompatibility> = activeClient
+        .flatMapLatest { client -> client?.compatibility ?: flowOf(KumaCapabilities.evaluate(null)) }
+        .stateIn(
+            scope,
+            SharingStarted.WhileSubscribed(5_000),
+            KumaCapabilities.evaluate(null),
+        )
 
     // Declared before init: the cert-expiry collector below reads this flow.
     val certs: StateFlow<Map<Int, CertInfo>> = activeClient
@@ -127,6 +215,14 @@ class MonitorRepository(
         .flatMapLatest { client -> client?.notifications ?: flowOf(emptyList()) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val dockerHosts: StateFlow<List<KumaDockerHost>> = activeClient
+        .flatMapLatest { client -> client?.dockerHosts ?: flowOf(emptyList()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val remoteBrowsers: StateFlow<List<KumaRemoteBrowser>> = activeClient
+        .flatMapLatest { client -> client?.remoteBrowsers ?: flowOf(emptyList()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val maintenances: StateFlow<List<MaintenanceDraft>> = activeClient
         .flatMapLatest { client -> client?.maintenances ?: flowOf(emptyMap()) }
         .map { rows -> rows.values.sortedBy { it.title.lowercase() } }
@@ -136,11 +232,18 @@ class MonitorRepository(
         // Persist every live update as the new snapshot for the active server, and
         // promote it into the cache flow so it survives the next reconnect.
         scope.launch {
-            liveMonitors.collect { live ->
+            combine(liveMonitors, liveMonitorListReady, ::Pair).collect { (live, ready) ->
                 val url = activeUrlValue
-                if (live.isNotEmpty() && url != null) {
+                if (ready && url != null) {
                     val now = System.currentTimeMillis()
-                    cache.save(url, MonitorSnapshot(live, now))
+                    cache.save(
+                        url,
+                        MonitorSnapshot(
+                            monitors = live,
+                            updatedAt = now,
+                            serverVersion = compatibility.value.reportedVersion,
+                        ),
+                    )
                     cachedMonitors.value = live
                     lastUpdatedMs.value = now
                 }
@@ -168,6 +271,9 @@ class MonitorRepository(
     suspend fun beats(id: Int, hours: Int = 24): List<Heartbeat> =
         activeClient.value?.getBeats(id, hours) ?: emptyList()
 
+    suspend fun heartbeatHistory(id: Int, hours: Int): List<Heartbeat>? =
+        activeClient.value?.getBeatsOrNull(id, hours)
+
     /** One bounded account-wide page of durable transitions for the incident center. */
     suspend fun importantBeats(): List<Heartbeat>? = activeClient.value?.getImportantBeats()
 
@@ -180,7 +286,8 @@ class MonitorRepository(
         ) {
             return null
         }
-        val notification = client.managedPushNotifications.value.firstOrNull()
+        val managed = client.managedPushNotifications.value
+        val notification = managed.firstOrNull()
             ?: return ManagedPushAssignments(null, emptySet(), emptySet())
         val permits = Semaphore(NOTIFICATION_READ_CONCURRENCY)
         val assignments = supervisorScope {
@@ -202,6 +309,7 @@ class MonitorRepository(
             notification = notification,
             selectedMonitorIds = assignments.filterValues { it == true }.keys,
             unavailableMonitorIds = assignments.filterValues { it == null }.keys,
+            duplicateCount = managed.size - 1,
         )
     }
 
@@ -211,31 +319,41 @@ class MonitorRepository(
         isDefault: Boolean,
         selectedMonitorIds: Set<Int>,
         monitorIds: List<Int>,
-    ): ManagedPushSaveResult? {
-        val client = activeClient.value ?: return null
-        val notification = client.saveManagedPushNotification(webhookUrl, isDefault) ?: return null
-        val serverId = notification.serverId ?: return null
+    ): ManagedPushSaveResult? = guardedMutation(
+        required = setOf(AccessCapability.PUSH_SETUP),
+        unavailable = null,
+        denied = null,
+    ) { client ->
+        val notification = client.saveManagedPushNotification(webhookUrl, isDefault)
+            ?: return@guardedMutation null
+        val serverId = notification.serverId ?: return@guardedMutation null
         val failed = mutableSetOf<Int>()
         monitorIds.distinct().forEach { monitorId ->
             val enabled = monitorId in selectedMonitorIds
             if (!client.setMonitorNotification(monitorId, notification.id, enabled)) failed += monitorId
         }
-        return ManagedPushSaveResult(notification.id, serverId, failed)
+        ManagedPushSaveResult(notification.id, serverId, failed)
     }
 
-    suspend fun deleteManagedPushSetup(): Boolean {
-        val client = activeClient.value ?: return false
+    suspend fun deleteManagedPushSetup(): Boolean = guardedMutation(
+        required = setOf(AccessCapability.PUSH_SETUP),
+        unavailable = false,
+        denied = false,
+    ) { client ->
         val managed = client.managedPushNotifications.value
-        if (managed.isEmpty()) return false
+        if (managed.isEmpty()) return@guardedMutation false
         var allDeleted = true
         managed.forEach { notification ->
             if (!client.deleteManagedPushNotification(notification.id)) allDeleted = false
         }
-        return allDeleted
+        allDeleted
     }
 
-    suspend fun testManagedPushDelivery(name: String): Boolean =
-        activeClient.value?.testManagedPushNotification(name) == true
+    suspend fun testManagedPushDelivery(name: String): Boolean = guardedMutation(
+        required = setOf(AccessCapability.PUSH_SETUP),
+        unavailable = false,
+        denied = false,
+    ) { client -> client.testManagedPushNotification(name) }
 
     /** Connect to a new server and log in; on success the JWT is persisted. */
     suspend fun addServerAndLogin(
@@ -246,7 +364,13 @@ class MonitorRepository(
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
         val client = KumaClient(url, insecure, safeHeaders)
         client.connect()
@@ -254,7 +378,19 @@ class MonitorRepository(
         return try {
             val result = client.login(username, password, token)
             if (result is LoginResult.Success) {
-                store.upsert(ServerConnection(url, username, result.jwt, insecure, alias, safeHeaders))
+                store.upsert(
+                    ServerConnection(
+                        url = url,
+                        username = username,
+                        jwt = result.jwt,
+                        insecure = insecure,
+                        alias = alias,
+                        headers = safeHeaders,
+                        accessProfile = accessProfile,
+                        customCapabilities = customCapabilities,
+                        cleartextPolicy = cleartextPolicy,
+                    ),
+                )
                 activateClient(url, client)
                 promoted = true
             }
@@ -272,7 +408,11 @@ class MonitorRepository(
         token: String = "",
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val client = KumaClient(url, insecure, headers)
         client.connect()
         return try {
@@ -289,14 +429,32 @@ class MonitorRepository(
         insecure: Boolean = false,
         alias: String? = null,
         headers: List<RequestHeader> = emptyList(),
+        accessProfile: AccessProfile = AccessProfile.MANAGE,
+        customCapabilities: Set<AccessCapability> = emptySet(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val safeHeaders = headers.mapNotNull { it.normalizedOrNull() }
         val client = KumaClient(url, insecure, safeHeaders)
         client.connect()
         var promoted = false
         return try {
             if (client.loginByToken(token)) {
-                store.upsert(ServerConnection(url, "", token, insecure, alias, safeHeaders))
+                store.upsert(
+                    ServerConnection(
+                        url = url,
+                        username = "",
+                        jwt = token,
+                        insecure = insecure,
+                        alias = alias,
+                        headers = safeHeaders,
+                        accessProfile = accessProfile,
+                        customCapabilities = customCapabilities,
+                        cleartextPolicy = cleartextPolicy,
+                    ),
+                )
                 activateClient(url, client)
                 promoted = true
                 LoginResult.Success(token)
@@ -314,7 +472,11 @@ class MonitorRepository(
         token: String,
         insecure: Boolean = false,
         headers: List<RequestHeader> = emptyList(),
+        cleartextPolicy: CleartextPolicy = CleartextPolicy.DENY,
     ): LoginResult {
+        if (!ConnectionTransportPolicy.allows(url, cleartextPolicy)) {
+            return LoginResult.Failure(CLEARTEXT_BLOCKED_MESSAGE)
+        }
         val client = KumaClient(url, insecure, headers)
         client.connect()
         return try {
@@ -329,14 +491,38 @@ class MonitorRepository(
     suspend fun switchTo(
         conn: ServerConnection,
         onConnectionStarted: () -> Unit = {},
-    ) {
+    ): Boolean {
+        if (!ConnectionTransportPolicy.allows(conn)) {
+            activeClient.value?.disconnect()
+            activeClient.value = null
+            activeUrlValue = conn.url
+            selectServerContext(conn.url)
+            _localConnectionFailure.value = ConnectionFailureReason.CLEARTEXT_BLOCKED
+            store.setActive(conn.url)
+            onConnectionStarted()
+            return false
+        }
         val client = connectFresh(conn.url, conn.insecure, conn.headers)
         onConnectionStarted()
-        conn.jwt?.let { client.loginByToken(it) }
+        val authenticated = conn.jwt?.let { client.loginByToken(it) } == true
         store.setActive(conn.url)
+        return authenticated
     }
 
     suspend fun renameServer(url: String, alias: String?) = store.rename(url, alias)
+
+    suspend fun updateServerAccess(
+        url: String,
+        profile: AccessProfile,
+        customCapabilities: Set<AccessCapability>,
+    ) = store.updateAccess(url, profile, customCapabilities)
+
+    suspend fun updateServerCleartextPolicy(url: String, policy: CleartextPolicy) {
+        store.updateCleartextPolicy(url, policy)
+        if (store.activeUrl.first() == url) {
+            store.activeConnection()?.let { switchTo(it) }
+        }
+    }
 
     /** Remove a saved server and switch to the next stored session when necessary. */
     suspend fun removeServer(url: String): ServerConnection? {
@@ -351,27 +537,228 @@ class MonitorRepository(
         return remaining.firstOrNull { it.url == activeAfter } ?: remaining.firstOrNull()
     }
 
-    suspend fun pause(id: Int): Boolean = activeClient.value?.pauseMonitor(id) ?: false
-    suspend fun resume(id: Int): Boolean = activeClient.value?.resumeMonitor(id) ?: false
+    suspend fun pause(id: Int): Boolean = guardedMutation(
+        required = setOf(AccessCapability.MONITOR_STATE),
+        unavailable = false,
+        denied = false,
+    ) { client -> client.pauseMonitor(id) }
+
+    suspend fun resume(id: Int): Boolean = guardedMutation(
+        required = setOf(AccessCapability.MONITOR_STATE),
+        unavailable = false,
+        denied = false,
+    ) { client -> client.resumeMonitor(id) }
+
     /** Applies a fleet action sequentially so a large selection cannot burst-restart Kuma. */
-    suspend fun setActive(ids: Set<Int>, active: Boolean): BulkMonitorUpdateResult {
-        val client = activeClient.value
+    suspend fun setActive(ids: Set<Int>, active: Boolean): BulkMonitorUpdateResult = guardedMutation(
+        required = setOf(AccessCapability.BULK_WRITE),
+        unavailable = BulkMonitorUpdateResult(emptySet(), ids.filterTo(mutableSetOf()) { it > 0 }),
+        denied = BulkMonitorUpdateResult(emptySet(), ids.filterTo(mutableSetOf()) { it > 0 }),
+    ) { client ->
         val succeeded = mutableSetOf<Int>()
         val failed = mutableSetOf<Int>()
         ids.filter { it > 0 }.sorted().forEach { id ->
-            val ok = client != null && if (active) client.resumeMonitor(id) else client.pauseMonitor(id)
+            val ok = if (active) client.resumeMonitor(id) else client.pauseMonitor(id)
             if (ok) succeeded += id else failed += id
         }
-        return BulkMonitorUpdateResult(succeeded, failed)
+        BulkMonitorUpdateResult(succeeded, failed)
+    }
+
+    /** Reads every target before presenting an exact, server-current bulk edit preview. */
+    suspend fun previewBulkEdit(ids: Set<Int>, edit: BulkMonitorEdit): BulkMonitorEditPreview {
+        val targetIds = ids.filterTo(sortedSetOf()) { it > 0 }
+        val unavailable = BulkMonitorEditPreview(edit, emptyList(), emptySet(), targetIds)
+        if (!edit.isValid) return unavailable
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_EDIT, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable,
+        ) { client ->
+            val rows = mutableListOf<BulkMonitorEditRow>()
+            val unchanged = linkedSetOf<Int>()
+            val failed = linkedSetOf<Int>()
+            targetIds.forEach { id ->
+                val draft = client.monitorDraft(id)
+                when {
+                    draft == null -> failed += id
+                    else -> draft.previewBulkEdit(edit)?.let(rows::add) ?: unchanged.add(id)
+                }
+            }
+            BulkMonitorEditPreview(edit, rows, unchanged, failed)
+        }
+    }
+
+    /** Rechecks each previewed item so retries are safe and stale previews cannot overwrite newer values. */
+    suspend fun applyBulkEdit(preview: BulkMonitorEditPreview): BulkMonitorEditResult {
+        val targetIds = preview.rows.mapTo(linkedSetOf()) { it.monitorId }
+        val unavailable = BulkMonitorEditResult(emptySet(), targetIds)
+        if (!preview.edit.isValid) return unavailable
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_EDIT, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable,
+        ) { client ->
+            val succeeded = linkedSetOf<Int>()
+            val failed = linkedSetOf<Int>()
+            preview.rows.forEach { row ->
+                val current = client.monitorDraft(row.monitorId)
+                when {
+                    current == null -> failed += row.monitorId
+                    current.matchesBulkEdit(row.after) -> succeeded += row.monitorId
+                    !current.matchesBulkEdit(row.before) -> failed += row.monitorId
+                    client.saveMonitor(current.applyBulkEdit(row.after)).ok -> succeeded += row.monitorId
+                    else -> failed += row.monitorId
+                }
+            }
+            BulkMonitorEditResult(succeeded, failed)
+        }
+    }
+
+    /** Creates only dry-run-approved, credential-free rows and reports each source line. */
+    suspend fun importMonitors(rows: List<MonitorImportRow>): MonitorImportApplyResult {
+        val candidates = rows
+            .filter { it.status == MonitorImportStatus.READY && it.draft != null }
+            .distinctBy(MonitorImportRow::lineNumber)
+            .sortedBy(MonitorImportRow::lineNumber)
+        val lines = candidates.mapTo(linkedSetOf(), MonitorImportRow::lineNumber)
+        val unavailable = MonitorImportApplyResult(emptySet(), lines)
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_CREATE, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable,
+        ) { client ->
+            val succeeded = linkedSetOf<Int>()
+            val failed = linkedSetOf<Int>()
+            candidates.forEach { row ->
+                val draft = row.safeAutomaticDraftOrNull()
+                if (draft != null && client.saveMonitor(draft).ok) {
+                    succeeded += row.lineNumber
+                } else {
+                    failed += row.lineNumber
+                }
+            }
+            MonitorImportApplyResult(succeeded, failed)
+        }
+    }
+
+    suspend fun createMonitorGroup(name: String, childIds: Set<Int>): MonitorGroupMutationResult {
+        val plan = MonitorGroupPlan.create(name, childIds)
+            ?: return MonitorGroupMutationResult(failedIds = childIds, message = "Enter a group name and valid children")
+        val unavailable = MonitorGroupMutationResult(failedIds = plan.childIds, message = "Server unavailable")
+        val denied = MonitorGroupMutationResult(
+            failedIds = plan.childIds,
+            message = "Action not allowed for this connection",
+        )
+        val required = if (plan.childIds.isEmpty()) {
+            setOf(AccessCapability.MONITOR_CREATE)
+        } else {
+            setOf(
+                AccessCapability.MONITOR_CREATE,
+                AccessCapability.MONITOR_EDIT,
+                AccessCapability.BULK_WRITE,
+            )
+        }
+        return guardedMutation(required, unavailable, denied) { client ->
+            val created = client.saveMonitor(MonitorDraft.create("group").copy(name = plan.name))
+            val groupId = created.monitorId?.takeIf { created.ok && it > 0 }
+                ?: return@guardedMutation unavailable.copy(message = created.message ?: "Group could not be created")
+            assignMonitorsToGroup(client, groupId, plan.childIds)
+        }
+    }
+
+    suspend fun assignMonitorsToGroup(groupId: Int, childIds: Set<Int>): MonitorGroupMutationResult {
+        val plan = MonitorGroupPlan.create("existing", childIds)
+            ?: return MonitorGroupMutationResult(groupId, failedIds = childIds, message = "Invalid child selection")
+        val unavailable = MonitorGroupMutationResult(groupId, failedIds = plan.childIds, message = "Server unavailable")
+        return guardedMutation(
+            required = setOf(AccessCapability.MONITOR_EDIT, AccessCapability.BULK_WRITE),
+            unavailable = unavailable,
+            denied = unavailable.copy(message = "Action not allowed for this connection"),
+        ) { client ->
+            if (groupId <= 0) unavailable.copy(message = "Group is unavailable")
+            else assignMonitorsToGroup(client, groupId, plan.childIds)
+        }
+    }
+
+    private suspend fun assignMonitorsToGroup(
+        client: KumaClient,
+        groupId: Int,
+        childIds: Set<Int>,
+    ): MonitorGroupMutationResult {
+        val succeeded = linkedSetOf<Int>()
+        val failed = linkedSetOf<Int>()
+        childIds.forEach { id ->
+            val draft = client.monitorDraft(id)
+            when {
+                draft == null || draft.type == "group" || id == groupId -> failed += id
+                draft.parentId == groupId -> succeeded += id
+                client.saveMonitor(draft.copy(parentId = groupId)).ok -> succeeded += id
+                else -> failed += id
+            }
+        }
+        return MonitorGroupMutationResult(
+            groupId = groupId,
+            succeededIds = succeeded,
+            failedIds = failed,
+            message = "Some monitors could not be moved".takeIf { failed.isNotEmpty() },
+        )
     }
     suspend fun monitorDraft(id: Int): MonitorDraft? = activeClient.value?.monitorDraft(id)
     suspend fun serverTags(): List<KumaTag>? = activeClient.value?.serverTags()
+    suspend fun gameTypes(): List<KumaGameType>? = activeClient.value?.gameTypes()
+    suspend fun pm2Processes(): List<KumaPm2Process>? = activeClient.value?.pm2Processes()
+
+    suspend fun notificationSnapshot(): List<KumaNotification>? {
+        val client = activeClient.value ?: return null
+        val ready = withTimeoutOrNull(NOTIFICATION_LIST_TIMEOUT_MS) {
+            client.notificationListReady.first { it }
+        } == true
+        return client.notifications.value.takeIf { ready }
+    }
     suspend fun maintenanceDraft(id: Int): MaintenanceDraft? = activeClient.value?.maintenanceDraft(id)
-    suspend fun saveMaintenance(draft: MaintenanceDraft): MonitorMutationResult =
-        activeClient.value?.saveMaintenance(draft) ?: MonitorMutationResult(false, message = "Server unavailable")
-    suspend fun pauseMaintenance(id: Int): Boolean = activeClient.value?.pauseMaintenance(id) == true
-    suspend fun resumeMaintenance(id: Int): Boolean = activeClient.value?.resumeMaintenance(id) == true
-    suspend fun deleteMaintenance(id: Int): Boolean = activeClient.value?.deleteMaintenance(id) == true
+    suspend fun saveMaintenance(draft: MaintenanceDraft): MonitorMutationResult = guardedMutation(
+        required = setOf(AccessCapability.MAINTENANCE_WRITE),
+        unavailable = MonitorMutationResult(false, message = "Server unavailable"),
+        denied = MonitorMutationResult(false, message = "Action not allowed for this connection"),
+    ) { client -> client.saveMaintenance(draft) }
+
+    suspend fun pauseMaintenance(id: Int): Boolean = guardedMutation(
+        required = setOf(AccessCapability.MAINTENANCE_WRITE),
+        unavailable = false,
+        denied = false,
+    ) { client -> client.pauseMaintenance(id) }
+
+    suspend fun resumeMaintenance(id: Int): Boolean = guardedMutation(
+        required = setOf(AccessCapability.MAINTENANCE_WRITE),
+        unavailable = false,
+        denied = false,
+    ) { client -> client.resumeMaintenance(id) }
+
+    suspend fun deleteMaintenance(id: Int): Boolean = guardedMutation(
+        required = setOf(AccessCapability.MAINTENANCE_WRITE),
+        unavailable = false,
+        denied = false,
+    ) { client -> client.deleteMaintenance(id) }
+
+    suspend fun createPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult =
+        guardedIncidentMutation(draft.target.serverUrl) { it.createPublicIncident(draft) }
+
+    suspend fun editPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult =
+        guardedIncidentMutation(draft.target.serverUrl) { it.editPublicIncident(draft) }
+
+    suspend fun unpinPublicIncident(target: PublicIncidentTarget): IncidentMutationResult =
+        guardedIncidentMutation(target.serverUrl) { it.unpinPublicIncident(target) }
+
+    suspend fun resolvePublicIncident(incident: PublicIncident): IncidentMutationResult =
+        guardedIncidentMutation(incident.target.serverUrl) { it.resolvePublicIncident(incident) }
+
+    suspend fun deletePublicIncident(incident: PublicIncident): IncidentMutationResult =
+        guardedIncidentMutation(incident.target.serverUrl) { it.deletePublicIncident(incident) }
+
+    suspend fun publicIncidentHistory(target: PublicIncidentTarget): PublicIncidentHistory? {
+        if (target.serverUrl != activeUrlValue) return null
+        return activeClient.value?.publicIncidentHistory(target)
+    }
     suspend fun newMonitorDraft(): MonitorDraft {
         val client = activeClient.value
         if (client != null) {
@@ -386,11 +773,27 @@ class MonitorRepository(
                 .toSet(),
         )
     }
-    suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult =
-        activeClient.value?.saveMonitor(draft) ?: MonitorMutationResult(false, message = "Server unavailable")
+    suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult {
+        val required = linkedSetOf(
+            if (draft.isNew) AccessCapability.MONITOR_CREATE else AccessCapability.MONITOR_EDIT,
+        )
+        val existingActive = monitors.value.firstOrNull { it.id == draft.id }?.active
+        if (!draft.isNew && existingActive != null && existingActive != draft.active) {
+            required += AccessCapability.MONITOR_STATE
+        }
+        return guardedMutation(
+            required = required,
+            unavailable = MonitorMutationResult(false, message = "Server unavailable"),
+            denied = MonitorMutationResult(false, message = "Action not allowed for this connection"),
+        ) { client -> client.saveMonitor(draft) }
+    }
+
     suspend fun deleteMonitor(id: Int, deleteChildren: Boolean = false): MonitorMutationResult =
-        activeClient.value?.deleteMonitor(id, deleteChildren)
-            ?: MonitorMutationResult(false, id, "Server unavailable")
+        guardedMutation(
+            required = setOf(AccessCapability.MONITOR_DELETE),
+            unavailable = MonitorMutationResult(false, id, "Server unavailable"),
+            denied = MonitorMutationResult(false, id, "Action not allowed for this connection"),
+        ) { client -> client.deleteMonitor(id, deleteChildren) }
 
     /** Fetch a fixed window on demand, with bounded concurrency for large fleets. */
     suspend fun chartData(
@@ -421,8 +824,47 @@ class MonitorRepository(
         activeClient.value?.disconnect()
         activeClient.value = null
         activeUrlValue = null
+        _localConnectionFailure.value = null
         cachedMonitors.value = emptyList()
         lastUpdatedMs.value = null
+    }
+
+    private suspend fun <T> guardedMutation(
+        required: Set<AccessCapability>,
+        unavailable: T,
+        denied: T,
+        block: suspend (KumaClient) -> T,
+    ): T = when (val execution = mutationExecutor.execute(required) { connection ->
+        val client = activeClient.value?.takeIf { activeUrlValue == connection.url }
+            ?: return@execute unavailable
+        block(client)
+    }) {
+        is MutationExecution.Completed -> execution.value
+        is MutationExecution.Denied -> {
+            _mutationDenials.tryEmit(execution.decision)
+            denied
+        }
+        MutationExecution.NoActiveConnection -> unavailable
+    }
+
+    private suspend fun guardedIncidentMutation(
+        serverUrl: String,
+        block: suspend (KumaClient) -> IncidentMutationResult,
+    ): IncidentMutationResult {
+        val unavailable = IncidentMutationResult(
+            IncidentMutationOutcome.REJECTED,
+            message = "Server unavailable",
+        )
+        if (serverUrl != activeUrlValue) return unavailable
+        return guardedMutation(
+            required = setOf(AccessCapability.STATUS_INCIDENT_WRITE),
+            unavailable = unavailable,
+            denied = IncidentMutationResult(
+                IncidentMutationOutcome.REJECTED,
+                message = "Action not allowed for this connection",
+            ),
+            block = block,
+        )
     }
 
     private fun connectFresh(
@@ -430,6 +872,7 @@ class MonitorRepository(
         insecure: Boolean,
         headers: List<RequestHeader> = emptyList(),
     ): KumaClient {
+        _localConnectionFailure.value = null
         val client = KumaClient(url, insecure, headers)
         activateClient(url, client)
         client.connect()
@@ -439,6 +882,11 @@ class MonitorRepository(
     private fun activateClient(url: String, client: KumaClient) {
         activeClient.value?.disconnect()
         activeUrlValue = url
+        selectServerContext(url)
+        activeClient.value = client
+    }
+
+    private fun selectServerContext(url: String) {
         // Show this server's last-known list immediately while the socket reconnects.
         cachedMonitors.value = emptyList()
         lastUpdatedMs.value = null
@@ -448,12 +896,12 @@ class MonitorRepository(
                 lastUpdatedMs.value = snap.updatedAt
             }
         }
-        activeClient.value = client
     }
 
     private companion object {
         const val CHART_REQUEST_CONCURRENCY = 4
         const val NOTIFICATION_READ_CONCURRENCY = 4
+        const val CLEARTEXT_BLOCKED_MESSAGE = "Unencrypted HTTP is blocked for this server"
         const val NOTIFICATION_LIST_TIMEOUT_MS = 5_000L
         const val TOKEN_REJECTED_MESSAGE =
             "Session token was rejected, expired, or the server did not respond"

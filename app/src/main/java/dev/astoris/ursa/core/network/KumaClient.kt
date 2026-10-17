@@ -4,7 +4,11 @@ import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.LoginResult
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
@@ -60,8 +64,13 @@ class KumaClient(
     private val _failure = MutableStateFlow<ConnectionFailureReason?>(null)
     val failure: StateFlow<ConnectionFailureReason?> = _failure.asStateFlow()
 
+    private val _compatibility = MutableStateFlow(KumaCapabilities.evaluate(null))
+    val compatibility: StateFlow<KumaCompatibility> = _compatibility.asStateFlow()
+
     private val _monitors = MutableStateFlow<Map<Int, Monitor>>(emptyMap())
     val monitors: StateFlow<Map<Int, Monitor>> = _monitors.asStateFlow()
+    private val _monitorListReady = MutableStateFlow(false)
+    val monitorListReady: StateFlow<Boolean> = _monitorListReady.asStateFlow()
 
     private val _heartbeats = MutableSharedFlow<Heartbeat>(extraBufferCapacity = 64)
     val heartbeats: SharedFlow<Heartbeat> = _heartbeats.asSharedFlow()
@@ -76,6 +85,10 @@ class KumaClient(
     val notifications: StateFlow<List<KumaNotification>> = _notifications.asStateFlow()
     private val _notificationListReady = MutableStateFlow(false)
     val notificationListReady: StateFlow<Boolean> = _notificationListReady.asStateFlow()
+    private val _dockerHosts = MutableStateFlow<List<KumaDockerHost>>(emptyList())
+    val dockerHosts: StateFlow<List<KumaDockerHost>> = _dockerHosts.asStateFlow()
+    private val _remoteBrowsers = MutableStateFlow<List<KumaRemoteBrowser>>(emptyList())
+    val remoteBrowsers: StateFlow<List<KumaRemoteBrowser>> = _remoteBrowsers.asStateFlow()
     private val _maintenances = MutableStateFlow<Map<Int, MaintenanceDraft>>(emptyMap())
     val maintenances: StateFlow<Map<Int, MaintenanceDraft>> = _maintenances.asStateFlow()
 
@@ -139,13 +152,24 @@ class KumaClient(
         }
         s.on(Socket.EVENT_DISCONNECT) { _ -> _state.value = ConnectionState.Disconnected }
 
+        s.on("info") { args ->
+            args.jsonAt(0)?.let { info ->
+                _compatibility.value = KumaCapabilities.evaluate(KumaParse.serverVersion(info)).copy(
+                    isContainer = KumaParse.serverIsContainer(info),
+                )
+            }
+        }
+
         s.on("monitorList") { args ->
             val payload = args.jsonAt(0)
             if (payload == null && args.isNotEmpty()) {
                 _failure.value = ConnectionFailureReason.INCOMPATIBLE_RESPONSE
                 _state.value = ConnectionState.Error
             } else {
-                payload?.let { _monitors.value = KumaParse.monitorList(it) }
+                payload?.let {
+                    _monitors.value = KumaParse.monitorList(it)
+                    _monitorListReady.value = true
+                }
             }
         }
         s.on("notificationList") { args ->
@@ -154,6 +178,12 @@ class KumaClient(
                 _managedPushNotifications.value = KumaParse.managedPushNotifications(it)
                 _notificationListReady.value = true
             }
+        }
+        s.on("dockerHostList") { args ->
+            args.jsonArrayAt(0)?.let { _dockerHosts.value = KumaParse.dockerHosts(it) }
+        }
+        s.on("remoteBrowserList") { args ->
+            args.jsonArrayAt(0)?.let { _remoteBrowsers.value = KumaParse.remoteBrowsers(it) }
         }
         s.on("maintenanceList") { args ->
             args.jsonAt(0)?.let { _maintenances.value = MaintenanceCodec.list(it) }
@@ -277,8 +307,32 @@ class KumaClient(
         return KumaParse.tagDefinitions(json)
     }
 
-    /** Creates a supported monitor or safely patches typed fields on any known Kuma 2.5.5 type. */
+    suspend fun gameTypes(): List<KumaGameType>? {
+        val response = emitAck("getGameList") ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONArray("gameList") ?: return emptyList()
+        val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
+            ?: return null
+        return KumaParse.gameTypes(json)
+    }
+
+    suspend fun pm2Processes(): List<KumaPm2Process>? {
+        val response = emitAck("getPM2ProcessList") ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONArray("processList") ?: return emptyList()
+        val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull()
+            ?: return null
+        return KumaParse.pm2Processes(json)
+    }
+
+    /** Creates a supported monitor or safely patches typed fields on any registered type. */
     suspend fun saveMonitor(draft: MonitorDraft): MonitorMutationResult {
+        if (!MonitorEditorRegistry.writeVerified(draft.type, _compatibility.value)) {
+            return MonitorMutationResult(
+                false,
+                message = "This monitor type is not write-verified for the connected Uptime Kuma version.",
+            )
+        }
         MonitorDraftCodec.validate(draft)?.let { error ->
             return MonitorMutationResult(false, message = error.name)
         }
@@ -292,7 +346,8 @@ class KumaClient(
             val json = runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
                 ?: return MonitorMutationResult(false, message = "MONITOR_UNAVAILABLE")
             currentTags = KumaParse.tagAssignments(json)
-            MonitorDraftCodec.applyToExisting(json, draft)
+            MonitorDraftCodec.safeExistingPayload(json, draft)
+                ?: return MonitorMutationResult(false, message = "ROUND_TRIP_GUARD_FAILED")
         }
         val event = if (draft.isNew) "add" else "editMonitor"
         val response = emitAck(event, JSONObject(payload.toString()))
@@ -388,12 +443,121 @@ class KumaClient(
     suspend fun deleteMaintenance(id: Int): Boolean =
         emitAck("deleteMaintenance", id)?.optBoolean("ok") == true
 
+    suspend fun createPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult {
+        incidentWriteRejection(draft, requireId = false)?.let { return it }
+        val response = emitAck(
+            "postIncident",
+            draft.target.statusPageSlug,
+            JSONObject(PublicIncidentCodec.payload(draft).toString()),
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, draft.target, requireIncident = true)
+    }
+
+    suspend fun editPublicIncident(draft: PublicIncidentDraft): IncidentMutationResult {
+        incidentWriteRejection(draft, requireId = true)?.let { return it }
+        val response = emitAck(
+            "editIncident",
+            draft.target.statusPageSlug,
+            draft.id!!,
+            JSONObject(PublicIncidentCodec.payload(draft).toString()),
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, draft.target, requireIncident = true)
+    }
+
+    suspend fun unpinPublicIncident(target: PublicIncidentTarget): IncidentMutationResult {
+        incidentTargetRejection(target)?.let { return it }
+        val response = emitAck("unpinIncident", target.statusPageSlug) ?: return incidentIndeterminate()
+        return incidentResponse(response, target)
+    }
+
+    suspend fun resolvePublicIncident(incident: PublicIncident): IncidentMutationResult {
+        incidentWriteRejection(incident.toDraft(), requireId = true)?.let { return it }
+        val response = emitAck(
+            "resolveIncident",
+            incident.target.statusPageSlug,
+            incident.id,
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, incident.target, requireIncident = true)
+    }
+
+    suspend fun deletePublicIncident(incident: PublicIncident): IncidentMutationResult {
+        incidentWriteRejection(incident.toDraft(), requireId = true)?.let { return it }
+        val response = emitAck(
+            "deleteIncident",
+            incident.target.statusPageSlug,
+            incident.id,
+        ) ?: return incidentIndeterminate()
+        return incidentResponse(response, incident.target)
+    }
+
+    suspend fun publicIncidentHistory(target: PublicIncidentTarget): PublicIncidentHistory? {
+        if (target.serverUrl != baseUrl || !StatusPageAddress.isValidSlug(target.statusPageSlug)) return null
+        val response = emitAck("getIncidentHistory", target.statusPageSlug, JSONObject.NULL) ?: return null
+        if (!response.optBoolean("ok")) return null
+        val raw = response.optJSONArray("incidents") ?: return null
+        val array = runCatching { Json.parseToJsonElement(raw.toString()).jsonArray }.getOrNull() ?: return null
+        val incidents = PublicIncidentCodec.incidents(array, target)
+        return PublicIncidentHistory(
+            incidents = incidents,
+            total = response.optInt("total", incidents.size).coerceAtLeast(incidents.size),
+            hasMore = response.optBoolean("hasMore"),
+        )
+    }
+
+    private fun incidentWriteRejection(
+        draft: PublicIncidentDraft,
+        requireId: Boolean,
+    ): IncidentMutationResult? =
+        PublicIncidentCodec.validate(draft, requireId)?.let(::incidentRejected)
+            ?: incidentTargetRejection(draft.target)
+
+    private fun incidentTargetRejection(target: PublicIncidentTarget): IncidentMutationResult? = when {
+        !_compatibility.value.supports(KumaFeature.PUBLIC_INCIDENT_WRITE) ->
+            incidentRejected("Public incident actions are not verified for this Uptime Kuma version")
+        target.serverUrl != baseUrl -> incidentRejected("Status page belongs to another server")
+        !StatusPageAddress.isValidSlug(target.statusPageSlug) -> incidentRejected("Invalid status page")
+        else -> null
+    }
+
+    private fun incidentResponse(
+        response: JSONObject,
+        target: PublicIncidentTarget,
+        requireIncident: Boolean = false,
+    ): IncidentMutationResult {
+        if (!response.optBoolean("ok")) {
+            return incidentRejected(response.optString("msg").ifBlank { "Incident action failed" })
+        }
+        val incident = response.optJSONObject("incident")?.let { raw ->
+            runCatching { Json.parseToJsonElement(raw.toString()).jsonObject }.getOrNull()
+                ?.let { PublicIncidentCodec.incident(it, target) }
+        }
+        return if (requireIncident && incident == null) {
+            incidentIndeterminate("Server applied the action but returned an incomplete response; refresh before retrying")
+        } else {
+            IncidentMutationResult(IncidentMutationOutcome.APPLIED, incident)
+        }
+    }
+
+    private fun incidentRejected(message: String) = IncidentMutationResult(
+        IncidentMutationOutcome.REJECTED,
+        message = message,
+    )
+
+    private fun incidentIndeterminate(
+        message: String = "Server did not confirm the action within 15 seconds; refresh before retrying",
+    ) = IncidentMutationResult(IncidentMutationOutcome.INDETERMINATE, message = message)
+
     /** Recent heartbeat history for the detail view. Rows are snake_case (see KumaParse). */
-    suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> {
-        val res = emitAck("getMonitorBeats", id, hours) ?: return emptyList()
-        if (!res.optBoolean("ok")) return emptyList()
-        val data = res.optJSONArray("data") ?: return emptyList()
-        val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull() ?: return emptyList()
+    suspend fun getBeats(id: Int, hours: Int = 24): List<Heartbeat> =
+        getBeatsOrNull(id, hours).orEmpty()
+
+    /** Nullable variant used when callers must distinguish a failed request from no retained rows. */
+    suspend fun getBeatsOrNull(id: Int, hours: Int = 24): List<Heartbeat>? {
+        if (id <= 0 || hours !in 1..HeartbeatHistoryRange.MAX_LOOKBACK_HOURS) return null
+        val res = emitAck("getMonitorBeats", id, hours) ?: return null
+        if (!res.optBoolean("ok")) return null
+        val data = res.optJSONArray("data") ?: return null
+        val arr = runCatching { Json.parseToJsonElement(data.toString()).jsonArray }.getOrNull() ?: return null
         return KumaParse.beatRows(arr)
     }
 
@@ -510,8 +674,12 @@ class KumaClient(
         socket?.off()
         socket = null
         jwt = null
+        _monitors.value = emptyMap()
+        _monitorListReady.value = false
         _managedPushNotifications.value = emptyList()
         _notifications.value = emptyList()
+        _dockerHosts.value = emptyList()
+        _remoteBrowsers.value = emptyList()
         _maintenances.value = emptyMap()
         _notificationListReady.value = false
         _state.value = ConnectionState.Disconnected

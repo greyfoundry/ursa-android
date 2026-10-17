@@ -2,7 +2,7 @@
 
 Build specification for package `dev.astoris.ursa`.
 
-Status: Implemented and verified against live Uptime Kuma 2.4.x and 2.5.0-2.5.5.
+Status: Implemented and verified against live Uptime Kuma 2.4.0-2.5.6.
 Stack: Kotlin, Jetpack Compose, native Android, and a separate native Wear OS module.
 
 ## Product boundary
@@ -18,16 +18,17 @@ The implemented phone surface includes:
 - Live monitor state, history, charts, certificates, public status pages, offline
   cache, compact and responsive layouts, saved filters, and fleet dashboards.
 - Safe common monitor editing/creation, native SFTP password/private-key setup,
-  notification assignment, groups, tags, bulk actions, local discovery, and all six
-  maintenance strategies.
-- UnifiedPush, certificate/slow-response/update notifications, app lock, widgets,
+  notification assignment, groups, tags, a previewed group wizard, bulk actions,
+  local discovery, and all six maintenance strategies.
+- UnifiedPush with local dependencies and group N-of-M thresholds,
+  certificate/slow-response/update notifications, app lock, widgets,
   tile, shortcuts, strict deep links, encrypted backups, and glance display.
 - A separate Wear OS app with dashboard, detail, tile, complications, and optional
   same-signed phone session pairing.
 
-Apart from SFTP, advanced type-specific monitor creation and Kuma server administration
-remain out of scope. Unknown or sensitive monitor fields stay inside the network
-adapter and are preserved during common edits.
+All monitor types in the verified Kuma catalogue have a safe native creation/editing
+boundary or an explicit browser fallback. Unknown or sensitive monitor fields stay
+inside the network adapter and are preserved during supported edits.
 
 ## Architecture
 
@@ -48,7 +49,9 @@ snake/camel naming splits, and double-encoded configuration, belongs in
   Keystore-backed master key.
 - Passwords and TOTP codes are never persisted. Session tokens and custom header
   values are masked, never logged, and never rendered after save.
-- Release builds apply `FLAG_SECURE` and exclude all app data from backup/transfer.
+- Release builds start with `FLAG_SECURE`, then apply the persisted Off, Sensitive
+  screens only, or Always policy without briefly exposing protected content. All app
+  data remains excluded from backup and device transfer.
 - TLS is the default. Plain HTTP and session-lifetime TOFU for self-signed
   certificates are explicit self-hosting compromises documented in
   `docs/security.mdx`.
@@ -59,10 +62,10 @@ snake/camel naming splits, and double-encoded configuration, belongs in
 
 | Component | Version |
 |---|---|
-| Kotlin | 2.4.10 |
+| Kotlin | 2.4.21 |
 | Compose BOM | 2026.09.00 |
 | Android Gradle Plugin | 9.4.1 |
-| Gradle | 9.7.1 |
+| Gradle | 9.8.1 |
 | compileSdk / targetSdk | 37 / 37 |
 | phone minSdk | 26 |
 | Wear minSdk | 30 |
@@ -78,6 +81,7 @@ built-in Kotlin, so modules do not apply `org.jetbrains.kotlin.android`.
 ./gradlew.bat :app:lintFdroidDebug :app:lintGithubDebug --no-daemon
 ./gradlew.bat :wear:testFdroidDebugUnitTest :wear:testGithubDebugUnitTest --no-daemon
 ./gradlew.bat :wear:lintFdroidDebug :wear:lintGithubDebug --no-daemon
+./gradlew.bat :benchmarks:compileFdroidBenchmarkKotlin :benchmarks:compileGithubBenchmarkKotlin --no-daemon
 ./gradlew.bat :app:assembleFdroidRelease --no-daemon
 ```
 

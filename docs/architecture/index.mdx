@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-21
+last-updated: 2026-10-04
 owner: astoris
 status: stable
 ---
@@ -23,29 +23,45 @@ Kuma server ──Socket.IO──▶ core.network (adapter: parse/normalize wire
                           ui.* (Compose, collectAsStateWithLifecycle)
 
 core.storage (DataStore+Tink)  ── credentials/JWT ──▶ core.network (login/loginByToken)
+             └─ encrypted monitor snapshots ──▶ data.repository.FleetRepository
 distributor (ntfy) ──push──▶ core.push (UnifiedPush receiver) ──▶ system notification
 core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhook provider
 ```
 
 **layers**
-- `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient) -
+- `core.network` → `.../core/network/` (KumaClient, KumaParse, StatusPageClient,
+  MonitorEditorRegistry and its round-trip guard) -
   see `docs/modules/network.mdx`.
 - `core.storage` → `.../core/storage/` (ConnectionStore, encrypted caches,
-  preferences, event history, and incident notes) - DataStore with Tink
-  AES-256-GCM at rest, master key in Android Keystore.
+  preferences, event history, and incident notes) - sensitive records use
+  DataStore with Tink AES-256-GCM at rest and a master key in Android Keystore;
+  non-secret display/privacy choices use app-private preferences.
 - `core.push` → `.../core/push/` (UrsaPushService, PushParse, PushStore,
-  KumaWebhook, PushDeliveryTest) - UnifiedPush receive path, delivery URL
-  validation, privacy-safe diagnostics/testing, and notification rendering.
+  ManagedPushScopeStore, KumaWebhook, PushDeliveryTest) - UnifiedPush receive path,
+  encrypted provider/server scope binding, delivery URL validation, privacy-safe
+  diagnostics/testing, and notification rendering.
   See `docs/modules/push.mdx`.
-- `data.model` → `.../data/model/` - Models.kt + StatusPageModels.kt.
-- `data.repository` → `.../data/repository/MonitorRepository.kt`.
-- `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, connections/monitors/statuspage) -
+- `data.model` → `.../data/model/` - server/monitor/status-page models plus
+  `FleetModels.kt` for cache availability, freshness, normalized counts, and typed
+  transport/authentication/managed-push health states.
+- `data.repository` → `.../data/repository/MonitorRepository.kt` owns the active
+  socket; `FleetRepository.kt` reads saved connections and encrypted snapshots
+  without connecting to inactive servers on load. Its explicit refresh uses at
+  most two short-lived clients and closes them after per-server results are captured.
+- `ui.*` → `.../ui/` (UrsaViewModel, UrsaApp, typed Navigation 3 shell,
+  cache-first fleet Home with explicit bounded refresh and server-scoped drill-down,
+  expandable privacy-safe server health,
+  Material 3 Adaptive navigation/list-detail, shared operational components,
+  connections/monitors/statuspage) -
   see `docs/modules/ui.mdx`.
 - app shell → `.../MainActivity.kt` - see `docs/modules/app-shell.mdx`.
 - update check -> `.../core/update/` - user-triggered official GitHub release lookup,
   strict semantic version parsing, and optional version-deduplicated notification.
 - Wear companion -> standalone public polling plus an optional same-signed Data Layer
   session handoff - see `docs/modules/wear.mdx`.
+- release performance -> `benchmarks/` drives the profileable phone app through
+  startup and deterministic 100/500/1,000-monitor critical journeys; generated
+  Baseline Profile rules ship through `:app` - see `docs/modules/performance.mdx`.
 
 **depends on**
 - `docs/references/*` - the external API contracts each layer implements against.
@@ -55,6 +71,7 @@ core.push (validated endpoint) -> data.repository -> core.network -> Kuma Webhoo
 - The adapter in `core.network` is the ONLY place that knows Kuma's wire quirks
   (positional events, snake/camel split, double-encoded JSON). Keep it there.
 - One `Socket` per active server; multi-server = switch the active repository, not
-  multiple live sockets in v1.
+  multiple permanent live sockets. Cached Fleet loading performs no network work;
+  explicit Fleet refresh uses only bounded, short-lived sessions.
 - Push is independent of the socket - it works while the app is closed, via the
   distributor. Don't couple them.

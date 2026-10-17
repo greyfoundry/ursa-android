@@ -104,6 +104,32 @@ data class KumaNotification(
     val isDefault: Boolean,
 )
 
+/** Selection-safe Docker host metadata; the daemon address never leaves the network adapter. */
+data class KumaDockerHost(
+    val id: Int,
+    val name: String,
+    val type: String,
+)
+
+/** Selection-safe remote browser metadata; its potentially tokenized URL stays in the network adapter. */
+data class KumaRemoteBrowser(
+    val id: Int,
+    val name: String,
+)
+
+/** Selection-safe GameDig metadata; adapter options and extras stay at the network boundary. */
+data class KumaGameType(
+    val key: String,
+    val label: String,
+)
+
+/** Selection-safe PM2 metadata returned by Kuma's local process probe. */
+data class KumaPm2Process(
+    val id: String,
+    val name: String,
+    val status: String,
+)
+
 /** TLS certificate summary for an HTTPS monitor (from the `certInfo` event). */
 data class CertInfo(
     val valid: Boolean,
@@ -127,6 +153,12 @@ data class ServerConnection(
     val alias: String? = null,
     /** Encrypted with the connection; values are never included in UI summaries or logs. */
     val headers: List<RequestHeader> = emptyList(),
+    /** Client-side guard only; missing in legacy records and therefore defaults to current behaviour. */
+    val accessProfile: AccessProfile = AccessProfile.MANAGE,
+    /** Retained when another profile is selected so a user's custom choice is not destroyed. */
+    val customCapabilities: Set<AccessCapability> = emptySet(),
+    /** Missing in released records; LEGACY preserves existing HTTP connections until reviewed. */
+    val cleartextPolicy: CleartextPolicy = CleartextPolicy.LEGACY,
 ) {
     val displayName: String
         get() = alias?.trim()?.takeIf { it.isNotEmpty() }

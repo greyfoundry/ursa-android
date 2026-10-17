@@ -18,10 +18,10 @@ touch Google or a paid relay.
 no ads, and no tracking - now and forever. If it works for your Kuma setup, it's yours.
 
 <p>
-  <img src="docs/assets/screenshots/02-monitors-dark.png" width="220" alt="Monitor list" />
+  <img src="docs/assets/screenshots/01-home-dark.png" width="220" alt="Fleet Home showing urgent monitors and server health" />
   <img src="docs/assets/screenshots/05-features-menu-dark.png" width="220" alt="Monitor list with the feature menu open" />
-  <img src="docs/assets/screenshots/03-detail-dark.png" width="220" alt="Monitor detail with heartbeat and TLS certificate" />
-  <img src="docs/assets/screenshots/06-advanced-filters-dark.png" width="220" alt="Advanced monitor filters and saved views" />
+  <img src="docs/assets/screenshots/03-detail-dark.png" width="220" alt="Live monitor detail with response time and uptime" />
+  <img src="docs/assets/screenshots/07-browse-dark.png" width="220" alt="Browse catalogue of operations, insights, and server tools" />
 </p>
 
 ## 🐻 Why URSA?
@@ -68,8 +68,8 @@ whenever you pull your phone out.
   that heals itself when your connection drops.
 - 🌐 **Public status pages** - check a shared status page without logging in at all.
 - 🛡️ **Private by default** - credentials are encrypted on-device, only your session
-  token is ever stored (never your password), and monitor data is hidden from
-  screenshots and the app switcher.
+  token is ever stored (never your password), and screenshot protection defaults
+  to Always with optional Sensitive screens only and Off modes.
 - 📱 **Feels like Android** - a home-screen widget, a Quick Settings tile, app
   shortcuts and scoped deep links, biometric app lock, an offline last-known view,
   notification actions, responsive tablet layouts, and an opt-in glance display.
@@ -105,7 +105,7 @@ versioned release tags and updates URSA automatically, no store required.
 
 | Your Kuma looks like... | URSA handles it |
 |---|---|
-| Uptime Kuma 2.4.x and 2.5.0-2.5.5 | ✔ verified against live instances |
+| Uptime Kuma 2.4.0-2.5.6 | ✔ verified against digest-pinned live instances |
 | Username / password login | ✔ |
 | Two-factor (TOTP) | ✔ |
 | Several servers | ✔ switch freely |

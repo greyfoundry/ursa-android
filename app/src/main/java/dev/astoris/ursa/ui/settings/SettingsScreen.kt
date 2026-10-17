@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -35,29 +38,39 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.core.net.toUri
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.astoris.ursa.R
+import dev.astoris.ursa.ui.components.accessibilityHeading
 import dev.astoris.ursa.ui.UrsaViewModel
 import dev.astoris.ursa.ui.WearPairingError
 import dev.astoris.ursa.ui.WearPairingUiState
 import dev.astoris.ursa.ui.UpdateCheckUiState
 import dev.astoris.ursa.core.network.ConnectionFailureReason
+import dev.astoris.ursa.core.network.ConnectionTransportPolicy
+import dev.astoris.ursa.core.storage.ScreenshotProtectionMode
 import dev.astoris.ursa.ui.lock.BiometricGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    vm: UrsaViewModel,
+    modifier: Modifier = Modifier,
+    onNotificationsClick: () -> Unit = vm::enterPush,
+) {
     val context = LocalContext.current
     val canLock = remember { BiometricGate.canAuthenticate(context) }
     val lockEnabled by vm.lockEnabled.collectAsStateWithLifecycle()
+    val destructiveStepUpEnabled by vm.destructiveStepUpEnabled.collectAsStateWithLifecycle()
     val slowAlertEnabled by vm.slowAlertEnabled.collectAsStateWithLifecycle()
     val slowThresholdMs by vm.slowThresholdMs.collectAsStateWithLifecycle()
     val dynamicColorEnabled by vm.dynamicColorEnabled.collectAsStateWithLifecycle()
     val compactDisplayEnabled by vm.compactDisplayEnabled.collectAsStateWithLifecycle()
+    val screenshotProtection by vm.screenshotProtection.collectAsStateWithLifecycle()
     val connectionFailure by vm.connectionFailure.collectAsStateWithLifecycle()
     val updateCheck by vm.updateCheck.collectAsStateWithLifecycle()
     val connections by vm.connections.collectAsStateWithLifecycle()
@@ -67,6 +80,7 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     val canDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     var showKioskWarning by remember { mutableStateOf(false) }
     var showWearConfirmation by remember { mutableStateOf(false) }
+    var showWearClearConfirmation by remember { mutableStateOf(false) }
     var showConnectionHelp by remember { mutableStateOf(false) }
     var showUpdates by remember { mutableStateOf(false) }
 
@@ -74,7 +88,7 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { Text(stringResource(R.string.settings_title), Modifier.accessibilityHeading()) },
             )
         },
     ) { padding ->
@@ -103,6 +117,17 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                 }
             }
             Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = onNotificationsClick, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.nav_notifications), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.settings_notifications_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
             OutlinedButton(onClick = { showKioskWarning = true }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.settings_kiosk_title), style = MaterialTheme.typography.labelLarge)
@@ -122,7 +147,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         showWearConfirmation = true
                     },
                     enabled = wearPairing != WearPairingUiState.Sending &&
-                        activeConnection?.jwt?.isNotBlank() == true && activeConnection.insecure.not(),
+                        activeConnection?.jwt?.isNotBlank() == true && activeConnection.insecure.not() &&
+                        ConnectionTransportPolicy.allows(activeConnection),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.fillMaxWidth()) {
@@ -133,6 +159,8 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                                     activeConnection == null || activeConnection.jwt.isNullOrBlank() ->
                                         R.string.settings_wear_no_session
                                     activeConnection.insecure -> R.string.settings_wear_self_signed
+                                    !ConnectionTransportPolicy.allows(activeConnection) ->
+                                        R.string.settings_wear_cleartext_blocked
                                     else -> R.string.settings_wear_desc
                                 },
                             ),
@@ -141,6 +169,17 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                         )
                         WearPairingResult(wearPairing)
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = {
+                        vm.clearWearPairingResult()
+                        showWearClearConfirmation = true
+                    },
+                    enabled = wearPairing != WearPairingUiState.Sending,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.settings_wear_clear))
                 }
             }
 
@@ -168,6 +207,65 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
                     checked = lockEnabled && canLock,
                     enabled = canLock,
                     onCheckedChange = { vm.setLockEnabled(it) },
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        stringResource(R.string.settings_confirm_destructive),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        stringResource(
+                            if (canLock) R.string.settings_confirm_destructive_desc
+                            else R.string.settings_require_unlock_unavailable,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = destructiveStepUpEnabled && canLock,
+                    enabled = canLock,
+                    onCheckedChange = vm::setDestructiveStepUpEnabled,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.settings_screenshot_protection),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.accessibilityHeading(),
+            )
+            Text(
+                stringResource(R.string.settings_screenshot_protection_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column(Modifier.fillMaxWidth().selectableGroup()) {
+                ScreenshotProtectionOption(
+                    selected = screenshotProtection == ScreenshotProtectionMode.OFF,
+                    title = stringResource(R.string.settings_screenshot_off),
+                    description = stringResource(R.string.settings_screenshot_off_desc),
+                    onClick = { vm.setScreenshotProtection(ScreenshotProtectionMode.OFF) },
+                )
+                ScreenshotProtectionOption(
+                    selected = screenshotProtection == ScreenshotProtectionMode.SENSITIVE,
+                    title = stringResource(R.string.settings_screenshot_sensitive),
+                    description = stringResource(R.string.settings_screenshot_sensitive_desc),
+                    onClick = { vm.setScreenshotProtection(ScreenshotProtectionMode.SENSITIVE) },
+                )
+                ScreenshotProtectionOption(
+                    selected = screenshotProtection == ScreenshotProtectionMode.ALWAYS,
+                    title = stringResource(R.string.settings_screenshot_always),
+                    description = stringResource(R.string.settings_screenshot_always_desc),
+                    onClick = { vm.setScreenshotProtection(ScreenshotProtectionMode.ALWAYS) },
                 )
             }
 
@@ -339,6 +437,27 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
         )
     }
 
+    if (showWearClearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showWearClearConfirmation = false },
+            title = { Text(stringResource(R.string.settings_wear_clear_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_wear_clear_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showWearClearConfirmation = false
+                        vm.clearActiveSessionFromWear()
+                    },
+                ) { Text(stringResource(R.string.settings_wear_clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWearClearConfirmation = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
     if (showConnectionHelp) {
         AlertDialog(
             onDismissRequest = { showConnectionHelp = false },
@@ -410,11 +529,38 @@ fun SettingsScreen(vm: UrsaViewModel, modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
+private fun ScreenshotProtectionOption(
+    selected: Boolean,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(Modifier.padding(start = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 private fun ConnectionFailureReason?.helpRes() = when (this) {
     ConnectionFailureReason.DEVICE_OFFLINE -> R.string.connection_reason_device
     ConnectionFailureReason.SERVER_UNREACHABLE -> R.string.connection_reason_server
     ConnectionFailureReason.AUTHENTICATION -> R.string.connection_reason_auth
     ConnectionFailureReason.CERTIFICATE -> R.string.connection_reason_certificate
+    ConnectionFailureReason.CLEARTEXT_BLOCKED -> R.string.connection_reason_cleartext_blocked
     ConnectionFailureReason.INCOMPATIBLE_RESPONSE -> R.string.connection_reason_incompatible
     ConnectionFailureReason.UNKNOWN, null -> R.string.connection_reason_unknown
 }
@@ -429,11 +575,18 @@ private fun WearPairingResult(state: WearPairingUiState) {
             state.watchCount,
             state.watchCount,
         )
+        is WearPairingUiState.Cleared -> pluralStringResource(
+            R.plurals.settings_wear_cleared,
+            state.watchCount,
+            state.watchCount,
+        )
         is WearPairingUiState.Error -> stringResource(
             when (state.reason) {
                 WearPairingError.NO_ACTIVE_SESSION -> R.string.settings_wear_no_session
                 WearPairingError.SELF_SIGNED_UNSUPPORTED -> R.string.settings_wear_self_signed
+                WearPairingError.CLEARTEXT_BLOCKED -> R.string.settings_wear_cleartext_blocked
                 WearPairingError.NO_REACHABLE_WATCH -> R.string.settings_wear_no_watch
+                WearPairingError.WATCH_UPDATE_REQUIRED -> R.string.settings_wear_update_required
                 WearPairingError.TRANSFER_FAILED -> R.string.settings_wear_failed
             },
         )

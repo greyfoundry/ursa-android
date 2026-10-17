@@ -21,6 +21,20 @@ class KumaParseTest {
 
     private fun obj(json: String) = Json.parseToJsonElement(json).jsonObject
 
+    @Test fun info_extracts_trimmed_server_version() {
+        assertEquals("2.5.5", KumaParse.serverVersion(obj("""{"version":" 2.5.5 "}""")))
+        assertNull(KumaParse.serverVersion(obj("""{"latestVersion":"2.5.5"}""")))
+        assertNull(KumaParse.serverVersion(obj("""{"version":"   "}""")))
+        assertNull(KumaParse.serverVersion(obj("""{"version":{"major":2}}""")))
+    }
+
+    @Test fun info_extracts_container_environment_without_guessing() {
+        assertEquals(true, KumaParse.serverIsContainer(obj("""{"isContainer":true}""")))
+        assertEquals(false, KumaParse.serverIsContainer(obj("""{"isContainer":false}""")))
+        assertNull(KumaParse.serverIsContainer(obj("""{}""")))
+        assertNull(KumaParse.serverIsContainer(obj("""{"isContainer":"true"}""")))
+    }
+
     @Test fun monitor_parses_core_fields() {
         val m = KumaParse.monitor(
             obj("""{"id":2,"name":"down-test","url":"http://127.0.0.1:9","type":"http","active":true,"parent":7,"weight":42,"tags":[{"tag_id":3,"monitor_id":2,"name":"prod","color":"#e74c3c","value":"eu"}]}""")
@@ -135,6 +149,82 @@ class KumaParseTest {
         assertEquals(2, rows.size)
         assertEquals(KumaNotification(4, "Ops email", "smtp", true), rows.first())
         assertEquals("webhook", rows.last().type)
+    }
+
+    @Test fun dockerHostsExposeOnlySelectionMetadata() {
+        val rows = KumaParse.dockerHosts(
+            Json.parseToJsonElement(
+                """[
+                    {"id":7,"name":"Local socket","dockerType":"socket","dockerDaemon":"/var/run/docker.sock","userID":1},
+                    {"id":8,"name":"Remote","dockerType":"tcp","dockerDaemon":"https://private.example:2376"},
+                    {"id":0,"name":"Invalid","dockerType":"tcp"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("Local socket", rows.first().name)
+        assertEquals("socket", rows.first().type)
+        assertFalse(rows.first().toString().contains("docker.sock"))
+        assertFalse(rows.last().toString().contains("private.example"))
+    }
+
+    @Test fun remoteBrowsersExposeOnlySelectionMetadata() {
+        val rows = KumaParse.remoteBrowsers(
+            Json.parseToJsonElement(
+                """[
+                    {"id":9,"name":"Browserless","url":"ws://browserless:3000?token=secret"},
+                    {"id":10,"name":"Lab browser","url":"ws://lab:3000"},
+                    {"id":0,"name":"Invalid","url":"ws://invalid:3000"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("Browserless", rows.first().name)
+        assertEquals(9, rows.first().id)
+        assertFalse(rows.first().toString().contains("secret"))
+        assertFalse(rows.last().toString().contains("ws://"))
+    }
+
+    @Test fun gameTypesExposeOnlyThePrimarySelectionKeyAndLabel() {
+        val rows = KumaParse.gameTypes(
+            Json.parseToJsonElement(
+                """[
+                    {"keys":["minecraft","mc"],"pretty":"Minecraft","options":{"token":"secret"},"extra":{"port":25565}},
+                    {"keys":["valheim"],"pretty":"Valheim"},
+                    {"keys":[],"pretty":"Invalid"},
+                    {"keys":["blank"],"pretty":"   "},
+                    {"keys":[{"unexpected":true}],"pretty":"Invalid key"},
+                    {"keys":["invalid-label"],"pretty":{"unexpected":true}}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("minecraft", rows.first().key)
+        assertEquals("Minecraft", rows.first().label)
+        assertFalse(rows.first().toString().contains("secret"))
+        assertFalse(rows.first().toString().contains("25565"))
+    }
+
+    @Test fun pm2ProcessesExposeOnlyStableSelectionMetadata() {
+        val rows = KumaParse.pm2Processes(
+            Json.parseToJsonElement(
+                """[
+                    {"id":"7","name":"api","status":"online","environment":{"secret":"hidden"}},
+                    {"id":8,"name":"worker","status":"stopped"},
+                    {"id":"","name":"invalid","status":"online"},
+                    {"id":"9","name":{"unexpected":true},"status":"online"}
+                ]""",
+            ).jsonArray,
+        )
+
+        assertEquals(2, rows.size)
+        assertEquals("api", rows.first().name)
+        assertEquals("7", rows.first().id)
+        assertEquals("online", rows.first().status)
+        assertFalse(rows.first().toString().contains("secret"))
     }
 
     @Test fun legacyManagedPushNotification_hasNoInventedServerScope() {

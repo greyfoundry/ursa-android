@@ -2,6 +2,7 @@ package dev.astoris.ursa.ui.widget
 
 import dev.astoris.ursa.core.storage.MonitorSnapshot
 import dev.astoris.ursa.data.model.Monitor
+import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.MonitorStatus
 import dev.astoris.ursa.data.model.StatusCheckView
 import dev.astoris.ursa.data.model.StatusGroupView
@@ -13,7 +14,23 @@ import org.junit.Test
 
 class WidgetDataTest {
     @Test
-    fun privateWidgetKeepsChosenRowsInServerOrder() {
+    fun latestHeartbeatReplacesPlaceholderStatusAndPing() {
+        val monitors = listOf(monitor(1, "API", MonitorStatus.PENDING))
+        val result = WidgetData.mergeLatestHeartbeats(
+            monitors,
+            mapOf(
+                1 to listOf(
+                    Heartbeat(1, MonitorStatus.UP, "2026-10-14T12:00:00Z", null, 42, false),
+                ),
+            ),
+        )
+
+        assertEquals(MonitorStatus.UP, result.single().status)
+        assertEquals(42, result.single().ping)
+    }
+
+    @Test
+    fun privateWidgetShowsChosenAttentionRowsFirst() {
         val monitors = listOf(
             monitor(1, "First", MonitorStatus.UP),
             monitor(2, "Second", MonitorStatus.DOWN),
@@ -25,7 +42,8 @@ class WidgetDataTest {
             selectedIds = setOf(3, 1),
         )
 
-        assertEquals(listOf(1, 3), result.rows.map(WidgetRow::id))
+        assertEquals(listOf(3, 1), result.rows.map(WidgetRow::id))
+        assertEquals(1, result.urgentCount)
         assertEquals(123L, result.updatedAt)
     }
 
@@ -68,12 +86,30 @@ class WidgetDataTest {
         assertEquals(WidgetData.MAX_ROWS, result.rows.size)
     }
 
-    private fun monitor(id: Int, name: String, status: MonitorStatus) = Monitor(
+    @Test
+    fun pausedAndMaintenanceRowsAreNotUrgent() {
+        val monitors = listOf(
+            monitor(1, "Paused down", MonitorStatus.DOWN, active = false),
+            monitor(2, "Maintenance", MonitorStatus.MAINTENANCE),
+            monitor(3, "Down", MonitorStatus.DOWN),
+        )
+
+        val result = WidgetData.privateSnapshot(
+            title = "Fleet",
+            snapshot = MonitorSnapshot(monitors, 1L),
+            selectedIds = emptySet(),
+        )
+
+        assertEquals(1, result.urgentCount)
+        assertEquals(listOf(3, 2, 1), result.rows.map(WidgetRow::id))
+    }
+
+    private fun monitor(id: Int, name: String, status: MonitorStatus, active: Boolean = true) = Monitor(
         id = id,
         name = name,
         url = null,
         type = "http",
-        active = true,
+        active = active,
         status = status,
         ping = id * 10,
         uptime24h = 0.98,

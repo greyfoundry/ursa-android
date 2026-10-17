@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-20
+last-updated: 2026-10-16
 owner: astoris
 status: stable
 ---
@@ -7,8 +7,8 @@ status: stable
 ## what this is
 
 The screens and the single ViewModel behind them. One `UrsaViewModel` holds all
-app state; a top-level `when` in `UrsaApp` picks the screen from that state (no
-navigation library for M1 - the screen set is small and state-driven).
+product state; a typed Navigation 3 shell maps that released state to a saveable
+route stack while screens migrate incrementally.
 
 ## technical map
 
@@ -19,21 +19,72 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/UrsaApp.kt` - root; holds a minimal startup loading bridge while the
   encrypted saved-session route is restored, then routes server manager /
   status-page / login / detail / list or the opt-in always-on glance display.
-- `.../ui/AdaptiveLayout.kt` - pure expanded-width decision and bounded,
-  attention-first fleet summary for tablet and glance-display surfaces.
+- `.../ui/navigation/UrsaRoute.kt` - serializable root and authenticated route
+  keys, legacy-state adapter, and deterministic parent/child stack construction.
+- `.../ui/navigation/UrsaNavigation.kt` - saveable route host, safe restoration,
+  destination entries, and route-level system/predictive-back ownership.
+- `.../ui/MainShell.kt` - window-aware navigation suite for Home, Monitors,
+  Incidents, and Browse, plus the canonical monitor list-detail pane navigator
+  and predictive-back bridge. Released Settings and Notifications enum names
+  remain valid for restored state, shortcuts, and deep links without occupying
+  primary navigation.
+- `.../ui/home/` - attention-first Home for the saved fleet and current server.
+  It reads encrypted last-known snapshots without opening inactive sockets, keeps
+  live/refreshed/cached/stale/unavailable sources explicit, and offers a cancellable
+  bounded refresh. Per-server cards establish the selected connection before
+  opening its full monitor inventory, issue filter, or incident history. Each card
+  can also expand privacy-safe connection health: bounded Kuma version and
+  compatibility, transport, authentication, local access profile, managed-push
+  binding presence, last successful data, cache freshness, and verified features.
+  The
+  current-server issue rows, freshness, recent scoped actions, and saved-view
+  shortcuts remain below that fleet context.
+- `.../ui/incidents/IncidentsScreen.kt` - top-level active-server incident
+  destination with an explicit source switch between durable Kuma monitor history
+  and encrypted device alert groups. Alert groups assemble received, delayed,
+  delivered/repeated, acknowledged, snoozed, suppressed, correlated, and recovered
+  decisions by opaque lifecycle ID and route known monitors into the adaptive
+  workspace. Authenticated public incidents remain separately sourced from saved
+  status pages rather than inferred from monitor history.
+- `.../ui/browse/BrowseScreen.kt` - sectioned catalogue for existing secondary
+  operations, insights/reports, and management surfaces. It reuses maintenance,
+  status-page, notification, certificate, domain, event, aggregate, live-panel,
+  monitor-view, credential-free inventory-export, encrypted monitor-preset,
+  group-wizard, validated monitor-import,
+  connection, and settings flows instead
+  of duplicating them.
+  `BrowseSearch.kt` ranks a bounded local metadata index over monitor/group/tag,
+  observed-incident, maintenance, saved-page, server, saved-view, and tool names.
+  Results identify resource type and server and route through existing owners;
+  secrets, headers, full URLs, and incident/maintenance bodies are excluded.
+- `.../ui/KioskData.kt` - bounded, attention-first fleet summary for the
+  glance-display surface.
 - `.../ui/connections/LoginScreen.kt` - optional server name, URL, password or
   imported session-token authentication, conditional 2FA, connection test, and
-  explicit self-signed-certificate choice. Its collapsed access-header editor
+  explicit self-signed-certificate choice for HTTPS. New plain-HTTP connections
+  require a separate unencrypted-transport acknowledgement. Its collapsed access-header editor
   supports masked Cloudflare Access credentials and up to eight custom headers.
+  New and reauthenticated connections explicitly show the compatibility-default
+  Manage profile, View only, and grouped Custom capabilities.
 - `.../ui/connections/ConnectionManagerScreen.kt` - add, switch, rename, and
-  confirmed removal of encrypted saved-server sessions, plus password-encrypted
-  document export/import.
-- `.../ui/monitors/MonitorListScreen.kt` - live list, tappable rows, local groups,
-  server-weighted nested groups/folders, filter-scoped multi-selection with
-  confirmed bulk pause/resume,
-  attention/favourite/name sorting, optional compact rows, advanced filters, and
-  up to ten server-scoped saved views.
-- `.../ui/monitors/FleetIncidentCenter.kt` - active-first outage transitions
+  confirmed removal of encrypted saved-server sessions, local access-profile
+  and HTTP transport-policy editing that does not require credentials, plus
+  password-encrypted document export/import.
+- `.../ui/monitors/MonitorInventory.kt` and `MonitorListScreen.kt` - pure composed
+  query/filter/sort/hierarchy rules plus the active-server inventory. Search,
+  filters, sort, saved views, and the primary add action stay visible; dense rows
+  show status, type, server, address, response trend, latency, and uptime. Server
+  order is independent of live status, while attention sort intentionally reacts
+  to it. Filter-scoped multi-selection retains confirmed bulk pause/resume and adds
+  an exact per-monitor preview for low-risk common-field edits. Partial failures
+  stay selected for a fresh retry while unchanged items require no save. The
+  overflow now contains only monitor management; specialist dashboards moved to
+  Browse after live reachability parity was verified. Tag extraction,
+  hierarchy/filter/sort output, and bulk plans are remembered across unrelated
+  heartbeat-history recompositions; query parent lookup is linear rather than
+  per-row scanning. Deterministic 1,000-monitor tests protect stable server order,
+  hierarchy depth, tag search, and parent-name search during live telemetry changes.
+- `.../ui/monitors/FleetIncidentCenter.kt` - embeddable active-first outage transitions
   across monitors with all/active/resolved filters and detail deep links, plus
   windowed observed downtime, MTTR, flakiest-monitor, and history-coverage
   summaries for active monitors, encrypted local notes, and redacted sharing.
@@ -51,20 +102,112 @@ navigation library for M1 - the screen set is small and state-driven).
   exclusions, calculation method, per-monitor values, refresh, and detail links.
 - `.../ui/monitors/PinnedLivePanel.kt` - favourite-monitor live panel with
   current state, latency, compact recent checks, unpin, and detail deep links.
-- `.../ui/monitors/MonitorDetailScreen.kt` - period-selectable response-time chart,
-  heartbeat bar strip, incident timeline, favourite toggle, cert, pause/resume,
-  and a confirmed external-browser link to the monitor's Kuma dashboard. At
-  840dp and wider it occupies the detail pane beside the retained monitor list.
+- `.../ui/monitors/MonitorDetailScreen.kt` - an Overview/History/Configuration
+  workspace. Overview carries state, freshness, key telemetry, server/type/group/
+  tag context, last transition, favourite, and pause/resume. History owns the
+  period-selectable chart, heartbeat strip, transition timeline, and certificate
+  details.
+  Its existing quick windows now sit beside a native date/time custom-range picker
+  for the last 30 days, with loading/failure separation, observed-coverage copy,
+  and an explicit warning when the 10,000-row display boundary truncates results.
+  A ready result can be streamed through Android's document provider as CSV or
+  accessible HTML with explicit UTC request/coverage metadata and no messages,
+  addresses, credentials, headers, notification data, or secrets.
+  The same result exposes a coverage-aware SLA summary and streamed CSV/HTML SLA
+  reports. Maintenance, pending, and missing time are named separately; insufficient
+  retained coverage shows unavailable instead of manufacturing uptime.
+  Configuration explains the safe native subset, opens the full-fidelity
+  editor, and retains the confirmed browser escape. Its tab row scrolls for large
+  text. The overflow can hand a monitor to another saved server as an inactive,
+  sanitized draft after an explicit destination choice. The adaptive scaffold shows it alone in compact windows and beside the
+  retained inventory when two panes fit.
+- `.../ui/monitors/MonitorPresetsScreen.kt` - local encrypted credential-free
+  monitor templates under Browse/Manage. Presets can be reopened as inactive new
+  drafts or deleted with confirmation; creation remains access- and version-gated.
+- `.../ui/monitors/MonitorGroupWizardScreen.kt` - access-gated Kuma group creation
+  with existing-child selection, an exact preview, sequential assignment, named
+  partial failures, retry of failed assignments only, and a continuation into the
+  existing monitor editor with the new group preselected.
+- `.../ui/monitors/MonitorImportScreen.kt` - access-gated CSV/tab-delimited dry run
+  under Browse/Manage. It shows ready, review-required, duplicate, unsupported, and
+  invalid rows before any write; only safe rows are created automatically. Review
+  rows reuse the existing editor and retain the current dry run when returning.
+  Partial results require reloading the source so duplicate detection is fresh.
+- `.../ui/monitors/MonitorInventoryExportScreen.kt` - read-only active-server
+  inventory export under Browse/Insights. Android's document provider owns the
+  chosen destination for deterministic CSV or accessible HTML; the screen states
+  the included metadata and credential/address exclusions before saving.
 - `.../ui/monitors/KioskScreen.kt` - opt-in fleet glance display with a bounded
   attention-first list, status counts, cached-data age, and a visible exit action.
   It keeps the screen awake only while composed and does not enter Android lock-task
   mode.
 - `.../ui/monitors/MonitorEditorScreen.kt` - typed create/common-edit form with
-  inline validation, native SFTP password/private-key setup, explicit active state,
+  inline validation, native keyword text/inversion, JSONata comparison controls,
+  WebSocket subprotocol/close-code/handshake controls, bounded masked request
+  headers, and masked Basic/Bearer/OAuth2/mTLS authentication, native MQTT
+  connection/topic plus keyword and JSON-query checks, native SMTP host/port plus
+  explicit SMTPS, plaintext, or required-STARTTLS selection, native NTP host/port
+  plus stratum, time-offset, and root-dispersion thresholds, native subtype-aware
+  Globalping Ping, DNS, and HTTP controls, native PostgreSQL, MySQL/MariaDB,
+  Microsoft SQL Server, MongoDB, Redis, and Oracle Database controls, native gRPC keyword target,
+  protobuf, call, body, TLS, and match controls, native SNMPv1/v2c query controls,
+  native RabbitMQ node/credential controls, native Kafka producer and SASL controls,
+  native Docker container and existing-host controls, native Real Browser engine and
+  screenshot-delay controls, native RADIUS access-request controls, native GameDig
+  game/port/token controls, native Steam host/port controls, native PM2 picker and
+  system-service name controls, native Tailscale host and SIP host/port controls,
+  native SFTP
+  password/private-key setup, explicit active state,
   per-monitor server-notification assignments, server-backed group membership and
   existing-tag assignments, user-triggered HTTP/HTTPS local-service discovery,
-  server errors, and no raw JSON surface. Saved SFTP secrets are never prefilled;
-  blank fields retain them and replacements are masked by default.
+  server errors, and no raw JSON surface. Saved MQTT, database, and SFTP secrets
+  are never prefilled; blank fields retain them and replacements are masked by
+  default. The
+  SMTP form verifies connectivity only and does not collect mail credentials or
+  send email. Globalping HTTP reuses the eight-header limit and masked
+  Basic/Bearer/OAuth2 credential handling; mTLS is absent because Kuma does not
+  offer it for this subtype.
+  Database connection strings use one bounded masked field; PostgreSQL/MySQL/SQL
+  Server expose optional SQL, MongoDB exposes a JSON command and JSONata result
+  check, Redis exposes TLS-certificate-error handling, and Oracle exposes username,
+  masked password, and optional SQL with an explicit `SELECT 1 FROM DUAL` default.
+  MySQL's separate password override is also masked. Nested MySQL/SQL Server/Oracle
+  result conditions stay unchanged and retain the browser editor escape.
+  Saved gRPC request bodies are likewise never prefilled; the body must be a JSON
+  object when created or replaced, while blank edits retain the saved value.
+  SNMP community strings follow the same masked-retention rule. Existing SNMPv3 and
+  unknown versions show a browser-only compatibility notice and remain unchanged.
+  RabbitMQ passwords and Kafka SASL secrets also remain blank with saved-value
+  notices; AWS session tokens can be explicitly removed. Broker/node lists use one
+  endpoint per line and preserve order while rejecting unusable addresses.
+  Docker host administration remains in Kuma; URSA lists only configured host names
+  and never exposes daemon endpoints. An unavailable existing host ID is preserved
+  visibly rather than silently replaced.
+  Real Browser can use Kuma-local Chromium or an existing named remote browser;
+  remote WebSocket URLs never enter UI state. Its delay help follows the selected
+  interval, and unavailable saved IDs remain visible rather than being replaced.
+  RADIUS requires username, password, shared secret, Called-Station-ID, and
+  Calling-Station-ID. Both saved secrets remain blank with saved-value notices and
+  are retained only when the user leaves them unchanged.
+  GameDig choices come from the connected Kuma server rather than a bundled stale
+  catalogue; unavailable saved keys remain visible, and saved query tokens stay
+  blank with a retention notice. Steam explains that its Web API key is configured
+  globally in Kuma and does not collect that credential in URSA.
+  PM2 loads Kuma's local process catalogue on demand, retains unavailable saved
+  names, and falls back to manual stable-name entry. System-service explains the
+  Linux systemd/Windows internal-name contract and rejects spaces or shell syntax.
+  Tailscale Ping and SIP OPTIONS explain their server-side CLI prerequisites and
+  are absent from creation on containerized Kuma installations; existing monitors
+  can still be opened and safely edited.
+  MQTT also offers deliberate saved-password removal. Registry-backed
+  help distinguishes a full native codec from safe common-field editing, while
+  unsupported versions remain read-only and retain the browser fallback.
+  The editor also saves eligible credential-free drafts as encrypted presets.
+  Cloned and restored drafts show a review notice and start inactive with server
+  assignments and sensitive values removed. Portable copies use the same editor,
+  preserve safe common/type fields, preselect only unique destination assignment
+  matches, and expose a confirmed Kuma dashboard fallback when native creation is
+  not write-verified on the destination.
 - `.../ui/monitors/MaintenanceScreen.kt` - native maintenance list and typed editor
   for all six Kuma strategies, explicit resolved/configured timezone fields,
   affected monitors, pause/resume, and confirmed deletion.
@@ -73,7 +216,10 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/statuspage/StatusPageScreen.kt` - unlimited encrypted local public-page
   manager with add/edit/remove, favourite, ordering, URL discovery/testing,
   refresh, native groups and heartbeat bars, maintenance notices, and
-  active/resolved incident history.
+  active/resolved incident history. When a page exactly maps to the active
+  authenticated server, it also exposes access- and version-gated incident
+  create/edit/pin/unpin/resolve/delete actions with explicit source context and
+  confirmed deletion.
 - `.../ui/StatusUi.kt` - status -> Kuma color / label string-resource.
 - `.../ui/StatusPill.kt` - Kuma-style rounded status badge (colored pill, white text).
 - `.../ui/Sparkline.kt`, `.../ui/UptimeRing.kt` - static, dependency-free dashboard
@@ -81,45 +227,127 @@ navigation library for M1 - the screen set is small and state-driven).
 - `.../ui/theme/` - `Color.kt`, `Theme.kt`, and `Motion.kt`: semantic Kuma status
   colours over URSA's quiet neutral light/dark surfaces, compact type/shape scale,
   and the shared low-cost motion vocabulary.
-- `.../ui/components/` - reusable product surfaces. `UrsaPressableCard` provides
-  GPU-only tactile press feedback without list-row layout animation.
+- `.../ui/components/` - reusable operational surfaces and pure presentation
+  policy: server context, dense status rows, freshness, telemetry, designed
+  loading/empty/offline/error/partial states, capability explanations, confirmed
+  destructive actions, filter/sort/saved-view controls, timelines, polite state
+  announcements, section headings, and reduced-motion-aware press feedback.
 - `.../ui/settings/SettingsScreen.kt`, `.../ui/lock/`, `.../ui/push/PushScreen.kt`,
   `.../ui/widget/`, `.../ui/tile/` - settings, app lock, push setup, QS tile, and
   exact-size Glance widgets. Widgets choose up to six rows from a private server
   or saved public page, retain encrypted per-instance configuration/snapshots,
-  show status/latency/uptime/recent checks, refresh on demand, and deep-link back
-  to their validated server or page.
-- `.../ui/settings/SettingsScreen.kt` also exposes connection/setup guidance, compact
-  density, optional update notifications, and a user-triggered official-release
-  check. It does not download or install packages.
+  put active down/pending checks first, show an urgent count and freshness beside
+  status/latency/uptime/recent checks, refresh on demand, and deep-link back to
+  their validated server or page. The tile reads the existing encrypted fleet
+  cache without opening sockets, distinguishes urgent/offline/stale/maintenance,
+  and opens the affected server's guarded attention filter.
+- Notifications exposes a per-monitor explanation of the effective alert mode,
+  severity, timing, quiet hours, snooze, recovery/maintenance behavior, assignment,
+  dependency state, optional group N-of-M threshold, and current Android delivery blockers. Assigned managed
+  monitors can select multiple local parents in a cycle-safe editor; the current
+  last-received status and exact suppressing parent remain visible. Per-monitor
+  actions use compact wrapping rows rather than a tall trailing column. The editor
+  and explanation dialogs remain complete and actionable at 200% text. Bound
+  managed alerts group by server in Android after a second alert arrives, while
+  the first urgent alert remains immediate and standalone. Managed setup also
+  exposes an off-by-default shared-failure hint with the exact parent/tag/server
+  thresholds and an explicit promise that child alerts are never suppressed. Its
+  diagnostics card distinguishes distributor loss, registration failure, stale or
+  missing managed setup, known Kuma connection failures, delivery waiting/timeout,
+  and verified end-to-end delivery. A removed registration exposes the existing
+  distributor as a reconnect action instead of leaving a false Selected state.
+  Unknown-provider/monitor deliveries add fixed repair guidance without showing a
+  scope or monitor ID; Refresh re-verifies the active provider and encrypted monitor
+  directory. Duplicate marked providers expose a single Remove-then-Create recovery.
+- The monitor editor gives push monitors a masked heartbeat URL generated from the
+  exact token saved to Kuma, explicit copy/share/reveal actions, request-shape help,
+  and a security warning. Existing push monitors recover the same URL on demand;
+  the token remains in memory only.
+- `.../ui/settings/SettingsScreen.kt` also exposes Notifications, connection/setup
+  guidance, compact density, optional update notifications, and a user-triggered
+  official-release check. Screenshot protection offers Off, Sensitive screens
+  only, and Always without requiring a restart. Sensitive mode covers connection
+  credentials and backup secrets, monitor secrets/custom headers, and the raw
+  UnifiedPush endpoint; ordinary monitoring and status surfaces remain capturable.
+  It does not download or install packages.
 - `.../core/wear/WearSessionBridge.kt` plus the conditional `src/wearBridge`
   implementation - explicit phone-to-watch session handoff for GitHub builds. The
   F-Droid build omits the transport dependency and pairing control. See
   `docs/modules/wear.mdx`.
 
+**accessibility and localization**
+- User-facing fallback copy lives in Android resources. Debug builds enable the
+  `en-XA` accented and `ar-XB` bidirectional pseudo-locales so clipping and
+  direction mistakes remain testable without shipping placeholder translations.
+- URL, host, token-endpoint, and other technical values are directionally isolated;
+  editable addresses retain left-to-right input behavior inside RTL layouts.
+- Screen titles expose heading semantics, transient operational messages retain
+  their live-region behavior, controls use platform touch targets, and status is
+  communicated by text or icon as well as color. Status-pill foreground/background
+  pairs have deterministic WCAG AA contrast tests.
+- The Android 17 device matrix covers both pseudo-locales, 200% font, hardware
+  keyboard order, Switch Access focus, TalkBack focus, zero animation scales, and
+  fully visible 48 dp touch targets. The UI follows system motion settings and adds
+  no essential meaning that depends on animation.
+- The current Home-first adaptive shell also passes its system-inset matrix with
+  the Pixel cutout, portrait/landscape, gesture and three-button navigation,
+  compact/expanded navigation, monitor detail, 100%/200% text, and IME transitions.
+  Material owns bar/rail/app-bar insets; individual destinations do not compensate
+  with screen-specific bottom spacing.
+
 **exports**
 - `UrsaApp()` (Compose entry, hosted by `MainActivity`).
 - `UrsaViewModel`: flows `monitors`, `state`, `selectedMonitor`, `beats`, `certs`,
   `localEvents`, `favorites`, `login`, `connectionTest`, `connections`, `activeUrl`, `statusPage`,
-  `savedStatusPages`, `selectedStatusPageId`;
+  `savedStatusPages`, `selectedStatusPageId`, `fleetHome`;
   actions `login`, `loginWithSessionToken`, `testConnection`, `testSessionToken`,
   `switchTo`, `reauthenticate`,
   `renameConnection`, `removeConnection`, `select`/`back`,
   `pause`/`resume`, monitor create/edit/delete, `toggleFavorite`, and saved
-  status-page CRUD/order/open/refresh, glance-display entry/exit, plus validated
-  widget deep-link entry points.
+  status-page CRUD/order/open/refresh plus public-incident operations,
+  cached/explicit fleet loading and server-scoped fleet drill-down,
+  glance-display entry/exit, plus validated widget deep-link entry points.
 
 **depends on**
-- `data/repository`, `core/network` (StatusPageClient), Compose Material 3,
+- `data/repository`, `core/network` (StatusPageClient), Compose Material 3 and
+  Material 3 Adaptive,
   lifecycle-viewmodel-compose, lifecycle-runtime-compose.
 
 ## gotchas
 
-- Routing is a `when` on state, not a nav graph. System back is handled per-screen
-  with `BackHandler` (detail → list, server form → server manager, status
-  page → login).
-- Expanded mode begins at 840dp. Monitor selection replaces the right-pane empty
-  prompt without removing the list; phone selection remains a full-screen detail.
+- Navigation 3 owns route-level system and predictive back. Nested screen state
+  keeps local back handling (for example public-page editor → page list) before
+  the route itself pops. Toolbar actions use the same ViewModel transitions.
+- Remote-action controls derive availability from the same `AccessPolicy` used by
+  repository enforcement. Restricted monitor, maintenance, editor, bulk, and
+  managed-push surfaces show the current profile; stale or indirect attempts that
+  reach enforcement surface an explicit denial instead of appearing to succeed.
+- An opt-in destructive-action safeguard reuses the existing Keystore-backed
+  biometric/device-credential proof before monitor deletion, maintenance deletion,
+  managed-push removal, or saved-server removal. It is an additional confirmation;
+  repository access policy remains the authorization boundary.
+- Fleet Home never keeps inactive servers connected. Its initial state is cache-only;
+  `Refresh all` owns at most two temporary sessions and composition cancellation
+  tears them down. Drilling into another server activates that exact saved
+  connection before navigation, after which the existing repository access policy
+  remains authoritative for every remote action.
+- Fleet health diagnostics never expose a session, custom header, managed-push
+  provider ID, or delivery endpoint. `Unknown`, `not configured`, policy denial,
+  unsupported version, and connection failure remain separate states. A cached
+  server version is display-bounded and remains optional so released snapshots
+  decode without migration.
+- The Material 3 Adaptive window/posture policy controls the navigation bar/rail
+  and one-/two-pane transitions; do not reintroduce hard-coded device or orientation
+  checks. Monitor selection survives resize and process recreation, replaces the
+  detail placeholder without removing an available list pane, and remains a
+  full-screen detail when only one pane fits.
+  Home is the fresh-session default; an old restored main route still restores its
+  previous tab because existing serialized enum names remain unchanged.
+  Incidents and Browse were appended to those enums for the same compatibility
+  reason. Hidden Settings and Notifications values are retained for released
+  restoration and deep-link contracts.
+  Navigation labels remain one line at large text sizes so the adaptive bar does
+  not grow into app content; the complete destination name remains in semantics.
   The glance display deliberately stays escapable, warns before keeping the screen
   awake, and restores the prior `keepScreenOn` value on exit.
 - Startup routing remains behind the one-way `startupReady` gate until encrypted
@@ -128,22 +356,48 @@ navigation library for M1 - the screen set is small and state-driven).
   uses `hasSession` (set once authenticated, and optimistically at startup if a
   stored JWT exists) - NOT raw connection state - so reconnects keep the list
   visible with a "Connection: …" banner. `logout()` clears it.
+- Screenshot protection starts secure until its persisted mode is read. A missing
+  or invalid value preserves the released Always behavior. Navigation reports the
+  actual displayed route rather than a desired route, preventing restored sensitive
+  content from being exposed while the route stack reconciles. The widget chooser
+  follows the same preference and is non-sensitive because it renders names and
+  cached status only, never sessions, passwords, or header values.
 - Saved public pages are encrypted by `StatusPageStore`; public-page URLs never
   duplicate access headers. A page whose normalized base URL exactly matches a
   saved server inherits that server's encrypted headers only at request time.
+- Public-incident controls appear only when the selected page exactly maps to the
+  active authenticated server, the connection allows `STATUS_INCIDENT_WRITE`, and
+  the reported Kuma version is write-verified. Other saved pages remain visibly
+  read-only. Delete retains the normal confirmation and uses optional destructive
+  step-up when enabled.
 - Connection summaries show only the number of encrypted access headers. Header
   values are masked during entry and never rendered after save.
+- Existing HTTP connections retain legacy access and display a review action in
+  the server manager. Review can explicitly allow or block HTTP per connection;
+  new HTTP setup stays disabled until its risk acknowledgement is selected. The
+  self-signed control is shown only for HTTPS because certificate trust and
+  unencrypted transport are independent choices.
 - Widget configuration and cached public-page rows are encrypted by `WidgetStore`.
   Private widgets reuse the encrypted monitor cache; neither widget store duplicates
   JWTs or access-header values. Refresh resolves the matching saved connection only
   in memory, and widget deep links accept only saved exact server/page identifiers.
-- Portable backups merge servers by normalized URL. They include connections,
-  access headers, favorites, dynamic-colour choice, and slow-alert preferences;
-  session JWTs require an explicit opt-in. Device-bound lock keys, push endpoints,
-  cached monitor data, and alert cooldown timestamps are never exported.
+  App lock redacts widgets and the tile before reading their private data. Changing
+  the lock setting updates existing widgets immediately; released unconfigured
+  widget instances retain their legacy active-server fallback rather than breaking.
+- Portable backups merge servers by normalized URL. Payload v2 includes connection
+  access profiles, custom capability selections, and cleartext policy alongside access headers,
+  favorites, dynamic-colour choice, and slow-alert preferences; session JWTs
+  require an explicit opt-in. Payload v1 remains readable and maps new imports to
+  Manage. A validated dry-run reports additions and updates before the merge.
+  Existing access restrictions are preserved unless the separate restore-access
+  option is enabled. Device-bound lock keys, push endpoints, cached monitor data,
+  and alert cooldown timestamps are never exported.
 - Wear pairing is explicit and available only when the conditional Data Layer sender
-  is present. It sends the active JWT and up to eight access headers to reachable
-  same-signed watch apps after confirmation. Self-signed connections are refused.
+  is present. Protocol v2 sends the active JWT, up to eight access headers, policy
+  version, and allowed action capabilities to reachable same-signed watch apps after
+  confirmation. Restricted profiles are never downgraded to the released v1 protocol;
+  Settings also exposes a best-effort encrypted-session clear request. Self-signed
+  and explicitly blocked HTTP connections are refused.
 - Fleet reliability statistics merge the rolling live heartbeat window with one
   bounded on-demand page of Kuma's durable important transitions. Outages that
   overlap a selected window contribute only their
@@ -166,10 +420,12 @@ navigation library for M1 - the screen set is small and state-driven).
   monitors and remains explicit when Kuma has not emitted every certificate.
 - The event log does not invent a timestamp for a current status or pause that
   predates URSA's observation. State, recovery, and maintenance entries derive
-  from adjacent Kuma heartbeats. Successful pause/resume actions and notifications
-  actually posted by URSA are encrypted locally, capped at 500 entries, retained
-  for 90 days, and excluded from portable backups. UnifiedPush payloads do not
-  identify their originating server, so those entries are provider-neutral.
+  from adjacent Kuma heartbeats. Successful pause/resume actions and bounded
+  push-decision snapshots are encrypted locally, capped at 500 entries, retained
+  for 90 days, and excluded from portable backups. Verified managed bindings
+  provide exact server association; unknown and legacy push input stays
+  provider-neutral. Alert explanations use fixed safe copy rather than persisted
+  payload bodies.
 - The 30-day fleet summary asks Kuma for its own 720-hour aggregate buckets only
   when opened or refreshed. Paused monitors are excluded before requests; active
   monitors with empty or failed responses remain visible in coverage counts but

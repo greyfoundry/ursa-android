@@ -1,6 +1,6 @@
 # Submitted to F-Droid as fdroiddata MR !49557 (reproducible build: F-Droid verifies
 # its build against the released APK and signs with the upstream key). AutoUpdateMode
-# picks up future vX.Y.Z tags automatically. This file mirrors the current release.
+# picks up future vX.Y.Z tags automatically. This file mirrors the release source.
 Categories:
   - Internet
   - System
@@ -18,9 +18,9 @@ Binaries:
   https://github.com/greyfoundry/ursa-android/releases/download/v%v/ursa-fdroid-v%v.apk
 
 Builds:
-  - versionName: 1.3.3
-    versionCode: 10303
-    commit: ee522bfbe3752f3f0afea31ab98c9277c3d67398
+  - versionName: 1.3.4
+    versionCode: 10304
+    commit: a762b93c9711740d6f895e12fec10b0d41a12ffd
     subdir: app
     gradle:
       - fdroid
@@ -29,5 +29,5 @@ AllowedAPKSigningKeys: 1f359fb27aa92453412527921b16d59e45505bf6f7bb83bc3c2c5edf0
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]
-CurrentVersion: 1.3.3
-CurrentVersionCode: 10303
+CurrentVersion: 1.3.4
+CurrentVersionCode: 10304

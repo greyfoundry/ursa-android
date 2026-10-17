@@ -3,6 +3,7 @@ package dev.astoris.ursa.ui.widget
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.text.format.DateUtils
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -40,14 +41,17 @@ import dev.astoris.ursa.MainActivity
 import dev.astoris.ursa.ui.AppDeepLink
 import dev.astoris.ursa.R
 import dev.astoris.ursa.core.storage.ConnectionStore
+import dev.astoris.ursa.core.storage.LockStore
 import dev.astoris.ursa.core.storage.MonitorCacheStore
 import dev.astoris.ursa.data.model.MonitorStatus
+import dev.astoris.ursa.data.repository.FleetRepository
 import kotlinx.coroutines.flow.first
 import java.util.Locale
 
 private data class WidgetViewState(
-    val config: WidgetConfig,
+    val config: WidgetConfig?,
     val snapshot: WidgetSnapshot?,
+    val locked: Boolean = false,
 )
 
 class MonitorWidget : GlanceAppWidget() {
@@ -59,6 +63,8 @@ class MonitorWidget : GlanceAppWidget() {
     }
 
     private suspend fun loadState(context: Context, id: GlanceId): WidgetViewState {
+        LockStore.load(context)
+        if (LockStore.enabled.value) return WidgetViewState(null, null, locked = true)
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
         val store = WidgetStore(context)
         val config = store.loadConfig(appWidgetId) ?: run {
@@ -103,35 +109,63 @@ private fun WidgetContent(state: WidgetViewState) {
     val context = LocalContext.current
     val size = LocalSize.current
     val spacious = size.height.value >= 150f
-    val maxRows = ((size.height.value - 38f) / if (spacious) 36f else 26f)
+    val maxRows = ((size.height.value - 56f) / if (spacious) 36f else 26f)
         .toInt().coerceIn(1, WidgetData.MAX_ROWS)
     val snapshot = state.snapshot
     Column(modifier = GlanceModifier.fillMaxSize().background(Bg).padding(8.dp)) {
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                snapshot?.title ?: context.getString(R.string.app_name),
+                snapshot?.title?.takeUnless { state.locked } ?: context.getString(R.string.app_name),
                 style = TextStyle(fontWeight = FontWeight.Bold, color = OnBg, fontSize = 14.sp),
                 maxLines = 1,
                 modifier = GlanceModifier.width((size.width.value - 72f).coerceAtLeast(60f).dp),
             )
-            Text(
-                context.getString(R.string.widget_refresh),
-                style = TextStyle(color = Green, fontWeight = FontWeight.Bold, fontSize = 12.sp),
-                modifier = GlanceModifier.padding(start = 8.dp).clickable(actionRunCallback<RefreshWidgetAction>()),
-            )
+            if (!state.locked) {
+                Text(
+                    context.getString(R.string.widget_refresh),
+                    style = TextStyle(color = Green, fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                    modifier = GlanceModifier.padding(start = 8.dp)
+                        .clickable(actionRunCallback<RefreshWidgetAction>()),
+                )
+            }
         }
         Spacer(GlanceModifier.height(2.dp))
-        if (snapshot == null || snapshot.rows.isEmpty()) {
+        if (state.locked) {
+            Text(
+                context.getString(R.string.widget_locked),
+                style = TextStyle(color = Muted, fontSize = 12.sp),
+                modifier = GlanceModifier.clickable(openAppIntent(context)),
+            )
+        } else if (snapshot == null || snapshot.rows.isEmpty()) {
             Text(
                 context.getString(R.string.widget_no_data),
                 style = TextStyle(color = Muted, fontSize = 12.sp),
                 modifier = GlanceModifier.clickable(openAppIntent(context)),
             )
         } else {
+            val attention = if (snapshot.urgentCount > 0) {
+                context.resources.getQuantityString(
+                    R.plurals.widget_urgent,
+                    snapshot.urgentCount,
+                    snapshot.urgentCount,
+                )
+            } else {
+                context.getString(R.string.widget_no_urgent)
+            }
+            Text(
+                "$attention; ${freshnessLabel(context, snapshot.updatedAt)}",
+                style = TextStyle(
+                    color = if (snapshot.urgentCount > 0) Red else Muted,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 10.sp,
+                ),
+                maxLines = 1,
+            )
+            Spacer(GlanceModifier.height(2.dp))
             snapshot.rows.take(maxRows).forEach { row ->
                 WidgetMonitorRow(
                     context,
-                    state.config,
+                    checkNotNull(state.config),
                     row,
                     size.width.value,
                     spacious && snapshot.rows.size > 1,
@@ -141,11 +175,6 @@ private fun WidgetContent(state: WidgetViewState) {
                 if (snapshot.rows.size == 1) {
                     ExpandedSingleMonitor(context, snapshot.rows.single())
                 }
-                Spacer(GlanceModifier.height(8.dp))
-                Text(
-                    context.getString(R.string.widget_updated, relativeAge(snapshot.updatedAt)),
-                    style = TextStyle(color = Muted, fontSize = 10.sp),
-                )
             }
         }
     }
@@ -246,12 +275,17 @@ private fun rowIntent(context: Context, config: WidgetConfig, monitorId: Int) = 
     },
 )
 
-private fun relativeAge(updatedAt: Long, now: Long = System.currentTimeMillis()): String {
-    val minutes = ((now - updatedAt).coerceAtLeast(0L) / 60_000L).toInt()
-    return when {
-        minutes < 1 -> "now"
-        minutes < 60 -> "${minutes}m"
-        minutes < 1_440 -> "${minutes / 60}h"
-        else -> "${minutes / 1_440}d"
+private fun freshnessLabel(context: Context, updatedAt: Long, now: Long = System.currentTimeMillis()): String {
+    val age = (now - updatedAt).coerceAtLeast(0L)
+    val label = DateUtils.getRelativeTimeSpanString(
+        updatedAt.coerceAtMost(now),
+        now,
+        DateUtils.MINUTE_IN_MILLIS,
+        DateUtils.FORMAT_ABBREV_RELATIVE,
+    )
+    return if (age >= FleetRepository.DEFAULT_STALE_AFTER_MILLIS) {
+        context.getString(R.string.widget_stale, label)
+    } else {
+        context.getString(R.string.widget_updated, label)
     }
 }

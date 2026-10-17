@@ -21,6 +21,19 @@ class PushTransitionStore(context: Context) {
         return decision.deliver
     }
 
+    fun recordStatus(serverId: String?, monitorId: Int?, status: Int?): Boolean {
+        val key = statusKey(serverId, monitorId) ?: return false
+        val safeStatus = status?.takeIf { it in 0..3 } ?: return false
+        prefs.edit { putInt(key, safeStatus) }
+        return true
+    }
+
+    fun statuses(serverId: String?, monitorIds: Iterable<Int>): Map<Int, Int?> =
+        monitorIds.associateWith { monitorId ->
+            statusKey(serverId, monitorId)?.takeIf(prefs::contains)?.let { prefs.getInt(it, -1) }
+                ?.takeIf { it in 0..3 }
+        }
+
     fun clearServer(serverId: String?) {
         val valid = serverId?.takeIf(ManagedPushNotification::isValidServerId) ?: return
         val prefix = "$valid:"
@@ -31,6 +44,9 @@ class PushTransitionStore(context: Context) {
         if (!ManagedPushNotification.isValidServerId(serverId) || monitorId == null || monitorId <= 0) return null
         return "$serverId:$monitorId"
     }
+
+    private fun statusKey(serverId: String?, monitorId: Int?): String? =
+        key(serverId, monitorId)?.let { "${serverId}:status:$monitorId" }
 
     private fun encode(record: PushTransitionRecord): String =
         "${record.status?.toString() ?: "null"}:${record.atMillis}"

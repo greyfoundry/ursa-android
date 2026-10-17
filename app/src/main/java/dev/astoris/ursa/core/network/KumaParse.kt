@@ -3,7 +3,11 @@ package dev.astoris.ursa.core.network
 import dev.astoris.ursa.data.model.CertInfo
 import dev.astoris.ursa.data.model.Heartbeat
 import dev.astoris.ursa.data.model.ManagedPushNotification
+import dev.astoris.ursa.data.model.KumaDockerHost
+import dev.astoris.ursa.data.model.KumaGameType
+import dev.astoris.ursa.data.model.KumaPm2Process
 import dev.astoris.ursa.data.model.KumaNotification
+import dev.astoris.ursa.data.model.KumaRemoteBrowser
 import dev.astoris.ursa.data.model.KumaTag
 import dev.astoris.ursa.data.model.Monitor
 import dev.astoris.ursa.data.model.MonitorChartPoint
@@ -12,6 +16,7 @@ import dev.astoris.ursa.data.model.MonitorTagAssignment
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -27,6 +32,13 @@ import kotlinx.serialization.json.longOrNull
  * the JVM. Shapes verified live against Kuma 2.5.3 - see docs/references/uptime-kuma-api.mdx.
  */
 object KumaParse {
+
+    /** Public server metadata emitted by Kuma's unauthenticated `info` event. */
+    fun serverVersion(obj: JsonObject): String? =
+        (obj["version"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+
+    fun serverIsContainer(obj: JsonObject): Boolean? =
+        (obj["isContainer"] as? JsonPrimitive)?.takeUnless(JsonPrimitive::isString)?.booleanOrNull
 
     /** Kuma serializes some positional Socket.IO IDs as JSON strings. */
     fun positionalInt(value: Any?): Int? = when (value) {
@@ -95,6 +107,52 @@ object KumaParse {
             ?: return@mapNotNull null
         KumaTag(id, name, tag["color"]?.jsonPrimitive?.contentOrNull.orEmpty())
     }.sortedBy { it.name.lowercase() }
+
+    /** Exposes only fields needed to select an existing Docker host. */
+    fun dockerHosts(arr: JsonArray): List<KumaDockerHost> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val id = obj["id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+        val name = obj["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val type = obj["dockerType"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        KumaDockerHost(id, name, type)
+    }.sortedBy { it.name.lowercase() }
+
+    /** Exposes only fields needed to select an existing remote browser. */
+    fun remoteBrowsers(arr: JsonArray): List<KumaRemoteBrowser> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val id = obj["id"]?.jsonPrimitive?.intOrNull?.takeIf { it > 0 } ?: return@mapNotNull null
+        val name = obj["name"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        KumaRemoteBrowser(id, name)
+    }.sortedBy { it.name.lowercase() }
+
+    /** Exposes only the server-provided key and label needed by the monitor editor. */
+    fun gameTypes(arr: JsonArray): List<KumaGameType> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val key = (obj["keys"] as? JsonArray)
+            ?.firstOrNull()
+            ?.let { it as? JsonPrimitive }
+            ?.contentOrNull
+            ?.trim()
+            ?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val label = (obj["pretty"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        KumaGameType(key, label)
+    }.distinctBy(KumaGameType::key).sortedBy { it.label.lowercase() }
+
+    fun pm2Processes(arr: JsonArray): List<KumaPm2Process> = arr.mapNotNull { value ->
+        val obj = value as? JsonObject ?: return@mapNotNull null
+        val id = (obj["id"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val name = (obj["name"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: return@mapNotNull null
+        val status = (obj["status"] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+            ?: "unknown"
+        KumaPm2Process(id, name, status)
+    }.distinctBy(KumaPm2Process::name).sortedBy { it.name.lowercase() }
 
     /** `heartbeat` event (object, camelCase). */
     fun heartbeat(obj: JsonObject): Heartbeat? {

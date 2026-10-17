@@ -37,7 +37,12 @@ object WearPrefs {
 
     fun actionConfig(context: Context): WearActionConfig? {
         val paired = pairedSession(context) ?: return null
-        val config = WearActionConfig(paired.serverUrl, paired.sessionToken, paired.headers)
+        val config = WearActionConfig(
+            paired.serverUrl,
+            paired.sessionToken,
+            paired.headers,
+            paired.allowedCapabilities,
+        )
         return config.takeIf(WearActionConfig::isReady)
     }
 

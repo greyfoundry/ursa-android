@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-20
+last-updated: 2026-10-16
 owner: astoris
 status: in-flux
 ---
@@ -23,31 +23,73 @@ Reference: https://mas.owasp.org/ (MASVS / MASTG).
 - **Encrypt what we store.** The connection blob is sealed with AES-256-GCM (Tink); the
   master key lives in the Android Keystore and never leaves the device.
 - **Secure by default, downgrade only on request.** TLS is on by default. Trusting a
-  self-signed certificate is opt-in, per connection, and clearly labelled.
+  self-signed certificate and allowing unencrypted HTTP are distinct, explicit,
+  per-connection choices for new servers.
 - **No telemetry.** URSA talks to the user's server and chosen push distributor.
   A manual update check contacts only URSA's official GitHub release endpoint; it
   sends no account, server, monitor, installation, or device identifier.
+- **Guard remote writes below presentation.** Saved connections carry a
+  client-side access profile. Repository and notification-action mutations pass
+  through one typed policy evaluator before a network block can run. This reduces
+  accidental actions but does not scope or revoke the underlying Kuma session token.
+  Setup and the credential-free local editor expose View only, Manage, and grouped
+  Custom capabilities; disabled UI controls use the same evaluator and indirect
+  denied attempts are reported explicitly while the app is open.
+- **Step up destructive confirmation when requested.** Users can opt into the same
+  Keystore-backed biometric/device-credential proof used by app lock before destructive
+  foreground actions. This safeguard does not grant capabilities or replace policy.
+- **Let users choose the capture boundary.** Screen capture protection starts and
+  defaults secure, then follows Off, Sensitive screens only, or Always immediately.
+  Sensitive mode covers credentials, tokens, secrets, and custom-header editors;
+  ordinary monitoring screens remain available for support screenshots.
+- **Treat server versions as untrusted input.** Kuma's authenticated version string
+  is parsed strictly against a live-tested capability matrix. Missing, malformed,
+  prerelease, older, and newer values do not gain version-specific write schemas;
+  SFTP writes require the verified 2.5.4-2.5.6 contract.
+- **Treat imported documents as untrusted input.** Monitor CSV/TXT import is
+  size/row/field bounded, uses a strict parser and header allowlist, rejects secret
+  and assignment columns, validates through the current server's editor registry,
+  and creates only inactive credential-free rows after an explicit dry run.
+- **Bound raw history retrieval.** Custom heartbeat ranges cannot exceed a 30-day
+  lookback or span. Kuma rows are parsed as UTC, filtered to the exact requested
+  interval, deduplicated, and capped at 10,000 displayed/exportable rows with
+  truncation and observed coverage kept explicit.
+- **Keep inventory reports credential-free.** The bounded exporter receives only
+  the monitor summary model and a display name plus one-way server scope. It omits
+  connection and monitor addresses, tag values, headers, assignments, tokens, and
+  protocol credentials; formula-safe CSV and escaped script-free HTML treat all
+  included names and tag labels as untrusted text.
+- **Stream safe heartbeat history.** History exports reuse the exact bounded result
+  shown on screen and write directly to a user-selected document URI. They include
+  UTC range/coverage, server scope, monitor identity, state, and latency, while
+  excluding addresses, heartbeat messages, credentials, headers, notification
+  data, and secrets. CSV neutralizes formula prefixes and HTML escapes server text.
+- **Never promote missing retention to uptime.** SLA reports infer a conservative
+  cadence only when at least two usable UTC samples exist, cap state carry-forward,
+  list leading/trailing/internal missing periods, and exclude missing, maintenance,
+  and pending time from `up / (up + down)`. Address-like server labels are replaced
+  by a short one-way server scope across inventory, history, and SLA exports.
 
 ## MASVS coverage
 
 | Category | Status | Where |
 |---|---|---|
-| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `StatusPageStore.kt`, `EventLogStore.kt`, `IncidentNoteStore.kt`, `FaviconStore.kt`, `PushPendingAlertStore.kt`, `WidgetStore.kt` |
-| STORAGE-2 no data leakage | met | `FLAG_SECURE`; cloud backup and device transfer excluded |
+| STORAGE-1 secure storage | met | `core/storage/Crypto.kt`, `ConnectionStore.kt`, `StatusPageStore.kt`, `MonitorPresetStore.kt`, `EventLogStore.kt`, `IncidentNoteStore.kt`, `FaviconStore.kt`, `ManagedPushScopeStore.kt`, `PushPendingAlertStore.kt`, `WidgetStore.kt` |
+| STORAGE-2 no data leakage | met | secure-default, user-controlled `FLAG_SECURE`; cloud backup and device transfer excluded |
 | CRYPTO-1 strong crypto | met | Tink AES-256-GCM |
 | CRYPTO-2 key management | met | Keystore-backed master key |
 | AUTH-1 secure auth | partial (server-dependent) | login + TOTP → token, `KumaClient` |
 | AUTH-2 local auth | met (opt-in) | Keystore-bound biometric/credential app lock, `ui/lock` |
-| AUTH-3 step-up auth | n/a (read-heavy client) | - |
-| NETWORK-1 secure transport | partial | TLS default; opt-in session TOFU + global cleartext |
+| AUTH-3 step-up auth | met (opt-in) | Keystore-bound proof before destructive foreground actions |
+| NETWORK-1 secure transport | partial | TLS default; opt-in session TOFU + app-enforced per-connection HTTP policy |
 | NETWORK-2 identity pinning | n/a by design | arbitrary self-hosted hosts |
 | PLATFORM-1 IPC | met | strict BROWSABLE launcher routes + bounded exported system surfaces |
 | PLATFORM-2 WebViews | n/a | app uses none |
-| PLATFORM-3 UI security | met | `FLAG_SECURE` app-wide (release; skipped in debug) |
+| PLATFORM-3 UI security | met | persisted Off/Sensitive/Always `FLAG_SECURE` policy with secure startup |
 | CODE-1 up-to-date platform | met | minSdk 26, compileSdk/target 37 |
 | CODE-2 enforced updates | n/a | F-Droid/GitHub distribution; informational check only |
 | CODE-3 no vulnerable deps | met | pinned versions, Dependabot updates and alerts |
-| CODE-4 input validation | met | tolerant parsing isolated in `KumaParse` |
+| CODE-4 input validation | met | tolerant server parsing in `KumaParse`; strict bounded monitor-document parsing in `MonitorImport`; bounded exact heartbeat ranges |
 | RESILIENCE-1..4 | out of scope | deliberate - see below |
 | PRIVACY-1..4 | met | no collection, no third-party endpoints |
 
@@ -59,9 +101,11 @@ AES-256-GCM) under a master key held
 in the Android Keystore, with an app-specific AAD. The login password and TOTP are
 never written to disk; only the resulting session token and optional user-supplied
 reverse-proxy headers are. Header values are masked in forms, omitted from
-summaries/logs, and rejected if they contain CR/LF. `FLAG_SECURE` is set
-app-wide (`MainActivity`), so monitor data and server URLs are kept out of
-screenshots, screen recordings, and the recents thumbnail. The manifest sets
+summaries/logs, and rejected if they contain CR/LF. `MainActivity` enables
+`FLAG_SECURE` before loading preferences, then applies the user's Off, Sensitive
+screens only, or Always choice. Missing or malformed preferences resolve to Always.
+Sensitive mode protects credential/session/header editors and the raw push endpoint;
+ordinary monitoring surfaces remain capturable for support. The manifest sets
 `allowBackup=false`; legacy backup rules and Android 12+ data-extraction rules also
 exclude every storage domain from cloud backup and device-to-device transfer.
 
@@ -70,24 +114,37 @@ choice, favourite flag, and order. They do not copy session tokens or access
 headers. When a page base exactly matches a saved server, the request temporarily
 inherits that server's encrypted headers in memory.
 
+Monitor presets use a separate encrypted DataStore and are capped at 50 records.
+The storage boundary accepts only credential-free registry types and canonicalizes
+each create payload after removing monitor identity, active state, notification,
+group and tag assignments, server-managed selector IDs, and every credential or
+saved-secret flag. Secret-bearing or malformed records fail closed. Presets are
+local-only and excluded from portable connection backups.
+
 Home-widget configuration and public-page widget snapshots use a separate encrypted
 DataStore. Per-widget records contain only the selected source identifier and monitor
 IDs; private rows reuse the encrypted monitor cache. JWTs and reverse-proxy headers
 remain solely in `ConnectionStore` and are resolved in memory for a manual refresh.
 The exported system configuration activity validates the supplied widget ID against
-URSA's exact provider before reading storage and applies `FLAG_SECURE` in release.
+URSA's exact provider before reading storage and follows the same persisted capture
+policy. The chooser itself is non-sensitive because it renders only names and cached
+status, never credentials or header values.
 
 The optional favicon cache is also encrypted with the same Keystore-backed AEAD and
 lives under `noBackupFilesDir`. It is capped at 32 entries, accepts only small image
 responses from each monitor's own HTTP(S) origin, and falls back safely when an
 entry cannot be decrypted or decoded.
 
-The device event log stores only successful local actions and notifications that
-Android accepted for posting. Monitor names, bounded message summaries, timestamps,
-and server association where known are encrypted with the same Keystore-backed AEAD.
+The device event log stores successful local actions plus bounded managed-alert
+decision history. Monitor names, fixed safe explanations, opaque lifecycle IDs,
+enum-like policy values, bounded timing/count fields, timestamps, and server
+association where verified are encrypted with the same Keystore-backed AEAD.
 History is capped at 500 entries and 90 days. Kuma heartbeat transitions remain
-live-derived instead of being duplicated on disk, and provider-neutral push payloads
-are never assigned to a guessed server.
+live-derived instead of being duplicated on disk. A managed push is assigned only
+through its encrypted provider-to-connection binding; unknown or legacy payloads
+remain provider-neutral rather than being guessed. Raw notification bodies,
+endpoints, credentials, URLs, JWTs, and custom-header values are excluded from the
+decision record.
 
 User-authored incident notes are encrypted under the same Keystore-backed AEAD,
 scoped by server/monitor/durable transition time, capped at 500 entries and 2,000
@@ -100,7 +157,12 @@ Portable backups use a separate user-chosen password and a versioned authenticat
 envelope: PBKDF2-HMAC-SHA256 (210,000 iterations, random 128-bit salt) derives an
 AES-256-GCM key; each file has a random 96-bit nonce and fixed format AAD. Import
 caps document size, KDF work factor, connection/header/preference counts, and field
-lengths before merging. Session tokens are excluded by default. Android Keystore
+lengths before merging. Payload v1 remains accepted; payload v2 adds explicit
+client access profiles and custom capability selections without changing the
+encrypted envelope. Import is fail-closed and previewed before mutation. Matching
+local connections retain their existing access profile unless the user separately
+opts into restoring profiles from the file, preventing an older or broader backup
+from silently enabling remote actions. Session tokens are excluded by default. Android Keystore
 keys, local-lock material, push endpoints, caches, alert cooldown state, and device
 event history and incident notes are never portable.
 
@@ -115,14 +177,77 @@ only. The optional local app lock requires a proof signed by an Android Keystore
 whose use is bound to a strong biometric or device credential; a prompt callback alone
 cannot unlock the UI.
 
+Authenticated monitor-detail responses may contain server-side request-header and
+protocol credentials. The monitor editor keeps the fresh full response only for the
+active edit, reduces supported WebSocket header values to presence flags before UI
+state, and reconstructs unchanged values only while building the guarded save
+payload. These monitor secrets are not written to URSA storage, logs, caches, or
+documentation; unsupported header shapes remain opaque and unchanged. WebSocket
+Basic passwords and Bearer tokens follow the same masked-replacement contract:
+the draft carries only a saved-value flag, a blank input can retain a secret only
+under the unchanged method, and switching methods clears the superseded fields.
+OAuth client secrets and mTLS certificate/private-key/CA material use the same
+presence-only UI model. The optional saved CA has an explicit removal action;
+ordinary edits retain dormant legacy fields for compatibility, while a deliberate
+authentication-method change clears credentials belonging to the old method.
+MQTT passwords also reduce to a saved-value flag. A blank field retains the fresh
+server value, a replacement remains masked, and a separate explicit control removes
+the saved password. The password never enters URSA's persistent storage or logs.
+RADIUS passwords and shared secrets use the same presence-only boundary. Blank edits
+recover each value only from the fresh full object used for that save; neither secret
+is copied into editable state, persistent storage, caches, or logs.
+GameDig query tokens use the same presence-only boundary. Kuma's dynamic game
+catalogue is reduced to a primary key and label; adapter options and extras are
+discarded before repository or UI state. Steam API keys remain entirely in Kuma's
+global server configuration and never enter URSA.
+Cross-server monitor copies remain in memory and reuse the clone sanitizer before
+the destination editor opens. Identity, parent groups, server selector IDs, active
+state, credentials, and saved-secret flags never cross servers. Notification IDs
+and tag IDs are never reused directly; URSA may preselect only a unique destination
+name/type match, and the user reviews the inactive draft before any create request.
+SMTP editing is deliberately credential-free: it changes only hostname, explicit
+port, and the known transport-security mode. Null or future modes remain opaque,
+and unrelated expiry/TLS or future fields survive the guarded full-object round trip.
+NTP editing is likewise credential-free and owns only hostname, UDP port, and the
+three quality thresholds. Null thresholds and unrelated future fields survive the
+same guarded full-object round trip.
+Globalping Ping editing is credential-free and owns only its target, one probe
+location, IP family, ICMP/TCP protocol, conditional TCP port, and packet count.
+Unsupported Globalping subtypes and future protocol or IP-family values stay opaque;
+unrelated fields survive the same guarded full-object round trip.
+
+The separate destructive-action preference is off by default for compatibility. When
+enabled, monitor deletion, maintenance deletion, public-incident deletion, managed-push
+removal, and saved-server removal require a fresh proof through the same
+authentication-bound Keystore key. The normal confirmation dialog remains visible
+first. This is a local confirmation safeguard;
+the lower-layer access policy still decides whether a remote mutation may run.
+
 **NETWORK.** All traffic runs over TLS by default (OkHttp for Socket.IO, Ktor for
-status pages). Two deliberate downgrades exist for self-hosted reality: a per-
-connection "trust self-signed certificate" option (`TlsTrust`, opt-in only, never
-default) and a global `usesCleartextTraffic=true` for plain-http instances. The
-self-signed mode pins the first valid certificate for the connection lifetime and
-retains hostname verification; first use remains the trust decision. Cleartext remains
-a tracked risk (see backlog). Static certificate pinning is not applicable - URSA
-connects to arbitrary servers the user names, not a fixed backend.
+status pages). Two deliberate downgrades exist for self-hosted reality. The per-
+connection "trust self-signed certificate" option (`TlsTrust`) pins the first valid
+certificate for the client lifetime and retains hostname verification. Plain HTTP
+is platform-enabled globally because Android network-security configuration cannot
+express a changing user-supplied host allowlist, but URSA enforces a persisted
+per-connection policy before opening authenticated sockets. New HTTP connections
+require explicit consent; explicit denial blocks foreground, notification-action,
+and private-widget paths; records created before the policy keep their existing
+behaviour until reviewed. Certificate trust and HTTP policy remain separate.
+Static certificate pinning is not applicable - URSA connects to arbitrary servers
+the user names, not a fixed backend.
+
+Fleet opens no network connection while loading encrypted last-known snapshots. Its
+explicit refresh re-resolves each saved connection and applies the same cleartext,
+self-signed TLS, custom-header, and saved-session choices to at most two temporary
+clients at once. Each client is disconnected after its typed result, including on
+failure or cancellation; exception text and session/header values never enter the
+fleet model. App-lock state prevents cache reads and fleet refresh entirely.
+Fleet health exposes only bounded state derived from those existing records: the
+evaluated Kuma version, transport-policy outcome, authentication state, local access
+profile, whether an encrypted managed-push scope matches, timestamps/freshness, and
+verified feature names. It never returns a session, header value, provider identity,
+delivery endpoint, ciphertext, or exception text. Scope inspection is restricted to
+managed-scope keys and unreadable records produce `Unknown`, not a false negative.
 
 Server web links are reconstructed from a validated HTTP(S) origin and optional
 reverse-proxy base path. They reject embedded user info, queries, fragments,
@@ -146,6 +271,14 @@ monitor object when changing notification assignments; that potentially sensitiv
 object is held only for the acknowledgement round trip, never persisted or logged,
 and only its `notificationIDList` is changed.
 
+After Kuma confirms managed setup, URSA encrypts the provider's random scope,
+normalized saved server URL, and a bounded directory containing monitor ID, name,
+type, parent, tags, and active state. It does not duplicate JWTs, custom headers,
+monitor URLs, or full configurations. Notification Pause/Resume actions exist only
+when that binding resolves and carry the exact server into the non-exported receiver;
+the receiver re-resolves the current saved connection and enforces its current
+Access Profile and transport policy before opening a short-lived authenticated socket.
+
 Monitor editing follows the same bounded full-object round trip. The UI receives
 only typed fields; the freshly fetched raw object, including advanced or sensitive
 fields, remains inside the network adapter, is never persisted or logged, and is
@@ -157,22 +290,83 @@ an explicit named-target confirmation, with group-child removal as a separate op
 Notification assignment exposes only provider ID, display name, type, and default
 flag; the double-encoded provider configuration (including passwords, tokens, and
 destinations) is discarded inside the parser and never reaches UI state.
+The monitor-editor registry names the only wire fields each codec may change. Before
+an existing monitor is emitted, a runtime guard requires the freshly fetched type to
+match the draft and byte-equivalent JSON values for every unrelated field, including
+unknown future and credential-bearing fields. A guard failure stops locally. Monitor
+writes also require the global compatibility tier and the type-specific verified
+range; reads and the confirmed browser fallback remain available outside that range.
 
-Push diagnostics retain timestamps, normalized registration error categories, and
-local/end-to-end test outcomes in the existing non-backed-up push preferences. They
-never persist message bodies, monitor names, server URLs, or a second endpoint copy.
+A push monitor's heartbeat URL is a bearer-style write capability: anyone who knows
+it can submit status to that monitor. New monitors use a cryptographically random
+32-character alphanumeric token and send the exact in-memory token shown by the
+editor to Kuma. The URL is masked by default, excluded from logs and local caches,
+and protected from screenshots unless the user explicitly selects Off. Clipboard entries for
+it and the UnifiedPush endpoint suppress Android's sensitive-content preview. Copy,
+reveal, and native share are explicit user actions with an on-screen
+password-equivalent warning; once copied or shared, the destination is outside
+URSA's security boundary.
+
+Public-incident mutations are bound to the active saved server and status-page
+identity, pass through the `STATUS_INCIDENT_WRITE` access capability, and send only
+title, content, style, pin state, slug, and incident ID. Bodies remain in memory and
+are never logged or persisted by the authenticated adapter. A missing acknowledgement
+is surfaced as indeterminate and must be refreshed before retry, preventing blind
+duplicate creates after a late acknowledgement. The UI additionally requires an
+authenticated, write-verified connection before showing controls; this is presentation
+defence only, and repository enforcement remains authoritative.
+
+Push diagnostics retain timestamps, normalized registration/scope-repair categories,
+the last unexpected-unregister time, local/end-to-end test outcomes, and the random
+non-credential server scope required to clear only the repair that a verified refresh
+resolved. The scope is never rendered. The preferences never persist message bodies,
+monitor names or IDs, server URLs, or a second endpoint copy. Connector-confirmed
+failures use fixed local notification copy selected only from the normalized category; no distributor,
+endpoint, server, header, credential, or raw error value is rendered. Explicit user
+disconnects are marked for a two-minute callback window so they do not produce a
+false warning, and a successful registration clears that marker and any warning.
 End-to-end testing uses a random short correlation marker; it is removed after a
 match, failed Kuma acknowledgement, unregister, or explicit disconnect. The matching
 push is rendered as fixed local copy and is excluded from operational event history.
 Per-monitor transition modes, delivery severities, alert timing, and snooze expiry
 are non-sensitive preferences scoped by the managed provider's random server ID
-and monitor ID. The device-wide quiet-hours schedule is a separate non-sensitive
-preference. These settings contain no server address, endpoint, credential, or
-notification content. Delayed/repeating rendered alerts can contain infrastructure
+and monitor ID. The storm-correlation opt-in is one non-sensitive boolean under
+the same random server scope, and defaults off. The device-wide quiet-hours
+schedule is a separate non-sensitive preference. These settings contain no server
+address, endpoint, credential, or notification content. The effective-policy explanation derives only from these
+preferences, managed assignment/setup state, and Android notification availability;
+it does not render endpoints, server URLs, credentials, headers, or payload bodies.
+Local dependency rules are versioned, bounded, encrypted with the Keystore-backed
+AEAD, and keyed only by the random managed-provider scope and monitor IDs. Latest
+status mirrors the existing non-sensitive transition state. Rules apply only after
+the provider scope is bound to an exact saved connection; unknown and legacy
+payloads fail open. Suppressed events enter the encrypted bounded event history
+with the exact locally resolved parent name, never endpoint or credential data.
+Because Kuma's Webhook payload has no origin authentication, anyone who obtains
+both the delivery endpoint and the managed random scope could forge local status
+and influence opt-in suppression. Scope binding prevents endpoint-only or legacy
+messages from doing so; push input never authorizes a remote server mutation.
+Local group-threshold rules use the same encrypted scope and retain only a Kuma
+group ID, bounded managed child IDs, and the required Down count. They reconcile
+against the current authenticated group/provider membership whenever managed setup
+is refreshed. Invalid, overlapping, stale, or unreadable rules fail open rather
+than suppressing an alert. They never contain names, URLs, endpoints, credentials,
+headers, or notification content.
+Delayed/repeating rendered alerts can contain infrastructure
 detail, so
 they are encrypted with the same Keystore-backed Tink AEAD as other private local
 state. WorkManager receives only an opaque random alert ID; work tags and system
 notification IDs are derived from a truncated hash rather than exposing server scope.
+Managed notification group keys and summary IDs likewise derive from a truncated
+hash of that random scope. The summary reuses only bounded, newline-sanitized titles
+already visible in its child notifications; it never renders a server URL, endpoint,
+credential, access header, or raw payload body. Legacy and unbound notifications are
+not assigned to a managed group. Optional storm hints evaluate only monitor ID,
+numeric Down status, Android post time, and the already encrypted bounded parent/tag
+directory. Wording remains probabilistic, thresholds are fixed and documented, and
+the feature never suppresses child notifications. When triggered, only the bounded
+basis/count and probabilistic local explanation join that alert's encrypted timeline;
+no inferred root cause or notification payload is persisted.
 Custom channel sounds remain wholly owned by Android settings; URSA persists no
 sound URI or media permission.
 
@@ -186,30 +380,42 @@ Private routes contain a one-way server scope and bounded local ID, resolve only
 saved records, and reject user info, query, fragment, encoded paths, and unknown
 destinations. Other exported components are the
 AppWidget receiver and Quick Settings tile, which the platform requires to be
-exported and which only expose cached counts). No WebViews. `FLAG_SECURE` is applied
-app-wide in **release** builds so no screen can be captured or previewed in recents;
-it is intentionally skipped in **debuggable** builds so developers can take
-screenshots (release security is unaffected). The push service (`UrsaPushService`)
+exported and which only expose cached counts). No WebViews. `FLAG_SECURE` starts
+enabled before preferences or restored routes are rendered. The persisted mode then
+keeps it off, applies it only to secret-bearing routes, or keeps it app-wide. Mode
+changes and route transitions take effect without restart; navigation cannot clear
+Always or re-enable Off. The push service (`UrsaPushService`)
 is `exported="false"` - the
 UnifiedPush connector ships its own internal receiver that forwards to it - so there
-is no exported push surface. The acknowledge/snooze receiver is also non-exported
-and is reachable only through immutable, explicit app-created PendingIntents. The push body is treated as untrusted input: parsed
-tolerantly by `PushParse` and only rendered into a notification, never acted upon.
+is no exported push surface. The acknowledge/snooze and group-dismissal receivers
+are also non-exported and are reachable only through immutable, explicit app-created
+PendingIntents. The dismissal receiver validates the bounded managed server scope
+before reconciling a summary. The push body is treated as untrusted input and parsed
+tolerantly by `PushParse`. Manual and legacy bodies are render-only. A managed payload
+must match both an encrypted provider binding and its bounded monitor directory before
+server-scoped policy, timing, grouping, history association, or actions apply. Unknown
+identities still render immediately with their server identity removed and raise only
+fixed repair copy. Verified managed status may affect local alert state, but never
+authorizes a remote mutation.
 The optional persistent-status service is non-exported and user-started. Android 14+
 sees its declared `specialUse` type and free-form subtype; the required foreground
 permissions are normal/app-op permissions with no runtime data grant. Its ongoing
 notification is both the feature and the platform disclosure. It reuses the encrypted
 saved session only in memory and connects solely to the selected self-hosted server.
-The separate Wear app can receive an explicit, best-effort Data Layer session message
-only on its exact path and capability. Wear OS restricts Data Layer peers to the same
-package and signing identity. The bounded payload is validated again on-watch, then
-the server URL, token, and up to eight CR/LF-safe access headers are encrypted together
-with a Keystore-backed Tink AEAD. They are excluded from backup and never logged or
-rendered. Pairing is confirmed on the phone, credentials are never entered on-watch,
-and self-signed connections are refused because their session-only certificate trust
-cannot be transferred safely. The GitHub flavor enables this sender explicitly. The
-F-Droid phone and Wear flavors contain no Play Services source, manifest declarations,
-or dependencies.
+The separate Wear app can receive explicit, best-effort Data Layer session and clear
+messages only on exact paths and capabilities. Wear OS restricts Data Layer peers to
+the same package and signing identity. The bounded v2 payload includes a policy version
+and allowed action capabilities; it is validated again on-watch before the server URL,
+token, headers, and policy are encrypted together with a Keystore-backed Tink AEAD.
+They are excluded from backup and never logged or rendered. A new watch treats a
+released v1 payload as Manage for compatibility. A restricted profile is never sent
+to a legacy-only watch, and profile restriction triggers a best-effort clear request.
+An offline or old watch can retain a previously copied server-authoritative token until
+it reconnects, its data is cleared, or the token expires or is revoked on Kuma. Pairing
+is confirmed on the phone, credentials are never entered on-watch, and self-signed or
+explicitly HTTP-blocked connections are refused. The GitHub flavor enables this sender
+explicitly. The F-Droid phone and Wear flavors contain no Play Services source,
+manifest declarations, or dependencies.
 
 **CODE.** minSdk 26 keeps the app on a platform with modern security defaults.
 Dependencies are version-pinned in `gradle/libs.versions.toml`; Dependabot checks
@@ -237,13 +443,17 @@ only if URSA ever brokers other people's credentials.
 Prioritized by value/effort. Tracked items - none are silently dropped.
 
 1. ~~**`FLAG_SECURE`** on windows showing sessions/monitor data (PLATFORM-3).~~
-   **Done (2026-07-04)** - applied app-wide in `MainActivity`.
+   **Done (2026-07-04; refined 2026-10-16)** - secure startup plus persisted
+   Off, Sensitive screens only, and Always modes in `MainActivity`.
 2. ~~**Disable backup and device transfer** for the encrypted store (STORAGE-2).~~
    **Done (2026-08-21)** - `allowBackup=false` plus explicit legacy and Android
    12+ exclusion rules in both phone and Wear modules.
-3. **Scoped cleartext** - replace the global `usesCleartextTraffic` with a network-
-   security config that permits cleartext only for user-added hosts, and warn in the
-   UI (NETWORK-1).
+3. ~~**Scoped cleartext** - require explicit per-connection cleartext policy and
+   block denied authenticated request paths.~~ **Done (2026-09-23)** - new HTTP
+   connections require acknowledgement, existing HTTP records retain compatibility
+   until reviewed, and foreground, notification-action, and private-widget paths
+   enforce the saved policy. Android still requires the manifest-level capability
+   because network-security configuration cannot enumerate runtime user-added hosts.
 4. ~~**Trust-on-first-use** - prefer pinning the certificate the user accepted over
    blanket trust-all.~~ **Done (2026-08-24)** - the opt-in self-signed client pins
    the first valid leaf certificate for its lifetime and retains hostname verification.
@@ -252,9 +462,10 @@ Prioritized by value/effort. Tracked items - none are silently dropped.
    release CI validates the resolved dependency set.
 6. ~~**M3 push receiver** - minimal export surface, treat payload as untrusted.~~
    **Done (2026-07-04)** - `PushService` is `exported="false"`; body is parsed
-   tolerantly and render-only. Endpoint origin is not cryptographically validated
-   (Kuma sends plain JSON, not web-push-encrypted) - acceptable: render-only, and
-   the endpoint is a user-held secret.
+   tolerantly. Endpoint origin is not cryptographically validated (Kuma sends plain
+   JSON, not web-push-encrypted). Manual/legacy input remains render-only; managed
+   status can affect local policy only after its random scope matches an encrypted
+   connection binding, and cannot authorize remote mutation.
 7. ~~**Optional local-auth gate** (biometric/device credential) before revealing
    sessions (AUTH-2).~~ **Done (2026-08-24)** - the opt-in app lock uses
    BiometricPrompt with device-credential fallback and requires a cryptographic proof

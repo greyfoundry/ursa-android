@@ -21,8 +21,10 @@ By participating you agree to our [Code of Conduct](CODE_OF_CONDUCT.md).
 URSA is intentionally focused on monitoring and incident response. Core viewing,
 UnifiedPush, native Android surfaces, monitor and maintenance management, public
 status pages, advanced fleet dashboards, and the Wear OS companion are implemented.
-Advanced monitor-type-specific creation fields and server administration remain
-deliberate boundaries. Check the public roadmap before proposing a large surface.
+Every monitor type in the verified Uptime Kuma 2.5.6 catalogue has a native safe
+editing boundary or an explicit browser fallback. Broad server administration and
+raw configuration editing remain deliberate boundaries. Check the public roadmap
+before proposing a large surface.
 
 ## Development setup
 
@@ -41,6 +43,7 @@ export JAVA_HOME="<path-to-jbr>"     # e.g. Android Studio's bundled JBR
 ./gradlew :wear:assembleFdroidDebug :wear:assembleGithubDebug
 ./gradlew :wear:testFdroidDebugUnitTest :wear:testGithubDebugUnitTest
 ./gradlew :wear:lintFdroidDebug :wear:lintGithubDebug
+./gradlew :benchmarks:compileFdroidBenchmarkKotlin :benchmarks:compileGithubBenchmarkKotlin
 ```
 
 To run the app, install the debug APK and point it at an Uptime Kuma instance

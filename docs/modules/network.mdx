@@ -1,5 +1,5 @@
 ---
-last-updated: 2026-09-20
+last-updated: 2026-10-13
 owner: astoris
 status: stable
 ---
@@ -17,6 +17,19 @@ here so the rest of the app sees clean domain models.
 - `app/src/main/java/dev/astoris/ursa/core/network/KumaClient.kt` - one Socket.IO
   connection per server; auth, event wiring, pause/resume, heartbeat history,
   and server chart/important-transition queries.
+- `.../core/network/HeartbeatHistory.kt` - validates exact history intervals,
+  converts Kuma's UTC heartbeat timestamps, filters/deduplicates the requested
+  range, and reports bounded rows plus actual observed coverage.
+- `.../core/network/HeartbeatHistoryExport.kt` - streams the active monitor's
+  already-bounded history result as formula-safe CSV or escaped, accessible HTML
+  without retaining another whole-file copy in memory.
+- `.../core/network/HeartbeatSlaReport.kt` - derives a conservative time-weighted
+  SLA from retained UTC rows, identifies missing intervals, and streams coverage-
+  explicit CSV or accessible HTML reports.
+- `.../core/network/ExportSafety.kt` - retains friendly server labels but replaces
+  URL/IP/host-like labels with a short one-way server scope in exported documents.
+- `.../core/network/KumaCapabilities.kt` - strict stable-version parsing and the
+  live-tested 2.4.0-2.5.6 read/write and type-schema capability matrix.
 - `.../core/network/KumaParse.kt` - pure wire→domain parsing (kotlinx, no Android
   org.json) so it is JVM-unit-testable.
 - `.../core/network/StatusPageClient.kt` - Ktor client for public status pages.
@@ -28,8 +41,24 @@ here so the rest of the app sees clean domain models.
   encrypted disk cache lives in `core/storage/FaviconStore.kt`.
 - `.../core/network/ServerWebLink.kt` - pure construction of credential-free,
   confirmed external-browser dashboard and monitor links.
-- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.5 type catalogue,
-  typed common-field validation, safe patching, and create defaults.
+- `.../core/network/MonitorDraft.kt` - verified Kuma 2.5.6 type catalogue,
+  typed common-field validation, safe patching, create defaults, clone/preset
+  sanitization, and exact push heartbeat URL construction from a cryptographically
+  generated token.
+- `.../core/network/MonitorEditorRegistry.kt` - single metadata source for every
+  known 2.5.6 monitor type: verified range, native fields, sensitive fields,
+  defaults, validation/codec profile, field conditions/dependencies, fidelity,
+  transfer eligibility, help mode, browser fallback, and the unrelated-field
+  round-trip guard.
+- `.../core/network/MonitorImport.kt` - bounded CSV/tab-delimited parser and dry-run
+  classifier. It accepts only the documented non-secret common fields, validates
+  against the live compatibility/editor registry, and keeps every draft inactive
+  and unassigned.
+- `.../core/network/MonitorInventoryExport.kt` - deterministic bounded CSV and
+  accessible script-free HTML serialization of credential-free active-server
+  inventory metadata, with spreadsheet-formula and HTML escaping.
+- `.../core/network/PublicIncident.kt` - app-owned authenticated public-incident
+  identity, supported styles, validation, acknowledgement outcomes, and wire mapping.
 - `.../core/network/LocalServiceDiscovery.kt` - user-triggered Android DNS-SD;
   API 37 uses the system service picker without broad LAN permission, while older
   devices show a foreground result list and resolve only the selected service.
@@ -38,6 +67,11 @@ here so the rest of the app sees clean domain models.
   Android 17 runtime local-network access before an explicit test or connection.
 - `.../core/network/ConnectionFailure.kt` - maps transport/authentication/TLS/version
   failures to bounded user-action categories without exposing sensitive causes.
+- `.../core/network/ConnectionTransportPolicy.kt` - pure per-connection HTTP
+  classification and legacy/allow/deny policy evaluation used before sockets open.
+- `.../core/access/{AccessPolicy,MutationExecutor}.kt` - evaluates a saved
+  connection's client-side capabilities before any repository or notification
+  action can invoke a remote mutation.
 
 **exports**
 - `KumaClient(baseUrl, insecure, headers)` - `connect()`, bounded
@@ -45,15 +79,23 @@ here so the rest of the app sees clean domain models.
   `setup()`, `pauseMonitor(id)`, `resumeMonitor(id)`, `getBeats(id,hours)`,
   `getChartData(id,hours)`, `getImportantBeats(limit)`,
   `saveManagedPushNotification`, `deleteManagedPushNotification`, monitor
-  notification relation reads/updates, `testManagedPushNotification`, monitor
+  notification relation reads/updates, `testManagedPushNotification`, the
+  server-provided GameDig game catalogue and PM2 process list, monitor
   draft load/save/delete, group membership, tag definition/assignment calls,
   all six maintenance strategies and affected-monitor relations, sequential bulk
-  active-state changes, and `disconnect()`.
-  Flows: `state`,
-  `monitors`, `heartbeats`, `certs`, assignment-safe notification summaries,
+  active-state changes, previewed common-field bulk edits with per-item drift guards,
+  sequential dry-run-approved monitor imports with per-line results,
+  authenticated public-incident history plus
+  create/edit/unpin/resolve/delete,
+  and `disconnect()`.
+  Flows: `state`, `compatibility`,
+  `monitors`, `monitorListReady`, `heartbeats`, `certs`, assignment-safe notification summaries,
   and marked managed notifications.
 - `KumaParse` - `monitorList`, `monitor`, `heartbeat`, `heartbeatRows`,
-  `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`.
+  `beatRow(s)`, `cert`, `tags`, `managedPushNotifications`, `serverVersion`.
+- `KumaCapabilities.evaluate(version)` - classifies the authenticated server's
+  bounded reported stable version, exposes verified feature thresholds, and leaves
+  unknown/older/newer versions readable without claiming their writes are verified.
 - `StatusPageClient.fetch(baseUrl, slug): StatusPageView`; `discover(baseUrl)`
   resolves a custom-domain or configured default status page through Kuma's
   public entry contract. Fetch combines page configuration, the latest 100
@@ -68,15 +110,134 @@ here so the rest of the app sees clean domain models.
   queries, and fragments.
 - `MonitorDraftCodec` - maps a full monitor response to a bounded editor model,
   patches a newly fetched full object without removing unknown fields, and builds
-  typed defaults for common and SFTP create flows. Existing SFTP secret values are
+  typed defaults for common, keyword, JSON-query, WebSocket-transport, MQTT, SMTP,
+  NTP, Globalping Ping/DNS/HTTP, database, gRPC keyword, SNMPv1/v2c, RabbitMQ,
+  Kafka producer, Docker, Real Browser, RADIUS, GameDig, Steam, PM2, system-service,
+  Tailscale Ping, SIP OPTIONS, and SFTP create flows.
+  Keyword monitors map
+  Kuma's exact `keyword` and `invertKeyword` fields while the round-trip guard
+  preserves advanced HTTP options that URSA does not yet expose. Existing SFTP secret values are
   reduced to presence flags before the draft reaches UI state; blank replacement
   fields retain the server value only when the authentication method is unchanged.
+  JSON-query monitors map the exact expression, comparison operator, and expected
+  value while preserving retry and advanced HTTP fields.
+  WebSocket-upgrade monitors use `ws`/`wss` validation and map subprotocols,
+  accepted close codes, the invalid-accept-header compatibility switch, and
+  Basic, Bearer, OAuth2 client-credentials, or mTLS handshake authentication.
+  Their request headers use at most eight validated named entries; saved values
+  become presence flags in the draft and are retained from the fresh full object
+  unless explicitly replaced or removed. Unsupported legacy header JSON remains
+  opaque and unchanged. Saved Basic passwords and Bearer tokens likewise become
+  presence flags; blank fields retain the fresh server value only while the same
+  method remains selected, and switching methods clears the superseded secret.
+  OAuth client secrets and mTLS certificate material use the same presence-only
+  draft model. OAuth token/client metadata remains editable, while saved PEM
+  values stay masked and an optional saved CA can be explicitly removed.
+  MQTT maps Kuma's host/required port, optional username/password, topic,
+  WebSocket path, and keyword or JSON-query check modes. Saved passwords reduce
+  to a presence flag and can be retained, replaced, or explicitly removed.
+  Unknown future check modes and advanced `conditions` remain opaque and unchanged.
+  SMTP maps only the host, explicit port, and Kuma's exact `secure`, `nostarttls`,
+  or `starttls` security mode. URSA invents no SMTP port or security default;
+  existing null or future modes stay opaque and unchanged.
+  NTP maps host/UDP port and the stratum, absolute-offset, and root-dispersion
+  thresholds. New drafts match Kuma's port 123, five-minute interval, 48-second
+  timeout, and 5/1000/500 threshold defaults; existing null values remain null.
+  Globalping maps all three Kuma 2.5.6 subtypes through one editor contract. Ping
+  owns target, location, IP family, ICMP/TCP, conditional port, and packet count.
+  DNS owns host, optional resolver, port, record type, optional match expression,
+  and UDP/TCP. HTTP owns URL, optional resolver, protocol/method, accepted statuses,
+  TLS/expiry/cache-bust flags, response checks, and the existing bounded masked
+  header/authentication contracts. Unknown subtypes and future enums stay opaque.
+  Database monitors share one presence-only connection-string boundary. PostgreSQL,
+  MySQL/MariaDB, and Microsoft SQL Server map optional SQL; MySQL also masks its
+  separate password override. MongoDB maps an optional JSON-object command plus
+  JSONata/expected-value fields, and Redis maps its TLS-verification switch. Oracle
+  Database maps its service connection string, username, presence-only password,
+  and optional query; a blank query uses Kuma's `SELECT 1 FROM DUAL` check. Blank
+  saved secrets are recovered only from the freshly fetched full object. MySQL,
+  SQL Server, and Oracle nested result conditions remain opaque and unchanged.
+  gRPC keyword monitors map the target, inline protobuf, service and method names,
+  JSON-object request body, TLS switch, keyword, and inverse match. Saved request
+  bodies reduce to a presence flag and are recovered only from the freshly fetched
+  object when left blank; unused legacy metadata and future fields remain opaque.
+  SNMPv1/v2c maps host/port, community, numeric OID, request timeout, and the shared
+  JSONata comparison contract. Community strings become presence flags and blank
+  edits recover the fresh server value. SNMPv3 and unknown versions remain opaque
+  because Kuma 2.5.6 does not persist or return the v3 username through this API.
+  RabbitMQ maps the ordered management-node URL list, username, presence-only
+  password, and bounded request timeout. Kafka maps brokers, topic/message, TLS,
+  auto-topic creation, connection timeout, and `None`, PLAIN, SCRAM-SHA-256,
+  SCRAM-SHA-512, or AWS SASL. Passwords, AWS secret keys, and session tokens remain
+  outside editable state until replaced; unknown future SASL objects stay opaque.
+  Docker maps the exact `docker_container` and `docker_host` fields. Its host selector
+  consumes only ID, name, and type from Kuma's live `dockerHostList`; daemon endpoints
+  and user IDs are discarded before repository or UI state. Docker hosts remain
+  Kuma-managed and Docker monitors remain server-bound rather than portable.
+  Real Browser maps the target URL, optional `remote_browser` ID, and
+  `screenshot_delay`. Its selector consumes only ID and name from
+  `remoteBrowserList`; remote WebSocket URLs can contain access tokens and are
+  discarded before repository or UI state. Screenshot delay is limited to half
+  the monitor interval, matching Kuma. Remote-browser administration stays in Kuma,
+  and these monitors remain server-bound.
+  RADIUS maps `hostname`, UDP `port`, `radiusUsername`, `radiusPassword`,
+  `radiusSecret`, `radiusCalledStationId`, and `radiusCallingStationId`. Password
+  and shared-secret values reduce to presence flags before UI state; blank edits
+  recover them only from the freshly fetched full object, while replacements and
+  future fields remain inside the guarded round trip.
+  GameDig maps `hostname`, `port`, `game`, `gamedigGivenPortOnly`, and optional
+  `gamedigToken`. Its authenticated `getGameList` catalogue is reduced to the
+  primary key and display label before UI state; adapter options and extras are
+  discarded. Saved tokens become presence flags and blank edits recover the value
+  only from the freshly fetched full object. Steam owns only `hostname` and `port`;
+  the Steam Web API key remains global Kuma server configuration and is never
+  copied into a monitor draft.
+  PM2 and system-service share Kuma's `system_service_name` wire field. PM2's
+  authenticated process list is reduced to ID, name, and status for selection;
+  manual entry remains available when the local probe cannot run. System-service
+  applies Kuma's internal-name character policy before sending a write.
+  Tailscale Ping maps only `hostname`; SIP OPTIONS maps `hostname` and required
+  `port`. Both validate hostnames/IPs, remain credential-free, and require Kuma
+  2.5.0 or newer. Kuma's `info.isContainer` value hides their create flows when
+  the connected server is containerized or its environment is unknown, matching
+  Kuma's own host-tool boundary;
+  editing an existing monitor remains available without discarding its fields.
+  `MonitorDraftTransfer` creates a new inactive draft without the source ID,
+  history, server notification/group/tag assignments, server-managed selector IDs,
+  or any credential value/presence flag. Credential-free preset eligibility is
+  limited to registry-declared credential-free types and bounded safe-common
+  drafts; secret-bearing and server-bound full-fidelity types fail closed. Portable
+  copies reuse the sanitizer after both saved sessions authenticate. Exact
+  destination tag-name and notification-name/type matches are restored only when
+  unique; ambiguous or missing assignments stay empty for explicit review.
+  Push creation generates one 32-character alphanumeric token in the draft and sends
+  that same token to Kuma, so the masked copy/share URL shown before save is exact.
+  Existing push tokens are loaded only for the in-memory editor and are never stored
+  in URSA's local caches or logs.
+- `MonitorEditorRegistry` - gates create/edit on both the global write-verified
+  Kuma range and the type-specific schema floor. `MonitorRoundTripGuard` permits
+  only registry-declared wire fields to change; a mismatched type or changed
+  unrelated field blocks the save before `editMonitor` is emitted. Host-tool
+  monitor creation additionally respects the server-reported container environment.
 - `KumaParse.notifications` returns only provider ID, name, type, and default
   status. The double-encoded provider configuration is parsed only far enough to
   identify its type and is then discarded.
 - Monitor parsing retains server `parent`, `weight`, and tag-assignment metadata.
   Tag changes use Kuma's relation events after the full monitor save; values are
   retained so removals use the server's exact assignment key.
+- `MutationExecutor.execute(required, block)` - returns a typed completed,
+  denied, or no-active-connection result. A denied block is never invoked.
+- `data/repository/FleetRepository` reads all encrypted last-known snapshots without
+  network work. Its explicit refresh uses each saved connection's existing
+  cleartext policy, TLS choice, headers, and session token; runs at most two
+  temporary clients concurrently; records per-server results; and disconnects each
+  client even on failure or cancellation. Successful results retain the evaluated
+  reported version in the encrypted monitor snapshot for offline health diagnostics.
+- `PublicIncidentTarget` binds every public-incident action to its active server,
+  locally saved status-page ID, and Kuma slug. `IncidentMutationResult` distinguishes
+  applied, rejected, and acknowledgement-indeterminate outcomes.
+  `PublicIncidentHistory` maps the authenticated socket result used to refresh a
+  page immediately after mutation.
 
 **depends on**
 - `io.socket:socket.io-client`, `io.ktor:ktor-client-*`, kotlinx-serialization.
@@ -89,11 +250,27 @@ here so the rest of the app sees clean domain models.
 ## gotchas
 
 - Positional events (`heartbeatList`, `avgPing`, `uptime`, `certInfo`) are read from
-  `args[]` directly. Kuma 2.5.3 through 2.5.5 serialize their monitor IDs as
+  `args[]` directly. Kuma 2.5.3 through 2.5.6 serialize their monitor IDs as
   strings, normalized by `KumaParse.positionalInt`; object events go through
   `jsonAt()` → kotlinx → `KumaParse`.
 - `heartbeat` event is camelCase; `getMonitorBeats` rows are snake_case - two
   parse paths (`heartbeat` vs `beatRow`). Covered by `KumaParseTest`.
+- Kuma 2.5.6 `getMonitorBeats` accepts only a rolling hour count, not start/end
+  cursors or pagination. Exact custom ranges therefore request the smallest whole
+  hour window covering their start, filter locally in UTC, and fail closed beyond
+  a 30-day lookback/span. Results keep the newest 10,000 matching rows and expose
+  truncation and observed coverage instead of implying complete retention.
+- History export consumes that exact filtered result rather than issuing another
+  request. It carries requested and observed UTC intervals, server scope, monitor
+  identity, state, latency, and boundary metadata, but never addresses, heartbeat
+  messages, credentials, headers, notification data, or secrets.
+- SLA reporting estimates the nominal cadence from retained rows and carries a
+  state only to the next timely heartbeat, or one cadence when a gap is larger.
+  Leading, trailing, and internal gaps remain missing; maintenance and pending are
+  observed but excluded; SLA is `up / (up + down)`. Fewer than two usable samples
+  produce unavailable SLA rather than an inferred value. Every report states the
+  requested/observed UTC interval, coverage, missing periods, source truncation,
+  timezone, and calculation method.
 - `getMonitorChartData` returns Kuma-computed buckets with `up`, `down`,
   `avgPing`, and epoch-second `timestamp`. Thirty days uses a 720-hour request.
   Fleet loading is user-triggered, limited to four concurrent acknowledgements,
@@ -111,14 +288,45 @@ here so the rest of the app sees clean domain models.
   while changing only `notificationIDList`. That potentially sensitive raw object
   stays inside the client method and is never persisted or logged.
 - Existing monitor edits also fetch the full object immediately before saving and
-  change only fields present in the typed editor. SFTP supports username, path,
+  change only fields present in the typed editor. MQTT supports its native
+  connection, topic, and message-check fields while retaining future modes and
+  conditions. SMTP supports host, port, and transport-security mode while
+  preserving expiry/TLS and future fields. NTP supports its three quality
+  thresholds while retaining unrelated future fields. Globalping supports its Ping,
+  DNS, and HTTP subtype fields while retaining unrelated future fields. Database
+  types retain masked connection strings and the MySQL password override from the
+  fresh object while exposing only their verified native fields; MySQL and SQL
+  Server result conditions remain server-owned. Saved HTTP
+  headers and credentials become presence-only draft state; blank values retain the
+  fresh server secret only while the same entry or method remains selected.
+  SFTP supports username, path,
   password, private key, and optional passphrase replacement without exposing saved
   secret values. Other credentials, advanced settings, and fields introduced by
   future Kuma versions never leave the network adapter and are preserved in the
   round trip.
+- The compatibility flow and editor registry are both required for a monitor
+  write. This prevents common types from bypassing the global verified-version
+  boundary while still preserving the released catalogue API for callers.
+- Kuma's first unauthenticated `info` event intentionally omits the version. The
+  authenticated event updates the compatibility flow with the version and strict
+  Boolean `isContainer` value. Kuma 2.5.1 reports 2.5.0
+  and 2.5.2 reports 2.5.1; schema gates use that honest wire value. SFTP is hidden
+  and rejected below its verified 2.5.4 threshold, while common legacy monitor
+  types preserve their released behavior.
+- Reported version text is trimmed and capped before it reaches compatibility state,
+  encrypted snapshots, or UI diagnostics. Unknown or malformed values remain
+  readable diagnostics but never enable version-gated writes.
 - `emitAck` waits for a connected transport inside the same 15-second acknowledgement
   budget. An inaccessible server therefore cannot leave a UI action loading forever,
   and actions are not silently stranded in Socket.IO's pre-connect queue.
+- `monitorListReady` is separate from the monitor map so an authenticated server
+  with zero monitors is a valid completed snapshot rather than a refresh timeout.
+  The active repository uses that same readiness signal instead of treating an
+  empty live list as a cache miss, so deleting the last monitor replaces and
+  persists an older non-empty cache.
+  Fleet refresh retains cached data beside a typed failure, labels successful
+  results as freshly refreshed rather than live, updates the encrypted cache, and
+  never replaces the active client.
 - Connection state distinguishes transport failure from rejected credentials.
   `MonitorRepository.testServer` uses a short-lived client and never replaces or
   persists the active session; a newly added client is promoted only after login
@@ -126,6 +334,43 @@ here so the rest of the app sees clean domain models.
 - A failed late polling-to-WebSocket upgrade must not replace an already authenticated
   connected state. The socket itself remains authoritative when an upgrade error races
   successful authentication.
+- Remote monitor, maintenance, bulk, and managed-notification writes enter through
+  `MonitorRepository`'s guarded mutation boundary. The non-exported notification
+  action receiver uses the same evaluator before opening its short-lived socket.
+  Account bootstrap/login is classified separately because it occurs before a
+  saved connection policy exists. Access profiles are a client-side safety guard,
+  not server-side authorization; the Kuma session token remains authoritative.
+- Bulk common-field editing reads every selected monitor before preview, then
+  re-reads each item immediately before its sequential save. An item that already
+  matches is a successful retry; an item whose previewed values drifted is left
+  untouched and reported as failed. Only check interval, retry interval, and retry
+  count are eligible; state, assignments, secrets, and type-specific fields stay out.
+- Monitor import accepts at most 512 KiB and 500 parsed rows. Its header allowlist
+  excludes credentials and server assignments; values and numeric fields are
+  bounded, quoting is strict, and NUL/malformed documents fail closed. Every row is
+  checked against the current server's create-verified registry. Credential-bearing
+  or type-incomplete rows open the existing editor for explicit entry, while only
+  validated credential-free rows can be created automatically. Automatic creates
+  are inactive, unassigned, sequential, access-gated, and reported per source line.
+  Duplicate identity is conservatively type, name, and endpoint because the summary
+  model does not expose every type's port; reload after a partial result performs a
+  fresh server duplicate check before another attempt.
+- Inventory export sorts at most 10,000 rows by server-local monitor ID and carries
+  the captured UTC time, source count, truncation flag, server display name, and a
+  one-way server scope. It includes monitor identity/type/state/status/hierarchy,
+  tag names, and summary telemetry. Connection/monitor addresses, tag values,
+  headers, notification assignments, tokens, and protocol credentials have no
+  export path. CSV cells neutralize spreadsheet formula prefixes; HTML escapes all
+  untrusted metadata and contains no scripts or external assets.
+- Authenticated public-incident writes use the same boundary with
+  `STATUS_INCIDENT_WRITE`, require the target's server to remain active, and are
+  version-gated to the live-tested matrix. A missing or incomplete acknowledgement
+  is indeterminate, not a normal failure: callers must refresh before retrying so
+  an acknowledged-late create cannot be duplicated.
+- Kuma's public incident-history REST response can remain cached after an
+  authenticated mutation. For a saved page whose normalized base URL exactly
+  matches the active server, the viewer overlays the authenticated
+  `getIncidentHistory` socket result; unmatched public pages remain REST-only.
 - `MonitorRepository.addServerByToken` and `testServerToken` validate imported
   Kuma session JWTs through `loginByToken`. API keys are deliberately not sent to
   the socket because Kuma limits them to Prometheus HTTP Basic authentication.
@@ -134,6 +379,11 @@ here so the rest of the app sees clean domain models.
   accepts the same optional headers for REST when a saved page exactly matches a
   saved connection. Invalid names, empty values, duplicates, and CR/LF injection
   are rejected before a connection action is enabled; at most eight are stored.
+- Saved connections carry a tri-state cleartext policy. Missing legacy fields keep
+  existing HTTP servers working until reviewed; new HTTP servers require an explicit
+  acknowledgement; an explicit deny blocks login, testing, saved-server switching,
+  notification actions, and private widget refresh before a client is created.
+  This policy is separate from HTTPS certificate validation and self-signed trust.
 - Public-page addresses accept HTTP(S) only and reject embedded credentials,
   queries/fragments, traversal segments, encoded separators, invalid Kuma slugs,
   and conflicts between a pasted page URL and a separately entered slug.
