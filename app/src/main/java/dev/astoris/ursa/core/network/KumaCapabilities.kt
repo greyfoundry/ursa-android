@@ -68,7 +68,7 @@ data class KumaCompatibility(
  */
 object KumaCapabilities {
     val VERIFIED_MIN = KumaVersion(2, 4, 0)
-    val VERIFIED_MAX = KumaVersion(2, 5, 6)
+    val VERIFIED_MAX = KumaVersion(2, 5, 7)
 
     private const val MAX_REPORTED_VERSION_LENGTH = 64
 

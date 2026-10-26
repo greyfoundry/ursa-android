@@ -16,7 +16,8 @@ $images = @(
     [pscustomobject]@{ Version = "2.5.3"; ReportedVersion = "2.5.3"; Digest = "sha256:3e24e96c89efff0e3a4b0698cbdd36c15ad3022371db57166e5588853002ee5c" },
     [pscustomobject]@{ Version = "2.5.4"; ReportedVersion = "2.5.4"; Digest = "sha256:917318f9d7be5257f43ba412c766a473be336eb451d70744f3b482d0c3997c0e" },
     [pscustomobject]@{ Version = "2.5.5"; ReportedVersion = "2.5.5"; Digest = "sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe" },
-    [pscustomobject]@{ Version = "2.5.6"; ReportedVersion = "2.5.6"; Digest = "sha256:9912da7d7d9b6ddc0c2d904beb84d24689c1ed9c33b81419eb9008663a92a329" }
+    [pscustomobject]@{ Version = "2.5.6"; ReportedVersion = "2.5.6"; Digest = "sha256:9912da7d7d9b6ddc0c2d904beb84d24689c1ed9c33b81419eb9008663a92a329" },
+    [pscustomobject]@{ Version = "2.5.7"; ReportedVersion = "2.5.7"; Digest = "sha256:4b95dbe7ac5343b768f8e04e3035ccd59997872b1a35ab9b0f082d2cc279070e" }
 )
 
 $recordSeparator = [char]0x1e
@@ -123,6 +124,79 @@ function Wait-KumaHealthy {
         Start-Sleep -Seconds 1
     }
     throw "$Container did not become healthy"
+}
+
+function Get-MonitorStatuses {
+    param([Parameter(Mandatory)][int]$MonitorId)
+    $beats = Invoke-KumaEvent "getMonitorBeats" @($MonitorId, 1)
+    Assert-Ok $beats "get monitor beats"
+    return @($beats.Ack.data | Sort-Object id | ForEach-Object { [int]$_.status })
+}
+
+function Test-StatusSequence {
+    param(
+        [Parameter(Mandatory)][int[]]$Values,
+        [Parameter(Mandatory)][int[]]$Expected
+    )
+    $index = 0
+    foreach ($value in $Values) {
+        if ($value -eq $Expected[$index]) {
+            $index++
+            if ($index -eq $Expected.Count) { return $true }
+        }
+    }
+    return $false
+}
+
+function Wait-MonitorStatusSequence {
+    param(
+        [Parameter(Mandatory)][int]$MonitorId,
+        [Parameter(Mandatory)][int[]]$Expected,
+        [int]$Attempts = 90
+    )
+    for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
+        $statuses = @(Get-MonitorStatuses $MonitorId)
+        if (Test-StatusSequence $statuses $Expected) { return $statuses }
+        Start-Sleep -Seconds 1
+    }
+    throw "Monitor $MonitorId did not emit status sequence $($Expected -join ',')"
+}
+
+function Invoke-TcpRetryProbe {
+    $monitor = [ordered]@{
+        type = "port"; name = "URSA TCP retry probe"; description = "Temporary 2.5.7 matrix check"
+        parent = $null; hostname = "127.0.0.1"; port = 3001; url = ""; method = "GET"
+        interval = 20; retryInterval = 1; resendInterval = 0; maxretries = 2
+        retryOnlyOnStatusCodeFailure = $false; notificationIDList = [ordered]@{}
+        ignoreTls = $false; upsideDown = $false; expiryNotification = $false
+        domainExpiryNotification = $true; maxredirects = 10; accepted_statuscodes = @("200-299")
+        saveResponse = $false; saveErrorResponse = $true; responseMaxLength = 1024
+        dns_resolve_type = "A"; dns_resolve_server = ""; kafkaProducerBrokers = @()
+        kafkaProducerSaslOptions = [ordered]@{ mechanism = "None" }; rabbitmqNodes = @()
+        conditions = @(); active = $true; timeout = 48; smtpSecurity = "nostarttls"
+        expectedTlsAlert = "none"
+    }
+    $added = Invoke-KumaEvent "add" @(,$monitor)
+    Assert-Ok $added "add TCP retry monitor"
+    $monitorId = [int]$added.Ack.monitorID
+    try {
+        Wait-MonitorStatusSequence $monitorId @(1) | Out-Null
+        $full = Invoke-KumaEvent "getMonitor" @($monitorId)
+        Assert-Ok $full "get TCP retry monitor"
+        $full.Ack.monitor.smtpSecurity = "starttls"
+        $full.Ack.monitor.expiryNotification = $true
+        Assert-Ok (Invoke-KumaEvent "editMonitor" @(,$full.Ack.monitor)) "enable TCP STARTTLS"
+        Wait-MonitorStatusSequence $monitorId @(1, 2, 0) | Out-Null
+
+        $full = Invoke-KumaEvent "getMonitor" @($monitorId)
+        Assert-Ok $full "reload TCP retry monitor"
+        $full.Ack.monitor.smtpSecurity = "nostarttls"
+        $full.Ack.monitor.expiryNotification = $false
+        Assert-Ok (Invoke-KumaEvent "editMonitor" @(,$full.Ack.monitor)) "restore TCP plaintext"
+        Wait-MonitorStatusSequence $monitorId @(1, 2, 0, 1) | Out-Null
+    } finally {
+        Assert-Ok (Invoke-KumaEvent "deleteMonitor" @($monitorId, $false)) "delete TCP retry monitor"
+    }
 }
 
 function Invoke-CoreWriteProbe {
@@ -273,9 +347,14 @@ foreach ($image in $images) {
             $incidentWrites = "passed"
         }
         $writes = "not-run"
-        if (($image.Version -eq "2.4.0" -or $image.Version -eq "2.5.6") -and -not $SkipWriteProbe) {
+        if (($image.Version -eq "2.4.0" -or $image.Version -eq "2.5.7") -and -not $SkipWriteProbe) {
             Invoke-CoreWriteProbe
             $writes = "passed"
+        }
+        $tcpRetries = "not-run"
+        if ($image.Version -eq "2.5.7" -and -not $SkipWriteProbe) {
+            Invoke-TcpRetryProbe
+            $tcpRetries = "passed"
         }
         $results += [pscustomobject]@{
             Version = $image.Version
@@ -285,6 +364,7 @@ foreach ($image in $images) {
             Sftp = $typeNames -contains "sftp"
             CoreWrites = $writes
             IncidentWrites = $incidentWrites
+            TcpSslRetries = $tcpRetries
         }
     } finally {
         & docker rm -f $container 2>$null | Out-Null

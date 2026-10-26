@@ -38,7 +38,7 @@ class KumaCapabilitiesTest {
 
     @Test fun olderAndNewerStableVersionsAreReadOnlyUnverified() {
         val older = KumaCapabilities.evaluate("2.3.1")
-        val newer = KumaCapabilities.evaluate("2.5.7")
+        val newer = KumaCapabilities.evaluate("2.5.8")
 
         assertEquals(KumaCompatibilityTier.UNVERIFIED_OLDER, older.tier)
         assertEquals(KumaCompatibilityTier.UNVERIFIED_NEWER, newer.tier)
@@ -72,6 +72,7 @@ class KumaCapabilitiesTest {
         val v254 = KumaCapabilities.evaluate("2.5.4")
         val v255 = KumaCapabilities.evaluate("2.5.5")
         val v256 = KumaCapabilities.evaluate("2.5.6")
+        val v257 = KumaCapabilities.evaluate("2.5.7")
 
         assertTrue(v250.supports(KumaFeature.NTP_PM2_SCHEMA))
         assertTrue(v250.supportsMonitorSchema("system-service"))
@@ -85,6 +86,8 @@ class KumaCapabilitiesTest {
         assertTrue(v255.writesVerified)
         assertTrue(v256.supports(KumaFeature.SFTP_SCHEMA))
         assertTrue(v256.writesVerified)
+        assertTrue(v257.supports(KumaFeature.SFTP_SCHEMA))
+        assertTrue(v257.writesVerified)
         assertFalse(MonitorTypeCatalog.creatableFor(v253).any { it.key == "sftp" })
         assertTrue(MonitorTypeCatalog.creatableFor(v250).any { it.key == "system-service" })
         assertTrue(MonitorTypeCatalog.creatableFor(v250).any { it.key == "pm2" })
