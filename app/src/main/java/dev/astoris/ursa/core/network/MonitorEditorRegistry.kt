@@ -45,6 +45,8 @@ enum class MonitorEditorField {
     MQTT_JSON_QUERY_EXPRESSION,
     MQTT_JSON_QUERY_EXPECTED_VALUE,
     SMTP_SECURITY,
+    TCP_EXPIRY_NOTIFICATION,
+    TCP_EXPECTED_TLS_ALERT,
     NTP_STRATUM_THRESHOLD,
     NTP_TIME_OFFSET_THRESHOLD,
     NTP_ROOT_DISPERSION_THRESHOLD,
@@ -263,7 +265,20 @@ object MonitorEditorRegistry {
             validation = MonitorEditorValidation.KEYWORD,
             extraFields = setOf(MonitorEditorField.KEYWORD, MonitorEditorField.INVERT_KEYWORD),
         ),
-        definition("port", "TCP port", MonitorEndpointKind.HOST_PORT, createSupported = true),
+        definition(
+            "port",
+            "TCP port",
+            MonitorEndpointKind.HOST_PORT,
+            createSupported = true,
+            fidelity = MonitorEditorFidelity.FULL_FIDELITY,
+            extraFields = setOf(
+                MonitorEditorField.SMTP_SECURITY,
+                MonitorEditorField.TCP_EXPIRY_NOTIFICATION,
+                MonitorEditorField.TCP_EXPECTED_TLS_ALERT,
+            ),
+            transferEligibility = MonitorTransferEligibility.CREDENTIAL_FREE,
+            help = MonitorEditorHelp.FULL_NATIVE,
+        ),
         definition("ping", "Ping", MonitorEndpointKind.HOST, createSupported = true),
         definition(
             "dns",
@@ -958,8 +973,14 @@ object MonitorRoundTripGuard {
                 add("jsonPath")
                 add("expectedValue")
             }
-            if (definition.codec == MonitorEditorCodec.SMTP) {
+            if (MonitorEditorField.SMTP_SECURITY in definition.editableFields) {
                 add("smtpSecurity")
+            }
+            if (MonitorEditorField.TCP_EXPIRY_NOTIFICATION in definition.editableFields) {
+                add("expiryNotification")
+            }
+            if (MonitorEditorField.TCP_EXPECTED_TLS_ALERT in definition.editableFields) {
+                add("expectedTlsAlert")
             }
             if (definition.codec == MonitorEditorCodec.NTP) {
                 add("ntpStratumThreshold")

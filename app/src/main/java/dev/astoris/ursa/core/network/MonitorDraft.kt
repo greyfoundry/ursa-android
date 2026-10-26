@@ -103,6 +103,23 @@ enum class SmtpSecurityMode(val wireValue: String) {
     }
 }
 
+enum class TcpExpectedTlsAlert(val wireValue: String) {
+    NONE("none"),
+    CERTIFICATE_REQUIRED("certificate_required"),
+    BAD_CERTIFICATE("bad_certificate"),
+    CERTIFICATE_UNKNOWN("certificate_unknown"),
+    UNKNOWN_CA("unknown_ca"),
+    ACCESS_DENIED("access_denied"),
+    HANDSHAKE_FAILURE("handshake_failure"),
+    CERTIFICATE_EXPIRED("certificate_expired"),
+    CERTIFICATE_REVOKED("certificate_revoked");
+
+    companion object {
+        fun fromWire(value: String?): TcpExpectedTlsAlert? =
+            if (value == null) NONE else entries.firstOrNull { it.wireValue == value }
+    }
+}
+
 enum class SnmpVersion(val wireValue: String) {
     V1("1"),
     V2C("2c"),
@@ -284,6 +301,9 @@ data class MonitorDraft(
     val mqttJsonQueryExpectedValue: String = "",
     val smtpSecurityMode: SmtpSecurityMode? = null,
     val smtpSecurityEditable: Boolean = true,
+    val tcpExpiryNotification: Boolean = false,
+    val tcpExpectedTlsAlert: TcpExpectedTlsAlert? = TcpExpectedTlsAlert.NONE,
+    val tcpTlsFieldsEditable: Boolean = true,
     val ntpStratumThreshold: Int? = null,
     val ntpTimeOffsetThreshold: Int? = null,
     val ntpRootDispersionThreshold: Int? = null,
@@ -393,6 +413,7 @@ data class MonitorDraft(
                 resendIntervalSeconds = defaults.resendIntervalSeconds,
                 maxRetries = defaults.maxRetries,
                 pushToken = if (option.key == "push") newPushToken() else "",
+                smtpSecurityMode = if (option.key == "port") SmtpSecurityMode.PLAINTEXT else null,
                 ntpStratumThreshold = if (option.key == "ntp") 5 else null,
                 ntpTimeOffsetThreshold = if (option.key == "ntp") 1_000 else null,
                 ntpRootDispersionThreshold = if (option.key == "ntp") 500 else null,
@@ -569,6 +590,7 @@ enum class MonitorDraftError {
     MQTT_JSON_QUERY_EXPECTED_VALUE_REQUIRED,
     SMTP_HOST_INVALID,
     SMTP_SECURITY_REQUIRED,
+    TCP_EXPECTED_TLS_ALERT_REQUIRED,
     NTP_HOST_INVALID,
     NTP_STRATUM_THRESHOLD_INVALID,
     NTP_TIME_OFFSET_THRESHOLD_INVALID,
@@ -656,6 +678,8 @@ object MonitorDraftCodec {
         val mqttCheckType = MqttCheckType.fromWire(rawMqttCheckType)
         val rawSmtpSecurity = raw.string("smtpSecurity")
         val smtpSecurityMode = SmtpSecurityMode.fromWire(rawSmtpSecurity)
+            ?: SmtpSecurityMode.PLAINTEXT.takeIf { type == "port" && rawSmtpSecurity == null }
+        val tcpExpectedTlsAlert = TcpExpectedTlsAlert.fromWire(raw.string("expectedTlsAlert"))
         val rawSnmpVersion = raw.string("snmpVersion")
         val snmpVersion = SnmpVersion.fromWire(rawSnmpVersion)
         val kafkaSasl = raw["kafkaProducerSaslOptions"] as? JsonObject
@@ -759,7 +783,10 @@ object MonitorDraftCodec {
             mqttJsonQueryExpression = raw.string("jsonPath") ?: "$",
             mqttJsonQueryExpectedValue = raw.string("expectedValue").orEmpty(),
             smtpSecurityMode = smtpSecurityMode,
-            smtpSecurityEditable = type != "smtp" || smtpSecurityMode != null,
+            smtpSecurityEditable = type !in setOf("smtp", "port") || smtpSecurityMode != null,
+            tcpExpiryNotification = type == "port" && raw.boolean("expiryNotification"),
+            tcpExpectedTlsAlert = tcpExpectedTlsAlert,
+            tcpTlsFieldsEditable = type != "port" || smtpSecurityMode != null && tcpExpectedTlsAlert != null,
             ntpStratumThreshold = raw.int("ntpStratumThreshold"),
             ntpTimeOffsetThreshold = raw.int("ntpTimeOffsetThreshold"),
             ntpRootDispersionThreshold = raw.int("ntpRootDispersionThreshold"),
@@ -931,6 +958,10 @@ object MonitorDraftCodec {
             if (draft.smtpSecurityEditable && draft.smtpSecurityMode == null) {
                 return MonitorDraftError.SMTP_SECURITY_REQUIRED
             }
+        }
+        if (draft.type == "port" && draft.tcpTlsFieldsEditable) {
+            if (draft.smtpSecurityMode == null) return MonitorDraftError.SMTP_SECURITY_REQUIRED
+            if (draft.tcpExpectedTlsAlert == null) return MonitorDraftError.TCP_EXPECTED_TLS_ALERT_REQUIRED
         }
         if (definition.validation == MonitorEditorValidation.NTP) {
             if (!isValidHostOrIp(draft.endpoint)) return MonitorDraftError.NTP_HOST_INVALID
@@ -1291,7 +1322,7 @@ object MonitorDraftCodec {
         applyJsonQuery(values, draft)
         applyWebsocket(values, draft)
         applyMqtt(values, draft, raw)
-        applySmtp(values, draft)
+        applyTlsSecurity(values, draft)
         applyNtp(values, draft)
         applyGlobalping(values, draft)
         applyDatabase(values, draft, raw)
@@ -1355,7 +1386,7 @@ object MonitorDraftCodec {
         applyJsonQuery(mutable, draft)
         applyWebsocket(mutable, draft)
         applyMqtt(mutable, draft)
-        applySmtp(mutable, draft)
+        applyTlsSecurity(mutable, draft)
         applyNtp(mutable, draft)
         applyGlobalping(mutable, draft)
         applyDatabase(mutable, draft)
@@ -1665,14 +1696,15 @@ object MonitorDraftCodec {
         values["expectedValue"] = JsonPrimitive(draft.mqttJsonQueryExpectedValue)
     }
 
-    private fun applySmtp(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
-        if (
-            MonitorEditorRegistry.find(draft.type)?.codec != MonitorEditorCodec.SMTP ||
-            !draft.smtpSecurityEditable
-        ) {
-            return
-        }
+    private fun applyTlsSecurity(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {
+        val definition = MonitorEditorRegistry.find(draft.type) ?: return
+        if (MonitorEditorField.SMTP_SECURITY !in definition.editableFields || !draft.smtpSecurityEditable) return
+        if (draft.type == "port" && !draft.tcpTlsFieldsEditable) return
         draft.smtpSecurityMode?.let { values["smtpSecurity"] = JsonPrimitive(it.wireValue) }
+        if (draft.type == "port") {
+            values["expiryNotification"] = JsonPrimitive(draft.tcpExpiryNotification)
+            draft.tcpExpectedTlsAlert?.let { values["expectedTlsAlert"] = JsonPrimitive(it.wireValue) }
+        }
     }
 
     private fun applyNtp(values: MutableMap<String, JsonElement>, draft: MonitorDraft) {

@@ -85,6 +85,7 @@ import dev.astoris.ursa.core.network.MqttCheckType
 import dev.astoris.ursa.core.network.SftpAuthMethod
 import dev.astoris.ursa.core.network.SmtpSecurityMode
 import dev.astoris.ursa.core.network.SnmpVersion
+import dev.astoris.ursa.core.network.TcpExpectedTlsAlert
 import dev.astoris.ursa.core.network.WebSocketAuthMethod
 import dev.astoris.ursa.core.network.WebSocketOAuthAuthMethod
 import dev.astoris.ursa.data.model.AccessCapability
@@ -607,6 +608,9 @@ private fun MonitorForm(
         }
         if (definition?.codec == MonitorEditorCodec.SMTP) {
             SmtpFields(draft = draft, onDraftChange = onDraftChange)
+        }
+        if (draft.type == "port") {
+            TcpFields(draft = draft, onDraftChange = onDraftChange)
         }
         if (draft.type == "sftp") {
             SftpFields(draft = draft, onDraftChange = onDraftChange)
@@ -1492,6 +1496,87 @@ private fun SmtpFields(
     }
     Text(
         stringResource(R.string.monitor_smtp_security_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TcpFields(
+    draft: MonitorDraft,
+    onDraftChange: (MonitorDraft) -> Unit,
+) {
+    if (!draft.tcpTlsFieldsEditable) {
+        Text(
+            stringResource(R.string.monitor_tcp_browser_only),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        return
+    }
+    var securityMenuOpen by remember { mutableStateOf(false) }
+    var alertMenuOpen by remember { mutableStateOf(false) }
+    Text(stringResource(R.string.monitor_tcp_security_title), style = MaterialTheme.typography.titleSmall)
+    ExposedDropdownMenuBox(
+        expanded = securityMenuOpen,
+        onExpandedChange = { securityMenuOpen = it },
+    ) {
+        OutlinedTextField(
+            value = draft.smtpSecurityMode?.let { stringResource(it.tcpLabelRes) }.orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_tcp_security_label)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(securityMenuOpen) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = securityMenuOpen, onDismissRequest = { securityMenuOpen = false }) {
+            SmtpSecurityMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(mode.tcpLabelRes)) },
+                    onClick = {
+                        onDraftChange(draft.copy(smtpSecurityMode = mode))
+                        securityMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.monitor_tcp_security_help),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (draft.smtpSecurityMode != SmtpSecurityMode.PLAINTEXT) {
+        BooleanEditorRow(
+            checked = draft.tcpExpiryNotification,
+            label = stringResource(R.string.monitor_tcp_expiry_notification),
+            onCheckedChange = { onDraftChange(draft.copy(tcpExpiryNotification = it)) },
+        )
+    }
+    ExposedDropdownMenuBox(expanded = alertMenuOpen, onExpandedChange = { alertMenuOpen = it }) {
+        OutlinedTextField(
+            value = draft.tcpExpectedTlsAlert?.let { stringResource(it.labelRes) }.orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.monitor_tcp_expected_tls_alert)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(alertMenuOpen) },
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = alertMenuOpen, onDismissRequest = { alertMenuOpen = false }) {
+            TcpExpectedTlsAlert.entries.forEach { alert ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(alert.labelRes)) },
+                    onClick = {
+                        onDraftChange(draft.copy(tcpExpectedTlsAlert = alert))
+                        alertMenuOpen = false
+                    },
+                )
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.monitor_tcp_expected_tls_alert_help),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -2811,6 +2896,26 @@ private val SmtpSecurityMode.labelRes: Int
         SmtpSecurityMode.STARTTLS -> R.string.monitor_smtp_security_starttls
     }
 
+private val SmtpSecurityMode.tcpLabelRes: Int
+    get() = when (this) {
+        SmtpSecurityMode.PLAINTEXT -> R.string.monitor_tcp_security_none
+        SmtpSecurityMode.SMTPS -> R.string.monitor_tcp_security_ssl
+        SmtpSecurityMode.STARTTLS -> R.string.monitor_tcp_security_starttls
+    }
+
+private val TcpExpectedTlsAlert.labelRes: Int
+    get() = when (this) {
+        TcpExpectedTlsAlert.NONE -> R.string.monitor_tcp_expected_tls_alert_none
+        TcpExpectedTlsAlert.CERTIFICATE_REQUIRED -> R.string.monitor_tcp_expected_tls_alert_certificate_required
+        TcpExpectedTlsAlert.BAD_CERTIFICATE -> R.string.monitor_tcp_expected_tls_alert_bad_certificate
+        TcpExpectedTlsAlert.CERTIFICATE_UNKNOWN -> R.string.monitor_tcp_expected_tls_alert_certificate_unknown
+        TcpExpectedTlsAlert.UNKNOWN_CA -> R.string.monitor_tcp_expected_tls_alert_unknown_ca
+        TcpExpectedTlsAlert.ACCESS_DENIED -> R.string.monitor_tcp_expected_tls_alert_access_denied
+        TcpExpectedTlsAlert.HANDSHAKE_FAILURE -> R.string.monitor_tcp_expected_tls_alert_handshake_failure
+        TcpExpectedTlsAlert.CERTIFICATE_EXPIRED -> R.string.monitor_tcp_expected_tls_alert_certificate_expired
+        TcpExpectedTlsAlert.CERTIFICATE_REVOKED -> R.string.monitor_tcp_expected_tls_alert_certificate_revoked
+    }
+
 private val SnmpVersion.labelRes: Int
     get() = when (this) {
         SnmpVersion.V1 -> R.string.monitor_snmp_version_1
@@ -2991,6 +3096,7 @@ private fun validationMessage(error: MonitorDraftError): String = stringResource
             R.string.monitor_error_mqtt_json_query_expected_value
         MonitorDraftError.SMTP_HOST_INVALID -> R.string.monitor_error_smtp_host
         MonitorDraftError.SMTP_SECURITY_REQUIRED -> R.string.monitor_error_smtp_security
+        MonitorDraftError.TCP_EXPECTED_TLS_ALERT_REQUIRED -> R.string.monitor_error_tcp_expected_tls_alert
         MonitorDraftError.NTP_HOST_INVALID -> R.string.monitor_error_ntp_host
         MonitorDraftError.NTP_STRATUM_THRESHOLD_INVALID -> R.string.monitor_error_ntp_stratum_threshold
         MonitorDraftError.NTP_TIME_OFFSET_THRESHOLD_INVALID -> R.string.monitor_error_ntp_offset_threshold

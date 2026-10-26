@@ -73,8 +73,8 @@ class MonitorEditorRegistryTest {
         val v240 = KumaCapabilities.evaluate("2.4.0")
         val v253 = KumaCapabilities.evaluate("2.5.3")
         val v255 = KumaCapabilities.evaluate("2.5.5")
-        val newer = KumaCapabilities.evaluate("2.5.7")
-        val prerelease = KumaCapabilities.evaluate("2.5.6-beta.1")
+        val newer = KumaCapabilities.evaluate("2.5.8")
+        val prerelease = KumaCapabilities.evaluate("2.5.7-beta.1")
 
         assertTrue(MonitorEditorRegistry.writeVerified("http", v240))
         assertTrue(MonitorEditorRegistry.writeVerified("keyword", v240))
@@ -182,6 +182,20 @@ class MonitorEditorRegistryTest {
     }
 
     @Test
+    fun tcpDeclaresItsCompleteCredentialFreeTlsFields() {
+        val tcp = requireNotNull(MonitorEditorRegistry.find("port"))
+
+        assertTrue(tcp.createSupported)
+        assertEquals(MonitorEndpointKind.HOST_PORT, tcp.endpointKind)
+        assertEquals(MonitorEditorFidelity.FULL_FIDELITY, tcp.fidelity)
+        assertTrue(MonitorEditorField.SMTP_SECURITY in tcp.editableFields)
+        assertTrue(MonitorEditorField.TCP_EXPIRY_NOTIFICATION in tcp.editableFields)
+        assertTrue(MonitorEditorField.TCP_EXPECTED_TLS_ALERT in tcp.editableFields)
+        assertTrue(tcp.sensitiveFields.isEmpty())
+        assertEquals(MonitorTransferEligibility.CREDENTIAL_FREE, tcp.transferEligibility)
+    }
+
+    @Test
     fun ntpDeclaresItsVersionedDefaultsAndThresholdFields() {
         val ntp = requireNotNull(MonitorEditorRegistry.find("ntp"))
 
@@ -254,6 +268,7 @@ class MonitorEditorRegistryTest {
                 .filter {
                     it.type !in setOf(
                         "sftp",
+                        "port",
                         "globalping",
                         "grpc-keyword",
                         "rabbitmq",

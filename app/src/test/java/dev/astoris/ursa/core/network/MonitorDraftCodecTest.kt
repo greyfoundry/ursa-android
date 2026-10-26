@@ -3,6 +3,7 @@ package dev.astoris.ursa.core.network
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -1135,6 +1136,85 @@ class MonitorDraftCodecTest {
             assertEquals(raw["smtpSecurity"], updated["smtpSecurity"])
             assertEquals(raw["futureTls"], updated["futureTls"])
         }
+    }
+
+    @Test
+    fun newTcpPayloadMapsTlsAndExpectedAlertFields() {
+        val draft = MonitorDraft.create("port").copy(
+            name = "Secure IMAP",
+            endpoint = "imap.example.net",
+            port = 143,
+            smtpSecurityMode = SmtpSecurityMode.STARTTLS,
+            tcpExpiryNotification = true,
+            tcpExpectedTlsAlert = TcpExpectedTlsAlert.CERTIFICATE_REQUIRED,
+        )
+
+        assertNull(MonitorDraftCodec.validate(draft))
+        val payload = MonitorDraftCodec.newPayload(draft)
+
+        assertEquals("port", payload["type"]!!.jsonPrimitive.content)
+        assertEquals("starttls", payload["smtpSecurity"]!!.jsonPrimitive.content)
+        assertEquals(true, payload["expiryNotification"]!!.jsonPrimitive.booleanOrNull)
+        assertEquals("certificate_required", payload["expectedTlsAlert"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun tcpEditChangesOnlyDeclaredTlsFields() {
+        val raw = Json.parseToJsonElement(
+            """{
+                "id":46,"type":"port","name":"IMAP","hostname":"imap.internal","port":143,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":2,"active":true,
+                "notificationIDList":{},"smtpSecurity":"nostarttls","expiryNotification":false,
+                "expectedTlsAlert":"none","futureTcp":{"minimum":"TLSv1.3"}
+            }""",
+        ).jsonObject
+        val loaded = MonitorDraftCodec.from(raw)!!
+
+        assertEquals(SmtpSecurityMode.PLAINTEXT, loaded.smtpSecurityMode)
+        assertEquals(TcpExpectedTlsAlert.NONE, loaded.tcpExpectedTlsAlert)
+        val updated = MonitorDraftCodec.safeExistingPayload(
+            raw,
+            loaded.copy(
+                smtpSecurityMode = SmtpSecurityMode.SMTPS,
+                tcpExpiryNotification = true,
+                tcpExpectedTlsAlert = TcpExpectedTlsAlert.BAD_CERTIFICATE,
+            ),
+        )!!
+        assertEquals("secure", updated["smtpSecurity"]!!.jsonPrimitive.content)
+        assertEquals(true, updated["expiryNotification"]!!.jsonPrimitive.booleanOrNull)
+        assertEquals("bad_certificate", updated["expectedTlsAlert"]!!.jsonPrimitive.content)
+        assertEquals(raw["futureTcp"], updated["futureTcp"])
+    }
+
+    @Test
+    fun missingAndUnknownTcpTlsValuesRemainSafe() {
+        val legacy = Json.parseToJsonElement(
+            """{
+                "id":47,"type":"port","name":"Legacy","hostname":"legacy.internal","port":80,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"futureTcp":true
+            }""",
+        ).jsonObject
+        val legacyDraft = MonitorDraftCodec.from(legacy)!!
+        assertEquals(SmtpSecurityMode.PLAINTEXT, legacyDraft.smtpSecurityMode)
+        assertEquals(TcpExpectedTlsAlert.NONE, legacyDraft.tcpExpectedTlsAlert)
+
+        val future = Json.parseToJsonElement(
+            """{
+                "id":48,"type":"port","name":"Future","hostname":"future.internal","port":443,
+                "interval":60,"retryInterval":60,"resendInterval":0,"maxretries":0,"active":true,
+                "notificationIDList":{},"smtpSecurity":"future-tls","expiryNotification":true,
+                "expectedTlsAlert":"future-alert","futureTcp":true
+            }""",
+        ).jsonObject
+        val futureDraft = MonitorDraftCodec.from(future)!!
+        assertFalse(futureDraft.tcpTlsFieldsEditable)
+        val updated = MonitorDraftCodec.safeExistingPayload(future, futureDraft.copy(name = "Renamed"))!!
+        assertEquals("Renamed", updated["name"]!!.jsonPrimitive.content)
+        assertEquals(future["smtpSecurity"], updated["smtpSecurity"])
+        assertEquals(future["expiryNotification"], updated["expiryNotification"])
+        assertEquals(future["expectedTlsAlert"], updated["expectedTlsAlert"])
+        assertEquals(future["futureTcp"], updated["futureTcp"])
     }
 
     @Test
