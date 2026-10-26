@@ -77,13 +77,52 @@ class WidgetDataTest {
 
     @Test
     fun emptySelectionUsesABoundedDefaultSet() {
-        val monitors = (1..10).map { monitor(it, "Monitor $it", MonitorStatus.UP) }
+        val monitors = (1..20).map { monitor(it, "Monitor $it", MonitorStatus.UP) }
         val result = WidgetData.privateSnapshot(
             title = "Fleet",
             snapshot = MonitorSnapshot(monitors, 1L),
             selectedIds = emptySet(),
         )
         assertEquals(WidgetData.MAX_ROWS, result.rows.size)
+        assertEquals(12, WidgetData.MAX_ROWS)
+    }
+
+    @Test
+    fun privateSnapshotKeepsAllNineReportedRows() {
+        val monitors = (1..9).map { monitor(it, "Monitor $it", MonitorStatus.UP) }
+
+        val result = WidgetData.privateSnapshot(
+            title = "Fleet",
+            snapshot = MonitorSnapshot(monitors, 1L),
+            selectedIds = monitors.map(Monitor::id).toSet(),
+        )
+
+        assertEquals(9, result.rows.size)
+    }
+
+    @Test
+    fun visibleRowCountKeepsCompactRowsSafeAndTallRowsComplete() {
+        assertEquals(1, WidgetData.visibleRowCount(heightDp = 80f, showHistory = false))
+        assertEquals(7, WidgetData.visibleRowCount(heightDp = 180f, showHistory = false))
+        assertEquals(9, WidgetData.visibleRowCount(heightDp = 220f, showHistory = false))
+        assertEquals(9, WidgetData.visibleRowCount(heightDp = 300f, showHistory = true))
+        assertEquals(WidgetData.MAX_ROWS, WidgetData.visibleRowCount(heightDp = 400f, showHistory = false))
+    }
+
+    @Test
+    fun rowHistoryYieldsToMonitorCapacityForLargerWidgets() {
+        assertTrue(WidgetData.showsRowHistory(rowCount = 4, hasHistory = true, spacious = true))
+        assertTrue(!WidgetData.showsRowHistory(rowCount = 5, hasHistory = true, spacious = true))
+        assertTrue(!WidgetData.showsRowHistory(rowCount = 3, hasHistory = false, spacious = true))
+        assertTrue(!WidgetData.showsRowHistory(rowCount = 3, hasHistory = true, spacious = false))
+    }
+
+    @Test
+    fun denseRowsRequireBothMoreThanSixRowsAndEnoughHeight() {
+        assertTrue(!WidgetData.usesDenseRows(rowCount = 6, heightDp = 400f))
+        assertTrue(!WidgetData.usesDenseRows(rowCount = 9, heightDp = 95f))
+        assertTrue(WidgetData.usesDenseRows(rowCount = 7, heightDp = 180f))
+        assertTrue(WidgetData.usesDenseRows(rowCount = WidgetData.MAX_ROWS, heightDp = 400f))
     }
 
     @Test

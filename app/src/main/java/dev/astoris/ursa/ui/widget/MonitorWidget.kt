@@ -62,6 +62,11 @@ class MonitorWidget : GlanceAppWidget() {
         provideContent { WidgetContent(state) }
     }
 
+    override suspend fun onDelete(context: Context, glanceId: GlanceId) {
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
+        WidgetStore(context).removeConfig(appWidgetId)
+    }
+
     private suspend fun loadState(context: Context, id: GlanceId): WidgetViewState {
         LockStore.load(context)
         if (LockStore.enabled.value) return WidgetViewState(null, null, locked = true)
@@ -108,28 +113,48 @@ private val BarTrack = ColorProvider(Color(0xFFE1E8E3))
 private fun WidgetContent(state: WidgetViewState) {
     val context = LocalContext.current
     val size = LocalSize.current
-    val spacious = size.height.value >= 150f
-    val maxRows = ((size.height.value - 56f) / if (spacious) 36f else 26f)
-        .toInt().coerceIn(1, WidgetData.MAX_ROWS)
+    val widthDp = size.width.value
+    val heightDp = size.height.value
+    val spacious = heightDp >= 150f
     val snapshot = state.snapshot
-    Column(modifier = GlanceModifier.fillMaxSize().background(Bg).padding(8.dp)) {
+    val denseRows = WidgetData.usesDenseRows(snapshot?.rows?.size ?: 0, heightDp)
+    val showHistory = WidgetData.showsRowHistory(
+        rowCount = snapshot?.rows?.size ?: 0,
+        hasHistory = snapshot?.rows.orEmpty().any { it.recentStatuses.isNotEmpty() },
+        spacious = spacious,
+    )
+    val maxRows = WidgetData.visibleRowCount(heightDp, showHistory)
+    Column(
+        modifier = GlanceModifier.fillMaxSize().background(Bg).padding(
+            horizontal = 8.dp,
+            vertical = if (denseRows) 4.dp else 8.dp,
+        ),
+    ) {
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 snapshot?.title?.takeUnless { state.locked } ?: context.getString(R.string.app_name),
-                style = TextStyle(fontWeight = FontWeight.Bold, color = OnBg, fontSize = 14.sp),
+                style = TextStyle(
+                    fontWeight = FontWeight.Bold,
+                    color = OnBg,
+                    fontSize = if (denseRows) 13.sp else 14.sp,
+                ),
                 maxLines = 1,
-                modifier = GlanceModifier.width((size.width.value - 72f).coerceAtLeast(60f).dp),
+                modifier = GlanceModifier.width((widthDp - 72f).coerceAtLeast(60f).dp),
             )
             if (!state.locked) {
                 Text(
                     context.getString(R.string.widget_refresh),
-                    style = TextStyle(color = Green, fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                    style = TextStyle(
+                        color = Green,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = if (denseRows) 11.sp else 12.sp,
+                    ),
                     modifier = GlanceModifier.padding(start = 8.dp)
                         .clickable(actionRunCallback<RefreshWidgetAction>()),
                 )
             }
         }
-        Spacer(GlanceModifier.height(2.dp))
+        if (!denseRows) Spacer(GlanceModifier.height(2.dp))
         if (state.locked) {
             Text(
                 context.getString(R.string.widget_locked),
@@ -152,23 +177,26 @@ private fun WidgetContent(state: WidgetViewState) {
             } else {
                 context.getString(R.string.widget_no_urgent)
             }
-            Text(
-                "$attention; ${freshnessLabel(context, snapshot.updatedAt)}",
-                style = TextStyle(
-                    color = if (snapshot.urgentCount > 0) Red else Muted,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 10.sp,
-                ),
-                maxLines = 1,
-            )
-            Spacer(GlanceModifier.height(2.dp))
+            if (!denseRows) {
+                Text(
+                    "$attention; ${freshnessLabel(context, snapshot.updatedAt)}",
+                    style = TextStyle(
+                        color = if (snapshot.urgentCount > 0) Red else Muted,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 10.sp,
+                    ),
+                    maxLines = 1,
+                )
+                Spacer(GlanceModifier.height(2.dp))
+            }
             snapshot.rows.take(maxRows).forEach { row ->
                 WidgetMonitorRow(
                     context,
                     checkNotNull(state.config),
                     row,
-                    size.width.value,
-                    spacious && snapshot.rows.size > 1,
+                    widthDp,
+                    showHistory && snapshot.rows.size > 1,
+                    denseRows,
                 )
             }
             if (spacious) {
@@ -215,19 +243,26 @@ private fun WidgetMonitorRow(
     row: WidgetRow,
     widthDp: Float,
     showHistory: Boolean,
+    dense: Boolean,
 ) {
     Column(
-        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 2.dp)
+        modifier = GlanceModifier.fillMaxWidth().padding(vertical = if (dense) 0.dp else 1.dp)
             .clickable(rowIntent(context, config, row.id)),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Spacer(GlanceModifier.size(8.dp).background(statusColor(row.status)))
-            Spacer(GlanceModifier.width(7.dp))
+            Spacer(GlanceModifier.size(if (dense) 6.dp else 8.dp).background(statusColor(row.status)))
+            Spacer(GlanceModifier.width(if (dense) 5.dp else 7.dp))
             Text(
                 row.name,
-                style = TextStyle(color = OnBg, fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                style = TextStyle(
+                    color = OnBg,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (dense) 10.sp else 12.sp,
+                ),
                 maxLines = 1,
-                modifier = GlanceModifier.width((widthDp - 112f).coerceAtLeast(56f).dp),
+                modifier = GlanceModifier.width(
+                    (widthDp - if (dense) 100f else 112f).coerceAtLeast(56f).dp,
+                ),
             )
             val metric = buildString {
                 row.pingMs?.let { append("${it}ms") }
@@ -236,7 +271,9 @@ private fun WidgetMonitorRow(
                     append(String.format(Locale.US, "%.1f%%", it.coerceIn(0.0, 100.0)))
                 }
             }
-            if (metric.isNotEmpty()) Text(metric, style = TextStyle(color = Muted, fontSize = 10.sp))
+            if (metric.isNotEmpty()) {
+                Text(metric, style = TextStyle(color = Muted, fontSize = if (dense) 9.sp else 10.sp))
+            }
         }
         if (showHistory && row.recentStatuses.isNotEmpty()) {
             Row(modifier = GlanceModifier.padding(start = 15.dp, top = 2.dp)) {

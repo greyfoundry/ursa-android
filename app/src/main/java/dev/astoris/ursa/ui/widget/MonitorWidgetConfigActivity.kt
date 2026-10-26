@@ -295,6 +295,17 @@ private fun WidgetConfigScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+                stringResource(
+                    if (state.source == WidgetSource.PRIVATE_SERVER) {
+                        R.string.widget_config_private_help
+                    } else {
+                        R.string.widget_config_public_help
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             val sources = if (state.source == WidgetSource.PRIVATE_SERVER) state.connections else state.pages
             if (sources.isEmpty()) {
                 Text(

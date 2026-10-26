@@ -37,8 +37,17 @@ data class WidgetSnapshot(
 )
 
 object WidgetData {
-    const val MAX_ROWS = 6
+    const val MAX_ROWS = 12
     const val MAX_RECENT_STATUSES = 12
+
+    fun visibleRowCount(heightDp: Float, showHistory: Boolean): Int =
+        ((heightDp - 48f) / if (showHistory) 26f else 18f).toInt().coerceIn(1, MAX_ROWS)
+
+    fun showsRowHistory(rowCount: Int, hasHistory: Boolean, spacious: Boolean): Boolean =
+        spacious && hasHistory && rowCount in 2..4
+
+    fun usesDenseRows(rowCount: Int, heightDp: Float): Boolean =
+        rowCount > 6 && visibleRowCount(heightDp, showHistory = false) > 6
 
     fun mergeLatestHeartbeats(
         monitors: List<Monitor>,
