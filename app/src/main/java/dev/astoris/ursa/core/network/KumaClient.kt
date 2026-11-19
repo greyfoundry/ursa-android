@@ -167,7 +167,7 @@ class KumaClient(
                 _state.value = ConnectionState.Error
             } else {
                 payload?.let {
-                    _monitors.value = KumaParse.monitorList(it)
+                    _monitors.value = withKnownStatus(KumaParse.monitorList(it))
                     _monitorListReady.value = true
                 }
             }
@@ -190,7 +190,7 @@ class KumaClient(
         }
         s.on("updateMonitorIntoList") { args ->
             args.jsonAt(0)?.let { obj ->
-                val updates = KumaParse.monitorList(obj)
+                val updates = withKnownStatus(KumaParse.monitorList(obj))
                 _monitors.update { it + updates }
             }
         }
@@ -214,7 +214,13 @@ class KumaClient(
         s.on("heartbeatList") { args ->
             val id = KumaParse.positionalInt(args.getOrNull(0)) ?: return@on
             args.jsonArrayAt(1)?.let { arr ->
-                _beatHistory.update { it + (id to KumaParse.beatRows(arr)) }
+                val rows = KumaParse.beatRows(arr)
+                _beatHistory.update { it + (id to rows) }
+                // The newest row is the monitor's current state; without this the monitor stays
+                // PENDING until its next live heartbeat (and forever in an offline snapshot).
+                rows.lastOrNull()?.let { last ->
+                    updateMonitor(id) { it.copy(status = last.status, ping = last.ping ?: it.ping) }
+                }
             }
         }
 
@@ -703,6 +709,30 @@ class KumaClient(
                 s.emit(event, data, ack)
             }
         }
+
+    /**
+     * A monitor list from the server has no status (the parsed Monitor defaults to PENDING).
+     * Keep the status the client already knows: from the previous monitor state, else from the
+     * newest beat in the history (heartbeatList can arrive before the monitor list).
+     */
+    private fun withKnownStatus(fresh: Map<Int, Monitor>): Map<Int, Monitor> {
+        val previous = _monitors.value
+        val history = _beatHistory.value
+        return fresh.mapValues { (id, monitor) ->
+            val known = previous[id]
+            val last = history[id]?.lastOrNull()
+            when {
+                known != null -> monitor.copy(
+                    status = known.status,
+                    ping = known.ping,
+                    avgPing = known.avgPing,
+                    uptime24h = known.uptime24h,
+                )
+                last != null -> monitor.copy(status = last.status, ping = last.ping)
+                else -> monitor
+            }
+        }
+    }
 
     private inline fun updateMonitor(id: Int, transform: (Monitor) -> Monitor) {
         _monitors.update { current -> current[id]?.let { current + (id to transform(it)) } ?: current }
