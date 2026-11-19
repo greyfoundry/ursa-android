@@ -216,11 +216,7 @@ class KumaClient(
             args.jsonArrayAt(1)?.let { arr ->
                 val rows = KumaParse.beatRows(arr)
                 _beatHistory.update { it + (id to rows) }
-                // The newest row is the monitor's current state; without this the monitor stays
-                // PENDING until its next live heartbeat (and forever in an offline snapshot).
-                rows.lastOrNull()?.let { last ->
-                    updateMonitor(id) { it.copy(status = last.status, ping = last.ping ?: it.ping) }
-                }
+                updateMonitor(id) { MonitorStatusMerge.withNewestBeat(it, rows) }
             }
         }
 
@@ -710,31 +706,8 @@ class KumaClient(
             }
         }
 
-    /**
-     * A monitor list from the server has no status (the parsed Monitor defaults to PENDING).
-     * Keep the status the client already knows. The newest beat of this session wins
-     * (heartbeatList can arrive before the monitor list, and live beats are added to the
-     * history); else keep the previous monitor state, for example from the cached snapshot.
-     */
-    private fun withKnownStatus(fresh: Map<Int, Monitor>): Map<Int, Monitor> {
-        val previous = _monitors.value
-        val history = _beatHistory.value
-        return fresh.mapValues { (id, monitor) ->
-            val known = previous[id]
-            val last = history[id]?.lastOrNull()
-            val kept = if (known != null) {
-                monitor.copy(
-                    status = known.status,
-                    ping = known.ping,
-                    avgPing = known.avgPing,
-                    uptime24h = known.uptime24h,
-                )
-            } else {
-                monitor
-            }
-            if (last != null) kept.copy(status = last.status, ping = last.ping ?: kept.ping) else kept
-        }
-    }
+    private fun withKnownStatus(fresh: Map<Int, Monitor>): Map<Int, Monitor> =
+        MonitorStatusMerge.withKnownStatus(fresh, _monitors.value, _beatHistory.value)
 
     private inline fun updateMonitor(id: Int, transform: (Monitor) -> Monitor) {
         _monitors.update { current -> current[id]?.let { current + (id to transform(it)) } ?: current }
