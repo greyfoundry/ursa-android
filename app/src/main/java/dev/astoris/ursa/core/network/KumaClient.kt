@@ -167,7 +167,7 @@ class KumaClient(
                 _state.value = ConnectionState.Error
             } else {
                 payload?.let {
-                    _monitors.value = KumaParse.monitorList(it)
+                    _monitors.value = withKnownStatus(KumaParse.monitorList(it))
                     _monitorListReady.value = true
                 }
             }
@@ -190,7 +190,7 @@ class KumaClient(
         }
         s.on("updateMonitorIntoList") { args ->
             args.jsonAt(0)?.let { obj ->
-                val updates = KumaParse.monitorList(obj)
+                val updates = withKnownStatus(KumaParse.monitorList(obj))
                 _monitors.update { it + updates }
             }
         }
@@ -214,7 +214,9 @@ class KumaClient(
         s.on("heartbeatList") { args ->
             val id = KumaParse.positionalInt(args.getOrNull(0)) ?: return@on
             args.jsonArrayAt(1)?.let { arr ->
-                _beatHistory.update { it + (id to KumaParse.beatRows(arr)) }
+                val rows = KumaParse.beatRows(arr)
+                _beatHistory.update { it + (id to rows) }
+                updateMonitor(id) { MonitorStatusMerge.withNewestBeat(it, rows) }
             }
         }
 
@@ -703,6 +705,9 @@ class KumaClient(
                 s.emit(event, data, ack)
             }
         }
+
+    private fun withKnownStatus(fresh: Map<Int, Monitor>): Map<Int, Monitor> =
+        MonitorStatusMerge.withKnownStatus(fresh, _monitors.value, _beatHistory.value)
 
     private inline fun updateMonitor(id: Int, transform: (Monitor) -> Monitor) {
         _monitors.update { current -> current[id]?.let { current + (id to transform(it)) } ?: current }
