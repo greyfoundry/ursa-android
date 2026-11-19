@@ -712,8 +712,9 @@ class KumaClient(
 
     /**
      * A monitor list from the server has no status (the parsed Monitor defaults to PENDING).
-     * Keep the status the client already knows: from the previous monitor state, else from the
-     * newest beat in the history (heartbeatList can arrive before the monitor list).
+     * Keep the status the client already knows. The newest beat of this session wins
+     * (heartbeatList can arrive before the monitor list, and live beats are added to the
+     * history); else keep the previous monitor state, for example from the cached snapshot.
      */
     private fun withKnownStatus(fresh: Map<Int, Monitor>): Map<Int, Monitor> {
         val previous = _monitors.value
@@ -721,16 +722,17 @@ class KumaClient(
         return fresh.mapValues { (id, monitor) ->
             val known = previous[id]
             val last = history[id]?.lastOrNull()
-            when {
-                known != null -> monitor.copy(
+            val kept = if (known != null) {
+                monitor.copy(
                     status = known.status,
                     ping = known.ping,
                     avgPing = known.avgPing,
                     uptime24h = known.uptime24h,
                 )
-                last != null -> monitor.copy(status = last.status, ping = last.ping)
-                else -> monitor
+            } else {
+                monitor
             }
+            if (last != null) kept.copy(status = last.status, ping = last.ping ?: kept.ping) else kept
         }
     }
 
